@@ -1,0 +1,205 @@
+{
+  "rules": [
+    {
+      "pattern": "**/*.dart",
+      "language": "dart"
+    },
+    {
+      "pattern": "**/*.yaml",
+      "language": "yaml"
+    },
+    {
+      "pattern": "**/*.json",
+      "language": "json"
+    },
+    {
+      "pattern": "**/*.md",
+      "language": "markdown"
+    },
+    {
+      "pattern": "**/*.dart",
+      "lint": "error",
+      "rule": "avoid_renderflex_overflow",
+      "description": "Always use dynamic sizing or constraints for navigation bars and flex widgets to prevent RenderFlex overflow. Use calculated heights based on content, and avoid hardcoded heights that may not fit all children."
+    },
+    {
+      "pattern": "**/*.dart",
+      "lint": "error",
+      "rule": "auto_correct_pixel_overflow",
+      "description": "Automatically fix RenderFlex overflow errors by making overflowing Row elements horizontally scrollable (SingleChildScrollView) or wrapping them responsively. All screen elements must adapt to screen size to prevent pixel overflow."
+    }
+  ],
+  "ignore": [
+    ".dart_tool/**",
+    "build/**",
+    ".pub-cache/**",
+    ".pub/**",
+    "*.g.dart",
+    "*.freezed.dart"
+  ],
+  "crm_app_structure": {
+    "screens": {
+      "auth": {
+        "login": {
+          "path": "lib/screens/auth/login_screen.dart",
+          "dependencies": ["firebase_auth", "provider"],
+          "functions": ["signIn", "resetPassword", "validateEmail"]
+        },
+        "register": {
+          "path": "lib/screens/auth/register_screen.dart",
+          "dependencies": ["firebase_auth", "provider"],
+          "functions": ["signUp", "validatePassword", "createUserProfile"]
+        }
+      },
+      "dashboard": {
+        "main": {
+          "path": "lib/screens/dashboard/dashboard_screen.dart",
+          "dependencies": ["provider", "fl_chart"],
+          "functions": ["loadDashboardData", "refreshStats", "handleNotifications"]
+        }
+      },
+      "customers": {
+        "list": {
+          "path": "lib/screens/customers/customer_list_screen.dart",
+          "dependencies": ["provider", "flutter_slidable"],
+          "functions": ["loadCustomers", "searchCustomers", "filterCustomers"]
+        },
+        "details": {
+          "path": "lib/screens/customers/customer_details_screen.dart",
+          "dependencies": ["provider", "url_launcher"],
+          "functions": ["loadCustomerDetails", "updateCustomer", "deleteCustomer"]
+        },
+        "add": {
+          "path": "lib/screens/customers/add_customer_screen.dart",
+          "dependencies": ["provider", "image_picker"],
+          "functions": ["createCustomer", "validateCustomerData", "uploadCustomerImage"]
+        }
+      },
+      "leads": {
+        "list": {
+          "path": "lib/screens/leads/lead_list_screen.dart",
+          "dependencies": ["provider", "flutter_slidable"],
+          "functions": ["loadLeads", "searchLeads", "filterLeads"]
+        },
+        "details": {
+          "path": "lib/screens/leads/lead_details_screen.dart",
+          "dependencies": ["provider", "url_launcher"],
+          "functions": ["loadLeadDetails", "updateLead", "convertLead"]
+        }
+      },
+      "tasks": {
+        "list": {
+          "path": "lib/screens/tasks/task_list_screen.dart",
+          "dependencies": ["provider", "flutter_slidable"],
+          "functions": ["loadTasks", "createTask", "updateTaskStatus"]
+        },
+        "calendar": {
+          "path": "lib/screens/tasks/task_calendar_screen.dart",
+          "dependencies": ["table_calendar", "provider"],
+          "functions": ["loadCalendarEvents", "addEvent", "updateEvent"]
+        }
+      },
+      "reports": {
+        "analytics": {
+          "path": "lib/screens/reports/analytics_screen.dart",
+          "dependencies": ["fl_chart", "provider"],
+          "functions": ["loadAnalytics", "generateReport", "exportData"]
+        }
+      },
+      "settings": {
+        "profile": {
+          "path": "lib/screens/settings/profile_screen.dart",
+          "dependencies": ["provider", "image_picker"],
+          "functions": ["updateProfile", "changePassword", "updateNotifications"]
+        }
+      }
+    },
+    "data_management": {
+      "models": {
+        "path": "lib/models/",
+        "files": [
+          "user_model.dart",
+          "customer_model.dart",
+          "lead_model.dart",
+          "task_model.dart",
+          "report_model.dart"
+        ]
+      },
+      "services": {
+        "path": "lib/services/",
+        "files": [
+          "auth_service.dart",
+          "customer_service.dart",
+          "lead_service.dart",
+          "task_service.dart",
+          "storage_service.dart"
+        ]
+      },
+      "providers": {
+        "path": "lib/providers/",
+        "files": [
+          "auth_provider.dart",
+          "customer_provider.dart",
+          "lead_provider.dart",
+          "task_provider.dart",
+          "theme_provider.dart"
+        ]
+      }
+    },
+    "utils": {
+      "path": "lib/utils/",
+      "files": [
+        "constants.dart",
+        "theme.dart",
+        "responsive.dart",
+        "validators.dart",
+        "helpers.dart"
+      ]
+    },
+    "widgets": {
+      "path": "lib/widgets/",
+      "files": [
+        "custom_app_bar.dart",
+        "custom_drawer.dart",
+        "loading_indicator.dart",
+        "error_widget.dart",
+        "custom_text_field.dart"
+      ]
+    },
+    "responsive_design": {
+      "breakpoints": {
+        "mobile": 600,
+        "tablet": 900,
+        "desktop": 1200
+      },
+      "layouts": {
+        "mobile": "lib/layouts/mobile_layout.dart",
+        "tablet": "lib/layouts/tablet_layout.dart",
+        "desktop": "lib/layouts/desktop_layout.dart"
+      }
+    },
+    "firebase_config": {
+      "auth": {
+        "email_password": true,
+        "google_signin": true,
+        "phone_auth": true
+      },
+      "firestore": {
+        "collections": [
+          "users",
+          "customers",
+          "leads",
+          "tasks",
+          "reports"
+        ]
+      },
+      "storage": {
+        "paths": [
+          "profile_images",
+          "customer_documents",
+          "lead_attachments"
+        ]
+      }
+    }
+  }
+} 
