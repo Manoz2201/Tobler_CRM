@@ -146,21 +146,20 @@ jobs:
         supabase projects list || echo "Could not list projects - check access token"
         
         # Link to your Supabase project
-        # Replace 'your-project-ref' with your actual project reference
-        # You can find this in your Supabase dashboard URL
-        echo "Linking to Supabase project..."
-        # supabase link --project-ref your-project-ref
+        # Project: tobler-crm (vlapmwwroraolpgyfrtg)
+        echo "Linking to Supabase project: tobler-crm..."
+        supabase link --project-ref vlapmwwroraolpgyfrtg
         
         # Push database migrations
         echo "Pushing database migrations..."
-        # supabase db push
+        supabase db push
         
         # Deploy Edge Functions (if any)
         echo "Deploying Edge Functions..."
-        # supabase functions deploy
+        supabase functions deploy
         
         # Deploy any custom configurations
         echo "Deploying configurations..."
-        # supabase config push
+        supabase config push
         
         echo "✅ Supabase deployment completed successfully!" 
