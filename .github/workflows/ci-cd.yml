@@ -118,6 +118,13 @@ jobs:
       run: |
         echo "Deploying to Supabase..."
         
+        # Check if secrets are available
+        if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+          echo "Warning: SUPABASE_ACCESS_TOKEN not set. Skipping Supabase deployment."
+          echo "Please add SUPABASE_ACCESS_TOKEN to your repository secrets."
+          exit 0
+        fi
+        
         # Link to your Supabase project (if not already linked)
         # supabase link --project-ref your-project-ref
         
