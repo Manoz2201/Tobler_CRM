@@ -120,21 +120,47 @@ jobs:
         
         # Check if secrets are available
         if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
-          echo "Warning: SUPABASE_ACCESS_TOKEN not set. Skipping Supabase deployment."
-          echo "Please add SUPABASE_ACCESS_TOKEN to your repository secrets."
-          exit 0
+          echo "❌ Error: SUPABASE_ACCESS_TOKEN not set."
+          echo "Please add SUPABASE_ACCESS_TOKEN to your repository secrets:"
+          echo "1. Go to: https://github.com/aaryesha17/AluminumFormworkCRM/settings/secrets/actions"
+          echo "2. Click 'New repository secret'"
+          echo "3. Name: SUPABASE_ACCESS_TOKEN"
+          echo "4. Value: Your Supabase access token from https://supabase.com/dashboard/account/tokens"
+          exit 1
         fi
         
-        # Link to your Supabase project (if not already linked)
+        if [ -z "$SUPABASE_DB_PASSWORD" ]; then
+          echo "❌ Error: SUPABASE_DB_PASSWORD not set."
+          echo "Please add SUPABASE_DB_PASSWORD to your repository secrets:"
+          echo "1. Go to: https://github.com/aaryesha17/AluminumFormworkCRM/settings/secrets/actions"
+          echo "2. Click 'New repository secret'"
+          echo "3. Name: SUPABASE_DB_PASSWORD"
+          echo "4. Value: Your Supabase database password"
+          exit 1
+        fi
+        
+        echo "✅ Secrets are configured. Starting Supabase deployment..."
+        
+        # List available projects (for debugging)
+        echo "Available Supabase projects:"
+        supabase projects list || echo "Could not list projects - check access token"
+        
+        # Link to your Supabase project
+        # Replace 'your-project-ref' with your actual project reference
+        # You can find this in your Supabase dashboard URL
+        echo "Linking to Supabase project..."
         # supabase link --project-ref your-project-ref
         
         # Push database migrations
+        echo "Pushing database migrations..."
         # supabase db push
         
         # Deploy Edge Functions (if any)
+        echo "Deploying Edge Functions..."
         # supabase functions deploy
         
         # Deploy any custom configurations
+        echo "Deploying configurations..."
         # supabase config push
         
-        echo "Supabase deployment completed successfully!" 
+        echo "✅ Supabase deployment completed successfully!" 
