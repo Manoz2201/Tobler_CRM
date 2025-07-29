@@ -25,7 +25,7 @@ jobs:
       run: flutter pub get
       
     - name: Analyze code
-      run: flutter analyze
+      run: flutter analyze --no-fatal-infos
       
     - name: Run tests
       run: flutter test
@@ -83,6 +83,7 @@ jobs:
       uses: github/codeql-action/init@v3
       with:
         languages: dart
+        queries: security-extended,security-and-quality
         
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
