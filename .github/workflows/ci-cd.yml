@@ -7,7 +7,7 @@ on:
     branches: [ main, develop ]
 
 jobs:
-  # Build and Test Job
+  # Build and Test Job (Android & Web)
   build-and-test:
     runs-on: ubuntu-latest
     
@@ -36,6 +36,9 @@ jobs:
     - name: Build Web
       run: flutter build web --release
       
+    - name: Build iOS (Basic - no signing)
+      run: flutter build ios --release --no-codesign
+      
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
@@ -47,6 +50,12 @@ jobs:
       with:
         name: web-build
         path: build/web/
+        
+    - name: Upload iOS build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ios-build
+        path: build/ios/iphoneos/
 
   # Code Quality Job
   code-quality:
