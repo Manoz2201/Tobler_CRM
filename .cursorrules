@@ -27,6 +27,11 @@
       "lint": "error",
       "rule": "auto_correct_pixel_overflow",
       "description": "Automatically fix RenderFlex overflow errors by making overflowing Row elements horizontally scrollable (SingleChildScrollView) or wrapping them responsively. All screen elements must adapt to screen size to prevent pixel overflow."
+    },
+    {
+      "pattern": "**/*",
+      "rule": "no_change_without_explicit_request",
+      "description": "Do not change any function, UI, or code in the app or codebase unless the user specifically mentions that particular change in their request."
     }
   ],
   "ignore": [

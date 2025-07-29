@@ -4,6 +4,65 @@ import 'dart:ui';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert'; // Added for jsonEncode
+import 'package:crm_app/widgets/profile_page.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+// Helper function to fetch username by user ID
+Future<String?> fetchUsernameByUserId(String userId) async {
+  final client = Supabase.instance.client;
+  try {
+    // First try to get from users table
+    var user = await client
+        .from('users')
+        .select('username')
+        .eq('id', userId)
+        .maybeSingle();
+
+    if (user != null) {
+      return user['username'];
+    }
+
+    // If not found in users, try dev_user table
+    user = await client
+        .from('dev_user')
+        .select('username')
+        .eq('id', userId)
+        .maybeSingle();
+
+    return user?['username'];
+  } catch (e) {
+    return null;
+  }
+}
+
+// Helper function to fetch all usernames
+Future<List<String>> fetchAllUsernames() async {
+  final client = Supabase.instance.client;
+  try {
+    // Fetch from users table
+    final users = await client
+        .from('users')
+        .select('username')
+        .not('username', 'is', null);
+
+    // Fetch from dev_user table
+    final devUsers = await client
+        .from('dev_user')
+        .select('username')
+        .not('username', 'is', null);
+
+    // Combine and remove duplicates
+    final allUsernames = <String>{};
+    allUsernames.addAll(users.map((u) => u['username'] as String));
+    allUsernames.addAll(devUsers.map((u) => u['username'] as String));
+
+    return allUsernames.toList()..sort();
+  } catch (e) {
+    return [];
+  }
+}
 
 class ProposalHomeScreen extends StatefulWidget {
   final String? currentUserId;
@@ -18,11 +77,14 @@ class _ProposalHomeScreenState extends State<ProposalHomeScreen> {
   bool _isDockedLeft = true;
   double _dragOffsetX = 0.0;
 
+  final ScrollController _scrollbarController = ScrollController();
+
   final List<_NavItem> _navItems = const [
     _NavItem('Dashboard', Icons.dashboard),
     _NavItem('Proposals', Icons.description),
     _NavItem('Clients', Icons.people_outline),
     _NavItem('Reports', Icons.bar_chart),
+    _NavItem('Chat', Icons.chat),
     _NavItem('Profile', Icons.person),
   ];
 
@@ -31,7 +93,8 @@ class _ProposalHomeScreenState extends State<ProposalHomeScreen> {
     ProposalScreen(currentUserId: widget.currentUserId),
     const Center(child: Text('Clients List')),
     const Center(child: Text('Reports')),
-    const Center(child: Text('Profile')),
+    const Center(child: Text('Chat')),
+    ProfilePage(currentUserId: widget.currentUserId ?? ''),
   ];
 
   void _onHorizontalDragUpdate(DragUpdateDetails details, double screenWidth) {
@@ -91,46 +154,119 @@ class _ProposalHomeScreenState extends State<ProposalHomeScreen> {
                   ),
                 ],
               ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: List.generate(_navItems.length, (index) {
-                  final selected = _selectedIndex == index;
-                  double baseSize = screenWidth > 1200
-                      ? 32
-                      : screenWidth > 900
-                      ? 30
-                      : 28;
-                  double scale = selected ? 1.2 : 1.0;
-                  Color iconColor = selected
-                      ? const Color(0xFF1976D2)
-                      : Colors.grey[400]!;
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 6.0),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                        child: Container(
-                          color: Colors.white.withAlpha((0.18 * 255).round()),
-                          child: AnimatedScale(
-                            scale: scale,
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeOutCubic,
-                            child: IconButton(
-                              icon: Icon(
-                                _navItems[index].icon,
-                                color: iconColor,
-                                size: baseSize,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final iconCount = _navItems.length;
+                  final iconHeight = 32.0;
+                  final iconPadding = 12.0;
+                  final totalIconHeight =
+                      iconCount * (iconHeight + iconPadding);
+                  final availableHeight = constraints.maxHeight;
+                  if (totalIconHeight > availableHeight) {
+                    return Scrollbar(
+                      thumbVisibility: false,
+                      trackVisibility: false,
+                      controller: _scrollbarController,
+                      child: SingleChildScrollView(
+                        controller: _scrollbarController,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          children: List.generate(_navItems.length, (index) {
+                            final selected = _selectedIndex == index;
+                            double baseSize = screenWidth > 1200
+                                ? 32
+                                : screenWidth > 900
+                                ? 30
+                                : 28;
+                            double scale = selected ? 1.2 : 1.0;
+                            Color iconColor = selected
+                                ? const Color(0xFF1976D2)
+                                : Colors.grey[400]!;
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 6.0,
                               ),
-                              tooltip: _navItems[index].label,
-                              onPressed: () => _onItemTapped(index),
-                            ),
-                          ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: BackdropFilter(
+                                  filter: ImageFilter.blur(
+                                    sigmaX: 8,
+                                    sigmaY: 8,
+                                  ),
+                                  child: Container(
+                                    color: Colors.white.withAlpha(
+                                      (0.18 * 255).round(),
+                                    ),
+                                    child: AnimatedScale(
+                                      scale: scale,
+                                      duration: const Duration(
+                                        milliseconds: 300,
+                                      ),
+                                      curve: Curves.easeOutCubic,
+                                      child: IconButton(
+                                        icon: Icon(
+                                          _navItems[index].icon,
+                                          color: iconColor,
+                                          size: baseSize,
+                                        ),
+                                        tooltip: _navItems[index].label,
+                                        onPressed: () => _onItemTapped(index),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }),
                         ),
                       ),
-                    ),
-                  );
-                }),
+                    );
+                  } else {
+                    return Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: List.generate(_navItems.length, (index) {
+                        final selected = _selectedIndex == index;
+                        double baseSize = screenWidth > 1200
+                            ? 32
+                            : screenWidth > 900
+                            ? 30
+                            : 28;
+                        double scale = selected ? 1.2 : 1.0;
+                        Color iconColor = selected
+                            ? const Color(0xFF1976D2)
+                            : Colors.grey[400]!;
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6.0),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                              child: Container(
+                                color: Colors.white.withAlpha(
+                                  (0.18 * 255).round(),
+                                ),
+                                child: AnimatedScale(
+                                  scale: scale,
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeOutCubic,
+                                  child: IconButton(
+                                    icon: Icon(
+                                      _navItems[index].icon,
+                                      color: iconColor,
+                                      size: baseSize,
+                                    ),
+                                    tooltip: _navItems[index].label,
+                                    onPressed: () => _onItemTapped(index),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    );
+                  }
+                },
               ),
             ),
           ],
@@ -249,7 +385,7 @@ class _ProposalScreenState extends State<ProposalScreen> {
     final allLeads = await client
         .from('leads')
         .select(
-          'id, client_name, project_name, project_location, created_at, remark, main_contact_name, main_contact_email, main_contact_mobile',
+          'id, client_name, project_name, project_location, created_at, remark, main_contact_name, main_contact_email, main_contact_mobile, lead_generated_by',
         )
         .eq('lead_type', 'Monolithic Formwork')
         .order('created_at', ascending: false);
@@ -269,7 +405,17 @@ class _ProposalScreenState extends State<ProposalScreen> {
         .where((lead) => !submittedLeadIds.contains(lead['id']))
         .toList();
 
-    return List<Map<String, dynamic>>.from(leadsWithoutProposals);
+    // Fetch usernames for each lead
+    final leadsWithUsernames = await Future.wait(
+      leadsWithoutProposals.map((lead) async {
+        final username = await fetchUsernameByUserId(
+          lead['lead_generated_by'] ?? '',
+        );
+        return {...lead, 'username': username ?? 'Unknown User'};
+      }),
+    );
+
+    return List<Map<String, dynamic>>.from(leadsWithUsernames);
   }
 
   Future<List<Map<String, dynamic>>> _fetchLeadsWithProposals() async {
@@ -293,12 +439,22 @@ class _ProposalScreenState extends State<ProposalScreen> {
     final leadsData = await client
         .from('leads')
         .select(
-          'id, client_name, project_name, project_location, created_at, remark, main_contact_name, main_contact_email, main_contact_mobile',
+          'id, client_name, project_name, project_location, created_at, remark, main_contact_name, main_contact_email, main_contact_mobile, lead_generated_by',
         )
         .inFilter('id', submittedLeadIds.toList())
         .order('created_at', ascending: false);
 
-    return List<Map<String, dynamic>>.from(leadsData);
+    // Fetch usernames for each lead
+    final leadsWithUsernames = await Future.wait(
+      leadsData.map((lead) async {
+        final username = await fetchUsernameByUserId(
+          lead['lead_generated_by'] ?? '',
+        );
+        return {...lead, 'username': username ?? 'Unknown User'};
+      }),
+    );
+
+    return List<Map<String, dynamic>>.from(leadsWithUsernames);
   }
 
   Future<List<Map<String, dynamic>>> _fetchSubmittedProposals(
@@ -329,6 +485,13 @@ class _ProposalScreenState extends State<ProposalScreen> {
       ...inputs.map((i) => {...i, 'type': 'input'}),
       ...remarks.map((r) => {...r, 'type': 'remark'}),
     ];
+  }
+
+  void _showAlertsDialog(BuildContext context, Map<String, dynamic> lead) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertsDialog(lead: lead),
+    );
   }
 
   @override
@@ -484,6 +647,15 @@ class _ProposalScreenState extends State<ProposalScreen> {
                                                   fontSize: 16,
                                                 ),
                                               ),
+                                              const Spacer(),
+                                              Text(
+                                                'Added by: ${lead['username'] ?? 'Unknown User'}',
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 14,
+                                                  color: Colors.blue,
+                                                ),
+                                              ),
                                             ],
                                           ),
                                         ],
@@ -507,67 +679,70 @@ class _ProposalScreenState extends State<ProposalScreen> {
                                     fontSize: 14,
                                   ),
                                 ),
+                                // Add space for buttons to prevent overlap
+                                const SizedBox(height: 60),
                               ],
                             ),
                           ),
-                          // Vertical divider
-                          Container(
-                            width: 1,
-                            height: 140,
-                            margin: const EdgeInsets.symmetric(horizontal: 16),
-                            color: Colors.grey[300],
-                          ),
-                          // Right column (Main Contact only)
-                          Expanded(
-                            flex: 2,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'CONTACT',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  lead['main_contact_name'] ?? '',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                if ((lead['main_contact_email'] ?? '')
-                                    .isNotEmpty)
-                                  Text(
-                                    lead['main_contact_email'] ?? '',
-                                    style: const TextStyle(fontSize: 13),
-                                  ),
-                                if ((lead['main_contact_mobile'] ?? '')
-                                    .isNotEmpty)
-                                  Text(
-                                    lead['main_contact_mobile'] ?? '',
-                                    style: const TextStyle(fontSize: 13),
-                                  ),
-                              ],
-                            ),
-                          ),
+                          // Remove the vertical divider and right column (Main Contact only)
+                          // The contact information section has been removed
                         ],
                       ),
                       Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            showDialog(
-                              context: context,
-                              builder: (context) => ProposalResponseDialog(
-                                lead: lead,
-                                currentUserId: widget.currentUserId,
+                        bottom: 8,
+                        right: 8,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 40,
+                              height: 40,
+                              child: IconButton(
+                                onPressed: () {
+                                  _showAlertsDialog(context, lead);
+                                },
+                                icon: const Icon(
+                                  Icons.notifications,
+                                  color: Colors.red,
+                                ),
+                                tooltip: 'Alert',
+                                padding: EdgeInsets.zero,
                               ),
-                            );
-                          },
-                          child: const Text('Propose'),
+                            ),
+                            const SizedBox(width: 8),
+                            SizedBox(
+                              width: 40,
+                              height: 40,
+                              child: IconButton(
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) =>
+                                        QueryDialog(lead: lead),
+                                  );
+                                },
+                                icon: const Icon(
+                                  Icons.chat,
+                                  color: Colors.orange,
+                                ),
+                                tooltip: 'Query',
+                                padding: EdgeInsets.zero,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            ElevatedButton(
+                              onPressed: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => ProposalResponseDialog(
+                                    lead: lead,
+                                    currentUserId: widget.currentUserId,
+                                  ),
+                                );
+                              },
+                              child: const Text('Propose'),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -630,6 +805,15 @@ class _ProposalScreenState extends State<ProposalScreen> {
                                             fontSize: 16,
                                           ),
                                         ),
+                                        const Spacer(),
+                                        Text(
+                                          'Added by: ${lead['username'] ?? 'Unknown User'}',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                            color: Colors.blue,
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   ],
@@ -654,46 +838,65 @@ class _ProposalScreenState extends State<ProposalScreen> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          const Divider(),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'CONTACT',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            lead['main_contact_name'] ?? '',
-                            style: const TextStyle(fontWeight: FontWeight.w500),
-                          ),
-                          if ((lead['main_contact_email'] ?? '').isNotEmpty)
-                            Text(
-                              lead['main_contact_email'] ?? '',
-                              style: const TextStyle(fontSize: 13),
-                            ),
-                          if ((lead['main_contact_mobile'] ?? '').isNotEmpty)
-                            Text(
-                              lead['main_contact_mobile'] ?? '',
-                              style: const TextStyle(fontSize: 13),
-                            ),
+                          // Add space for buttons to prevent overlap
+                          const SizedBox(height: 60),
                         ],
                       ),
                       Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            showDialog(
-                              context: context,
-                              builder: (context) => ProposalResponseDialog(
-                                lead: lead,
-                                currentUserId: widget.currentUserId,
+                        bottom: 8,
+                        right: 8,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 40,
+                              height: 40,
+                              child: IconButton(
+                                onPressed: () {
+                                  _showAlertsDialog(context, lead);
+                                },
+                                icon: const Icon(
+                                  Icons.notifications,
+                                  color: Colors.red,
+                                ),
+                                tooltip: 'Alert',
+                                padding: EdgeInsets.zero,
                               ),
-                            );
-                          },
-                          child: const Text('Propose'),
+                            ),
+                            const SizedBox(width: 8),
+                            SizedBox(
+                              width: 40,
+                              height: 40,
+                              child: IconButton(
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) =>
+                                        QueryDialog(lead: lead),
+                                  );
+                                },
+                                icon: const Icon(
+                                  Icons.chat,
+                                  color: Colors.orange,
+                                ),
+                                tooltip: 'Query',
+                                padding: EdgeInsets.zero,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            ElevatedButton(
+                              onPressed: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => ProposalResponseDialog(
+                                    lead: lead,
+                                    currentUserId: widget.currentUserId,
+                                  ),
+                                );
+                              },
+                              child: const Text('Propose'),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -830,7 +1033,9 @@ class _ProposalScreenState extends State<ProposalScreen> {
                             return const SizedBox();
                           }
                           return FutureBuilder<Map<String, dynamic>?>(
-                            future: _fetchUserInfo(proposals.first['user_id']),
+                            future: _fetchUserInfo(
+                              proposals.first['user_id']?.toString(),
+                            ),
                             builder: (context, userSnapshot) {
                               if (userSnapshot.connectionState ==
                                   ConnectionState.waiting) {
@@ -995,12 +1200,14 @@ class _ProposalScreenState extends State<ProposalScreen> {
                       return Column(
                         children: activities.map((activity) {
                           return FutureBuilder<Map<String, dynamic>?>(
-                            future: _fetchUserInfo(activity['user_id']),
+                            future: _fetchUserInfo(
+                              activity['user_id']?.toString(),
+                            ),
                             builder: (context, userSnapshot) {
                               final user = userSnapshot.data;
                               final userStr = user != null
-                                  ? '${user['username'] ?? ''} (${user['employee_code'] ?? ''})'
-                                  : 'User';
+                                  ? '${user['username'] ?? 'Unknown'} (${user['employee_code'] ?? 'N/A'})'
+                                  : 'Unknown User';
                               final activityType =
                                   activity['activity_type'] ?? '';
                               final timestamp = activity['created_at'] != null
@@ -1095,9 +1302,17 @@ Widget _labelValue(String label, String? value) {
   return Padding(
     padding: const EdgeInsets.only(bottom: 2.0),
     child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('$label: ', style: const TextStyle(fontWeight: FontWeight.bold)),
-        Text(value ?? '-', style: const TextStyle(fontWeight: FontWeight.w400)),
+        Expanded(
+          child: Text(
+            value ?? '-',
+            style: const TextStyle(fontWeight: FontWeight.w400),
+            softWrap: true,
+            overflow: TextOverflow.visible,
+          ),
+        ),
       ],
     ),
   );
@@ -1152,7 +1367,7 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
     inputs.add({
       'input': TextEditingController(),
       'value': TextEditingController(),
-      'unit': TextEditingController(),
+      'remark': TextEditingController(),
     });
     setState(() {});
   }
@@ -1190,18 +1405,88 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
     setState(() {
       _isLoading = true;
     });
-    if (widget.currentUserId == null) {
+
+    final client = Supabase.instance.client;
+
+    // Step 1: Check cache memory for active user and user_id
+    final prefs = await SharedPreferences.getInstance();
+    final cachedUserId = prefs.getString('user_id');
+    final cachedSessionId = prefs.getString('session_id');
+    final cachedSessionActive = prefs.getBool('session_active');
+    final cachedUserType = prefs.getString('user_type');
+
+    debugPrint('[CACHE] Cached user_id: $cachedUserId');
+    debugPrint('[CACHE] Cached session_id: $cachedSessionId');
+    debugPrint('[CACHE] Cached session_active: $cachedSessionActive');
+    debugPrint('[CACHE] Cached user_type: $cachedUserType');
+
+    // Step 2: Validate cache data
+    if (cachedUserId == null ||
+        cachedSessionId == null ||
+        cachedSessionActive != true) {
+      debugPrint('[CACHE] Invalid or missing cache data');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('User not logged in. Please log in again.'),
-        ),
+        const SnackBar(content: Text('Session expired. Please log in again.')),
       );
       setState(() {
         _isLoading = false;
       });
       return;
     }
-    final client = Supabase.instance.client;
+
+    // Step 3: Verify user exists and is active in database
+    var userData = await client
+        .from('users')
+        .select('id, session_id, session_active, user_type')
+        .eq('id', cachedUserId)
+        .maybeSingle();
+
+    debugPrint('[SUPABASE] Users table lookup result: $userData');
+
+    if (userData == null) {
+      // Try dev_user table
+      userData = await client
+          .from('dev_user')
+          .select('id, session_id, session_active, user_type')
+          .eq('id', cachedUserId)
+          .maybeSingle();
+
+      debugPrint('[SUPABASE] Dev_user table lookup result: $userData');
+    }
+
+    // Step 4: Validate user is active and session matches
+    if (userData == null) {
+      debugPrint('[VALIDATION] User not found in database');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User not found. Please log in again.')),
+      );
+      setState(() {
+        _isLoading = false;
+      });
+      return;
+    }
+
+    final isActive = userData['session_active'] == true;
+    final sessionMatches = userData['session_id'] == cachedSessionId;
+
+    debugPrint(
+      '[VALIDATION] User active: $isActive, Session matches: $sessionMatches',
+    );
+
+    if (!isActive || !sessionMatches) {
+      debugPrint('[VALIDATION] User not active or session mismatch');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Session invalid. Please log in again.')),
+      );
+      setState(() {
+        _isLoading = false;
+      });
+      return;
+    }
+
+    // Step 5: Use cached user ID for operations
+    final currentUserId = cachedUserId;
+    debugPrint('[VALIDATION] Using cached user_id: $currentUserId');
     final leadId = widget.lead['id'];
 
     try {
@@ -1215,7 +1500,7 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
             'lead_id': leadId,
             'file_name': fileName,
             'file_link': fileLink,
-            'user_id': widget.currentUserId,
+            'user_id': currentUserId,
           });
         }
       }
@@ -1226,8 +1511,8 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
             'lead_id': leadId,
             'input': input['input']!.text.trim(),
             'value': input['value']!.text.trim(),
-            'unit': input['unit']!.text.trim(),
-            'user_id': widget.currentUserId,
+            'remark': input['remark']!.text.trim(),
+            'user_id': currentUserId,
           });
         }
       }
@@ -1236,9 +1521,38 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
         await client.from('proposal_remark').insert({
           'lead_id': leadId,
           'remark': remarkController.text.trim(),
-          'user_id': widget.currentUserId,
+          'user_id': currentUserId,
         });
       }
+
+      // Calculate sum of Area values and average of MS Wt. values
+      double aluminiumArea = 0.0;
+      double msWeightTotal = 0.0;
+      int msWeightCount = 0;
+
+      for (final input in inputs) {
+        if (input['input']!.text.trim().isNotEmpty) {
+          final inputType = input['input']!.text.trim();
+          final value = double.tryParse(input['value']!.text.trim()) ?? 0.0;
+
+          if (inputType == 'Area') {
+            aluminiumArea += value;
+          } else if (inputType == 'MS Wt.') {
+            msWeightTotal += value;
+            msWeightCount++;
+          }
+        }
+      }
+
+      double msWeight = msWeightCount > 0 ? msWeightTotal / msWeightCount : 0.0;
+
+      // Insert into admin_response table
+      await client.from('admin_response').insert({
+        'lead_id': leadId,
+        'aluminium_area': aluminiumArea,
+        'ms_weight': msWeight,
+        'created_at': DateTime.now().toIso8601String(),
+      });
 
       setState(() {
         _isLoading = false;
@@ -1249,7 +1563,7 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
       ).showSnackBar(const SnackBar(content: Text('Proposal submitted!')));
       await logLeadActivity(
         leadId: leadId,
-        userId: widget.currentUserId!,
+        userId: currentUserId,
         activityType: 'proposal_submitted',
         changesMade: {
           'files': files
@@ -1299,7 +1613,7 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
           final isWide = constraints.maxWidth > 700;
           return Container(
             width: isWide ? 900 : double.infinity,
-            height: isWide ? 600 : null,
+            height: MediaQuery.of(context).size.height * 0.9,
             padding: const EdgeInsets.all(16),
             child: isWide
                 ? Row(
@@ -1410,113 +1724,126 @@ class _ProposalLeadInfoSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _labelValue('Client Name', lead['client_name']),
-        _labelValue('Project name', lead['project_name']),
-        _labelValue('Project Location', lead['project_location']),
-        Row(
-          children: [
-            const Text('Date', style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(width: 8),
-            Text(
-              lead['created_at'] != null
-                  ? DateFormat(
-                      'dd-MM-yyyy',
-                    ).format(DateTime.parse(lead['created_at']))
-                  : '-',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.blue,
-                fontSize: 16,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        const Divider(),
-        const Text('REMARK', style: TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 4),
-        Text(
-          lead['remark'] ?? '-',
-          style: const TextStyle(color: Colors.grey, fontSize: 14),
-        ),
-        const SizedBox(height: 12),
-        const Divider(),
-        const Text(
-          'CONTACT',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          lead['main_contact_name'] ?? '',
-          style: const TextStyle(fontWeight: FontWeight.w500),
-        ),
-        if ((lead['main_contact_email'] ?? '').isNotEmpty)
-          Text(
-            lead['main_contact_email'] ?? '',
-            style: const TextStyle(fontSize: 13),
-          ),
-        if ((lead['main_contact_mobile'] ?? '').isNotEmpty)
-          Text(
-            lead['main_contact_mobile'] ?? '',
-            style: const TextStyle(fontSize: 13),
-          ),
-        ...otherContacts.map(
-          (c) => Column(
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _labelValue('Client Name', lead['client_name']),
+          _labelValue('Project name', lead['project_name']),
+          _labelValue('Project Location', lead['project_location']),
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Divider(),
-              Text(
-                c['contact_name'] ?? '',
-                style: const TextStyle(fontWeight: FontWeight.w500),
+              const Text('Date', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  lead['created_at'] != null
+                      ? DateFormat(
+                          'dd-MM-yyyy',
+                        ).format(DateTime.parse(lead['created_at']))
+                      : '-',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                    fontSize: 16,
+                  ),
+                  softWrap: true,
+                  overflow: TextOverflow.visible,
+                ),
               ),
-              if ((c['email'] ?? '').isNotEmpty)
-                Text(c['email'] ?? '', style: const TextStyle(fontSize: 13)),
-              if ((c['mobile'] ?? '').isNotEmpty)
-                Text(c['mobile'] ?? '', style: const TextStyle(fontSize: 13)),
             ],
           ),
-        ),
-        const SizedBox(height: 12),
-        const Divider(),
-        const Text(
-          'Lead Attachments',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        ...attachments.map(
-          (a) => Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  a['file_name'] ?? '',
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                ),
-                if ((a['file_link'] ?? '').isNotEmpty)
-                  InkWell(
-                    onTap: () {},
-                    child: Text(
-                      a['file_link'] ?? '',
-                      style: const TextStyle(
-                        color: Colors.blue,
-                        decoration: TextDecoration.underline,
-                      ),
-                    ),
+          const SizedBox(height: 12),
+          const Divider(),
+          const Text('REMARK', style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          Text(
+            lead['remark'] ?? '-',
+            style: const TextStyle(color: Colors.grey, fontSize: 14),
+            softWrap: true,
+            overflow: TextOverflow.visible,
+          ),
+          const SizedBox(height: 12),
+          const Divider(),
+          const Text(
+            'Lead Attachments',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          ...attachments.map(
+            (a) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    a['file_name'] ?? '',
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                    softWrap: true,
+                    overflow: TextOverflow.visible,
                   ),
-              ],
+                  if ((a['file_link'] ?? '').isNotEmpty)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () async {
+                              final url = a['file_link'] ?? '';
+                              if (url.isNotEmpty) {
+                                try {
+                                  await launchUrl(Uri.parse(url));
+                                } catch (e) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Could not open link: $url',
+                                      ),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                            child: Text(
+                              a['file_link'] ?? '',
+                              style: const TextStyle(
+                                color: Colors.blue,
+                                decoration: TextDecoration.underline,
+                              ),
+                              softWrap: true,
+                              overflow: TextOverflow.visible,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        IconButton(
+                          icon: Icon(Icons.copy, size: 16),
+                          onPressed: () {
+                            Clipboard.setData(
+                              ClipboardData(text: a['file_link'] ?? ''),
+                            );
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Link copied to clipboard'),
+                              ),
+                            );
+                          },
+                          tooltip: 'Copy link',
+                        ),
+                      ],
+                    ),
+                ],
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
 
 // Responsive Proposal Response Form Section
-class _ProposalResponseForm extends StatelessWidget {
+class _ProposalResponseForm extends StatefulWidget {
   final List<Map<String, TextEditingController>> files;
   final List<Map<String, TextEditingController>> inputs;
   final TextEditingController remarkController;
@@ -1526,6 +1853,7 @@ class _ProposalResponseForm extends StatelessWidget {
   final VoidCallback onAddInput;
   final void Function(int) onRemoveInput;
   final VoidCallback onSave;
+
   const _ProposalResponseForm({
     required this.files,
     required this.inputs,
@@ -1539,6 +1867,39 @@ class _ProposalResponseForm extends StatelessWidget {
   });
 
   @override
+  State<_ProposalResponseForm> createState() => _ProposalResponseFormState();
+}
+
+class _ProposalResponseFormState extends State<_ProposalResponseForm> {
+  // Calculate total Area values
+  String _calculateAreaTotal() {
+    double total = 0.0;
+    for (final input in widget.inputs) {
+      if (input['input']?.text == 'Area' &&
+          input['value']?.text.isNotEmpty == true) {
+        final value = double.tryParse(input['value']!.text) ?? 0.0;
+        total += value;
+      }
+    }
+    return total.toStringAsFixed(2);
+  }
+
+  // Calculate average MS Wt. values
+  String _calculateMSWeightAverage() {
+    double total = 0.0;
+    int count = 0;
+    for (final input in widget.inputs) {
+      if (input['input']?.text == 'MS Wt.' &&
+          input['value']?.text.isNotEmpty == true) {
+        final value = double.tryParse(input['value']!.text) ?? 0.0;
+        total += value;
+        count++;
+      }
+    }
+    return count > 0 ? (total / count).toStringAsFixed(2) : '0.00';
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1548,120 +1909,234 @@ class _ProposalResponseForm extends StatelessWidget {
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
         const SizedBox(height: 12),
-        Row(
-          children: [
-            const Text('File Name'),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                children: List.generate(
-                  files.length,
-                  (i) => Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: files[i]['fileName'],
-                          decoration: const InputDecoration(
-                            isDense: true,
-                            border: OutlineInputBorder(),
-                          ),
+        SingleChildScrollView(
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  const Text('File Name'),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      children: List.generate(
+                        widget.files.length,
+                        (i) => Row(
+                          children: [
+                            SizedBox(
+                              width: 100,
+                              child: TextField(
+                                controller: widget.files[i]['fileName'],
+                                decoration: const InputDecoration(
+                                  isDense: true,
+                                  border: OutlineInputBorder(),
+                                  hintText: 'Enter file name',
+                                  helperText: 'e.g., Proposal.pdf, Quote.docx',
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            SizedBox(
+                              width: 100,
+                              child: TextField(
+                                controller: widget.files[i]['fileLink'],
+                                decoration: const InputDecoration(
+                                  isDense: true,
+                                  border: OutlineInputBorder(),
+                                  hintText: 'Enter file link/URL',
+                                  helperText:
+                                      'e.g., https://drive.google.com/...',
+                                ),
+                              ),
+                            ),
+                            SizedBox(
+                              width: 48,
+                              height: 48,
+                              child: IconButton(
+                                icon: const Icon(
+                                  Icons.add_box,
+                                  color: Colors.orange,
+                                ),
+                                onPressed: widget.onAddFile,
+                                padding: EdgeInsets.zero,
+                              ),
+                            ),
+                            if (widget.files.length > 1)
+                              SizedBox(
+                                width: 48,
+                                height: 48,
+                                child: IconButton(
+                                  icon: const Icon(
+                                    Icons.remove_circle,
+                                    color: Colors.red,
+                                  ),
+                                  onPressed: () => widget.onRemoveFile(i),
+                                  padding: EdgeInsets.zero,
+                                ),
+                              ),
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextField(
-                          controller: files[i]['fileLink'],
-                          decoration: const InputDecoration(
-                            isDense: true,
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.add_box, color: Colors.orange),
-                        onPressed: onAddFile,
-                      ),
-                      if (files.length > 1)
-                        IconButton(
-                          icon: const Icon(
-                            Icons.remove_circle,
-                            color: Colors.red,
-                          ),
-                          onPressed: () => onRemoveFile(i),
-                        ),
-                    ],
+                    ),
                   ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const Text('Remark'),
+              TextField(
+                controller: widget.remarkController,
+                minLines: 2,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: 'Enter your proposal remarks or additional notes',
+                  helperText:
+                      'Provide any additional information about the proposal',
                 ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        const Text('Remark'),
-        TextField(
-          controller: remarkController,
-          minLines: 2,
-          maxLines: 4,
-          decoration: const InputDecoration(border: OutlineInputBorder()),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            const Text('Input'),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                children: List.generate(
-                  inputs.length,
-                  (i) => Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: inputs[i]['input'],
-                          decoration: const InputDecoration(
-                            isDense: true,
-                            border: OutlineInputBorder(),
-                          ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      children: List.generate(
+                        widget.inputs.length,
+                        (i) => Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                value:
+                                    widget
+                                            .inputs[i]['input']
+                                            ?.text
+                                            .isNotEmpty ==
+                                        true
+                                    ? widget.inputs[i]['input']?.text
+                                    : null,
+                                decoration: const InputDecoration(
+                                  isDense: true,
+                                  border: OutlineInputBorder(),
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                ),
+                                hint: const Text('Select Input'),
+                                items: const [
+                                  DropdownMenuItem(
+                                    value: 'Area',
+                                    child: Text('Area'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'MS Wt.',
+                                    child: Text('MS Wt.'),
+                                  ),
+                                ],
+                                onChanged: (String? newValue) {
+                                  if (newValue != null &&
+                                      widget.inputs[i]['input'] != null) {
+                                    widget.inputs[i]['input']!.text = newValue;
+                                  }
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            SizedBox(
+                              width: 100,
+                              child: TextField(
+                                controller: widget.inputs[i]['remark'],
+                                decoration: const InputDecoration(
+                                  isDense: true,
+                                  border: OutlineInputBorder(),
+                                  hintText: 'Enter remark or note',
+                                  helperText: 'Optional additional information',
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            SizedBox(
+                              width: 100,
+                              child: TextField(
+                                controller: widget.inputs[i]['value'],
+                                decoration: const InputDecoration(
+                                  isDense: true,
+                                  border: OutlineInputBorder(),
+                                  hintText: 'Enter value (e.g., 100, 50.5)',
+                                  helperText: 'Numeric value required',
+                                ),
+                                onChanged: (value) {
+                                  setState(() {
+                                    // Trigger rebuild to update totals
+                                  });
+                                },
+                              ),
+                            ),
+                            SizedBox(
+                              width: 48,
+                              height: 48,
+                              child: IconButton(
+                                icon: const Icon(
+                                  Icons.add_box,
+                                  color: Colors.orange,
+                                ),
+                                onPressed: widget.onAddInput,
+                                padding: EdgeInsets.zero,
+                              ),
+                            ),
+                            if (widget.inputs.length > 1)
+                              SizedBox(
+                                width: 48,
+                                height: 48,
+                                child: IconButton(
+                                  icon: const Icon(
+                                    Icons.remove_circle,
+                                    color: Colors.red,
+                                  ),
+                                  onPressed: () => widget.onRemoveInput(i),
+                                  padding: EdgeInsets.zero,
+                                ),
+                              ),
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextField(
-                          controller: inputs[i]['value'],
-                          decoration: const InputDecoration(
-                            isDense: true,
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextField(
-                          controller: inputs[i]['unit'],
-                          decoration: const InputDecoration(
-                            isDense: true,
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.add_box, color: Colors.orange),
-                        onPressed: onAddInput,
-                      ),
-                      if (inputs.length > 1)
-                        IconButton(
-                          icon: const Icon(
-                            Icons.remove_circle,
-                            color: Colors.red,
-                          ),
-                          onPressed: () => onRemoveInput(i),
-                        ),
-                    ],
+                    ),
                   ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        // Summary totals row
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.grey.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Area total
+              Text(
+                'Area = ${_calculateAreaTotal()}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Colors.blue,
                 ),
               ),
-            ),
-          ],
+              // MS Wt. total
+              Text(
+                'MS Wt. Avg = ${_calculateMSWeightAverage()}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Colors.green,
+                ),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 16),
         Align(
@@ -1669,8 +2144,8 @@ class _ProposalResponseForm extends StatelessWidget {
           child: SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: isLoading ? null : onSave,
-              child: isLoading
+              onPressed: widget.isLoading ? null : widget.onSave,
+              child: widget.isLoading
                   ? const CircularProgressIndicator()
                   : const Text('Submit Proposal'),
             ),
@@ -1720,17 +2195,345 @@ Widget glassCard({
 }
 
 // Add this helper method to fetch user info by user_id
-Future<Map<String, dynamic>?> _fetchUserInfo(String userId) async {
+Future<Map<String, dynamic>?> _fetchUserInfo(String? userId) async {
+  if (userId == null || userId.isEmpty) {
+    return null;
+  }
+
   final client = Supabase.instance.client;
-  var user = await client
-      .from('users')
-      .select('username, employee_code')
-      .eq('id', userId)
-      .maybeSingle();
-  user ??= await client
-      .from('dev_user')
-      .select('username, employee_code')
-      .eq('id', userId)
-      .maybeSingle();
-  return user;
+  try {
+    var user = await client
+        .from('users')
+        .select('username, employee_code')
+        .eq('id', userId)
+        .maybeSingle();
+    user ??= await client
+        .from('dev_user')
+        .select('username, employee_code')
+        .eq('id', userId)
+        .maybeSingle();
+    return user;
+  } catch (e) {
+    debugPrint('Error fetching user info: $e');
+    return null;
+  }
+}
+
+// Query Dialog Widget
+class QueryDialog extends StatefulWidget {
+  final Map<String, dynamic> lead;
+
+  const QueryDialog({super.key, required this.lead});
+
+  @override
+  State<QueryDialog> createState() => _QueryDialogState();
+}
+
+class _QueryDialogState extends State<QueryDialog> {
+  final TextEditingController _messageController = TextEditingController();
+  String? _selectedUsername;
+  List<String> _usernames = [];
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUsernames();
+  }
+
+  Future<void> _loadUsernames() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final usernames = await fetchAllUsernames();
+      setState(() {
+        _usernames = usernames;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitQuery() async {
+    if (_selectedUsername == null || _messageController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a user and enter a message'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final client = Supabase.instance.client;
+
+      // Get current user's username
+      String? currentUsername;
+      try {
+        final currentUser = await client.auth.getUser();
+        if (currentUser.user != null) {
+          currentUsername = await fetchUsernameByUserId(currentUser.user!.id);
+        }
+      } catch (e) {
+        currentUsername = 'Unknown User';
+      }
+
+      // Insert query into database with all required fields
+      await client.from('queries').insert({
+        'lead_id': widget.lead['id'],
+        'sender_name': currentUsername ?? 'Unknown User',
+        'receiver_name': _selectedUsername,
+        'to_username': _selectedUsername,
+        'query_message': _messageController.text.trim(),
+        'message': _messageController.text.trim(),
+        'created_at': DateTime.now().toIso8601String(),
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Query sent successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error sending query: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Send Query'),
+      content: SizedBox(
+        width: 400,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Lead: ${widget.lead['project_name'] ?? 'Unknown Project'}',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Select User:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            if (_isLoading)
+              const Center(child: CircularProgressIndicator())
+            else
+              DropdownButtonFormField<String>(
+                value: _selectedUsername,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: 'Select a user',
+                ),
+                items: _usernames.map((username) {
+                  return DropdownMenuItem<String>(
+                    value: username,
+                    child: Text(username),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedUsername = value;
+                  });
+                },
+              ),
+            const SizedBox(height: 16),
+            const Text(
+              'Message:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _messageController,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'Enter your query message...',
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _submitQuery,
+          child: const Text('Send Query'),
+        ),
+      ],
+    );
+  }
+}
+
+// Alerts Dialog Widget
+class AlertsDialog extends StatefulWidget {
+  final Map<String, dynamic> lead;
+
+  const AlertsDialog({super.key, required this.lead});
+
+  @override
+  State<AlertsDialog> createState() => _AlertsDialogState();
+}
+
+class _AlertsDialogState extends State<AlertsDialog> {
+  List<Map<String, dynamic>> _alerts = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAlerts();
+  }
+
+  Future<void> _loadAlerts() async {
+    try {
+      final client = Supabase.instance.client;
+
+      // Fetch alerts for this lead
+      final alerts = await client
+          .from('queries')
+          .select('*')
+          .eq('lead_id', widget.lead['id'])
+          .order('created_at', ascending: false);
+
+      setState(() {
+        _alerts = List<Map<String, dynamic>>.from(alerts);
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  String _formatDateTime(String dateTimeString) {
+    try {
+      final dateTime = DateTime.parse(dateTimeString);
+      final date = DateFormat('yyyy-MM-dd').format(dateTime);
+      final time = DateFormat('HH:mm:ss').format(dateTime);
+      return '$date at $time';
+    } catch (e) {
+      return dateTimeString;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Alerts & Queries'),
+      content: SizedBox(
+        width: 500,
+        height: 400,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Lead: ${widget.lead['project_name'] ?? 'Unknown Project'}',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 16),
+            if (_isLoading)
+              const Center(child: CircularProgressIndicator())
+            else if (_alerts.isEmpty)
+              const Center(
+                child: Text(
+                  'No alerts or queries found for this lead.',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              )
+            else
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _alerts.length,
+                  itemBuilder: (context, index) {
+                    final alert = _alerts[index];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'From: ${alert['sender_name'] ?? 'Unknown'}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue,
+                                  ),
+                                ),
+                                Text(
+                                  _formatDateTime(alert['created_at'] ?? ''),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'To: ${alert['receiver_name'] ?? alert['to_username'] ?? 'Unknown'}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                                color: Colors.green,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              alert['query_message'] ??
+                                  alert['message'] ??
+                                  'No message',
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
 }

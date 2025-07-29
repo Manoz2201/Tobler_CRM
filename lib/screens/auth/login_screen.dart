@@ -6,7 +6,6 @@ import './forgot_password_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../home/developer_home_screen.dart';
 import '../home/admin_home_screen.dart';
-import '../home/user_home_screen.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -14,6 +13,7 @@ import 'package:uuid/uuid.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../home/sales_home_screen.dart';
 import '../home/proposal_engineer_home_screen.dart';
+import '../../main.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -29,10 +29,15 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
+  List<String> _emailSuggestions = [];
+  List<String> _allCachedEmails = [];
+
   @override
   void initState() {
     super.initState();
     _loadLastEmail();
+    _loadCachedEmails();
+    _emailController.addListener(_onEmailChanged);
   }
 
   Future<void> _loadLastEmail() async {
@@ -48,8 +53,31 @@ class _LoginScreenState extends State<LoginScreen> {
     await prefs.setString('last_email', email);
   }
 
+  Future<void> _loadCachedEmails() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _allCachedEmails = prefs.getStringList('email_list') ?? [];
+    });
+  }
+
+  void _onEmailChanged() {
+    final input = _emailController.text.trim();
+    if (input.length >= 2) {
+      setState(() {
+        _emailSuggestions = _allCachedEmails
+            .where((e) => e.toLowerCase().startsWith(input.toLowerCase()))
+            .toList();
+      });
+    } else {
+      setState(() {
+        _emailSuggestions = [];
+      });
+    }
+  }
+
   @override
   void dispose() {
+    _emailController.removeListener(_onEmailChanged);
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -103,10 +131,42 @@ class _LoginScreenState extends State<LoginScreen> {
                       key: _formKey,
                       child: Column(
                         children: [
-                          _buildTextField(
-                            controller: _emailController,
-                            label: 'Email',
-                            keyboardType: TextInputType.emailAddress,
+                          Stack(
+                            children: [
+                              _buildTextField(
+                                controller: _emailController,
+                                label: 'Email',
+                                keyboardType: TextInputType.emailAddress,
+                              ),
+                              if (_emailSuggestions.isNotEmpty)
+                                Positioned(
+                                  left: 0,
+                                  right: 0,
+                                  top: 60,
+                                  child: Material(
+                                    elevation: 2,
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: ListView.builder(
+                                      shrinkWrap: true,
+                                      itemCount: _emailSuggestions.length,
+                                      itemBuilder: (context, index) {
+                                        final suggestion =
+                                            _emailSuggestions[index];
+                                        return ListTile(
+                                          title: Text(suggestion),
+                                          onTap: () {
+                                            setState(() {
+                                              _emailController.text =
+                                                  suggestion;
+                                              _emailSuggestions = [];
+                                            });
+                                          },
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                           const SizedBox(height: 16),
                           _buildTextField(
@@ -239,6 +299,29 @@ class _LoginScreenState extends State<LoginScreen> {
                                         'machine_id': machineId,
                                       })
                                       .eq('email', email);
+                                  await saveSessionToCache(
+                                    sessionId,
+                                    true,
+                                    result['id'].toString(),
+                                    userType,
+                                  );
+                                  await setUserOnlineStatus(true);
+                                  await updateUserOnlineStatusMCP(
+                                    result['id'].toString(),
+                                    true,
+                                  );
+                                  final prefs =
+                                      await SharedPreferences.getInstance();
+                                  await prefs.setString('user_email', email);
+                                  List<String> emailList =
+                                      prefs.getStringList('email_list') ?? [];
+                                  if (!emailList.contains(email)) {
+                                    emailList.add(email);
+                                    await prefs.setStringList(
+                                      'email_list',
+                                      emailList,
+                                    );
+                                  }
                                 } else {
                                   await Supabase.instance.client
                                       .from('users')
@@ -249,6 +332,29 @@ class _LoginScreenState extends State<LoginScreen> {
                                         'machine_id': machineId,
                                       })
                                       .eq('email', email);
+                                  await saveSessionToCache(
+                                    sessionId,
+                                    true,
+                                    result['id'].toString(),
+                                    userType,
+                                  );
+                                  await setUserOnlineStatus(true);
+                                  await updateUserOnlineStatusMCP(
+                                    result['id'].toString(),
+                                    true,
+                                  );
+                                  final prefs =
+                                      await SharedPreferences.getInstance();
+                                  await prefs.setString('user_email', email);
+                                  List<String> emailList =
+                                      prefs.getStringList('email_list') ?? [];
+                                  if (!emailList.contains(email)) {
+                                    emailList.add(email);
+                                    await prefs.setStringList(
+                                      'email_list',
+                                      emailList,
+                                    );
+                                  }
                                 }
                                 if (userType == 'Sales') {
                                   if (!context.mounted) return;
@@ -279,7 +385,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                   } else if (userType == 'Admin') {
                                     homeScreen = const AdminHomeScreen();
                                   } else {
-                                    homeScreen = const UserHomeScreen();
+                                    homeScreen = const Center(
+                                      child: Text('User Home Removed'),
+                                    );
                                   }
                                   if (!context.mounted) return;
                                   Navigator.pushReplacement(

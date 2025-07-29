@@ -4,6 +4,9 @@ import 'dart:ui';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert'; // Added for jsonEncode
+import 'package:crm_app/widgets/profile_page.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 // Add this helper method to fetch user info by user_id
 Future<Map<String, dynamic>?> fetchUserInfo(String userId) async {
@@ -19,6 +22,76 @@ Future<Map<String, dynamic>?> fetchUserInfo(String userId) async {
       .eq('id', userId)
       .maybeSingle();
   return user;
+}
+
+// Helper function to fetch username by user ID
+Future<String?> fetchUsernameByUserId(String userId) async {
+  final client = Supabase.instance.client;
+  try {
+    // First try to get from users table
+    var user = await client
+        .from('users')
+        .select('username')
+        .eq('id', userId)
+        .maybeSingle();
+
+    if (user != null) {
+      return user['username'];
+    }
+
+    // If not found in users, try dev_user table
+    user = await client
+        .from('dev_user')
+        .select('username')
+        .eq('id', userId)
+        .maybeSingle();
+
+    return user?['username'];
+  } catch (e) {
+    return null;
+  }
+}
+
+// Helper function to fetch all usernames
+Future<List<String>> fetchAllUsernames() async {
+  final client = Supabase.instance.client;
+  try {
+    // Fetch from users table
+    final users = await client
+        .from('users')
+        .select('username')
+        .not('username', 'is', null);
+
+    // Fetch from dev_user table
+    final devUsers = await client
+        .from('dev_user')
+        .select('username')
+        .not('username', 'is', null);
+
+    // Combine and remove duplicates
+    final allUsernames = <String>{};
+    allUsernames.addAll(users.map((u) => u['username'] as String));
+    allUsernames.addAll(devUsers.map((u) => u['username'] as String));
+
+    return allUsernames.toList()..sort();
+  } catch (e) {
+    return [];
+  }
+}
+
+// Helper function to fetch notification count for a user
+Future<int> fetchNotificationCount(String username) async {
+  final client = Supabase.instance.client;
+  try {
+    final result = await client
+        .from('queries')
+        .select('id')
+        .eq('receiver_name', username);
+
+    return result.length;
+  } catch (e) {
+    return 0;
+  }
 }
 
 class SalesHomeScreen extends StatefulWidget {
@@ -41,11 +114,14 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
   bool _isDockedLeft = true;
   double _dragOffsetX = 0.0;
 
+  final ScrollController _scrollbarController = ScrollController();
+
   final List<_NavItem> _navItems = const [
     _NavItem('Dashboard', Icons.dashboard),
     _NavItem('Leads', Icons.people_outline),
     _NavItem('Opportunities', Icons.trending_up),
     _NavItem('Reports', Icons.bar_chart),
+    _NavItem('Chat', Icons.chat),
     _NavItem('Profile', Icons.person),
   ];
 
@@ -58,7 +134,12 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
     ),
     Center(child: Text('Opportunities')),
     Center(child: Text('Reports')),
-    Center(child: Text('Profile')),
+    Center(child: Text('Chat')),
+    ProfilePage(
+      currentUserId: widget.currentUserId,
+      currentUserEmail: widget.currentUserEmail,
+      currentUserType: widget.currentUserType,
+    ),
   ];
 
   void _onHorizontalDragUpdate(DragUpdateDetails details, double screenWidth) {
@@ -118,46 +199,119 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
                   ),
                 ],
               ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: List.generate(_navItems.length, (index) {
-                  final selected = _selectedIndex == index;
-                  double baseSize = screenWidth > 1200
-                      ? 32
-                      : screenWidth > 900
-                      ? 30
-                      : 28;
-                  double scale = selected ? 1.2 : 1.0;
-                  Color iconColor = selected
-                      ? const Color(0xFF1976D2)
-                      : Colors.grey[400]!;
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 6.0),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                        child: Container(
-                          color: Colors.white.withAlpha((0.18 * 255).round()),
-                          child: AnimatedScale(
-                            scale: scale,
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeOutCubic,
-                            child: IconButton(
-                              icon: Icon(
-                                _navItems[index].icon,
-                                color: iconColor,
-                                size: baseSize,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final iconCount = _navItems.length;
+                  final iconHeight = 32.0;
+                  final iconPadding = 12.0;
+                  final totalIconHeight =
+                      iconCount * (iconHeight + iconPadding);
+                  final availableHeight = constraints.maxHeight;
+                  if (totalIconHeight > availableHeight) {
+                    return Scrollbar(
+                      thumbVisibility: false,
+                      trackVisibility: false,
+                      controller: _scrollbarController,
+                      child: SingleChildScrollView(
+                        controller: _scrollbarController,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          children: List.generate(_navItems.length, (index) {
+                            final selected = _selectedIndex == index;
+                            double baseSize = screenWidth > 1200
+                                ? 32
+                                : screenWidth > 900
+                                ? 30
+                                : 28;
+                            double scale = selected ? 1.2 : 1.0;
+                            Color iconColor = selected
+                                ? const Color(0xFF1976D2)
+                                : Colors.grey[400]!;
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 6.0,
                               ),
-                              tooltip: _navItems[index].label,
-                              onPressed: () => _onItemTapped(index),
-                            ),
-                          ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: BackdropFilter(
+                                  filter: ImageFilter.blur(
+                                    sigmaX: 8,
+                                    sigmaY: 8,
+                                  ),
+                                  child: Container(
+                                    color: Colors.white.withAlpha(
+                                      (0.18 * 255).round(),
+                                    ),
+                                    child: AnimatedScale(
+                                      scale: scale,
+                                      duration: const Duration(
+                                        milliseconds: 300,
+                                      ),
+                                      curve: Curves.easeOutCubic,
+                                      child: IconButton(
+                                        icon: Icon(
+                                          _navItems[index].icon,
+                                          color: iconColor,
+                                          size: baseSize,
+                                        ),
+                                        tooltip: _navItems[index].label,
+                                        onPressed: () => _onItemTapped(index),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }),
                         ),
                       ),
-                    ),
-                  );
-                }),
+                    );
+                  } else {
+                    return Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: List.generate(_navItems.length, (index) {
+                        final selected = _selectedIndex == index;
+                        double baseSize = screenWidth > 1200
+                            ? 32
+                            : screenWidth > 900
+                            ? 30
+                            : 28;
+                        double scale = selected ? 1.2 : 1.0;
+                        Color iconColor = selected
+                            ? const Color(0xFF1976D2)
+                            : Colors.grey[400]!;
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6.0),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                              child: Container(
+                                color: Colors.white.withAlpha(
+                                  (0.18 * 255).round(),
+                                ),
+                                child: AnimatedScale(
+                                  scale: scale,
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeOutCubic,
+                                  child: IconButton(
+                                    icon: Icon(
+                                      _navItems[index].icon,
+                                      color: iconColor,
+                                      size: baseSize,
+                                    ),
+                                    tooltip: _navItems[index].label,
+                                    onPressed: () => _onItemTapped(index),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    );
+                  }
+                },
               ),
             ),
           ],
@@ -205,9 +359,11 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
                         onHorizontalDragEnd: (_) =>
                             _onHorizontalDragEnd(screenWidth),
                         onDoubleTap: () {
-                          setState(() {
-                            _isDockedLeft = !_isDockedLeft;
-                            _dragOffsetX = 0.0;
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            setState(() {
+                              _isDockedLeft = !_isDockedLeft;
+                              _dragOffsetX = 0.0;
+                            });
                           });
                         },
                         child: _buildNavBar(screenHeight, screenWidth),
@@ -270,25 +426,27 @@ class _LeadsPageState extends State<_LeadsPage> {
   List<Map<String, dynamic>> _attachments = [];
   List<Map<String, dynamic>> _activityTimeline = [];
   List<Map<String, dynamic>> _initialQuote = [];
+  // Add state for initial quote status dropdown
+  List<String> _initialQuoteStatuses = [];
+  String? _selectedQuoteStatus;
+  Map<String, dynamic>? _displayedInitialQuote;
   bool _isActivityLoading = false;
-  bool _isInitialQuoteLoading = false;
-  String? _activityError;
-  String? _initialQuoteError;
   bool _isEditMode = false;
   final _editFormKey = GlobalKey<FormState>();
   Map<String, TextEditingController> _editControllers = {};
 
-  // Controllers for editing initial quote
-  final TextEditingController _itemNameController = TextEditingController();
-  final TextEditingController _unitWeightController = TextEditingController();
-  final TextEditingController _quantityController = TextEditingController();
-  final TextEditingController _exFactoryController = TextEditingController();
-  final TextEditingController _unitPriceController = TextEditingController();
-  final TextEditingController _profitPercentController =
-      TextEditingController();
-  final TextEditingController _totalController = TextEditingController();
+  // Commented out unused fields to resolve linter warnings but keep them for future use
+  // Map<String, dynamic>? _editingQuote;
+  // final Map<int, Map<String, TextEditingController>> _initialQuoteControllers = {};
 
-  Map<String, dynamic>? _editingQuote;
+  // Add a state variable to track view-only mode
+  bool _isViewOnly = false;
+  // Add a state variable to control timeline-only mode
+  bool _showTimelineOnly = false;
+
+  // Add state for initial quote edit mode and editable table data
+  bool _isInitialQuoteEditMode = false;
+  List<Map<String, TextEditingController>> _editableQuoteRows = [];
 
   @override
   void initState() {
@@ -316,38 +474,16 @@ class _LeadsPageState extends State<_LeadsPage> {
     }
   }
 
-  String _calculatePerKg(
-    dynamic unitPrice,
-    dynamic unitWeight,
-    dynamic quantity,
-  ) {
-    try {
-      final price = double.tryParse(unitPrice?.toString() ?? '0') ?? 0;
-      final weight = double.tryParse(unitWeight?.toString() ?? '0') ?? 0;
-      final qty = double.tryParse(quantity?.toString() ?? '0') ?? 0;
-
-      if (weight <= 0 || qty <= 0) return '0.00';
-
-      final unitKg = weight / qty;
-      if (unitKg <= 0) return '0.00';
-
-      final perKg = price / unitKg;
-      return perKg.toStringAsFixed(2);
-    } catch (e) {
-      return '0.00';
-    }
-  }
-
   Future<void> _fetchLeadDetails(String leadId) async {
     setState(() {
       _contacts = [];
       _attachments = [];
       _activityTimeline = [];
       _initialQuote = [];
+      _initialQuoteStatuses = [];
+      _selectedQuoteStatus = null;
+      _displayedInitialQuote = null;
       _isActivityLoading = true;
-      _isInitialQuoteLoading = true;
-      _activityError = null;
-      _initialQuoteError = null;
     });
     try {
       final client = Supabase.instance.client;
@@ -375,21 +511,47 @@ class _LeadsPageState extends State<_LeadsPage> {
           .select('*')
           .eq('lead_id', leadId)
           .order('created_at', ascending: true);
+      // Prepare status list and default selection for Scaffolding
+      List<String> statuses = [];
+      Map<String, dynamic>? displayedQuote;
+      String? selectedStatus;
+      if (lead != null &&
+          lead['lead_type'] == 'Scaffolding' &&
+          initialQuote.isNotEmpty) {
+        statuses = initialQuote
+            .map<String>((q) => q['update_status']?.toString() ?? '')
+            .where((s) => s.isNotEmpty)
+            .toSet()
+            .toList();
+        // Default to 'New' if available, else first
+        selectedStatus = statuses.contains('New')
+            ? 'New'
+            : (statuses.isNotEmpty ? statuses.first : null);
+        // Fix: If only one row, use it directly
+        if (initialQuote.length == 1) {
+          displayedQuote = initialQuote.first;
+          selectedStatus = initialQuote.first['update_status']?.toString();
+        } else {
+          displayedQuote = initialQuote.firstWhere(
+            (q) => q['update_status'] == selectedStatus,
+            orElse: () => initialQuote.first,
+          );
+        }
+      }
       setState(() {
         _selectedLead = lead;
         _contacts = List<Map<String, dynamic>>.from(contacts);
         _attachments = List<Map<String, dynamic>>.from(attachments);
         _activityTimeline = List<Map<String, dynamic>>.from(activities);
         _initialQuote = List<Map<String, dynamic>>.from(initialQuote);
+        _initialQuoteStatuses = statuses;
+        _selectedQuoteStatus = selectedStatus;
+        _displayedInitialQuote = displayedQuote;
         _isActivityLoading = false;
-        _isInitialQuoteLoading = false;
       });
     } catch (e) {
       setState(() {
         _isActivityLoading = false;
-        _isInitialQuoteLoading = false;
-        _activityError = 'Failed to fetch activity: ${e.toString()}';
-        _initialQuoteError = 'Failed to fetch initial quote: ${e.toString()}';
       });
     }
   }
@@ -413,40 +575,6 @@ class _LeadsPageState extends State<_LeadsPage> {
       'changes_made': changesMade ?? '',
     });
     await _fetchLeadDetails(leadId); // Refresh timeline
-  }
-
-  void _startEdit() {
-    if (_selectedLead == null) return;
-    setState(() {
-      _isEditMode = true;
-      _editControllers = {
-        'client_name': TextEditingController(
-          text: _selectedLead!['client_name'] ?? '',
-        ),
-        'project_name': TextEditingController(
-          text: _selectedLead!['project_name'] ?? '',
-        ),
-        'project_location': TextEditingController(
-          text: _selectedLead!['project_location'] ?? '',
-        ),
-        'lead_type': TextEditingController(
-          text: _selectedLead!['lead_type'] ?? '',
-        ),
-        'main_contact_name': TextEditingController(
-          text: _selectedLead!['main_contact_name'] ?? '',
-        ),
-        'main_contact_designation': TextEditingController(
-          text: _selectedLead!['main_contact_designation'] ?? '',
-        ),
-        'main_contact_email': TextEditingController(
-          text: _selectedLead!['main_contact_email'] ?? '',
-        ),
-        'main_contact_mobile': TextEditingController(
-          text: _selectedLead!['main_contact_mobile'] ?? '',
-        ),
-        'remark': TextEditingController(text: _selectedLead!['remark'] ?? ''),
-      };
-    });
   }
 
   void _cancelEdit() {
@@ -551,6 +679,8 @@ class _LeadsPageState extends State<_LeadsPage> {
   void showLeadsList() {
     setState(() {
       _selectedLead = null;
+      _isViewOnly = false;
+      _showTimelineOnly = false;
     });
     _fetchLeads();
   }
@@ -559,11 +689,9 @@ class _LeadsPageState extends State<_LeadsPage> {
   Widget build(BuildContext context) {
     if (_selectedLead != null) {
       final lead = _selectedLead!;
-      // Allow editing if the current user is the creator of the lead,
-      // or if the user is an Admin or Developer.
+      // Allow editing for all Sales, Admin, and Developer users
       final bool canEdit =
-          (lead['user_type'] == widget.currentUserType &&
-              lead['user_email'] == widget.currentUserEmail) ||
+          widget.currentUserType == 'Sales' ||
           widget.currentUserType == 'Admin' ||
           widget.currentUserType == 'Developer';
       final detailsSection = Card(
@@ -659,30 +787,33 @@ class _LeadsPageState extends State<_LeadsPage> {
                           ),
                           Row(
                             children: [
-                              if (canEdit)
+                              if (canEdit && !_isViewOnly)
                                 OutlinedButton(
                                   onPressed: _startEdit,
                                   child: Text('Edit'),
                                 ),
-                              if (canEdit) SizedBox(width: 8),
-                              ElevatedButton(
-                                onPressed: () async {
-                                  if (_selectedLead != null) {
-                                    await _addActivity(
-                                      leadId: _selectedLead!['id'],
-                                      userName:
-                                          'Current User', // Replace with actual user
-                                      activity: 'Publish',
-                                      changesMade: 'Published lead',
+                              if (canEdit && !_isViewOnly) SizedBox(width: 8),
+                              if (canEdit && !_isViewOnly)
+                                ElevatedButton(
+                                  onPressed: () async {
+                                    if (_selectedLead != null) {
+                                      await _addActivity(
+                                        leadId: _selectedLead!['id'],
+                                        userName:
+                                            'Current User', // Replace with actual user
+                                        activity: 'Publish',
+                                        changesMade: 'Published lead',
+                                      );
+                                    }
+                                    if (!mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Publish action')),
                                     );
-                                  }
-                                  if (!mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Publish action')),
-                                  );
-                                },
-                                child: Text('Publish'),
-                              ),
+                                  },
+                                  child: Text('Publish'),
+                                ),
+                              if (canEdit && !_isViewOnly) SizedBox(width: 8),
+                              // DELETE ICON REMOVED FROM LEAD DETAILS CARD
                             ],
                           ),
                         ],
@@ -717,7 +848,48 @@ class _LeadsPageState extends State<_LeadsPage> {
           ),
         ),
       );
-      final contactsSection = _contacts.isNotEmpty
+      final contactsSection = Card(
+        margin: EdgeInsets.zero,
+        elevation: 3,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20.0),
+          child: _contacts.isNotEmpty
+              ? SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Other Contacts',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      Divider(),
+                      ..._contacts.map(
+                        (c) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _detailRow('Name', c['contact_name']),
+                              _detailRow('Designation', c['designation']),
+                              _detailRow('Email', c['email']),
+                              _detailRow('Mobile', c['mobile']),
+                              Divider(),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : Center(child: Text('No contacts available')),
+        ),
+      );
+      final initialQuoteSection =
+          (_selectedLead != null &&
+              _selectedLead!['lead_type'] == 'Scaffolding')
           ? Card(
               margin: EdgeInsets.zero,
               elevation: 3,
@@ -726,322 +898,484 @@ class _LeadsPageState extends State<_LeadsPage> {
               ),
               child: Container(
                 width: double.infinity,
-                height: 350, // Fixed height for consistent grid
                 padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Other Contacts',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    Divider(),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: _contacts
-                              .map(
-                                (c) => Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 8,
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      _detailRow('Name', c['contact_name']),
-                                      _detailRow(
-                                        'Designation',
-                                        c['designation'],
-                                      ),
-                                      _detailRow('Email', c['email']),
-                                      _detailRow('Mobile', c['mobile']),
-                                      Divider(),
-                                    ],
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          : SizedBox.shrink();
-      final initialQuoteSection = _initialQuote.isNotEmpty
-          ? Card(
-              margin: EdgeInsets.zero,
-              elevation: 3,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final cardPadding = 40.0; // 20 left + 20 right
-                  final columnCount = 8;
-                  final availableWidth = constraints.maxWidth - cardPadding;
-                  final columnWidth = availableWidth / columnCount;
-                  final isMobile = constraints.maxWidth < 600;
-                  final fontSize = isMobile ? 10.0 : 14.0;
-                  final headerFontSize = isMobile ? 11.0 : 14.0;
-                  final headers = isMobile
-                      ? [
-                          'Item',
-                          'T. Kg',
-                          'Qty',
-                          'X Fac.',
-                          'U/Rs.',
-                          'Gain',
-                          'Sum',
-                          'P/Kg',
-                        ]
-                      : [
-                          'Item Name',
-                          'Weight',
-                          'Qty',
-                          'Ex-Factory',
-                          'Unit Price',
-                          'Profit %',
-                          'Total',
-                          'Per/Kg',
-                        ];
-                  return Container(
-                    width: double.infinity,
-                    height: 180,
-                    padding: const EdgeInsets.all(20.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Initial Quote',
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            // Always show Edit/Update buttons for testing
+                child: (_displayedInitialQuote != null)
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Heading and action buttons
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Initial Quote',
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              Row(
+                                children: [
+                                  if (canEdit && !_isViewOnly)
+                                    OutlinedButton(
+                                      onPressed: () {
+                                        setState(() {
+                                          _isInitialQuoteEditMode = true;
+                                          _initEditableQuoteRows();
+                                        });
+                                      },
+                                      child: Text('Edit'),
+                                    ),
+                                  if (canEdit && !_isViewOnly)
+                                    SizedBox(width: 8),
+                                  if (canEdit && !_isViewOnly)
+                                    ElevatedButton(
+                                      onPressed: () async {
+                                        await _saveInitialQuoteEdits();
+                                        Navigator.pop(context);
+                                      },
+                                      child: Text('Update'),
+                                    ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 12),
+                          if (_initialQuoteStatuses.length > 1)
                             Row(
                               children: [
-                                TextButton(
-                                  onPressed: () => _showEditInitialQuoteDialog(
-                                    _initialQuote.first,
-                                  ),
-                                  child: Text('Edit'),
+                                Text(
+                                  'Status: ',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
                                 ),
-                                SizedBox(width: 8),
-                                ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 8,
-                                    ),
-                                    textStyle: TextStyle(fontSize: 14),
-                                  ),
-                                  onPressed: () =>
-                                      _updateInitialQuote(_initialQuote.first),
-                                  child: Text('Update'),
+                                SizedBox(width: 12),
+                                DropdownButton<String>(
+                                  value: _selectedQuoteStatus,
+                                  items: _initialQuoteStatuses
+                                      .map(
+                                        (status) => DropdownMenuItem<String>(
+                                          value: status,
+                                          child: Text(status),
+                                        ),
+                                      )
+                                      .toList(),
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      setState(() {
+                                        _selectedQuoteStatus = val;
+                                        _displayedInitialQuote = _initialQuote
+                                            .firstWhere(
+                                              (q) => q['update_status'] == val,
+                                              orElse: () => _initialQuote.first,
+                                            );
+                                      });
+                                    }
+                                  },
                                 ),
                               ],
                             ),
-                          ],
-                        ),
-                        if (_isInitialQuoteLoading)
-                          Center(child: CircularProgressIndicator()),
-                        if (_initialQuoteError != null)
-                          Text(
-                            _initialQuoteError!,
-                            style: TextStyle(color: Colors.red),
-                          ),
-                        if (!_isInitialQuoteLoading &&
-                            _initialQuoteError == null)
-                          DataTable(
-                            dataTextStyle: TextStyle(
-                              fontSize: fontSize,
-                              fontWeight: FontWeight.w400,
-                            ),
-                            headingTextStyle: TextStyle(
-                              fontSize: headerFontSize,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            columnSpacing: 0,
-                            horizontalMargin: 0,
-                            columns: List.generate(
-                              columnCount,
-                              (i) => DataColumn(
-                                label: SizedBox(
-                                  width: columnWidth,
-                                  child: Text(
-                                    headers[i],
-                                    style: TextStyle(fontSize: headerFontSize),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            rows: _initialQuote.map((quote) {
-                              return DataRow(
-                                cells: [
-                                  DataCell(
-                                    SizedBox(
-                                      width: columnWidth,
-                                      child: Text(
-                                        quote['item_name']?.toString() ?? '',
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(fontSize: fontSize),
-                                      ),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    SizedBox(
-                                      width: columnWidth,
-                                      child: Text(
-                                        quote['unit_weight']?.toString() ?? '',
-                                        style: TextStyle(fontSize: fontSize),
-                                      ),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    SizedBox(
-                                      width: columnWidth,
-                                      child: Text(
-                                        quote['quantity']?.toString() ?? '',
-                                        style: TextStyle(fontSize: fontSize),
-                                      ),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    SizedBox(
-                                      width: columnWidth,
-                                      child: Text(
-                                        quote['ex_factory_price']?.toString() ??
-                                            '',
-                                        style: TextStyle(fontSize: fontSize),
-                                      ),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    SizedBox(
-                                      width: columnWidth,
-                                      child: Text(
-                                        quote['unit_price']?.toString() ?? '',
-                                        style: TextStyle(fontSize: fontSize),
-                                      ),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    SizedBox(
-                                      width: columnWidth,
-                                      child: Text(
-                                        quote['profit_percent']?.toString() ??
-                                            '',
-                                        style: TextStyle(fontSize: fontSize),
-                                      ),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    SizedBox(
-                                      width: columnWidth,
-                                      child: Text(
-                                        quote['total']?.toString() ?? '',
-                                        style: TextStyle(fontSize: fontSize),
-                                      ),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    SizedBox(
-                                      width: columnWidth,
-                                      child: Text(
-                                        _calculatePerKg(
-                                          quote['unit_price'],
-                                          quote['unit_weight'],
-                                          quote['quantity'],
+                          SizedBox(height: 12),
+                          (_isInitialQuoteEditMode)
+                              ? Column(
+                                  children: [
+                                    (_editableQuoteRows.length > 2)
+                                        ? SizedBox(
+                                            height: 220,
+                                            child: SingleChildScrollView(
+                                              scrollDirection: Axis.vertical,
+                                              child: Table(
+                                                border: TableBorder.all(
+                                                  color: Colors.grey,
+                                                ),
+                                                defaultColumnWidth:
+                                                    IntrinsicColumnWidth(),
+                                                children: [
+                                                  TableRow(
+                                                    children: [
+                                                      for (final header in [
+                                                        'Item name (Detail)',
+                                                        'Unit Weight (kg)',
+                                                        'Quantity',
+                                                        'Ex-Factory Price',
+                                                        'Unit Price',
+                                                        'Profit (%)',
+                                                        'Total',
+                                                        'Per/Kg Price',
+                                                      ])
+                                                        Container(
+                                                          color:
+                                                              Colors.grey[200],
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                                vertical: 8,
+                                                                horizontal: 8,
+                                                              ),
+                                                          child: Text(
+                                                            header,
+                                                            style: TextStyle(
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                    ],
+                                                  ),
+                                                  ...List.generate(_editableQuoteRows.length, (
+                                                    rowIdx,
+                                                  ) {
+                                                    final row =
+                                                        _editableQuoteRows[rowIdx];
+                                                    return TableRow(
+                                                      children: [
+                                                        for (final key in [
+                                                          'item_name',
+                                                          'unit_weight',
+                                                          'quantity',
+                                                          'ex_factory_price',
+                                                          'unit_price',
+                                                          'profit_percent',
+                                                          'total',
+                                                          'one_kg_price',
+                                                        ])
+                                                          Padding(
+                                                            padding:
+                                                                const EdgeInsets.all(
+                                                                  4.0,
+                                                                ),
+                                                            child: TextFormField(
+                                                              controller:
+                                                                  row[key],
+                                                              decoration: InputDecoration(
+                                                                border:
+                                                                    InputBorder
+                                                                        .none,
+                                                                isDense: true,
+                                                                contentPadding:
+                                                                    EdgeInsets.symmetric(
+                                                                      vertical:
+                                                                          8,
+                                                                      horizontal:
+                                                                          8,
+                                                                    ),
+                                                              ),
+                                                              keyboardType:
+                                                                  (key ==
+                                                                      'item_name')
+                                                                  ? TextInputType
+                                                                        .text
+                                                                  : TextInputType
+                                                                        .number,
+                                                              onEditingComplete:
+                                                                  _saveInitialQuoteEdits,
+                                                            ),
+                                                          ),
+                                                      ],
+                                                    );
+                                                  }),
+                                                  // Total row
+                                                  TableRow(
+                                                    children: [
+                                                      Padding(
+                                                        padding:
+                                                            const EdgeInsets.all(
+                                                              4.0,
+                                                            ),
+                                                        child: Text('Total:'),
+                                                      ),
+                                                      for (
+                                                        int i = 1;
+                                                        i < 8;
+                                                        i++
+                                                      )
+                                                        Padding(
+                                                          padding:
+                                                              const EdgeInsets.all(
+                                                                4.0,
+                                                              ),
+                                                          child: Text(
+                                                            '0.00',
+                                                          ), // You can calculate sums if needed
+                                                        ),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          )
+                                        : Table(
+                                            border: TableBorder.all(
+                                              color: Colors.grey,
+                                            ),
+                                            defaultColumnWidth:
+                                                IntrinsicColumnWidth(),
+                                            children: [
+                                              TableRow(
+                                                children: [
+                                                  for (final header in [
+                                                    'Item name (Detail)',
+                                                    'Unit Weight (kg)',
+                                                    'Quantity',
+                                                    'Ex-Factory Price',
+                                                    'Unit Price',
+                                                    'Profit (%)',
+                                                    'Total',
+                                                    'Per/Kg Price',
+                                                  ])
+                                                    Container(
+                                                      color: Colors.grey[200],
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            vertical: 8,
+                                                            horizontal: 8,
+                                                          ),
+                                                      child: Text(
+                                                        header,
+                                                        style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                              ...List.generate(
+                                                _editableQuoteRows.length,
+                                                (rowIdx) {
+                                                  final row =
+                                                      _editableQuoteRows[rowIdx];
+                                                  return TableRow(
+                                                    children: [
+                                                      for (final key in [
+                                                        'item_name',
+                                                        'unit_weight',
+                                                        'quantity',
+                                                        'ex_factory_price',
+                                                        'unit_price',
+                                                        'profit_percent',
+                                                        'total',
+                                                        'one_kg_price',
+                                                      ])
+                                                        Padding(
+                                                          padding:
+                                                              const EdgeInsets.all(
+                                                                4.0,
+                                                              ),
+                                                          child: TextFormField(
+                                                            controller:
+                                                                row[key],
+                                                            decoration: InputDecoration(
+                                                              border:
+                                                                  InputBorder
+                                                                      .none,
+                                                              isDense: true,
+                                                              contentPadding:
+                                                                  EdgeInsets.symmetric(
+                                                                    vertical: 8,
+                                                                    horizontal:
+                                                                        8,
+                                                                  ),
+                                                            ),
+                                                            keyboardType:
+                                                                (key ==
+                                                                    'item_name')
+                                                                ? TextInputType
+                                                                      .text
+                                                                : TextInputType
+                                                                      .number,
+                                                            onEditingComplete:
+                                                                _saveInitialQuoteEdits,
+                                                          ),
+                                                        ),
+                                                    ],
+                                                  );
+                                                },
+                                              ),
+                                              // Total row
+                                              TableRow(
+                                                children: [
+                                                  Padding(
+                                                    padding:
+                                                        const EdgeInsets.all(
+                                                          4.0,
+                                                        ),
+                                                    child: Text('Total:'),
+                                                  ),
+                                                  for (int i = 1; i < 8; i++)
+                                                    Padding(
+                                                      padding:
+                                                          const EdgeInsets.all(
+                                                            4.0,
+                                                          ),
+                                                      child: Text(
+                                                        '0.00',
+                                                      ), // You can calculate sums if needed
+                                                    ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                    SizedBox(height: 12),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        OutlinedButton.icon(
+                                          icon: Icon(Icons.add),
+                                          label: Text('Add Row'),
+                                          onPressed: _addQuoteRow,
+                                          style: OutlinedButton.styleFrom(
+                                            shape: StadiumBorder(),
+                                            padding: EdgeInsets.symmetric(
+                                              horizontal: 24,
+                                              vertical: 12,
+                                            ),
+                                          ),
                                         ),
-                                        style: TextStyle(fontSize: fontSize),
-                                      ),
+                                        SizedBox(width: 16),
+                                        OutlinedButton.icon(
+                                          icon: Icon(Icons.remove),
+                                          label: Text('Remove Row'),
+                                          onPressed: _removeQuoteRow,
+                                          style: OutlinedButton.styleFrom(
+                                            shape: StadiumBorder(),
+                                            padding: EdgeInsets.symmetric(
+                                              horizontal: 24,
+                                              vertical: 12,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ),
-                                ],
-                              );
-                            }).toList(),
-                          ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            )
-          : SizedBox.shrink();
-
-      final attachmentsSection = _attachments.isNotEmpty
-          ? Card(
-              margin: EdgeInsets.zero,
-              elevation: 3,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return Container(
-                    width: double.infinity,
-                    height: 350,
-                    padding: const EdgeInsets.all(20.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Attachments',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        Divider(),
-                        Expanded(
-                          child: SingleChildScrollView(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: _attachments
-                                  .map(
-                                    (a) => Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 8,
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          _detailRow(
-                                            'File Name',
-                                            a['file_name'],
+                                  ],
+                                )
+                              : SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: DataTable(
+                                    columns: const [
+                                      DataColumn(label: Text('Item Name')),
+                                      DataColumn(label: Text('Unit Weight')),
+                                      DataColumn(label: Text('Quantity')),
+                                      DataColumn(label: Text('Ex-Factory')),
+                                      DataColumn(label: Text('Unit Price')),
+                                      DataColumn(label: Text('Profit %')),
+                                      DataColumn(label: Text('Total')),
+                                      DataColumn(label: Text('Per/Kg')),
+                                    ],
+                                    rows: [
+                                      DataRow(
+                                        cells: [
+                                          DataCell(
+                                            Text(
+                                              _displayedInitialQuote!['item_name']
+                                                      ?.toString() ??
+                                                  '',
+                                            ),
                                           ),
-                                          _detailRow(
-                                            'File Link',
-                                            a['file_link'],
-                                            isLink: true,
+                                          DataCell(
+                                            Text(
+                                              _displayedInitialQuote!['unit_weight']
+                                                      ?.toString() ??
+                                                  '',
+                                            ),
                                           ),
-                                          Divider(),
+                                          DataCell(
+                                            Text(
+                                              _displayedInitialQuote!['quantity']
+                                                      ?.toString() ??
+                                                  '',
+                                            ),
+                                          ),
+                                          DataCell(
+                                            Text(
+                                              _displayedInitialQuote!['ex_factory_price']
+                                                      ?.toString() ??
+                                                  '',
+                                            ),
+                                          ),
+                                          DataCell(
+                                            Text(
+                                              _displayedInitialQuote!['unit_price']
+                                                      ?.toString() ??
+                                                  '',
+                                            ),
+                                          ),
+                                          DataCell(
+                                            Text(
+                                              _displayedInitialQuote!['profit_percent']
+                                                      ?.toString() ??
+                                                  '',
+                                            ),
+                                          ),
+                                          DataCell(
+                                            Text(
+                                              _displayedInitialQuote!['total']
+                                                      ?.toString() ??
+                                                  '',
+                                            ),
+                                          ),
+                                          DataCell(
+                                            Text(
+                                              _displayedInitialQuote!['one_kg_price']
+                                                      ?.toString() ??
+                                                  '',
+                                            ),
+                                          ),
                                         ],
                                       ),
-                                    ),
-                                  )
-                                  .toList(),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
+                                    ],
+                                  ),
+                                ),
+                        ],
+                      )
+                    : Center(child: Text('No initial quote available')),
               ),
             )
           : SizedBox.shrink();
-      // Activity Timeline card (placeholder for now)
+      final attachmentsSection = Card(
+        margin: EdgeInsets.zero,
+        elevation: 3,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20.0),
+          child: _attachments.isNotEmpty
+              ? SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Attachments',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      Divider(),
+                      ..._attachments.map(
+                        (a) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _detailRow('File Name', a['file_name']),
+                              _detailRow(
+                                'File Link',
+                                a['file_link'],
+                                isLink: true,
+                              ),
+                              Divider(),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : Center(child: Text('No attachments available')),
+        ),
+      );
       final activityTimelineSection = Card(
         margin: EdgeInsets.zero,
         elevation: 3,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         child: Container(
           width: double.infinity,
-          height: 400, // Fixed height for consistent grid
           padding: const EdgeInsets.all(20.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1053,74 +1387,84 @@ class _LeadsPageState extends State<_LeadsPage> {
               Divider(),
               if (_isActivityLoading)
                 Center(child: CircularProgressIndicator()),
-              if (_activityError != null)
-                Text(_activityError!, style: TextStyle(color: Colors.red)),
-              if (!_isActivityLoading &&
-                  _activityError == null &&
-                  _activityTimeline.isEmpty)
-                Text('No activity yet.'),
-              if (!_isActivityLoading &&
-                  _activityError == null &&
-                  _activityTimeline.isNotEmpty)
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: _activityTimeline
-                          .map(
-                            (a) => Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '${a['activity_date']} ${a['activity_time']}',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        FutureBuilder<Map<String, dynamic>?>(
-                                          future: fetchUserInfo(
-                                            a['user_id'] ?? '',
-                                          ),
-                                          builder: (context, userSnapshot) {
-                                            final user = userSnapshot.data;
-                                            final userStr = user != null
-                                                ? '${user['username'] ?? ''} (${user['employee_code'] ?? ''})'
-                                                : (a['user_name'] ?? 'User');
-                                            return Text(
-                                              '$userStr - ${a['activity']}',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            );
-                                          },
+              if (_activityTimeline.isEmpty) Text('No activity yet.'),
+              if (!_isActivityLoading && _activityTimeline.isNotEmpty)
+                SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: _activityTimeline
+                        .map(
+                          (a) => Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${a['activity_date']} ${a['activity_time']}',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      FutureBuilder<Map<String, dynamic>?>(
+                                        future: fetchUserInfo(
+                                          a['user_id'] ?? '',
                                         ),
-                                        if ((a['changes_made'] ?? '')
-                                            .toString()
-                                            .isNotEmpty)
-                                          Text('Changes: ${a['changes_made']}'),
-                                      ],
-                                    ),
+                                        builder: (context, userSnapshot) {
+                                          final user = userSnapshot.data;
+                                          final userStr = user != null
+                                              ? '${user['username'] ?? ''} (${user['employee_code'] ?? ''})'
+                                              : (a['user_name'] ?? 'User');
+                                          return Text(
+                                            '$userStr - ${a['activity']}',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                      if ((a['changes_made'] ?? '')
+                                          .toString()
+                                          .isNotEmpty)
+                                        Text('Changes: ${a['changes_made']}'),
+                                    ],
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
-                          )
-                          .toList(),
-                    ),
+                          ),
+                        )
+                        .toList(),
                   ),
                 ),
             ],
           ),
         ),
       );
+      if (_showTimelineOnly) {
+        return Scaffold(
+          appBar: AppBar(
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back),
+              onPressed: showLeadsList,
+            ),
+            title: Text('Activity Timeline'),
+            backgroundColor: Colors.white,
+            foregroundColor: Colors.black,
+            elevation: 0,
+          ),
+          body: Container(
+            width: double.infinity,
+            height: double.infinity,
+            padding: EdgeInsets.all(24),
+            child: activityTimelineSection,
+          ),
+          backgroundColor: Colors.white,
+        );
+      }
       return SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -1261,28 +1605,26 @@ class _LeadsPageState extends State<_LeadsPage> {
                     // Lead Details Card
                     Container(
                       width: double.infinity,
-                      height: 340,
                       margin: EdgeInsets.symmetric(vertical: 6),
                       child: detailsSection,
                     ),
-                    // Attachments Card
                     Container(
                       width: double.infinity,
-                      height: 140,
                       margin: EdgeInsets.symmetric(vertical: 6),
                       child: attachmentsSection,
                     ),
-                    // Initial Quote Card
                     Container(
                       width: double.infinity,
-                      height: 180,
+                      margin: EdgeInsets.symmetric(vertical: 6),
+                      child: contactsSection,
+                    ),
+                    Container(
+                      width: double.infinity,
                       margin: EdgeInsets.symmetric(vertical: 6),
                       child: initialQuoteSection,
                     ),
-                    // Activity Timeline Card
                     Container(
                       width: double.infinity,
-                      height: 180,
                       margin: EdgeInsets.symmetric(vertical: 6),
                       child: activityTimelineSection,
                     ),
@@ -1320,95 +1662,503 @@ class _LeadsPageState extends State<_LeadsPage> {
           ),
         ),
         Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.all(24),
-            itemCount: leads.length,
-            itemBuilder: (context, index) {
-              final lead = leads[index];
-              return Card(
-                margin: const EdgeInsets.symmetric(vertical: 12),
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: InkWell(
-                  onTap: () => _fetchLeadDetails(lead['id']),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          lead['client_name'] ?? '-',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text('Project: ${lead['project_name'] ?? '-'}'),
-                        Text('Location: ${lead['project_location'] ?? '-'}'),
-                        Text(
-                          'Main Contact: ${lead['main_contact_name'] ?? '-'}',
-                        ),
-                        SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Expanded(
-                              child: SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final orientation = MediaQuery.of(context).orientation;
+              final isWide =
+                  constraints.maxWidth > 900 ||
+                  orientation == Orientation.landscape;
+              if (isWide) {
+                // Grid for desktop/web and landscape
+                return GridView.builder(
+                  padding: const EdgeInsets.all(12), // reduced from 24
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 4,
+                    crossAxisSpacing: 12, // reduced from 16
+                    mainAxisSpacing: 12, // reduced from 16
+                    childAspectRatio: 1.7, // slightly taller for all icons
+                  ),
+                  itemCount: leads.length,
+                  itemBuilder: (context, index) {
+                    final lead = leads[index];
+                    return Card(
+                      margin: const EdgeInsets.symmetric(
+                        vertical: 6,
+                      ), // reduced from 12
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: InkWell(
+                        onTap: () => _fetchLeadDetails(lead['id']),
+                        child: Padding(
+                          padding: const EdgeInsets.all(
+                            12.0,
+                          ), // reduced from 20
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    lead['client_name'] ?? '-',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Row(
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.update,
+                                          color: Color(0xFF1976D2),
+                                        ),
+                                        tooltip: 'Update',
+                                        onPressed: () => _showSnack(
+                                          context,
+                                          'Update ${lead['client_name']}',
+                                        ),
+                                      ),
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.timeline,
+                                          color: Color(0xFF1976D2),
+                                        ),
+                                        tooltip: 'Timeline',
+                                        onPressed: () {
+                                          setState(() {
+                                            _showTimelineOnly = true;
+                                            _isViewOnly = true;
+                                          });
+                                          _fetchLeadDetails(lead['id']);
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 2), // reduced from 4
+                              Text('Project: ${lead['project_name'] ?? '-'}'),
+                              Text(
+                                'Location: ${lead['project_location'] ?? '-'}',
+                              ),
+                              Text(
+                                'Main Contact: ${lead['main_contact_name'] ?? '-'}',
+                              ),
+                              SizedBox(height: 6), // reduced from 12
+                              Align(
+                                alignment: Alignment.bottomLeft,
                                 child: Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    _LeadActionButton(
-                                      icon: Icons.remove_red_eye,
-                                      label: 'View',
-                                      onTap: () =>
-                                          _fetchLeadDetails(lead['id']),
-                                    ),
-                                    _LeadActionButton(
-                                      icon: Icons.edit,
-                                      label: 'Edit',
-                                      onTap: () => _showSnack(
-                                        context,
-                                        'Edit ${lead['client_name']}',
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.remove_red_eye,
+                                        color: Color(0xFF1976D2),
                                       ),
+                                      tooltip: 'View',
+                                      onPressed: () {
+                                        setState(() {
+                                          _isViewOnly = true;
+                                        });
+                                        _fetchLeadDetails(lead['id']);
+                                      },
                                     ),
-                                    _LeadActionButton(
-                                      icon: Icons.update,
-                                      label: 'Update',
-                                      onTap: () => _showSnack(
-                                        context,
-                                        'Update ${lead['client_name']}',
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.edit,
+                                        color: Color(0xFF1976D2),
                                       ),
+                                      tooltip: 'Edit',
+                                      onPressed: () {
+                                        setState(() {
+                                          _isViewOnly = false;
+                                          _isEditMode = true;
+                                        });
+                                        _fetchLeadDetails(lead['id']);
+                                      },
                                     ),
-                                    _LeadActionButton(
-                                      icon: Icons.timeline,
-                                      label: 'Timeline',
-                                      onTap: () => _showSnack(
-                                        context,
-                                        'Timeline for ${lead['client_name']}',
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.delete,
+                                        color: Color(0xFF1976D2),
                                       ),
+                                      tooltip: 'Delete',
+                                      onPressed: () async {
+                                        final confirm = await showDialog<bool>(
+                                          context: context,
+                                          builder: (context) => AlertDialog(
+                                            title: Text('Delete Lead'),
+                                            content: Text(
+                                              'Are you sure you want to delete this lead?',
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(
+                                                  context,
+                                                  false,
+                                                ),
+                                                child: Text('Cancel'),
+                                              ),
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(
+                                                  context,
+                                                  true,
+                                                ),
+                                                child: Text(
+                                                  'Delete',
+                                                  style: TextStyle(
+                                                    color: Colors.red,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                        if (confirm == true) {
+                                          final client =
+                                              Supabase.instance.client;
+                                          await client
+                                              .from('leads')
+                                              .delete()
+                                              .eq('id', lead['id']);
+                                          _fetchLeads();
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Lead deleted'),
+                                            ),
+                                          );
+                                        }
+                                      },
                                     ),
-                                    _LeadActionButton(
-                                      icon: Icons.list_alt,
-                                      label: 'Activity',
-                                      onTap: () => _showSnack(
-                                        context,
-                                        'Activity for ${lead['client_name']}',
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.chat,
+                                        color: Colors.orange,
                                       ),
+                                      tooltip: 'Query',
+                                      onPressed: () {
+                                        showDialog(
+                                          context: context,
+                                          builder: (context) =>
+                                              SalesQueryDialog(lead: lead),
+                                        );
+                                      },
+                                    ),
+                                    FutureBuilder<int>(
+                                      future: fetchNotificationCount(
+                                        lead['username'] ?? '',
+                                      ),
+                                      builder: (context, snapshot) {
+                                        final count = snapshot.data ?? 0;
+                                        return Stack(
+                                          children: [
+                                            IconButton(
+                                              icon: Icon(
+                                                Icons.notifications,
+                                                color: Colors.red,
+                                              ),
+                                              tooltip: 'Alert',
+                                              onPressed: () {
+                                                showDialog(
+                                                  context: context,
+                                                  builder: (context) =>
+                                                      SalesAlertsDialog(
+                                                        lead: lead,
+                                                      ),
+                                                );
+                                              },
+                                            ),
+                                            if (count > 0)
+                                              Positioned(
+                                                right: 8,
+                                                top: 8,
+                                                child: Container(
+                                                  padding: const EdgeInsets.all(
+                                                    2,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.red,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          10,
+                                                        ),
+                                                  ),
+                                                  constraints:
+                                                      const BoxConstraints(
+                                                        minWidth: 16,
+                                                        minHeight: 16,
+                                                      ),
+                                                  child: Text(
+                                                    count.toString(),
+                                                    style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 10,
+                                                    ),
+                                                    textAlign: TextAlign.center,
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        );
+                                      },
                                     ),
                                   ],
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
+                      ),
+                    );
+                  },
+                );
+              } else {
+                // List for portrait mobile/tablet
+                return ListView.builder(
+                  padding: const EdgeInsets.all(24),
+                  itemCount: leads.length,
+                  itemBuilder: (context, index) {
+                    final lead = leads[index];
+                    return Card(
+                      margin: const EdgeInsets.symmetric(vertical: 12),
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: InkWell(
+                        onTap: () => _fetchLeadDetails(lead['id']),
+                        child: Padding(
+                          padding: const EdgeInsets.all(20.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    lead['client_name'] ?? '-',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Row(
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.update,
+                                          color: Color(0xFF1976D2),
+                                        ),
+                                        tooltip: 'Update',
+                                        onPressed: () => _showSnack(
+                                          context,
+                                          'Update ${lead['client_name']}',
+                                        ),
+                                      ),
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.timeline,
+                                          color: Color(0xFF1976D2),
+                                        ),
+                                        tooltip: 'Timeline',
+                                        onPressed: () {
+                                          setState(() {
+                                            _showTimelineOnly = true;
+                                            _isViewOnly = true;
+                                          });
+                                          _fetchLeadDetails(lead['id']);
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 4),
+                              Text('Project: ${lead['project_name'] ?? '-'}'),
+                              Text(
+                                'Location: ${lead['project_location'] ?? '-'}',
+                              ),
+                              Text(
+                                'Main Contact: ${lead['main_contact_name'] ?? '-'}',
+                              ),
+                              SizedBox(height: 12),
+                              Align(
+                                alignment: Alignment.bottomLeft,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.remove_red_eye,
+                                        color: Color(0xFF1976D2),
+                                      ),
+                                      tooltip: 'View',
+                                      onPressed: () {
+                                        setState(() {
+                                          _isViewOnly = true;
+                                        });
+                                        _fetchLeadDetails(lead['id']);
+                                      },
+                                    ),
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.edit,
+                                        color: Color(0xFF1976D2),
+                                      ),
+                                      tooltip: 'Edit',
+                                      onPressed: () {
+                                        setState(() {
+                                          _isViewOnly = false;
+                                          _isEditMode = true;
+                                        });
+                                        _fetchLeadDetails(lead['id']);
+                                      },
+                                    ),
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.delete,
+                                        color: Color(0xFF1976D2),
+                                      ),
+                                      tooltip: 'Delete',
+                                      onPressed: () async {
+                                        final confirm = await showDialog<bool>(
+                                          context: context,
+                                          builder: (context) => AlertDialog(
+                                            title: Text('Delete Lead'),
+                                            content: Text(
+                                              'Are you sure you want to delete this lead?',
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(
+                                                  context,
+                                                  false,
+                                                ),
+                                                child: Text('Cancel'),
+                                              ),
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(
+                                                  context,
+                                                  true,
+                                                ),
+                                                child: Text(
+                                                  'Delete',
+                                                  style: TextStyle(
+                                                    color: Colors.red,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                        if (confirm == true) {
+                                          final client =
+                                              Supabase.instance.client;
+                                          await client
+                                              .from('leads')
+                                              .delete()
+                                              .eq('id', lead['id']);
+                                          _fetchLeads();
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Lead deleted'),
+                                            ),
+                                          );
+                                        }
+                                      },
+                                    ),
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.chat,
+                                        color: Colors.orange,
+                                      ),
+                                      tooltip: 'Query',
+                                      onPressed: () {
+                                        showDialog(
+                                          context: context,
+                                          builder: (context) =>
+                                              SalesQueryDialog(lead: lead),
+                                        );
+                                      },
+                                    ),
+                                    FutureBuilder<int>(
+                                      future: fetchNotificationCount(
+                                        lead['username'] ?? '',
+                                      ),
+                                      builder: (context, snapshot) {
+                                        final count = snapshot.data ?? 0;
+                                        return Stack(
+                                          children: [
+                                            IconButton(
+                                              icon: Icon(
+                                                Icons.notifications,
+                                                color: Colors.red,
+                                              ),
+                                              tooltip: 'Alert',
+                                              onPressed: () {
+                                                showDialog(
+                                                  context: context,
+                                                  builder: (context) =>
+                                                      SalesAlertsDialog(
+                                                        lead: lead,
+                                                      ),
+                                                );
+                                              },
+                                            ),
+                                            if (count > 0)
+                                              Positioned(
+                                                right: 8,
+                                                top: 8,
+                                                child: Container(
+                                                  padding: const EdgeInsets.all(
+                                                    2,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.red,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          10,
+                                                        ),
+                                                  ),
+                                                  constraints:
+                                                      const BoxConstraints(
+                                                        minWidth: 16,
+                                                        minHeight: 16,
+                                                      ),
+                                                  child: Text(
+                                                    count.toString(),
+                                                    style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 10,
+                                                    ),
+                                                    textAlign: TextAlign.center,
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              }
             },
           ),
         ),
@@ -1446,180 +2196,125 @@ class _LeadsPageState extends State<_LeadsPage> {
     );
   }
 
-  void _showEditInitialQuoteDialog(Map<String, dynamic> quote) {
-    _editingQuote = quote;
-    _itemNameController.text = quote['item_name']?.toString() ?? '';
-    _unitWeightController.text = quote['unit_weight']?.toString() ?? '';
-    _quantityController.text = quote['quantity']?.toString() ?? '';
-    _exFactoryController.text = quote['ex_factory_price']?.toString() ?? '';
-    _unitPriceController.text = quote['unit_price']?.toString() ?? '';
-    _profitPercentController.text = quote['profit_percent']?.toString() ?? '';
-    _totalController.text = quote['total']?.toString() ?? '';
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Edit Initial Quote'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: _itemNameController,
-                decoration: InputDecoration(labelText: 'Item Name'),
-              ),
-              TextField(
-                controller: _unitWeightController,
-                decoration: InputDecoration(labelText: 'Weight'),
-                keyboardType: TextInputType.number,
-              ),
-              TextField(
-                controller: _quantityController,
-                decoration: InputDecoration(labelText: 'Quantity'),
-                keyboardType: TextInputType.number,
-              ),
-              TextField(
-                controller: _exFactoryController,
-                decoration: InputDecoration(labelText: 'Ex-Factory'),
-                keyboardType: TextInputType.number,
-              ),
-              TextField(
-                controller: _unitPriceController,
-                decoration: InputDecoration(labelText: 'Unit Price'),
-                keyboardType: TextInputType.number,
-              ),
-              TextField(
-                controller: _profitPercentController,
-                decoration: InputDecoration(labelText: 'Profit %'),
-                keyboardType: TextInputType.number,
-              ),
-              TextField(
-                controller: _totalController,
-                decoration: InputDecoration(labelText: 'Total'),
-                keyboardType: TextInputType.number,
-              ),
-            ],
-          ),
+  void _startEdit() {
+    if (_selectedLead == null) return;
+    setState(() {
+      _isEditMode = true;
+      _editControllers = {
+        'client_name': TextEditingController(
+          text: _selectedLead!['client_name'] ?? '',
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                _editingQuote = {
-                  ...?_editingQuote,
-                  'item_name': _itemNameController.text,
-                  'unit_weight': _unitWeightController.text,
-                  'quantity': _quantityController.text,
-                  'ex_factory_price': _exFactoryController.text,
-                  'unit_price': _unitPriceController.text,
-                  'profit_percent': _profitPercentController.text,
-                  'total': _totalController.text,
-                };
-              });
-              Navigator.of(context).pop();
-            },
-            child: Text('Save'),
-          ),
-        ],
-      ),
-    );
+        'project_name': TextEditingController(
+          text: _selectedLead!['project_name'] ?? '',
+        ),
+        'project_location': TextEditingController(
+          text: _selectedLead!['project_location'] ?? '',
+        ),
+        'lead_type': TextEditingController(
+          text: _selectedLead!['lead_type'] ?? '',
+        ),
+        'main_contact_name': TextEditingController(
+          text: _selectedLead!['main_contact_name'] ?? '',
+        ),
+        'main_contact_designation': TextEditingController(
+          text: _selectedLead!['main_contact_designation'] ?? '',
+        ),
+        'main_contact_email': TextEditingController(
+          text: _selectedLead!['main_contact_email'] ?? '',
+        ),
+        'main_contact_mobile': TextEditingController(
+          text: _selectedLead!['main_contact_mobile'] ?? '',
+        ),
+        'remark': TextEditingController(text: _selectedLead!['remark'] ?? ''),
+      };
+    });
   }
 
-  Future<void> _updateInitialQuote(Map<String, dynamic> quote) async {
-    if (_editingQuote == null) return;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => Center(child: CircularProgressIndicator()),
-    );
-    try {
-      final supabase = Supabase.instance.client;
-      await supabase
-          .from('initial_quote')
-          .update({
-            'item_name': _editingQuote!['item_name'],
-            'unit_weight':
-                double.tryParse(_editingQuote!['unit_weight'].toString()) ?? 0,
-            'quantity':
-                int.tryParse(_editingQuote!['quantity'].toString()) ?? 0,
-            'ex_factory_price':
-                double.tryParse(
-                  _editingQuote!['ex_factory_price'].toString(),
-                ) ??
-                0,
-            'unit_price':
-                double.tryParse(_editingQuote!['unit_price'].toString()) ?? 0,
-            'profit_percent':
-                double.tryParse(_editingQuote!['profit_percent'].toString()) ??
-                0,
-            'total': double.tryParse(_editingQuote!['total'].toString()) ?? 0,
-            'published': true,
-          })
-          .eq('id', quote['id']);
-      // Refresh UI
-      await _fetchLeadDetails(_selectedLead!['id']);
-      Navigator.of(context).pop(); // Close loading
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text('Published!'),
-          content: Text(
-            'Initial quote has been published and is now visible to all users.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text('OK'),
-            ),
-          ],
+  // Helper to initialize controllers from _initialQuote
+  void _initEditableQuoteRows() {
+    _editableQuoteRows = _initialQuote.map((row) {
+      return {
+        'item_name': TextEditingController(
+          text: row['item_name']?.toString() ?? '',
         ),
-      );
-    } catch (e) {
-      Navigator.of(context).pop(); // Close loading
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text('Error'),
-          content: Text('Failed to update initial quote: $e'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text('OK'),
-            ),
-          ],
+        'unit_weight': TextEditingController(
+          text: row['unit_weight']?.toString() ?? '',
         ),
-      );
+        'quantity': TextEditingController(
+          text: row['quantity']?.toString() ?? '',
+        ),
+        'ex_factory_price': TextEditingController(
+          text: row['ex_factory_price']?.toString() ?? '',
+        ),
+        'unit_price': TextEditingController(
+          text: row['unit_price']?.toString() ?? '',
+        ),
+        'profit_percent': TextEditingController(
+          text: row['profit_percent']?.toString() ?? '',
+        ),
+        'total': TextEditingController(text: row['total']?.toString() ?? ''),
+        'one_kg_price': TextEditingController(
+          text: row['one_kg_price']?.toString() ?? '',
+        ),
+      };
+    }).toList();
+  }
+
+  // Add row
+  void _addQuoteRow() {
+    setState(() {
+      _editableQuoteRows.add({
+        'item_name': TextEditingController(),
+        'unit_weight': TextEditingController(),
+        'quantity': TextEditingController(),
+        'ex_factory_price': TextEditingController(),
+        'unit_price': TextEditingController(),
+        'profit_percent': TextEditingController(),
+        'total': TextEditingController(),
+        'one_kg_price': TextEditingController(),
+      });
+    });
+  }
+
+  // Remove row
+  void _removeQuoteRow() {
+    setState(() {
+      if (_editableQuoteRows.isNotEmpty) _editableQuoteRows.removeLast();
+    });
+  }
+
+  // Save edits
+  Future<void> _saveInitialQuoteEdits() async {
+    final client = Supabase.instance.client;
+    for (int i = 0; i < _editableQuoteRows.length; i++) {
+      final row = _editableQuoteRows[i];
+      final id = _initialQuote.length > i ? _initialQuote[i]['id'] : null;
+      final data = {
+        'item_name': row['item_name']!.text.trim(),
+        'unit_weight': double.tryParse(row['unit_weight']!.text) ?? 0,
+        'quantity': double.tryParse(row['quantity']!.text) ?? 0,
+        'ex_factory_price': double.tryParse(row['ex_factory_price']!.text) ?? 0,
+        'unit_price': double.tryParse(row['unit_price']!.text) ?? 0,
+        'profit_percent': double.tryParse(row['profit_percent']!.text) ?? 0,
+        'total': double.tryParse(row['total']!.text) ?? 0,
+        'one_kg_price': double.tryParse(row['one_kg_price']!.text) ?? 0,
+      };
+      if (id != null) {
+        await client.from('initial_quote').update(data).eq('id', id);
+      } else {
+        await client.from('initial_quote').insert({
+          ...data,
+          'lead_id': _selectedLead!['id'],
+        });
+      }
     }
-  }
-}
-
-class _LeadActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  const _LeadActionButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4.0),
-      child: TextButton.icon(
-        icon: Icon(icon, size: 18),
-        label: Text(label),
-        onPressed: onTap,
-        style: TextButton.styleFrom(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-      ),
-    );
+    await _fetchLeadDetails(_selectedLead!['id']);
+    setState(() {
+      _isInitialQuoteEditMode = false;
+    });
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Initial quote updated')));
   }
 }
 
@@ -3035,6 +3730,185 @@ class _AddLeadFormState extends State<_AddLeadForm> {
                               onPressed: _addAttachment,
                             ),
                           ),
+                          SizedBox(height: 32),
+                          Align(
+                            alignment: Alignment.bottomRight,
+                            child: Padding(
+                              padding: const EdgeInsets.only(
+                                right: 24,
+                                bottom: 16,
+                              ),
+                              child: ElevatedButton(
+                                onPressed: () async {
+                                  if (!_formKey.currentState!.validate()) {
+                                    return;
+                                  }
+                                  final client = Supabase.instance.client;
+                                  try {
+                                    // 1. Insert main lead
+                                    final leadInsert = await client
+                                        .from('leads')
+                                        .insert({
+                                          'lead_type': widget.leadType,
+                                          'client_name': clientNameController
+                                              .text
+                                              .trim(),
+                                          'project_name': projectNameController
+                                              .text
+                                              .trim(),
+                                          'project_location':
+                                              projectLocationController.text
+                                                  .trim(),
+                                          'remark': remarkController.text
+                                              .trim(),
+                                          'main_contact_name':
+                                              contacts[0]['name']!.text.trim(),
+                                          'main_contact_designation':
+                                              contacts[0]['designation']!.text
+                                                  .trim(),
+                                          'main_contact_email':
+                                              contacts[0]['email']!.text.trim(),
+                                          'main_contact_mobile':
+                                              contacts[0]['mobile']!.text
+                                                  .trim(),
+                                          'user_type': widget.userType,
+                                          'user_email': widget.userEmail,
+                                          'lead_generated_by': widget.userId,
+                                        })
+                                        .select()
+                                        .single();
+                                    final leadId = leadInsert['id'];
+                                    final userId = widget.userId;
+                                    // 2. Insert additional contacts
+                                    for (int i = 1; i < contacts.length; i++) {
+                                      await client
+                                          .from('lead_contacts')
+                                          .insert({
+                                            'lead_id': leadId,
+                                            'contact_name': contacts[i]['name']!
+                                                .text
+                                                .trim(),
+                                            'designation':
+                                                contacts[i]['designation']!.text
+                                                    .trim(),
+                                            'email': contacts[i]['email']!.text
+                                                .trim(),
+                                            'mobile': contacts[i]['mobile']!
+                                                .text
+                                                .trim(),
+                                          });
+                                    }
+                                    // 3. Insert attachments
+                                    for (final att in attachments) {
+                                      if (att['fileName']!.text
+                                              .trim()
+                                              .isNotEmpty ||
+                                          att['fileLink']!.text
+                                              .trim()
+                                              .isNotEmpty) {
+                                        await client
+                                            .from('lead_attachments')
+                                            .insert({
+                                              'lead_id': leadId,
+                                              'file_name': att['fileName']!.text
+                                                  .trim(),
+                                              'file_link': att['fileLink']!.text
+                                                  .trim(),
+                                            });
+                                      }
+                                    }
+                                    // 4. Insert lead activity
+                                    final now = DateTime.now();
+                                    final activityDate = DateFormat(
+                                      'yyyy-MM-dd',
+                                    ).format(now);
+                                    final activityTime = DateFormat(
+                                      'HH:mm:ss',
+                                    ).format(now);
+
+                                    // Get user name from users table
+                                    final userData = await client
+                                        .from('users')
+                                        .select('username')
+                                        .eq('id', userId)
+                                        .single();
+                                    final userName =
+                                        userData['username'] ?? 'Unknown User';
+
+                                    await client.from('lead_activity').insert({
+                                      'lead_id': leadId,
+                                      'user_id': userId,
+                                      'user_name': userName,
+                                      'activity': 'lead_created',
+                                      'changes_made': jsonEncode({
+                                        'lead_type': widget.leadType,
+                                        'client_name': clientNameController.text
+                                            .trim(),
+                                        'project_name': projectNameController
+                                            .text
+                                            .trim(),
+                                        'project_location':
+                                            projectLocationController.text
+                                                .trim(),
+                                        'remark': remarkController.text.trim(),
+                                        'main_contact_name':
+                                            contacts[0]['name']!.text.trim(),
+                                        'main_contact_designation':
+                                            contacts[0]['designation']!.text
+                                                .trim(),
+                                        'main_contact_email':
+                                            contacts[0]['email']!.text.trim(),
+                                        'main_contact_mobile':
+                                            contacts[0]['mobile']!.text.trim(),
+                                        'user_type': widget.userType,
+                                        'user_email': widget.userEmail,
+                                        'lead_generated_by': widget.userId,
+                                      }),
+                                      'created_at': now.toIso8601String(),
+                                      'activity_date': activityDate,
+                                      'activity_time': activityTime,
+                                    });
+                                    // Show success and close dialog
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Lead created successfully!',
+                                          ),
+                                        ),
+                                      );
+                                      Navigator.of(context).pop();
+                                    }
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Failed to create lead: ${e.toString()}',
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 32,
+                                    vertical: 16,
+                                  ),
+                                  textStyle: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                child: Text('Submit'),
+                              ),
+                            ),
+                          ),
                         ],
                       ),
               ), // End of Form
@@ -3047,34 +3921,490 @@ class _AddLeadFormState extends State<_AddLeadForm> {
 } // End of _AddLeadForm
 
 Widget _detailRow(String label, dynamic value, {bool isLink = false}) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 2.0),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 120,
-          child: Text(
-            '  $label:',
-            style: TextStyle(fontWeight: FontWeight.w600),
+  return Builder(
+    builder: (context) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              '  $label:',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
           ),
-        ),
-        Expanded(
-          child: isLink && value != null && value.toString().isNotEmpty
-              ? SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Text(
-                    value.toString(),
-                    style: TextStyle(color: Colors.blue),
+          Expanded(
+            child: isLink && value != null && value.toString().isNotEmpty
+                ? Row(
+                    children: [
+                      Expanded(
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: GestureDetector(
+                            onTap: () async {
+                              final url = value.toString();
+                              if (url.isNotEmpty) {
+                                try {
+                                  await launchUrl(Uri.parse(url));
+                                } catch (e) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Could not open link: $url',
+                                      ),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                            child: Text(
+                              value.toString(),
+                              style: TextStyle(
+                                color: Colors.blue,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      IconButton(
+                        icon: Icon(Icons.copy, size: 16),
+                        onPressed: () {
+                          Clipboard.setData(
+                            ClipboardData(text: value.toString()),
+                          );
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Link copied to clipboard')),
+                          );
+                        },
+                        tooltip: 'Copy link',
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          value == null || value.toString().isEmpty
+                              ? '-'
+                              : value.toString(),
+                        ),
+                      ),
+                      if (label == 'File Name' &&
+                          value != null &&
+                          value.toString().isNotEmpty)
+                        IconButton(
+                          icon: Icon(Icons.copy, size: 16),
+                          onPressed: () {
+                            Clipboard.setData(
+                              ClipboardData(text: value.toString()),
+                            );
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('File name copied to clipboard'),
+                              ),
+                            );
+                          },
+                          tooltip: 'Copy file name',
+                        ),
+                    ],
                   ),
-                )
-              : Text(
-                  value == null || value.toString().isEmpty
-                      ? '-'
-                      : value.toString(),
-                ),
-        ),
-      ],
+          ),
+        ],
+      ),
     ),
   );
+}
+
+// Query Dialog Widget for Sales
+class SalesQueryDialog extends StatefulWidget {
+  final Map<String, dynamic> lead;
+
+  const SalesQueryDialog({super.key, required this.lead});
+
+  @override
+  State<SalesQueryDialog> createState() => _SalesQueryDialogState();
+}
+
+class _SalesQueryDialogState extends State<SalesQueryDialog> {
+  final TextEditingController _messageController = TextEditingController();
+  String? _selectedUsername;
+  List<String> _usernames = [];
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUsernames();
+  }
+
+  Future<void> _loadUsernames() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final usernames = await fetchAllUsernames();
+      setState(() {
+        _usernames = usernames;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitQuery() async {
+    if (_selectedUsername == null || _messageController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a user and enter a message'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final client = Supabase.instance.client;
+
+      // Get current user's username more reliably
+      String? currentUsername;
+      try {
+        final currentUser = await client.auth.getUser();
+        if (currentUser.user != null) {
+          // First try to get username from users table
+          var userData = await client
+              .from('users')
+              .select('username')
+              .eq('id', currentUser.user!.id)
+              .maybeSingle();
+
+          if (userData != null) {
+            currentUsername = userData['username'];
+          } else {
+            // If not found in users, try dev_user table
+            userData = await client
+                .from('dev_user')
+                .select('username')
+                .eq('id', currentUser.user!.id)
+                .maybeSingle();
+
+            if (userData != null) {
+              currentUsername = userData['username'];
+            }
+          }
+
+          // If still not found, use email as fallback
+          if (currentUsername == null || currentUsername.isEmpty) {
+            currentUsername =
+                currentUser.user!.email?.split('@')[0] ?? 'Unknown User';
+          }
+        }
+      } catch (e) {
+        currentUsername = 'Unknown User';
+      }
+
+      // Insert query into database with all required fields
+      await client.from('queries').insert({
+        'lead_id': widget.lead['id'],
+        'sender_name': currentUsername ?? 'Unknown User',
+        'receiver_name': _selectedUsername,
+        'to_username': _selectedUsername,
+        'query_message': _messageController.text.trim(),
+        'message': _messageController.text.trim(),
+        'created_at': DateTime.now().toIso8601String(),
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Query sent successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error sending query: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Send Query'),
+      content: SizedBox(
+        width: 400,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Lead: ${widget.lead['project_name'] ?? 'Unknown Project'}',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Select User:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            if (_isLoading)
+              const Center(child: CircularProgressIndicator())
+            else
+              DropdownButtonFormField<String>(
+                value: _selectedUsername,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: 'Select a user',
+                ),
+                items: _usernames.map((username) {
+                  return DropdownMenuItem<String>(
+                    value: username,
+                    child: Text(username),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedUsername = value;
+                  });
+                },
+              ),
+            const SizedBox(height: 16),
+            const Text(
+              'Message:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _messageController,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'Enter your query message...',
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _submitQuery,
+          child: const Text('Send Query'),
+        ),
+      ],
+    );
+  }
+}
+
+// Alerts Dialog Widget for Sales
+class SalesAlertsDialog extends StatefulWidget {
+  final Map<String, dynamic> lead;
+
+  const SalesAlertsDialog({super.key, required this.lead});
+
+  @override
+  State<SalesAlertsDialog> createState() => _SalesAlertsDialogState();
+}
+
+class _SalesAlertsDialogState extends State<SalesAlertsDialog> {
+  List<Map<String, dynamic>> _alerts = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAlerts();
+  }
+
+  Future<void> _loadAlerts() async {
+    try {
+      final client = Supabase.instance.client;
+
+      // Get current user's username more reliably
+      String? currentUsername;
+      try {
+        final currentUser = await client.auth.getUser();
+        if (currentUser.user != null) {
+          // First try to get username from users table
+          var userData = await client
+              .from('users')
+              .select('username')
+              .eq('id', currentUser.user!.id)
+              .maybeSingle();
+
+          if (userData != null) {
+            currentUsername = userData['username'];
+          } else {
+            // If not found in users, try dev_user table
+            userData = await client
+                .from('dev_user')
+                .select('username')
+                .eq('id', currentUser.user!.id)
+                .maybeSingle();
+
+            if (userData != null) {
+              currentUsername = userData['username'];
+            }
+          }
+
+          // If still not found, use email as fallback
+          if (currentUsername == null || currentUsername.isEmpty) {
+            currentUsername =
+                currentUser.user!.email?.split('@')[0] ?? 'Unknown User';
+          }
+        }
+      } catch (e) {
+        currentUsername = 'Unknown User';
+      }
+
+      // Fetch alerts for current user (as receiver)
+      final alerts = await client
+          .from('queries')
+          .select('*')
+          .eq('receiver_name', currentUsername ?? 'Unknown User')
+          .order('created_at', ascending: false);
+
+      setState(() {
+        _alerts = List<Map<String, dynamic>>.from(alerts);
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  String _formatDateTime(String dateTimeString) {
+    try {
+      final dateTime = DateTime.parse(dateTimeString);
+      final date = DateFormat('yyyy-MM-dd').format(dateTime);
+      final time = DateFormat('HH:mm:ss').format(dateTime);
+      return '$date at $time';
+    } catch (e) {
+      return dateTimeString;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('My Alerts & Queries'),
+      content: SizedBox(
+        width: 500,
+        height: 400,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'All queries sent to you:',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 16),
+            if (_isLoading)
+              const Center(child: CircularProgressIndicator())
+            else if (_alerts.isEmpty)
+              const Center(
+                child: Text(
+                  'No alerts or queries found for you.',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              )
+            else
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _alerts.length,
+                  itemBuilder: (context, index) {
+                    final alert = _alerts[index];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'From: ${alert['sender_name'] ?? 'Unknown'}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue,
+                                  ),
+                                ),
+                                Text(
+                                  _formatDateTime(alert['created_at'] ?? ''),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'To: ${alert['receiver_name'] ?? alert['to_username'] ?? 'Unknown'}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                                color: Colors.green,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Lead ID: ${alert['lead_id'] ?? 'Unknown'}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                                color: Colors.orange,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              alert['query_message'] ??
+                                  alert['message'] ??
+                                  'No message',
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
 }

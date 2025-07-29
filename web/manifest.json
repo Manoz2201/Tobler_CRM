@@ -1,6 +1,6 @@
 {
-    "name": "crm_app",
-    "short_name": "crm_app",
+    "name": "Tobler",
+    "short_name": "Tobler",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

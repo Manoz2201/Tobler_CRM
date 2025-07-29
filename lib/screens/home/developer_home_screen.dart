@@ -6,6 +6,8 @@ import 'package:crm_app/user_management_service.dart';
 import 'sales_home_screen.dart';
 import 'proposal_engineer_home_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:crm_app/widgets/profile_page.dart';
+import 'package:flutter/services.dart';
 
 class DeveloperHomeScreen extends StatefulWidget {
   const DeveloperHomeScreen({super.key});
@@ -21,6 +23,8 @@ class _DeveloperHomeScreenState extends State<DeveloperHomeScreen> {
   double _dragOffsetX = 0.0;
   int _drawerExpansion = 0;
   static const int _rowSize = 5;
+
+  final ScrollController _scrollbarController = ScrollController();
 
   double get _drawerHeight =>
       _drawerExpansion == 0 ? 48 : (_drawerExpansion * 52.0 + 20.0);
@@ -83,46 +87,122 @@ class _DeveloperHomeScreenState extends State<DeveloperHomeScreen> {
                   ),
                 ],
               ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: List.generate(_navItems.length, (index) {
-                  final selected = _selectedIndex == index;
-                  double baseSize = screenWidth > 1200
-                      ? 32
-                      : screenWidth > 900
-                      ? 30
-                      : 28;
-                  double scale = selected ? 1.2 : 1.0;
-                  Color iconColor = selected
-                      ? const Color(0xFF1976D2)
-                      : Colors.grey[400]!;
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 6.0),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                        child: Container(
-                          color: Colors.white.withAlpha((0.18 * 255).round()),
-                          child: AnimatedScale(
-                            scale: scale,
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeOutCubic,
-                            child: IconButton(
-                              icon: Icon(
-                                _navItems[index].icon,
-                                color: iconColor,
-                                size: baseSize,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // Estimate the total height needed for all icons (icon size + padding)
+                  final iconCount = _navItems.length;
+                  final iconHeight = 32.0; // max icon size
+                  final iconPadding = 12.0; // 6.0 top + 6.0 bottom
+                  final totalIconHeight =
+                      iconCount * (iconHeight + iconPadding);
+                  final availableHeight = constraints.maxHeight;
+                  if (totalIconHeight > availableHeight) {
+                    // Not enough space: make scrollable
+                    return Scrollbar(
+                      thumbVisibility: false,
+                      trackVisibility: false,
+                      controller: _scrollbarController,
+                      child: SingleChildScrollView(
+                        controller: _scrollbarController,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          children: List.generate(_navItems.length, (index) {
+                            final selected = _selectedIndex == index;
+                            double baseSize = screenWidth > 1200
+                                ? 32
+                                : screenWidth > 900
+                                ? 30
+                                : 28;
+                            double scale = selected ? 1.2 : 1.0;
+                            Color iconColor = selected
+                                ? const Color(0xFF1976D2)
+                                : Colors.grey[400]!;
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 6.0,
                               ),
-                              tooltip: _navItems[index].label,
-                              onPressed: () => _onItemTapped(index),
-                            ),
-                          ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: BackdropFilter(
+                                  filter: ImageFilter.blur(
+                                    sigmaX: 8,
+                                    sigmaY: 8,
+                                  ),
+                                  child: Container(
+                                    color: Colors.white.withAlpha(
+                                      (0.18 * 255).round(),
+                                    ),
+                                    child: AnimatedScale(
+                                      scale: scale,
+                                      duration: const Duration(
+                                        milliseconds: 300,
+                                      ),
+                                      curve: Curves.easeOutCubic,
+                                      child: IconButton(
+                                        icon: Icon(
+                                          _navItems[index].icon,
+                                          color: iconColor,
+                                          size: baseSize,
+                                        ),
+                                        tooltip: _navItems[index].label,
+                                        onPressed: () => _onItemTapped(index),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }),
                         ),
                       ),
-                    ),
-                  );
-                }),
+                    );
+                  } else {
+                    // Enough space: space evenly
+                    return Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: List.generate(_navItems.length, (index) {
+                        final selected = _selectedIndex == index;
+                        double baseSize = screenWidth > 1200
+                            ? 32
+                            : screenWidth > 900
+                            ? 30
+                            : 28;
+                        double scale = selected ? 1.2 : 1.0;
+                        Color iconColor = selected
+                            ? const Color(0xFF1976D2)
+                            : Colors.grey[400]!;
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6.0),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                              child: Container(
+                                color: Colors.white.withAlpha(
+                                  (0.18 * 255).round(),
+                                ),
+                                child: AnimatedScale(
+                                  scale: scale,
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeOutCubic,
+                                  child: IconButton(
+                                    icon: Icon(
+                                      _navItems[index].icon,
+                                      color: iconColor,
+                                      size: baseSize,
+                                    ),
+                                    tooltip: _navItems[index].label,
+                                    onPressed: () => _onItemTapped(index),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    );
+                  }
+                },
               ),
             ),
           ],
@@ -132,7 +212,7 @@ class _DeveloperHomeScreenState extends State<DeveloperHomeScreen> {
   }
 
   // Restore _pages and _navItems fields
-  static final List<Widget> _pages = <Widget>[
+  late final List<Widget> _pages = <Widget>[
     Center(child: Text('Developer Dashboard')), // 0
     UserManagementPage(), // 1
     ScreenManagementPage(), // 2
@@ -141,7 +221,7 @@ class _DeveloperHomeScreenState extends State<DeveloperHomeScreen> {
     Center(child: Text('Search')),
     Center(child: Text('Settings')),
     Center(child: Text('Analytics')),
-    Center(child: Text('Profile')),
+    ProfilePage(),
   ];
 
   final List<_NavItem> _navItems = const [
@@ -715,17 +795,9 @@ class UserManagementPage extends StatefulWidget {
 class _UserManagementPageState extends State<UserManagementPage> {
   List<Map<String, dynamic>> users = [];
   bool isLoading = true;
-  String selectedUserType = 'All';
-  String selectedStatus = 'All';
   String searchQuery = '';
-  List<String> userTypes = ['All'];
-  List<String> statuses = ['All', 'Active', 'Inactive'];
-
   final ScrollController _scrollbarController = ScrollController();
-  String? expandedGroup;
-  final Map<String, int> groupPageIndex = {};
-  static const int pageSize = 8;
-  int mainPageIndex = 0;
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -738,1060 +810,1713 @@ class _UserManagementPageState extends State<UserManagementPage> {
     final data = await UserManagementService.fetchUsers();
     setState(() {
       users = data;
-      userTypes = [
-        'All',
-        ...{
-          ...data
-              .map((e) => e['user_type'] as String? ?? '')
-              .where((e) => e.isNotEmpty),
-        },
-      ];
       isLoading = false;
     });
   }
 
-  Future<void> addUser(Map<String, dynamic> user) async {
-    await UserManagementService.addUser(
-      userName: user['user_name'],
-      userType: user['user_type'],
-      status: user['status'],
-      screenName: user['screen_name'],
-      screenType: user['screen_type'],
-      description: user['description'],
-    );
-    if (!mounted) return;
-    await fetchUsers();
-  }
-
-  Future<void> updateUser(Map<String, dynamic> user) async {
-    await UserManagementService.updateUser(
-      id: user['id'],
-      userName: user['user_name'],
-      userType: user['user_type'],
-      status: user['status'],
-      screenName: user['screen_name'],
-      screenType: user['screen_type'],
-      description: user['description'],
-    );
-    if (!mounted) return;
-    Navigator.of(context).pop();
-    await _refreshUsers();
-  }
-
-  Future<void> deleteUser(String id) async {
-    await UserManagementService.deleteUser(id);
-    if (!mounted) return;
-    await fetchUsers();
-  }
-
   List<Map<String, dynamic>> get filteredUsers {
+    final lowerQuery = searchQuery.toLowerCase();
     return users.where((user) {
-      final matchesUserType =
-          selectedUserType == 'All' ||
-          (user['user_type'] ?? '') == selectedUserType;
-      final matchesStatus =
-          selectedStatus == 'All' ||
-          ((user['status'] ?? '').toString().toLowerCase() ==
-              selectedStatus.toLowerCase());
-      final matchesQuery =
-          searchQuery.isEmpty ||
-          ((user['user_name'] ?? '').toString().toLowerCase().contains(
-            searchQuery.toLowerCase(),
-          )) ||
-          ((user['screen_name'] ?? '').toString().toLowerCase().contains(
-            searchQuery.toLowerCase(),
-          )) ||
-          ((user['user_type'] ?? '').toString().toLowerCase().contains(
-            searchQuery.toLowerCase(),
-          ));
-      return matchesUserType && matchesStatus && matchesQuery;
+      return (user['username'] ?? '').toString().toLowerCase().contains(
+            lowerQuery,
+          ) ||
+          (user['email'] ?? '').toString().toLowerCase().contains(lowerQuery) ||
+          (user['user_type'] ?? '').toString().toLowerCase().contains(
+            lowerQuery,
+          );
     }).toList();
-  }
-
-  // For editing
-  String editingUserType = '';
-  String editingStatus = 'Active';
-
-  // Modal form controllers
-  String newUserStatus = 'Active';
-
-  // Search bar controller
-  final TextEditingController _searchController = TextEditingController();
-
-  // Add a field to track frozen state per screen (by index)
-  Set<int> frozenScreens = {};
-
-  Future<void> _refreshUsers() async {
-    await fetchUsers();
-  }
-
-  void _showEditDialog(Map<String, dynamic> user) async {
-    final nameController = TextEditingController(text: user['user_name'] ?? '');
-    final descController = TextEditingController(
-      text: user['description'] ?? '',
-    );
-    final screenNameController = TextEditingController(
-      text: user['screen_name'] ?? '',
-    );
-    final status = user['status'] ?? 'Active';
-    final userType = user['user_type'] ?? '';
-    String newStatus = status;
-    String newUserType = userType;
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Edit User'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: InputDecoration(labelText: 'User Name'),
-              ),
-              TextField(
-                controller: screenNameController,
-                decoration: InputDecoration(labelText: 'Screen Name'),
-              ),
-              TextField(
-                controller: descController,
-                decoration: InputDecoration(labelText: 'Description'),
-              ),
-              DropdownButtonFormField<String>(
-                value: newStatus,
-                items: ['Active', 'Inactive']
-                    .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                    .toList(),
-                onChanged: (val) => newStatus = val ?? 'Active',
-                decoration: InputDecoration(labelText: 'Status'),
-              ),
-              DropdownButtonFormField<String>(
-                value: newUserType,
-                items: userTypes
-                    .map(
-                      (type) =>
-                          DropdownMenuItem(value: type, child: Text(type)),
-                    )
-                    .toList(),
-                onChanged: (val) => newUserType = val ?? userType,
-                decoration: InputDecoration(labelText: 'User Type'),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final updatedUser = {
-                'id': user['id'],
-                'user_name': nameController.text.trim(),
-                'user_type': newUserType,
-                'status': newStatus,
-                'screen_name': screenNameController.text.trim(),
-                'screen_type': user['screen_type'] ?? '',
-                'description': descController.text.trim(),
-              };
-              await updateUser(updatedUser);
-            },
-            child: Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showViewDialog(Map<String, dynamic> user) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('User Details'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Name: ${user['user_name'] ?? ''}'),
-              Text('User Type: ${user['user_type'] ?? ''}'),
-              Text('Status: ${user['status'] ?? ''}'),
-              Text('Screen Name: ${user['screen_name'] ?? ''}'),
-              Text('Description: ${user['description'] ?? ''}'),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _copyUser(Map<String, dynamic> user) async {
-    await UserManagementService.addUser(
-      userName: user['user_name'] ?? '',
-      userType: user['user_type'] ?? '',
-      status: user['status'] ?? 'Active',
-      screenName: user['screen_name'] ?? '',
-      screenType: user['screen_type'] ?? '',
-      description: user['description'] ?? '',
-    );
-    if (!mounted) return;
-    await _refreshUsers();
-  }
-
-  void _deleteUser(Map<String, dynamic> user) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Delete User'),
-        content: Text('Are you sure you want to delete ${user['user_name']}?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text('Delete'),
-          ),
-        ],
-      ),
-    );
-    if (!mounted) return;
-    if (confirm == true) {
-      await UserManagementService.deleteUser(user['id']);
-      if (!mounted) return;
-      await _refreshUsers();
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Filter and search screens by selected user type and search query
-    final lowerQuery = searchQuery.toLowerCase();
-    final filteredUsers = users.where((s) {
-      final matchesUserType =
-          (s['userType'] ?? '') == selectedUserType ||
-          lowerQuery.contains((s['userType'] ?? '').toString().toLowerCase());
-      final matchesName = (s['name'] ?? '').toString().toLowerCase().contains(
-        lowerQuery,
-      );
-      final matchesDesc = (s['description'] ?? '')
-          .toString()
-          .toLowerCase()
-          .contains(lowerQuery);
-      final matchesStatus = (s['status'] ?? '')
-          .toString()
-          .toLowerCase()
-          .contains(lowerQuery);
-      return matchesUserType && (matchesName || matchesDesc || matchesStatus);
-    }).toList();
-
-    // Group filtered users by user_type
-    final Map<String, List<Map<String, dynamic>>> groupedUsers = {};
-    for (final user in filteredUsers) {
-      final type = user['user_type'] ?? 'Unknown';
-      groupedUsers.putIfAbsent(type, () => []).add(user);
-    }
-
     return Scaffold(
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Scrollbar(
-          controller: _scrollbarController,
-          thumbVisibility: true,
-          child: ListView(
-            controller: _scrollbarController,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  DropdownButton<String>(
-                    value: selectedUserType,
-                    items: [
-                      ...userTypes.map(
-                        (type) =>
-                            DropdownMenuItem(value: type, child: Text(type)),
-                      ),
-                      DropdownMenuItem(
-                        value: '__add_new__',
-                        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isWide = constraints.maxWidth >= 600;
+                return Padding(
+                  padding: EdgeInsets.only(bottom: 24),
+                  child: isWide
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            Icon(Icons.add, color: Colors.deepPurple),
-                            SizedBox(width: 6),
-                            Text(
-                              'Add User Type',
-                              style: TextStyle(color: Colors.deepPurple),
+                            SizedBox(
+                              width: 350, // Fixed width for desktop/web
+                              child: TextField(
+                                controller: _searchController,
+                                style: TextStyle(fontSize: 16),
+                                decoration: InputDecoration(
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  labelText:
+                                      'Search Username / Email / User Type',
+                                  prefixIcon: Icon(Icons.search),
+                                ),
+                                onChanged: (val) {
+                                  setState(() {
+                                    searchQuery = val;
+                                  });
+                                },
+                              ),
                             ),
                           ],
-                        ),
-                      ),
-                    ],
-                    onChanged: (val) async {
-                      if (val == '__add_new__') {
-                        final newTypeController = TextEditingController();
-                        final result = await showDialog<String>(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            title: Text('Add New User Type'),
-                            content: TextField(
-                              controller: newTypeController,
-                              decoration: InputDecoration(
-                                hintText: 'User type name',
-                              ),
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: Text('Cancel'),
-                              ),
-                              ElevatedButton(
-                                onPressed: () {
-                                  if (newTypeController.text
-                                      .trim()
-                                      .isNotEmpty) {
-                                    Navigator.pop(
-                                      context,
-                                      newTypeController.text.trim(),
-                                    );
-                                  }
-                                },
-                                child: Text('Add'),
-                              ),
-                            ],
-                          ),
-                        );
-                        if (result != null && result.isNotEmpty) {
-                          setState(() {
-                            userTypes.add(result);
-                            selectedUserType = result;
-                          });
-                        }
-                      } else {
-                        setState(() {
-                          selectedUserType = val ?? userTypes.first;
-                        });
-                      }
-                    },
-                  ),
-                  SizedBox(width: 16),
-                  SizedBox(
-                    width: 240,
-                    child: TextField(
-                      controller: _searchController,
-                      style: TextStyle(fontSize: 16),
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        labelText: 'Search Screens/ user Type / Status',
-                        prefixIcon: Icon(Icons.search),
-                      ),
-                      onChanged: (val) {
-                        setState(() {
-                          searchQuery = val;
-                        });
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 24),
-              if (isLoading)
-                Center(child: CircularProgressIndicator())
-              else if (expandedGroup != null &&
-                  groupedUsers[expandedGroup!] != null &&
-                  groupedUsers[expandedGroup!]!.length > pageSize)
-                ...(() {
-                  final userType = expandedGroup!;
-                  final users = groupedUsers[userType]!;
-                  final int totalPages = (users.length / pageSize).ceil();
-                  int lastPage = totalPages - 1;
-                  final int currentPage = mainPageIndex;
-                  final List<Map<String, dynamic>> pagedUsers = users
-                      .skip(currentPage * pageSize)
-                      .take(pageSize)
-                      .toList();
-                  bool isLastPage = currentPage == lastPage;
-                  bool showRestGroupsOnSamePage =
-                      isLastPage && pagedUsers.length < pageSize;
-                  List<Widget> widgets = [];
-                  // Expanded group header
-                  widgets.add(
-                    InkWell(
-                      onTap: () {
-                        setState(() {
-                          expandedGroup = null;
-                          mainPageIndex = 0;
-                        });
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
-                        child: Row(
+                        )
+                      : Row(
                           children: [
                             Expanded(
-                              child: Text(
-                                userType,
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.deepPurple,
+                              child: TextField(
+                                controller: _searchController,
+                                style: TextStyle(fontSize: 16),
+                                decoration: InputDecoration(
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  labelText:
+                                      'Search Username / Email / User Type',
+                                  prefixIcon: Icon(Icons.search),
                                 ),
+                                onChanged: (val) {
+                                  setState(() {
+                                    searchQuery = val;
+                                  });
+                                },
                               ),
-                            ),
-                            Icon(
-                              Icons.keyboard_arrow_up,
-                              color: Colors.deepPurple,
                             ),
                           ],
                         ),
-                      ),
-                    ),
-                  );
-                  // Expanded group users
-                  widgets.addAll(
-                    pagedUsers.map(
-                      (user) => Card(
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                );
+              },
+            ),
+            SizedBox(height: 24),
+            if (isLoading)
+              Center(child: CircularProgressIndicator())
+            else if (filteredUsers.isEmpty)
+              Center(child: Text('No users found.'))
+            else
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isTablet =
+                        constraints.maxWidth >= 600 &&
+                        constraints.maxWidth < 1200;
+                    final isDesktop = constraints.maxWidth >= 1200;
+                    final orientation = MediaQuery.of(context).orientation;
+                    // Use grid for desktop/web, tablet, and mobile landscape; stack for mobile portrait
+                    bool useGrid =
+                        isDesktop ||
+                        isTablet ||
+                        (!isDesktop &&
+                            !isTablet &&
+                            orientation == Orientation.landscape);
+                    if (useGrid) {
+                      return GridView.builder(
+                        controller: _scrollbarController,
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 4, // Max 4 cards per column
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                          childAspectRatio: 1.8, // Make cards even less tall
                         ),
-                        child: Stack(
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.all(10.0),
+                        itemCount: filteredUsers.length,
+                        itemBuilder: (context, index) {
+                          final user = filteredUsers[index];
+                          return Card(
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12.0,
+                                vertical: 10.0,
+                              ),
                               child: Column(
+                                mainAxisSize: MainAxisSize.min,
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
                                     children: [
                                       Expanded(
                                         child: Text(
-                                          user['user_name'] ?? '',
+                                          user['username'] ?? '',
                                           style: TextStyle(
                                             fontWeight: FontWeight.bold,
-                                            fontSize: 14,
+                                            fontSize: 16,
                                           ),
                                         ),
                                       ),
                                       if (user['user_type'] != null)
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            right: 4.0,
-                                          ),
-                                          child: Chip(
-                                            label: Text(
-                                              user['user_type'].toString(),
-                                              style: TextStyle(fontSize: 10),
-                                            ),
-                                            backgroundColor:
-                                                Colors.deepPurple[50],
-                                            labelStyle: TextStyle(
-                                              color: Colors.deepPurple,
-                                            ),
-                                          ),
-                                        ),
-                                      if (user['status'] != null)
                                         Chip(
                                           label: Text(
-                                            user['status'].toString(),
-                                            style: TextStyle(fontSize: 10),
+                                            user['user_type'].toString(),
                                           ),
                                           backgroundColor:
-                                              user['status'] == 'Active'
-                                              ? Colors.green[100]
-                                              : Colors.red[100],
+                                              Colors.deepPurple[50],
                                           labelStyle: TextStyle(
-                                            color: user['status'] == 'Active'
-                                                ? Colors.green[800]
-                                                : Colors.red[800],
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                  SizedBox(height: 6),
-                                  Text(
-                                    user['screen_name'] ??
-                                        user['screen_type'] ??
-                                        '',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 15,
-                                    ),
-                                  ),
-                                  SizedBox(height: 2),
-                                  Text(
-                                    user['description'] ?? '',
-                                    style: TextStyle(
-                                      color: Colors.grey[700],
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Positioned(
-                              right: 8,
-                              bottom: 8,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: Icon(
-                                      Icons.remove_red_eye,
-                                      color: Colors.deepPurple,
-                                    ),
-                                    tooltip: 'View',
-                                    onPressed: () => _showViewDialog(user),
-                                  ),
-                                  IconButton(
-                                    icon: Icon(Icons.edit, color: Colors.blue),
-                                    tooltip: 'Edit',
-                                    onPressed: () => _showEditDialog(user),
-                                  ),
-                                  IconButton(
-                                    icon: Icon(
-                                      Icons.copy,
-                                      color: Colors.orange,
-                                    ),
-                                    tooltip: 'Copy',
-                                    onPressed: () => _copyUser(user),
-                                  ),
-                                  IconButton(
-                                    icon: Icon(Icons.delete, color: Colors.red),
-                                    tooltip: 'Delete',
-                                    onPressed: () => _deleteUser(user),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                  // If last page and there is space, show rest groups below
-                  if (showRestGroupsOnSamePage) {
-                    widgets.addAll(
-                      groupedUsers.entries
-                          .where((e) => e.key != userType)
-                          .expand((entry) {
-                            final otherType = entry.key;
-                            final otherUsers = entry.value;
-                            final isExpandable = otherUsers.length > 2;
-                            final isExpanded = expandedGroup == otherType;
-                            final int currentPage =
-                                groupPageIndex[otherType] ?? 0;
-                            final int totalPages =
-                                (otherUsers.length / pageSize).ceil();
-                            final List<Map<String, dynamic>> pagedOtherUsers =
-                                (isExpandable &&
-                                    isExpanded &&
-                                    otherUsers.length > pageSize)
-                                ? otherUsers
-                                      .skip(currentPage * pageSize)
-                                      .take(pageSize)
-                                      .toList()
-                                : otherUsers;
-                            return [
-                              InkWell(
-                                onTap: isExpandable
-                                    ? () {
-                                        setState(() {
-                                          if (isExpanded) {
-                                            expandedGroup = null;
-                                            mainPageIndex = 0;
-                                          } else {
-                                            expandedGroup = otherType;
-                                            groupPageIndex[otherType] = 0;
-                                            mainPageIndex = 0;
-                                          }
-                                        });
-                                      }
-                                    : null,
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 8.0,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          otherType,
-                                          style: TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
                                             color: Colors.deepPurple,
                                           ),
                                         ),
-                                      ),
-                                      if (isExpandable)
-                                        Icon(
-                                          isExpanded
-                                              ? Icons.keyboard_arrow_up
-                                              : Icons.keyboard_arrow_down,
-                                          color: Colors.deepPurple,
+                                      if (user['device_type'] != null &&
+                                          user['device_type']
+                                              .toString()
+                                              .isNotEmpty)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            left: 6.0,
+                                          ),
+                                          child: Chip(
+                                            label: Text(
+                                              user['device_type'].toString(),
+                                            ),
+                                            backgroundColor: Colors.blue[50],
+                                            labelStyle: TextStyle(
+                                              color: Colors.blue[900],
+                                            ),
+                                          ),
                                         ),
                                     ],
                                   ),
-                                ),
-                              ),
-                              if (!isExpandable || isExpanded)
-                                ...pagedOtherUsers.map(
-                                  (user) => Card(
-                                    elevation: 2,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Stack(
-                                      children: [
-                                        Padding(
-                                          padding: const EdgeInsets.all(10.0),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Row(
-                                                children: [
-                                                  Expanded(
-                                                    child: Text(
-                                                      user['user_name'] ?? '',
-                                                      style: TextStyle(
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        fontSize: 14,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  if (user['user_type'] != null)
-                                                    Padding(
-                                                      padding:
-                                                          const EdgeInsets.only(
-                                                            right: 4.0,
-                                                          ),
-                                                      child: Chip(
-                                                        label: Text(
-                                                          user['user_type']
-                                                              .toString(),
-                                                          style: TextStyle(
-                                                            fontSize: 10,
-                                                          ),
-                                                        ),
-                                                        backgroundColor: Colors
-                                                            .deepPurple[50],
-                                                        labelStyle: TextStyle(
-                                                          color:
-                                                              Colors.deepPurple,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  if (user['status'] != null)
-                                                    Chip(
-                                                      label: Text(
-                                                        user['status']
-                                                            .toString(),
-                                                        style: TextStyle(
-                                                          fontSize: 10,
-                                                        ),
-                                                      ),
-                                                      backgroundColor:
-                                                          user['status'] ==
-                                                              'Active'
-                                                          ? Colors.green[100]
-                                                          : Colors.red[100],
-                                                      labelStyle: TextStyle(
-                                                        color:
-                                                            user['status'] ==
-                                                                'Active'
-                                                            ? Colors.green[800]
-                                                            : Colors.red[800],
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                      ),
-                                                    ),
-                                                ],
-                                              ),
-                                              SizedBox(height: 6),
-                                              Text(
-                                                user['screen_name'] ??
-                                                    user['screen_type'] ??
-                                                    '',
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 15,
-                                                ),
-                                              ),
-                                              SizedBox(height: 2),
-                                              Text(
-                                                user['description'] ?? '',
-                                                style: TextStyle(
-                                                  color: Colors.grey[700],
-                                                  fontSize: 12,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        Positioned(
-                                          right: 8,
-                                          bottom: 8,
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              IconButton(
-                                                icon: Icon(
-                                                  Icons.remove_red_eye,
-                                                  color: Colors.deepPurple,
-                                                ),
-                                                tooltip: 'View',
-                                                onPressed: () =>
-                                                    _showViewDialog(user),
-                                              ),
-                                              IconButton(
-                                                icon: Icon(
-                                                  Icons.edit,
-                                                  color: Colors.blue,
-                                                ),
-                                                tooltip: 'Edit',
-                                                onPressed: () =>
-                                                    _showEditDialog(user),
-                                              ),
-                                              IconButton(
-                                                icon: Icon(
-                                                  Icons.copy,
-                                                  color: Colors.orange,
-                                                ),
-                                                tooltip: 'Copy',
-                                                onPressed: () =>
-                                                    _copyUser(user),
-                                              ),
-                                              IconButton(
-                                                icon: Icon(
-                                                  Icons.delete,
-                                                  color: Colors.red,
-                                                ),
-                                                tooltip: 'Delete',
-                                                onPressed: () =>
-                                                    _deleteUser(user),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
+                                  SizedBox(height: 8),
+                                  Text(
+                                    user['email'] ?? '',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey[700],
                                     ),
                                   ),
-                                ),
-                              if (isExpandable &&
-                                  isExpanded &&
-                                  otherUsers.length > pageSize)
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 4.0,
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
+                                  SizedBox(height: 8),
+                                  if (user['created_at'] != null)
+                                    Text(
+                                      'Created: ${user['created_at']}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey[500],
+                                      ),
+                                    ),
+                                  SizedBox(height: 12),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
                                     children: [
                                       IconButton(
-                                        icon: Icon(Icons.chevron_left),
-                                        onPressed: currentPage > 0
-                                            ? () {
-                                                setState(() {
-                                                  groupPageIndex[otherType] =
-                                                      currentPage - 1;
-                                                });
-                                              }
-                                            : null,
-                                      ),
-                                      Text(
-                                        'Page ${currentPage + 1} of $totalPages',
+                                        icon: Icon(
+                                          Icons.edit,
+                                          color: Colors.blue,
+                                        ),
+                                        tooltip: 'Edit',
+                                        onPressed: () async {
+                                          // Show edit dialog with all available fields
+                                          final nameController =
+                                              TextEditingController(
+                                                text: user['username'] ?? '',
+                                              );
+                                          final emailController =
+                                              TextEditingController(
+                                                text: user['email'] ?? '',
+                                              );
+                                          final userTypeController =
+                                              TextEditingController(
+                                                text: user['user_type'] ?? '',
+                                              );
+                                          final verificationCodeController =
+                                              TextEditingController(
+                                                text:
+                                                    user['verification_code'] ??
+                                                    '',
+                                              );
+                                          final employeeCodeController =
+                                              TextEditingController(
+                                                text:
+                                                    user['employee_code'] ?? '',
+                                              );
+                                          final sessionIdController =
+                                              TextEditingController(
+                                                text: user['session_id'] ?? '',
+                                              );
+                                          final deviceTypeController =
+                                              TextEditingController(
+                                                text: user['device_type'] ?? '',
+                                              );
+                                          final machineIdController =
+                                              TextEditingController(
+                                                text: user['machine_id'] ?? '',
+                                              );
+                                          bool sessionActive =
+                                              user['session_active'] ?? false;
+                                          bool verified =
+                                              user['verified'] ?? false;
+                                          bool isUserOnline =
+                                              user['is_user_online'] ?? false;
+
+                                          await showDialog(
+                                            context: context,
+                                            barrierDismissible: false,
+                                            builder: (BuildContext context) {
+                                              return StatefulBuilder(
+                                                builder: (context, setState) {
+                                                  return AlertDialog(
+                                                    title: Text('Edit User'),
+                                                    content: SingleChildScrollView(
+                                                      child: Column(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          // Username
+                                                          TextField(
+                                                            controller:
+                                                                nameController,
+                                                            decoration: InputDecoration(
+                                                              labelText:
+                                                                  'Username',
+                                                              border:
+                                                                  OutlineInputBorder(),
+                                                              floatingLabelBehavior:
+                                                                  FloatingLabelBehavior
+                                                                      .always, // Always show label
+                                                            ),
+                                                          ),
+                                                          SizedBox(height: 16),
+
+                                                          // User Type Dropdown
+                                                          Builder(
+                                                            builder: (context) {
+                                                              // Default user types
+                                                              final defaultUserTypes = [
+                                                                'Admin',
+                                                                'Proposal Engineer',
+                                                                'Salesperson',
+                                                                'HR',
+                                                                'Developer',
+                                                              ];
+                                                              // Current value (case-insensitive match)
+                                                              String
+                                                              currentType =
+                                                                  userTypeController
+                                                                      .text
+                                                                      .trim();
+                                                              List<String>
+                                                              userTypes =
+                                                                  List<
+                                                                    String
+                                                                  >.from(
+                                                                    defaultUserTypes,
+                                                                  );
+                                                              if (currentType
+                                                                      .isNotEmpty &&
+                                                                  !userTypes
+                                                                      .map(
+                                                                        (e) => e
+                                                                            .toLowerCase(),
+                                                                      )
+                                                                      .contains(
+                                                                        currentType
+                                                                            .toLowerCase(),
+                                                                      )) {
+                                                                userTypes.insert(
+                                                                  0,
+                                                                  currentType,
+                                                                ); // Show current value if not in list
+                                                              }
+                                                              userTypes.add(
+                                                                'Add new user type',
+                                                              );
+                                                              String
+                                                              dropdownValue = userTypes.firstWhere(
+                                                                (type) =>
+                                                                    type
+                                                                        .toLowerCase() ==
+                                                                    currentType
+                                                                        .toLowerCase(),
+                                                                orElse: () =>
+                                                                    userTypes
+                                                                        .first,
+                                                              );
+                                                              return DropdownButtonFormField<
+                                                                String
+                                                              >(
+                                                                value:
+                                                                    dropdownValue,
+                                                                decoration: InputDecoration(
+                                                                  labelText:
+                                                                      'User Type',
+                                                                  border:
+                                                                      OutlineInputBorder(),
+                                                                ),
+                                                                items: userTypes
+                                                                    .map(
+                                                                      (
+                                                                        type,
+                                                                      ) => DropdownMenuItem(
+                                                                        value:
+                                                                            type,
+                                                                        child: Text(
+                                                                          type,
+                                                                        ),
+                                                                      ),
+                                                                    )
+                                                                    .toList(),
+                                                                onChanged: (value) async {
+                                                                  if (value ==
+                                                                      'Add new user type') {
+                                                                    final newType = await showDialog<String>(
+                                                                      context:
+                                                                          context,
+                                                                      builder: (context) {
+                                                                        final controller =
+                                                                            TextEditingController();
+                                                                        return AlertDialog(
+                                                                          title: Text(
+                                                                            'Add New User Type',
+                                                                          ),
+                                                                          content: TextField(
+                                                                            controller:
+                                                                                controller,
+                                                                            decoration: InputDecoration(
+                                                                              labelText: 'User Type',
+                                                                            ),
+                                                                            autofocus:
+                                                                                true,
+                                                                          ),
+                                                                          actions: [
+                                                                            TextButton(
+                                                                              onPressed: () => Navigator.pop(
+                                                                                context,
+                                                                              ),
+                                                                              child: Text(
+                                                                                'Cancel',
+                                                                              ),
+                                                                            ),
+                                                                            ElevatedButton(
+                                                                              onPressed: () => Navigator.pop(
+                                                                                context,
+                                                                                controller.text.trim(),
+                                                                              ),
+                                                                              child: Text(
+                                                                                'Add',
+                                                                              ),
+                                                                            ),
+                                                                          ],
+                                                                        );
+                                                                      },
+                                                                    );
+                                                                    if (newType !=
+                                                                            null &&
+                                                                        newType
+                                                                            .isNotEmpty) {
+                                                                      setState(() {
+                                                                        userTypeController.text =
+                                                                            newType;
+                                                                      });
+                                                                    }
+                                                                  } else {
+                                                                    setState(() {
+                                                                      userTypeController
+                                                                              .text =
+                                                                          value ??
+                                                                          '';
+                                                                    });
+                                                                  }
+                                                                },
+                                                              );
+                                                            },
+                                                          ),
+                                                          SizedBox(height: 16),
+
+                                                          // User ID
+                                                          TextField(
+                                                            controller: TextEditingController(
+                                                              text:
+                                                                  user['user_id']
+                                                                      ?.toString() ??
+                                                                  '',
+                                                            ),
+                                                            enabled: false,
+                                                            decoration:
+                                                                InputDecoration(
+                                                                  labelText:
+                                                                      'User ID',
+                                                                  border:
+                                                                      OutlineInputBorder(),
+                                                                ),
+                                                          ),
+                                                          SizedBox(height: 16),
+
+                                                          // ID
+                                                          TextField(
+                                                            controller:
+                                                                TextEditingController(
+                                                                  text:
+                                                                      user['id']
+                                                                          ?.toString() ??
+                                                                      '',
+                                                                ),
+                                                            enabled: false,
+                                                            decoration:
+                                                                InputDecoration(
+                                                                  labelText:
+                                                                      'ID',
+                                                                  border:
+                                                                      OutlineInputBorder(),
+                                                                ),
+                                                          ),
+                                                          SizedBox(height: 16),
+
+                                                          // Email
+                                                          TextField(
+                                                            controller:
+                                                                emailController,
+                                                            decoration:
+                                                                InputDecoration(
+                                                                  labelText:
+                                                                      'Email',
+                                                                  border:
+                                                                      OutlineInputBorder(),
+                                                                ),
+                                                          ),
+                                                          SizedBox(height: 16),
+
+                                                          // Password Hash
+                                                          TextField(
+                                                            controller: TextEditingController(
+                                                              text:
+                                                                  user['password_hash']
+                                                                      ?.toString() ??
+                                                                  '',
+                                                            ),
+                                                            enabled: false,
+                                                            decoration: InputDecoration(
+                                                              labelText:
+                                                                  'Password Hash',
+                                                              border:
+                                                                  OutlineInputBorder(),
+                                                            ),
+                                                          ),
+                                                          SizedBox(height: 16),
+
+                                                          // Created At
+                                                          TextField(
+                                                            controller: TextEditingController(
+                                                              text:
+                                                                  user['created_at']
+                                                                      ?.toString() ??
+                                                                  '',
+                                                            ),
+                                                            enabled: false,
+                                                            decoration:
+                                                                InputDecoration(
+                                                                  labelText:
+                                                                      'Created At',
+                                                                  border:
+                                                                      OutlineInputBorder(),
+                                                                ),
+                                                          ),
+                                                          SizedBox(height: 16),
+
+                                                          // Employee Code
+                                                          TextField(
+                                                            controller:
+                                                                employeeCodeController,
+                                                            decoration: InputDecoration(
+                                                              labelText:
+                                                                  'Employee Code',
+                                                              border:
+                                                                  OutlineInputBorder(),
+                                                            ),
+                                                          ),
+                                                          SizedBox(height: 16),
+
+                                                          // Session Active Checkbox
+                                                          CheckboxListTile(
+                                                            title: Text(
+                                                              'Session Active',
+                                                            ),
+                                                            value:
+                                                                sessionActive,
+                                                            onChanged: (value) {
+                                                              setState(() {
+                                                                sessionActive =
+                                                                    value ??
+                                                                    false;
+                                                              });
+                                                            },
+                                                          ),
+
+                                                          // Session ID
+                                                          TextField(
+                                                            controller:
+                                                                sessionIdController,
+                                                            decoration:
+                                                                InputDecoration(
+                                                                  labelText:
+                                                                      'Session ID',
+                                                                  border:
+                                                                      OutlineInputBorder(),
+                                                                ),
+                                                          ),
+                                                          SizedBox(height: 16),
+
+                                                          // Device Type Dropdown
+                                                          Builder(
+                                                            builder: (context) {
+                                                              final defaultDeviceTypes =
+                                                                  [
+                                                                    'Mobile',
+                                                                    'Desktop',
+                                                                    'Tablet',
+                                                                    'Web',
+                                                                  ];
+                                                              String
+                                                              currentDeviceType =
+                                                                  deviceTypeController
+                                                                      .text
+                                                                      .trim();
+                                                              List<String>
+                                                              deviceTypes =
+                                                                  List<
+                                                                    String
+                                                                  >.from(
+                                                                    defaultDeviceTypes,
+                                                                  );
+                                                              if (currentDeviceType
+                                                                      .isNotEmpty &&
+                                                                  !deviceTypes
+                                                                      .map(
+                                                                        (e) => e
+                                                                            .toLowerCase(),
+                                                                      )
+                                                                      .contains(
+                                                                        currentDeviceType
+                                                                            .toLowerCase(),
+                                                                      )) {
+                                                                deviceTypes.insert(
+                                                                  0,
+                                                                  currentDeviceType,
+                                                                ); // Show current value if not in list
+                                                              }
+                                                              String
+                                                              dropdownValue = deviceTypes.firstWhere(
+                                                                (type) =>
+                                                                    type
+                                                                        .toLowerCase() ==
+                                                                    currentDeviceType
+                                                                        .toLowerCase(),
+                                                                orElse: () =>
+                                                                    deviceTypes
+                                                                        .first,
+                                                              );
+                                                              return DropdownButtonFormField<
+                                                                String
+                                                              >(
+                                                                value:
+                                                                    dropdownValue,
+                                                                decoration: InputDecoration(
+                                                                  labelText:
+                                                                      'Device Type',
+                                                                  border:
+                                                                      OutlineInputBorder(),
+                                                                ),
+                                                                items: deviceTypes
+                                                                    .map(
+                                                                      (
+                                                                        type,
+                                                                      ) => DropdownMenuItem(
+                                                                        value:
+                                                                            type,
+                                                                        child: Text(
+                                                                          type,
+                                                                        ),
+                                                                      ),
+                                                                    )
+                                                                    .toList(),
+                                                                onChanged: (value) {
+                                                                  setState(() {
+                                                                    deviceTypeController
+                                                                            .text =
+                                                                        value ??
+                                                                        '';
+                                                                  });
+                                                                },
+                                                              );
+                                                            },
+                                                          ),
+                                                          SizedBox(height: 16),
+
+                                                          // Machine ID
+                                                          TextField(
+                                                            controller:
+                                                                machineIdController,
+                                                            decoration:
+                                                                InputDecoration(
+                                                                  labelText:
+                                                                      'Machine ID',
+                                                                  border:
+                                                                      OutlineInputBorder(),
+                                                                ),
+                                                          ),
+                                                          SizedBox(height: 16),
+
+                                                          // Verification Code
+                                                          TextField(
+                                                            controller:
+                                                                verificationCodeController,
+                                                            decoration: InputDecoration(
+                                                              labelText:
+                                                                  'Verification Code',
+                                                              border:
+                                                                  OutlineInputBorder(),
+                                                            ),
+                                                          ),
+                                                          SizedBox(height: 16),
+
+                                                          // Verified Checkbox
+                                                          CheckboxListTile(
+                                                            title: Text(
+                                                              'Verified',
+                                                            ),
+                                                            value: verified,
+                                                            onChanged: (value) {
+                                                              setState(() {
+                                                                verified =
+                                                                    value ??
+                                                                    false;
+                                                              });
+                                                            },
+                                                          ),
+
+                                                          // Is User Online Checkbox
+                                                          CheckboxListTile(
+                                                            title: Text(
+                                                              'Is User Online',
+                                                            ),
+                                                            value: isUserOnline,
+                                                            onChanged: (value) {
+                                                              setState(() {
+                                                                isUserOnline =
+                                                                    value ??
+                                                                    false;
+                                                              });
+                                                            },
+                                                          ),
+
+                                                          // Updated At
+                                                          TextField(
+                                                            controller: TextEditingController(
+                                                              text:
+                                                                  user['updated_at']
+                                                                      ?.toString() ??
+                                                                  '',
+                                                            ),
+                                                            enabled: false,
+                                                            decoration:
+                                                                InputDecoration(
+                                                                  labelText:
+                                                                      'Updated At',
+                                                                  border:
+                                                                      OutlineInputBorder(),
+                                                                ),
+                                                          ),
+                                                          SizedBox(height: 16),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                    actions: [
+                                                      TextButton(
+                                                        onPressed: () =>
+                                                            Navigator.of(
+                                                              context,
+                                                            ).pop(),
+                                                        child: Text('Cancel'),
+                                                      ),
+                                                      ElevatedButton(
+                                                        onPressed: () async {
+                                                          try {
+                                                            await UserManagementService.updateUserRaw(
+                                                              user['id']
+                                                                  .toString(),
+                                                              {
+                                                                'username':
+                                                                    nameController
+                                                                        .text,
+                                                                'email':
+                                                                    emailController
+                                                                        .text,
+                                                                'user_type':
+                                                                    userTypeController
+                                                                        .text,
+                                                                'employee_code':
+                                                                    employeeCodeController
+                                                                        .text,
+                                                                'session_id':
+                                                                    sessionIdController
+                                                                        .text,
+                                                                'device_type':
+                                                                    deviceTypeController
+                                                                        .text,
+                                                                'machine_id':
+                                                                    machineIdController
+                                                                        .text,
+                                                                'verification_code':
+                                                                    verificationCodeController
+                                                                        .text,
+                                                                'session_active':
+                                                                    sessionActive,
+                                                                'verified':
+                                                                    verified,
+                                                                'is_user_online':
+                                                                    isUserOnline,
+                                                                'updated_at':
+                                                                    DateTime.now()
+                                                                        .toIso8601String(),
+                                                              },
+                                                            );
+
+                                                            Navigator.of(
+                                                              context,
+                                                            ).pop();
+                                                            fetchUsers(); // Refresh the list
+                                                            ScaffoldMessenger.of(
+                                                              context,
+                                                            ).showSnackBar(
+                                                              SnackBar(
+                                                                content: Text(
+                                                                  'User updated successfully!',
+                                                                ),
+                                                              ),
+                                                            );
+                                                          } catch (e) {
+                                                            ScaffoldMessenger.of(
+                                                              context,
+                                                            ).showSnackBar(
+                                                              SnackBar(
+                                                                content: Text(
+                                                                  'Failed to update user: $e',
+                                                                ),
+                                                              ),
+                                                            );
+                                                          }
+                                                        },
+                                                        child: Text('Save'),
+                                                      ),
+                                                    ],
+                                                  );
+                                                },
+                                              );
+                                            },
+                                          );
+                                        },
                                       ),
                                       IconButton(
-                                        icon: Icon(Icons.chevron_right),
-                                        onPressed: currentPage < totalPages - 1
-                                            ? () {
-                                                setState(() {
-                                                  groupPageIndex[otherType] =
-                                                      currentPage + 1;
-                                                });
-                                              }
-                                            : null,
+                                        icon: Icon(
+                                          Icons.copy,
+                                          color: Colors.orange,
+                                        ),
+                                        tooltip: 'Copy',
+                                        onPressed: () async {
+                                          // Duplicate user details, appending ' (copy)' to username and email
+                                          final newUser =
+                                              Map<String, dynamic>.from(user);
+                                          newUser['username'] =
+                                              (user['username'] ?? '') +
+                                              ' (copy)';
+                                          if (user['email'] != null &&
+                                              user['email'].toString().contains(
+                                                '@',
+                                              )) {
+                                            final parts = user['email']
+                                                .toString()
+                                                .split('@');
+                                            newUser['email'] =
+                                                '${parts[0]}.copy@${parts[1]}';
+                                          } else {
+                                            newUser['email'] =
+                                                (user['email'] ?? '') + '.copy';
+                                          }
+                                          // Remove id and created_at so Supabase can generate new ones
+                                          newUser.remove('id');
+                                          newUser.remove('created_at');
+                                          // Insert the duplicated user
+                                          await UserManagementService.addUserRaw(
+                                            newUser,
+                                          );
+                                          if (!mounted) return;
+                                          await fetchUsers();
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text('User duplicated.'),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.delete,
+                                          color: Colors.red,
+                                        ),
+                                        tooltip: 'Delete',
+                                        onPressed: () async {
+                                          final confirm = await showDialog<bool>(
+                                            context: context,
+                                            builder: (context) => AlertDialog(
+                                              title: Text('Delete User'),
+                                              content: Text(
+                                                'Are you sure you want to delete this user?',
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(
+                                                        context,
+                                                        false,
+                                                      ),
+                                                  child: Text('Cancel'),
+                                                ),
+                                                ElevatedButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(
+                                                        context,
+                                                        true,
+                                                      ),
+                                                  child: Text('Delete'),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                          if (confirm == true) {
+                                            await UserManagementService.deleteUser(
+                                              user['id'],
+                                            );
+                                            if (!mounted) return;
+                                            setState(() {
+                                              users.removeWhere(
+                                                (u) => u['id'] == user['id'],
+                                              );
+                                            });
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text('User deleted.'),
+                                              ),
+                                            );
+                                          }
+                                        },
                                       ),
                                     ],
                                   ),
-                                ),
-                            ];
-                          }),
-                    );
-                  }
-                  // Page controls
-                  widgets.add(
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          IconButton(
-                            icon: Icon(Icons.chevron_left),
-                            onPressed: mainPageIndex > 0
-                                ? () {
-                                    setState(() {
-                                      mainPageIndex--;
-                                    });
-                                  }
-                                : null,
-                          ),
-                          Text(
-                            'Page ${currentPage + 1} of ${totalPages + (showRestGroupsOnSamePage ? 0 : 1)}',
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.chevron_right),
-                            onPressed:
-                                (!isLastPage ||
-                                        (isLastPage &&
-                                            !showRestGroupsOnSamePage)) &&
-                                    mainPageIndex <
-                                        (totalPages +
-                                            (showRestGroupsOnSamePage ? 0 : 1) -
-                                            1)
-                                ? () {
-                                    setState(() {
-                                      mainPageIndex++;
-                                    });
-                                  }
-                                : null,
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                  return widgets;
-                })()
-              else
-                ...groupedUsers.entries.expand((entry) {
-                  final userType = entry.key;
-                  final users = entry.value;
-                  final isExpandable = users.length > 2;
-                  final isExpanded = expandedGroup == userType;
-                  final int currentPage = groupPageIndex[userType] ?? 0;
-                  final int totalPages = (users.length / pageSize).ceil();
-                  final List<Map<String, dynamic>> pagedUsers =
-                      (isExpandable && isExpanded && users.length > pageSize)
-                      ? users
-                            .skip(currentPage * pageSize)
-                            .take(pageSize)
-                            .toList()
-                      : users;
-                  return [
-                    InkWell(
-                      onTap: isExpandable
-                          ? () {
-                              setState(() {
-                                if (isExpanded) {
-                                  expandedGroup = null;
-                                  mainPageIndex = 0;
-                                } else {
-                                  expandedGroup = userType;
-                                  groupPageIndex[userType] = 0;
-                                  mainPageIndex = 0;
-                                }
-                              });
-                            }
-                          : null,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                userType,
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.deepPurple,
-                                ),
+                                ],
                               ),
                             ),
-                            if (isExpandable)
-                              Icon(
-                                isExpanded
-                                    ? Icons.keyboard_arrow_up
-                                    : Icons.keyboard_arrow_down,
-                                color: Colors.deepPurple,
+                          );
+                        },
+                      );
+                    } else {
+                      // Use ListView for mobile portrait
+                      return ListView.builder(
+                        controller: _scrollbarController,
+                        itemCount: filteredUsers.length,
+                        itemBuilder: (context, index) {
+                          final user = filteredUsers[index];
+                          return Card(
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12.0,
+                                vertical: 10.0,
                               ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    if (!isExpandable || isExpanded)
-                      ...pagedUsers.map(
-                        (user) => Card(
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Stack(
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.all(10.0),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            user['user_name'] ?? '',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 14,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          user['username'] ?? '',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                      ),
+                                      if (user['user_type'] != null)
+                                        Chip(
+                                          label: Text(
+                                            user['user_type'].toString(),
+                                          ),
+                                          backgroundColor:
+                                              Colors.deepPurple[50],
+                                          labelStyle: TextStyle(
+                                            color: Colors.deepPurple,
+                                          ),
+                                        ),
+                                      if (user['device_type'] != null &&
+                                          user['device_type']
+                                              .toString()
+                                              .isNotEmpty)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            left: 6.0,
+                                          ),
+                                          child: Chip(
+                                            label: Text(
+                                              user['device_type'].toString(),
+                                            ),
+                                            backgroundColor: Colors.blue[50],
+                                            labelStyle: TextStyle(
+                                              color: Colors.blue[900],
                                             ),
                                           ),
                                         ),
-                                        if (user['user_type'] != null)
-                                          Padding(
-                                            padding: const EdgeInsets.only(
-                                              right: 4.0,
-                                            ),
-                                            child: Chip(
-                                              label: Text(
-                                                user['user_type'].toString(),
-                                                style: TextStyle(fontSize: 10),
-                                              ),
-                                              backgroundColor:
-                                                  Colors.deepPurple[50],
-                                              labelStyle: TextStyle(
-                                                color: Colors.deepPurple,
-                                              ),
-                                            ),
-                                          ),
-                                        if (user['status'] != null)
-                                          Chip(
-                                            label: Text(
-                                              user['status'].toString(),
-                                              style: TextStyle(fontSize: 10),
-                                            ),
-                                            backgroundColor:
-                                                user['status'] == 'Active'
-                                                ? Colors.green[100]
-                                                : Colors.red[100],
-                                            labelStyle: TextStyle(
-                                              color: user['status'] == 'Active'
-                                                  ? Colors.green[800]
-                                                  : Colors.red[800],
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                      ],
+                                    ],
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    user['email'] ?? '',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey[700],
                                     ),
-                                    SizedBox(height: 6),
+                                  ),
+                                  SizedBox(height: 8),
+                                  if (user['created_at'] != null)
                                     Text(
-                                      user['screen_name'] ??
-                                          user['screen_type'] ??
-                                          '',
+                                      'Created: ${user['created_at']}',
                                       style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 15,
-                                      ),
-                                    ),
-                                    SizedBox(height: 2),
-                                    Text(
-                                      user['description'] ?? '',
-                                      style: TextStyle(
-                                        color: Colors.grey[700],
                                         fontSize: 12,
+                                        color: Colors.grey[500],
                                       ),
                                     ),
-                                  ],
-                                ),
+                                  SizedBox(height: 12),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.edit,
+                                          color: Colors.blue,
+                                        ),
+                                        tooltip: 'Edit',
+                                        onPressed: () async {
+                                          // Show edit dialog with all available fields
+                                          final nameController =
+                                              TextEditingController(
+                                                text: user['username'] ?? '',
+                                              );
+                                          final emailController =
+                                              TextEditingController(
+                                                text: user['email'] ?? '',
+                                              );
+                                          final userTypeController =
+                                              TextEditingController(
+                                                text: user['user_type'] ?? '',
+                                              );
+                                          final verificationCodeController =
+                                              TextEditingController(
+                                                text:
+                                                    user['verification_code'] ??
+                                                    '',
+                                              );
+                                          final employeeCodeController =
+                                              TextEditingController(
+                                                text:
+                                                    user['employee_code'] ?? '',
+                                              );
+                                          final sessionIdController =
+                                              TextEditingController(
+                                                text: user['session_id'] ?? '',
+                                              );
+                                          final deviceTypeController =
+                                              TextEditingController(
+                                                text: user['device_type'] ?? '',
+                                              );
+                                          final machineIdController =
+                                              TextEditingController(
+                                                text: user['machine_id'] ?? '',
+                                              );
+                                          bool sessionActive =
+                                              user['session_active'] ?? false;
+                                          bool verified =
+                                              user['verified'] ?? false;
+                                          bool isUserOnline =
+                                              user['is_user_online'] ?? false;
+
+                                          await showDialog(
+                                            context: context,
+                                            barrierDismissible: false,
+                                            builder: (BuildContext context) {
+                                              return StatefulBuilder(
+                                                builder: (context, setState) {
+                                                  return AlertDialog(
+                                                    title: Text('Edit User'),
+                                                    content: SingleChildScrollView(
+                                                      child: Column(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          // Username
+                                                          TextField(
+                                                            controller:
+                                                                nameController,
+                                                            decoration: InputDecoration(
+                                                              labelText:
+                                                                  'Username',
+                                                              border:
+                                                                  OutlineInputBorder(),
+                                                              floatingLabelBehavior:
+                                                                  FloatingLabelBehavior
+                                                                      .always, // Always show label
+                                                            ),
+                                                          ),
+                                                          SizedBox(height: 16),
+
+                                                          // User Type Dropdown
+                                                          Builder(
+                                                            builder: (context) {
+                                                              // Default user types
+                                                              final defaultUserTypes = [
+                                                                'Admin',
+                                                                'Proposal Engineer',
+                                                                'Salesperson',
+                                                                'HR',
+                                                                'Developer',
+                                                              ];
+                                                              // Current value (case-insensitive match)
+                                                              String
+                                                              currentType =
+                                                                  userTypeController
+                                                                      .text
+                                                                      .trim();
+                                                              List<String>
+                                                              userTypes =
+                                                                  List<
+                                                                    String
+                                                                  >.from(
+                                                                    defaultUserTypes,
+                                                                  );
+                                                              if (currentType
+                                                                      .isNotEmpty &&
+                                                                  !userTypes
+                                                                      .map(
+                                                                        (e) => e
+                                                                            .toLowerCase(),
+                                                                      )
+                                                                      .contains(
+                                                                        currentType
+                                                                            .toLowerCase(),
+                                                                      )) {
+                                                                userTypes.insert(
+                                                                  0,
+                                                                  currentType,
+                                                                ); // Show current value if not in list
+                                                              }
+                                                              userTypes.add(
+                                                                'Add new user type',
+                                                              );
+                                                              String
+                                                              dropdownValue = userTypes.firstWhere(
+                                                                (type) =>
+                                                                    type
+                                                                        .toLowerCase() ==
+                                                                    currentType
+                                                                        .toLowerCase(),
+                                                                orElse: () =>
+                                                                    userTypes
+                                                                        .first,
+                                                              );
+                                                              return DropdownButtonFormField<
+                                                                String
+                                                              >(
+                                                                value:
+                                                                    dropdownValue,
+                                                                decoration: InputDecoration(
+                                                                  labelText:
+                                                                      'User Type',
+                                                                  border:
+                                                                      OutlineInputBorder(),
+                                                                ),
+                                                                items: userTypes
+                                                                    .map(
+                                                                      (
+                                                                        type,
+                                                                      ) => DropdownMenuItem(
+                                                                        value:
+                                                                            type,
+                                                                        child: Text(
+                                                                          type,
+                                                                        ),
+                                                                      ),
+                                                                    )
+                                                                    .toList(),
+                                                                onChanged: (value) async {
+                                                                  if (value ==
+                                                                      'Add new user type') {
+                                                                    final newType = await showDialog<String>(
+                                                                      context:
+                                                                          context,
+                                                                      builder: (context) {
+                                                                        final controller =
+                                                                            TextEditingController();
+                                                                        return AlertDialog(
+                                                                          title: Text(
+                                                                            'Add New User Type',
+                                                                          ),
+                                                                          content: TextField(
+                                                                            controller:
+                                                                                controller,
+                                                                            decoration: InputDecoration(
+                                                                              labelText: 'User Type',
+                                                                            ),
+                                                                            autofocus:
+                                                                                true,
+                                                                          ),
+                                                                          actions: [
+                                                                            TextButton(
+                                                                              onPressed: () => Navigator.pop(
+                                                                                context,
+                                                                              ),
+                                                                              child: Text(
+                                                                                'Cancel',
+                                                                              ),
+                                                                            ),
+                                                                            ElevatedButton(
+                                                                              onPressed: () => Navigator.pop(
+                                                                                context,
+                                                                                controller.text.trim(),
+                                                                              ),
+                                                                              child: Text(
+                                                                                'Add',
+                                                                              ),
+                                                                            ),
+                                                                          ],
+                                                                        );
+                                                                      },
+                                                                    );
+                                                                    if (newType !=
+                                                                            null &&
+                                                                        newType
+                                                                            .isNotEmpty) {
+                                                                      setState(() {
+                                                                        userTypeController.text =
+                                                                            newType;
+                                                                      });
+                                                                    }
+                                                                  } else {
+                                                                    setState(() {
+                                                                      userTypeController
+                                                                              .text =
+                                                                          value ??
+                                                                          '';
+                                                                    });
+                                                                  }
+                                                                },
+                                                              );
+                                                            },
+                                                          ),
+                                                          SizedBox(height: 16),
+
+                                                          // User ID
+                                                          TextField(
+                                                            controller: TextEditingController(
+                                                              text:
+                                                                  user['user_id']
+                                                                      ?.toString() ??
+                                                                  '',
+                                                            ),
+                                                            enabled: false,
+                                                            decoration:
+                                                                InputDecoration(
+                                                                  labelText:
+                                                                      'User ID',
+                                                                  border:
+                                                                      OutlineInputBorder(),
+                                                                ),
+                                                          ),
+                                                          SizedBox(height: 16),
+
+                                                          // ID
+                                                          TextField(
+                                                            controller:
+                                                                TextEditingController(
+                                                                  text:
+                                                                      user['id']
+                                                                          ?.toString() ??
+                                                                      '',
+                                                                ),
+                                                            enabled: false,
+                                                            decoration:
+                                                                InputDecoration(
+                                                                  labelText:
+                                                                      'ID',
+                                                                  border:
+                                                                      OutlineInputBorder(),
+                                                                ),
+                                                          ),
+                                                          SizedBox(height: 16),
+
+                                                          // Email
+                                                          TextField(
+                                                            controller:
+                                                                emailController,
+                                                            decoration:
+                                                                InputDecoration(
+                                                                  labelText:
+                                                                      'Email',
+                                                                  border:
+                                                                      OutlineInputBorder(),
+                                                                ),
+                                                          ),
+                                                          SizedBox(height: 16),
+
+                                                          // Password Hash
+                                                          TextField(
+                                                            controller: TextEditingController(
+                                                              text:
+                                                                  user['password_hash']
+                                                                      ?.toString() ??
+                                                                  '',
+                                                            ),
+                                                            enabled: false,
+                                                            decoration: InputDecoration(
+                                                              labelText:
+                                                                  'Password Hash',
+                                                              border:
+                                                                  OutlineInputBorder(),
+                                                            ),
+                                                          ),
+                                                          SizedBox(height: 16),
+
+                                                          // Created At
+                                                          TextField(
+                                                            controller: TextEditingController(
+                                                              text:
+                                                                  user['created_at']
+                                                                      ?.toString() ??
+                                                                  '',
+                                                            ),
+                                                            enabled: false,
+                                                            decoration:
+                                                                InputDecoration(
+                                                                  labelText:
+                                                                      'Created At',
+                                                                  border:
+                                                                      OutlineInputBorder(),
+                                                                ),
+                                                          ),
+                                                          SizedBox(height: 16),
+
+                                                          // Employee Code
+                                                          TextField(
+                                                            controller:
+                                                                employeeCodeController,
+                                                            decoration: InputDecoration(
+                                                              labelText:
+                                                                  'Employee Code',
+                                                              border:
+                                                                  OutlineInputBorder(),
+                                                            ),
+                                                          ),
+                                                          SizedBox(height: 16),
+
+                                                          // Session Active Checkbox
+                                                          CheckboxListTile(
+                                                            title: Text(
+                                                              'Session Active',
+                                                            ),
+                                                            value:
+                                                                sessionActive,
+                                                            onChanged: (value) {
+                                                              setState(() {
+                                                                sessionActive =
+                                                                    value ??
+                                                                    false;
+                                                              });
+                                                            },
+                                                          ),
+
+                                                          // Session ID
+                                                          TextField(
+                                                            controller:
+                                                                sessionIdController,
+                                                            decoration:
+                                                                InputDecoration(
+                                                                  labelText:
+                                                                      'Session ID',
+                                                                  border:
+                                                                      OutlineInputBorder(),
+                                                                ),
+                                                          ),
+                                                          SizedBox(height: 16),
+
+                                                          // Device Type Dropdown
+                                                          Builder(
+                                                            builder: (context) {
+                                                              final defaultDeviceTypes =
+                                                                  [
+                                                                    'Mobile',
+                                                                    'Desktop',
+                                                                    'Tablet',
+                                                                    'Web',
+                                                                  ];
+                                                              String
+                                                              currentDeviceType =
+                                                                  deviceTypeController
+                                                                      .text
+                                                                      .trim();
+                                                              List<String>
+                                                              deviceTypes =
+                                                                  List<
+                                                                    String
+                                                                  >.from(
+                                                                    defaultDeviceTypes,
+                                                                  );
+                                                              if (currentDeviceType
+                                                                      .isNotEmpty &&
+                                                                  !deviceTypes
+                                                                      .map(
+                                                                        (e) => e
+                                                                            .toLowerCase(),
+                                                                      )
+                                                                      .contains(
+                                                                        currentDeviceType
+                                                                            .toLowerCase(),
+                                                                      )) {
+                                                                deviceTypes.insert(
+                                                                  0,
+                                                                  currentDeviceType,
+                                                                ); // Show current value if not in list
+                                                              }
+                                                              String
+                                                              dropdownValue = deviceTypes.firstWhere(
+                                                                (type) =>
+                                                                    type
+                                                                        .toLowerCase() ==
+                                                                    currentDeviceType
+                                                                        .toLowerCase(),
+                                                                orElse: () =>
+                                                                    deviceTypes
+                                                                        .first,
+                                                              );
+                                                              return DropdownButtonFormField<
+                                                                String
+                                                              >(
+                                                                value:
+                                                                    dropdownValue,
+                                                                decoration: InputDecoration(
+                                                                  labelText:
+                                                                      'Device Type',
+                                                                  border:
+                                                                      OutlineInputBorder(),
+                                                                ),
+                                                                items: deviceTypes
+                                                                    .map(
+                                                                      (
+                                                                        type,
+                                                                      ) => DropdownMenuItem(
+                                                                        value:
+                                                                            type,
+                                                                        child: Text(
+                                                                          type,
+                                                                        ),
+                                                                      ),
+                                                                    )
+                                                                    .toList(),
+                                                                onChanged: (value) {
+                                                                  setState(() {
+                                                                    deviceTypeController
+                                                                            .text =
+                                                                        value ??
+                                                                        '';
+                                                                  });
+                                                                },
+                                                              );
+                                                            },
+                                                          ),
+                                                          SizedBox(height: 16),
+
+                                                          // Machine ID
+                                                          TextField(
+                                                            controller:
+                                                                machineIdController,
+                                                            decoration:
+                                                                InputDecoration(
+                                                                  labelText:
+                                                                      'Machine ID',
+                                                                  border:
+                                                                      OutlineInputBorder(),
+                                                                ),
+                                                          ),
+                                                          SizedBox(height: 16),
+
+                                                          // Verification Code
+                                                          TextField(
+                                                            controller:
+                                                                verificationCodeController,
+                                                            decoration: InputDecoration(
+                                                              labelText:
+                                                                  'Verification Code',
+                                                              border:
+                                                                  OutlineInputBorder(),
+                                                            ),
+                                                          ),
+                                                          SizedBox(height: 16),
+
+                                                          // Verified Checkbox
+                                                          CheckboxListTile(
+                                                            title: Text(
+                                                              'Verified',
+                                                            ),
+                                                            value: verified,
+                                                            onChanged: (value) {
+                                                              setState(() {
+                                                                verified =
+                                                                    value ??
+                                                                    false;
+                                                              });
+                                                            },
+                                                          ),
+
+                                                          // Is User Online Checkbox
+                                                          CheckboxListTile(
+                                                            title: Text(
+                                                              'Is User Online',
+                                                            ),
+                                                            value: isUserOnline,
+                                                            onChanged: (value) {
+                                                              setState(() {
+                                                                isUserOnline =
+                                                                    value ??
+                                                                    false;
+                                                              });
+                                                            },
+                                                          ),
+
+                                                          // Updated At
+                                                          TextField(
+                                                            controller: TextEditingController(
+                                                              text:
+                                                                  user['updated_at']
+                                                                      ?.toString() ??
+                                                                  '',
+                                                            ),
+                                                            enabled: false,
+                                                            decoration:
+                                                                InputDecoration(
+                                                                  labelText:
+                                                                      'Updated At',
+                                                                  border:
+                                                                      OutlineInputBorder(),
+                                                                ),
+                                                          ),
+                                                          SizedBox(height: 16),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                    actions: [
+                                                      TextButton(
+                                                        onPressed: () =>
+                                                            Navigator.of(
+                                                              context,
+                                                            ).pop(),
+                                                        child: Text('Cancel'),
+                                                      ),
+                                                      ElevatedButton(
+                                                        onPressed: () async {
+                                                          try {
+                                                            await UserManagementService.updateUserRaw(
+                                                              user['id']
+                                                                  .toString(),
+                                                              {
+                                                                'username':
+                                                                    nameController
+                                                                        .text,
+                                                                'email':
+                                                                    emailController
+                                                                        .text,
+                                                                'user_type':
+                                                                    userTypeController
+                                                                        .text,
+                                                                'employee_code':
+                                                                    employeeCodeController
+                                                                        .text,
+                                                                'session_id':
+                                                                    sessionIdController
+                                                                        .text,
+                                                                'device_type':
+                                                                    deviceTypeController
+                                                                        .text,
+                                                                'machine_id':
+                                                                    machineIdController
+                                                                        .text,
+                                                                'verification_code':
+                                                                    verificationCodeController
+                                                                        .text,
+                                                                'session_active':
+                                                                    sessionActive,
+                                                                'verified':
+                                                                    verified,
+                                                                'is_user_online':
+                                                                    isUserOnline,
+                                                                'updated_at':
+                                                                    DateTime.now()
+                                                                        .toIso8601String(),
+                                                              },
+                                                            );
+
+                                                            Navigator.of(
+                                                              context,
+                                                            ).pop();
+                                                            fetchUsers(); // Refresh the list
+                                                            ScaffoldMessenger.of(
+                                                              context,
+                                                            ).showSnackBar(
+                                                              SnackBar(
+                                                                content: Text(
+                                                                  'User updated successfully!',
+                                                                ),
+                                                              ),
+                                                            );
+                                                          } catch (e) {
+                                                            ScaffoldMessenger.of(
+                                                              context,
+                                                            ).showSnackBar(
+                                                              SnackBar(
+                                                                content: Text(
+                                                                  'Failed to update user: $e',
+                                                                ),
+                                                              ),
+                                                            );
+                                                          }
+                                                        },
+                                                        child: Text('Save'),
+                                                      ),
+                                                    ],
+                                                  );
+                                                },
+                                              );
+                                            },
+                                          );
+                                        },
+                                      ),
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.copy,
+                                          color: Colors.orange,
+                                        ),
+                                        tooltip: 'Copy',
+                                        onPressed: () async {
+                                          // Duplicate user details, appending ' (copy)' to username and email
+                                          final newUser =
+                                              Map<String, dynamic>.from(user);
+                                          newUser['username'] =
+                                              (user['username'] ?? '') +
+                                              ' (copy)';
+                                          if (user['email'] != null &&
+                                              user['email'].toString().contains(
+                                                '@',
+                                              )) {
+                                            final parts = user['email']
+                                                .toString()
+                                                .split('@');
+                                            newUser['email'] =
+                                                '${parts[0]}.copy@${parts[1]}';
+                                          } else {
+                                            newUser['email'] =
+                                                (user['email'] ?? '') + '.copy';
+                                          }
+                                          // Remove id and created_at so Supabase can generate new ones
+                                          newUser.remove('id');
+                                          newUser.remove('created_at');
+                                          // Insert the duplicated user
+                                          await UserManagementService.addUserRaw(
+                                            newUser,
+                                          );
+                                          if (!mounted) return;
+                                          await fetchUsers();
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text('User duplicated.'),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.delete,
+                                          color: Colors.red,
+                                        ),
+                                        tooltip: 'Delete',
+                                        onPressed: () async {
+                                          final confirm = await showDialog<bool>(
+                                            context: context,
+                                            builder: (context) => AlertDialog(
+                                              title: Text('Delete User'),
+                                              content: Text(
+                                                'Are you sure you want to delete this user?',
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(
+                                                        context,
+                                                        false,
+                                                      ),
+                                                  child: Text('Cancel'),
+                                                ),
+                                                ElevatedButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(
+                                                        context,
+                                                        true,
+                                                      ),
+                                                  child: Text('Delete'),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                          if (confirm == true) {
+                                            await UserManagementService.deleteUser(
+                                              user['id'],
+                                            );
+                                            if (!mounted) return;
+                                            setState(() {
+                                              users.removeWhere(
+                                                (u) => u['id'] == user['id'],
+                                              );
+                                            });
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text('User deleted.'),
+                                              ),
+                                            );
+                                          }
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
-                              Positioned(
-                                right: 8,
-                                bottom: 8,
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.remove_red_eye,
-                                        color: Colors.deepPurple,
-                                      ),
-                                      tooltip: 'View',
-                                      onPressed: () => _showViewDialog(user),
-                                    ),
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.edit,
-                                        color: Colors.blue,
-                                      ),
-                                      tooltip: 'Edit',
-                                      onPressed: () => _showEditDialog(user),
-                                    ),
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.copy,
-                                        color: Colors.orange,
-                                      ),
-                                      tooltip: 'Copy',
-                                      onPressed: () => _copyUser(user),
-                                    ),
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.delete,
-                                        color: Colors.red,
-                                      ),
-                                      tooltip: 'Delete',
-                                      onPressed: () => _deleteUser(user),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    if (isExpandable && isExpanded && users.length > pageSize)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            IconButton(
-                              icon: Icon(Icons.chevron_left),
-                              onPressed: currentPage > 0
-                                  ? () {
-                                      setState(() {
-                                        groupPageIndex[userType] =
-                                            currentPage - 1;
-                                      });
-                                    }
-                                  : null,
                             ),
-                            Text('Page ${currentPage + 1} of $totalPages'),
-                            IconButton(
-                              icon: Icon(Icons.chevron_right),
-                              onPressed: currentPage < totalPages - 1
-                                  ? () {
-                                      setState(() {
-                                        groupPageIndex[userType] =
-                                            currentPage + 1;
-                                      });
-                                    }
-                                  : null,
-                            ),
-                          ],
-                        ),
-                      ),
-                  ];
-                }),
-            ],
-          ),
+                          );
+                        },
+                      );
+                    }
+                  },
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -1800,6 +2525,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
   @override
   void dispose() {
     _scrollbarController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 }
@@ -1849,7 +2575,7 @@ class ScreenTemplateDetailPage extends StatelessWidget {
                 : 1,
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
-            childAspectRatio: 1.6,
+            childAspectRatio: 1.2,
           ),
           itemCount: subTemplates.length,
           itemBuilder: (context, i) {
@@ -2215,14 +2941,35 @@ class _InvitedUsersTabState extends State<_InvitedUsersTab> {
   }
 
   Future<List<Map<String, dynamic>>> _fetchInvited() async {
-    final data = await Supabase.instance.client
+    final invitationData = await Supabase.instance.client
         .from('invitation')
         .select(
           'user_name, mobile_no, email, user_type, created_at, is_registered',
         )
         .eq('active', false)
         .order('created_at', ascending: false);
-    return List<Map<String, dynamic>>.from(data);
+    // Fetch verification_code for each invited user's email from users table
+    final emails = invitationData
+        .map((e) => e['email'] as String?)
+        .whereType<String>()
+        .toList();
+    Map<String, String> emailToCode = {};
+    if (emails.isNotEmpty) {
+      final usersData = await Supabase.instance.client
+          .from('users')
+          .select('email, verification_code')
+          .inFilter('email', emails);
+      for (final user in usersData) {
+        if (user['email'] != null && user['verification_code'] != null) {
+          emailToCode[user['email']] = user['verification_code'].toString();
+        }
+      }
+    }
+    // Add code to each invited row
+    for (final row in invitationData) {
+      row['verification_code'] = emailToCode[row['email']] ?? '-';
+    }
+    return List<Map<String, dynamic>>.from(invitationData);
   }
 
   @override
@@ -2250,6 +2997,7 @@ class _InvitedUsersTabState extends State<_InvitedUsersTab> {
               {'label': 'User Type', 'key': 'user_type'},
               {'label': 'Date', 'key': 'created_at'},
               {'label': 'Status', 'key': 'is_registered'},
+              {'label': 'Code', 'key': 'verification_code'},
             ];
             return Column(
               children: [
@@ -2311,6 +3059,7 @@ class _InvitedUsersTabState extends State<_InvitedUsersTab> {
                         (row['user_type'] ?? '-').toString(),
                         date.toString(),
                         status.toString(),
+                        (row['verification_code'] ?? '-').toString(),
                       ];
                       return Container(
                         decoration: BoxDecoration(
@@ -2342,10 +3091,48 @@ class _InvitedUsersTabState extends State<_InvitedUsersTab> {
                                         )
                                       : null,
                                   child: Center(
-                                    child: Text(
-                                      cells[i],
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
+                                    child: i == cells.length - 1
+                                        ? Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Flexible(
+                                                child: Text(
+                                                  cells[i],
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                              if (cells[i] != '-')
+                                                IconButton(
+                                                  icon: const Icon(
+                                                    Icons.copy,
+                                                    size: 18,
+                                                  ),
+                                                  tooltip: 'Copy Code',
+                                                  onPressed: () {
+                                                    Clipboard.setData(
+                                                      ClipboardData(
+                                                        text: cells[i],
+                                                      ),
+                                                    );
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
+                                                      const SnackBar(
+                                                        content: Text(
+                                                          'Code copied to clipboard',
+                                                        ),
+                                                      ),
+                                                    );
+                                                  },
+                                                ),
+                                            ],
+                                          )
+                                        : Text(
+                                            cells[i],
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
                                   ),
                                 ),
                               ),
