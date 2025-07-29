@@ -31,6 +31,12 @@ jobs:
     - name: Build iOS
       run: flutter build ios --release --no-codesign
       
+    - name: Build macOS
+      run: flutter build macos --release
+      
+    - name: Build Windows
+      run: flutter build windows --release
+      
     - name: Create Release
       uses: softprops/action-gh-release@v2
       with:
@@ -38,6 +44,8 @@ jobs:
           build/app/outputs/flutter-apk/app-release.apk
           build/web/**/*
           build/ios/iphoneos/**/*
+          build/macos/Build/Products/Release/**/*
+          build/windows/runner/Release/**/*
         generate_release_notes: true
         draft: false
         prerelease: false

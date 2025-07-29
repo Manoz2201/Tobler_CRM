@@ -39,6 +39,12 @@ jobs:
     - name: Build iOS (Basic - no signing)
       run: flutter build ios --release --no-codesign
       
+    - name: Build macOS
+      run: flutter build macos --release
+      
+    - name: Build Windows
+      run: flutter build windows --release
+      
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
@@ -56,6 +62,18 @@ jobs:
       with:
         name: ios-build
         path: build/ios/iphoneos/
+        
+    - name: Upload macOS build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: macos-build
+        path: build/macos/Build/Products/Release/
+        
+    - name: Upload Windows build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-build
+        path: build/windows/runner/Release/
 
   # Code Quality Job
   code-quality:
