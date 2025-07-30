@@ -1372,7 +1372,7 @@ class _AdminLeadsPageState extends State<_AdminLeadsPage> {
 
       // Check if lead is within last 6 hours
       if (difference.inHours <= 6) {
-        return 'New/Progress';
+        return 'New';
       }
 
       // Check if lead has proposal_input data
@@ -5981,7 +5981,7 @@ class _LeadTableState extends State<LeadTable> {
 
       // Check if lead is within last 6 hours
       if (difference.inHours <= 6) {
-        return 'New/Progress';
+        return 'New';
       }
 
       // Check if lead has proposal_input data
@@ -6002,7 +6002,7 @@ class _LeadTableState extends State<LeadTable> {
 
   Color _getStatusColor(String status) {
     switch (status) {
-      case 'New/Progress':
+      case 'New':
         return Colors.blue;
       case 'Proposal Progress':
         return Colors.orange;
