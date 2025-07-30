@@ -4638,6 +4638,159 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
     }
   }
 
+  void _forceDeleteLead(Map<String, dynamic> lead) async {
+    // Show confirmation dialog for force delete
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.warning, color: Colors.red[600]),
+            SizedBox(width: 8),
+            Text('Force Delete Lead'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '⚠️ WARNING: This will permanently delete the lead and ALL associated files!',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.red[600],
+              ),
+            ),
+            SizedBox(height: 12),
+            Text(
+              'Lead ID: ${lead['lead_id']}',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              'Project: ${lead['project_name'] ?? 'N/A'}',
+              style: TextStyle(fontSize: 14),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'This action will:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 8),
+            Text('• Delete all associated proposal files'),
+            Text('• Delete all admin responses'),
+            Text('• Permanently remove the lead'),
+            Text('• This action CANNOT be undone!'),
+            SizedBox(height: 16),
+            Text(
+              'Are you absolutely sure you want to proceed?',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.red[600],
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await _performForceDelete(lead);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red[600],
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Force Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _performForceDelete(Map<String, dynamic> lead) async {
+    try {
+      final client = Supabase.instance.client;
+      final leadId = lead['lead_id'];
+
+      debugPrint('Force deleting lead: $leadId');
+
+      // First, delete all associated proposal files
+      final proposalFiles = await client
+          .from('proposal_file')
+          .select('id')
+          .eq('lead_id', leadId);
+
+      if (proposalFiles.isNotEmpty) {
+        debugPrint('Deleting ${proposalFiles.length} proposal files');
+        await client.from('proposal_file').delete().eq('lead_id', leadId);
+      }
+
+      // Delete all admin responses
+      final adminResponses = await client
+          .from('admin_response')
+          .select('id')
+          .eq('lead_id', leadId);
+
+      if (adminResponses.isNotEmpty) {
+        debugPrint('Deleting ${adminResponses.length} admin responses');
+        await client.from('admin_response').delete().eq('lead_id', leadId);
+      }
+
+      // Now delete the lead
+      debugPrint('Deleting lead from database');
+      final deleteResult = await client.from('leads').delete().eq('id', leadId);
+      debugPrint('Delete result: $deleteResult');
+
+      // Record the force delete activity
+      try {
+        await _recordLeadActivity(
+          leadId.toString(),
+          'Lead Force Deleted',
+          'Lead and all associated files deleted by sales user',
+          widget.currentUserId,
+          widget.currentUserEmail,
+        );
+        debugPrint('Activity recorded successfully');
+      } catch (activityError) {
+        debugPrint('Error recording activity: $activityError');
+      }
+
+      // Refresh the leads list
+      debugPrint('Refreshing leads list...');
+      await _fetchLeads();
+      debugPrint('Leads list refreshed');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Lead $leadId and all associated files deleted successfully',
+            ),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error during force delete: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error force deleting lead: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 5),
+          ),
+        );
+      }
+    }
+  }
+
   void _showAdminResponsesDialog(Map<String, dynamic> lead) async {
     try {
       final client = Supabase.instance.client;
@@ -4866,6 +5019,19 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
                           child: const Text('View Files'),
                         ),
                         TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            _forceDeleteLead(lead);
+                          },
+                          child: Text(
+                            'Force Delete',
+                            style: TextStyle(
+                              color: Colors.red[600],
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        TextButton(
                           onPressed: () => Navigator.of(context).pop(),
                           child: const Text('OK'),
                         ),
@@ -4932,6 +5098,19 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
                             _showAdminResponsesDialog(lead);
                           },
                           child: const Text('View Responses'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            _forceDeleteLead(lead);
+                          },
+                          child: Text(
+                            'Force Delete',
+                            style: TextStyle(
+                              color: Colors.red[600],
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                         TextButton(
                           onPressed: () => Navigator.of(context).pop(),
