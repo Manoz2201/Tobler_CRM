@@ -263,11 +263,11 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                     Navigator.of(context).pop();
                     _performUpdate();
                   },
-                  child: Text('Update Now'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue[600],
                     foregroundColor: Colors.white,
                   ),
+                  child: Text('Update Now'),
                 ),
               ],
             );

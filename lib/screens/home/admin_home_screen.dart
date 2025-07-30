@@ -6,11 +6,36 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:crm_app/widgets/profile_page.dart';
 import 'package:crm_app/screens/home/developer_home_screen.dart'
     show UserManagementPage, RoleManagementPage;
 import 'package:intl/intl.dart';
+
+// Helper function to copy text to clipboard
+Future<void> copyToClipboard(BuildContext context, String text) async {
+  await Clipboard.setData(ClipboardData(text: text));
+  if (context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Copied to clipboard'),
+        duration: Duration(seconds: 2),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+}
+
+// Helper function to launch URL
+Future<void> launchURL(String url) async {
+  final Uri uri = Uri.parse(url);
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  } else {
+    throw 'Could not launch $url';
+  }
+}
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});
@@ -72,6 +97,101 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     setState(() {
       _selectedIndex = index;
     });
+  }
+
+  Widget _buildMobileNavigationBar() {
+    return Container(
+      height: 55,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Colors.grey[300]!, width: 1)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 4,
+            offset: Offset(0, -1),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Container(
+          height: 55,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // Calculate item width to show exactly 5 items
+              final itemWidth = constraints.maxWidth / 5;
+
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: _navItems.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final item = entry.value;
+                    final isSelected = _selectedIndex == index;
+                    return _buildMobileNavItem(
+                      item,
+                      index,
+                      isSelected,
+                      itemWidth,
+                    );
+                  }).toList(),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileNavItem(
+    _NavItem item,
+    int index,
+    bool isSelected,
+    double width,
+  ) {
+    return Container(
+      width: width,
+      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      child: InkWell(
+        onTap: () => _onItemTapped(index),
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.blue[50] : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            border: isSelected
+                ? Border.all(color: Colors.blue[300]!, width: 1)
+                : null,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                item.icon,
+                color: isSelected ? Colors.blue[600] : Colors.grey[600],
+                size: 20,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                item.label,
+                style: TextStyle(
+                  fontSize: 8,
+                  color: isSelected ? Colors.blue[600] : Colors.grey[600],
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildNavBar(double screenHeight, double screenWidth) {
@@ -282,31 +402,10 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             ),
           );
         } else {
-          // Mobile layout: bottom navigation bar
+          // Mobile layout: custom navigation bar
           return Scaffold(
             body: _pages[_selectedIndex],
-            bottomNavigationBar: BottomNavigationBar(
-              currentIndex: _selectedIndex,
-              onTap: _onItemTapped,
-              items: _navItems
-                  .map(
-                    (item) => BottomNavigationBarItem(
-                      icon: Icon(item.icon),
-                      label: item.label,
-                    ),
-                  )
-                  .toList(),
-              selectedItemColor: const Color(0xFF1976D2),
-              unselectedItemColor: Colors.grey[400],
-              type: BottomNavigationBarType.fixed,
-              backgroundColor: Color.fromARGB(
-                (0.95 * 255).round(),
-                255,
-                255,
-                255,
-              ),
-              elevation: 8,
-            ),
+            bottomNavigationBar: _buildMobileNavigationBar(),
           );
         }
       },
@@ -333,6 +432,10 @@ class _AdminLeadsPageState extends State<_AdminLeadsPage> {
   List<Map<String, dynamic>> _activityTimeline = [];
   bool _isActivityLoading = false;
   String? _activityError;
+  List<Map<String, dynamic>> _mainContacts = [];
+  List<Map<String, dynamic>> _leadContacts = [];
+  bool _isContactsLoading = false;
+  String? _contactsError;
 
   @override
   void initState() {
@@ -390,19 +493,898 @@ class _AdminLeadsPageState extends State<_AdminLeadsPage> {
     }
   }
 
+  Future<void> _fetchContacts(String leadId) async {
+    setState(() {
+      _isContactsLoading = true;
+      _contactsError = null;
+      _mainContacts = [];
+      _leadContacts = [];
+    });
+    try {
+      final client = Supabase.instance.client;
+
+      // Fetch main contacts
+      try {
+        final mainContactsResult = await client
+            .from('main_contact')
+            .select('*')
+            .eq('lead_id', leadId)
+            .order('created_at', ascending: false);
+        setState(() {
+          _mainContacts = List<Map<String, dynamic>>.from(mainContactsResult);
+        });
+      } catch (e) {
+        debugPrint('Main contacts not available: $e');
+      }
+
+      // Fetch lead contacts
+      try {
+        final leadContactsResult = await client
+            .from('lead_contacts')
+            .select('*')
+            .eq('lead_id', leadId)
+            .order('created_at', ascending: false);
+        setState(() {
+          _leadContacts = List<Map<String, dynamic>>.from(leadContactsResult);
+        });
+      } catch (e) {
+        debugPrint('Lead contacts not available: $e');
+      }
+
+      setState(() {
+        _isContactsLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _contactsError = 'Failed to fetch contacts: ${e.toString()}';
+        _isContactsLoading = false;
+      });
+    }
+  }
+
   void _expandCard(int index) async {
     final leadId = leads[index]['id'];
     setState(() {
       _expandedIndex = index;
     });
-    await _fetchActivityTimeline(leadId);
+    await Future.wait([_fetchActivityTimeline(leadId), _fetchContacts(leadId)]);
   }
 
   void _collapseCard() {
     setState(() {
       _expandedIndex = null;
       _activityTimeline = [];
+      _mainContacts = [];
+      _leadContacts = [];
     });
+  }
+
+  void _viewLeadDetails(Map<String, dynamic> lead) async {
+    final leadId = lead['id'];
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Center(child: CircularProgressIndicator());
+      },
+    );
+
+    try {
+      final client = Supabase.instance.client;
+
+      // Fetch all lead details
+      final leadDetails = await client
+          .from('leads')
+          .select('*')
+          .eq('id', leadId)
+          .maybeSingle();
+
+      if (leadDetails == null) {
+        throw Exception('Lead not found');
+      }
+
+      // Fetch user details for sales person
+      final salesPersonDetails = await client
+          .from('users')
+          .select('username, email')
+          .eq('id', leadDetails['lead_generated_by'])
+          .maybeSingle();
+
+      // Fetch all proposal inputs for this lead
+      final proposalInputs = await client
+          .from('proposal_input')
+          .select('*')
+          .eq('lead_id', leadId)
+          .order('input');
+
+      // Fetch admin response for this lead (latest only)
+      final adminResponse = await client
+          .from('admin_response')
+          .select('*')
+          .eq('lead_id', leadId)
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+
+      // Fetch lead activity timeline
+      final activityTimeline = await client
+          .from('lead_activity')
+          .select('*')
+          .eq('lead_id', leadId)
+          .order('activity_date', ascending: false)
+          .order('activity_time', ascending: false);
+
+      // Fetch customer details if available (latest only)
+      List<Map<String, dynamic>> customerDetails = [];
+      if (leadDetails['client_name'] != null) {
+        try {
+          customerDetails = await client
+              .from('customers')
+              .select('*')
+              .eq('name', leadDetails['client_name'])
+              .order('created_at', ascending: false)
+              .limit(1);
+        } catch (e) {
+          // Customer table might not exist or have different structure
+          debugPrint('Customer details not available: $e');
+        }
+      }
+
+      // Fetch any comments or notes
+      List<Map<String, dynamic>> comments = [];
+      try {
+        comments = await client
+            .from('lead_comments')
+            .select('*')
+            .eq('lead_id', leadId)
+            .order('created_at', ascending: false);
+      } catch (e) {
+        // Comments table might not exist
+        debugPrint('Comments not available: $e');
+      }
+
+      // Fetch any tasks related to this lead
+      List<Map<String, dynamic>> tasks = [];
+      try {
+        tasks = await client
+            .from('tasks')
+            .select('*')
+            .eq('lead_id', leadId)
+            .order('due_date', ascending: true);
+      } catch (e) {
+        // Tasks table might not exist
+        debugPrint('Tasks not available: $e');
+      }
+
+      // Fetch any follow-ups related to this lead
+      List<Map<String, dynamic>> followUps = [];
+      try {
+        followUps = await client
+            .from('follow_ups')
+            .select('*')
+            .eq('lead_id', leadId)
+            .order('due_date', ascending: true);
+      } catch (e) {
+        // Follow-ups table might not exist
+        debugPrint('Follow-ups not available: $e');
+      }
+
+      // Fetch any quotations related to this lead
+      List<Map<String, dynamic>> quotations = [];
+      try {
+        quotations = await client
+            .from('quotations')
+            .select('*')
+            .eq('lead_id', leadId)
+            .order('created_at', ascending: false);
+      } catch (e) {
+        // Quotations table might not exist
+        debugPrint('Quotations not available: $e');
+      }
+
+      // Fetch any invoices related to this lead
+      List<Map<String, dynamic>> invoices = [];
+      try {
+        invoices = await client
+            .from('invoices')
+            .select('*')
+            .eq('lead_id', leadId)
+            .order('created_at', ascending: false);
+      } catch (e) {
+        // Invoices table might not exist
+        debugPrint('Invoices not available: $e');
+      }
+
+      // Fetch main contact information from leads table
+      List<Map<String, dynamic>> mainContacts = [];
+      if (leadDetails['main_contact_name'] != null &&
+          leadDetails['main_contact_name'].toString().isNotEmpty) {
+        mainContacts = [
+          {
+            'name': leadDetails['main_contact_name'],
+            'designation': leadDetails['main_contact_designation'] ?? 'N/A',
+            'email': leadDetails['main_contact_email'] ?? 'N/A',
+            'mobile': leadDetails['main_contact_mobile'] ?? 'N/A',
+          },
+        ];
+      }
+
+      // Fetch lead attachments
+      List<Map<String, dynamic>> leadAttachments = [];
+      try {
+        leadAttachments = await client
+            .from('lead_attachments')
+            .select('file_name, file_link')
+            .eq('lead_id', leadId)
+            .order('created_at', ascending: false);
+      } catch (e) {
+        // Lead attachments table might not exist
+        debugPrint('Lead attachments not available: $e');
+      }
+
+      // Fetch lead contacts
+      List<Map<String, dynamic>> leadContacts = [];
+      try {
+        leadContacts = await client
+            .from('lead_contacts')
+            .select('contact_name, designation, email, mobile')
+            .eq('lead_id', leadId)
+            .order('created_at', ascending: false);
+      } catch (e) {
+        // Lead contacts table might not exist
+        debugPrint('Lead contacts not available: $e');
+      }
+
+      // Fetch queries
+      List<Map<String, dynamic>> queries = [];
+      try {
+        queries = await client
+            .from('queries')
+            .select('*')
+            .eq('lead_id', leadId)
+            .order('created_at', ascending: false);
+      } catch (e) {
+        // Queries table might not exist
+        debugPrint('Queries not available: $e');
+      }
+
+      // Fetch proposal files
+      List<Map<String, dynamic>> proposalFiles = [];
+      try {
+        final proposalFilesResult = await client
+            .from('proposal_file')
+            .select('file_name, file_link, user_id')
+            .eq('lead_id', leadId)
+            .order('created_at', ascending: false);
+
+        // Fetch usernames for each user_id
+        for (final file in proposalFilesResult) {
+          final userId = file['user_id'];
+          String username = 'N/A';
+
+          if (userId != null) {
+            try {
+              final userResult = await client
+                  .from('users')
+                  .select('username')
+                  .eq('id', userId)
+                  .maybeSingle();
+              username = userResult?['username'] ?? 'N/A';
+            } catch (e) {
+              // Try dev_user table if users table fails
+              try {
+                final devUserResult = await client
+                    .from('dev_user')
+                    .select('username')
+                    .eq('id', userId)
+                    .maybeSingle();
+                username = devUserResult?['username'] ?? 'N/A';
+              } catch (e) {
+                username = 'N/A';
+              }
+            }
+          }
+
+          proposalFiles.add({...file, 'username': username});
+        }
+      } catch (e) {
+        // Proposal file table might not exist
+        debugPrint('Proposal files not available: $e');
+      }
+
+      // Fetch proposal remarks with user details
+      List<Map<String, dynamic>> proposalRemarks = [];
+      try {
+        final proposalRemarksResult = await client
+            .from('proposal_remark')
+            .select('*, users!proposal_remark_user_id_fkey(username)')
+            .eq('lead_id', leadId)
+            .order('created_at', ascending: false);
+
+        proposalRemarks = proposalRemarksResult.map((remark) {
+          final user = remark['users'] as Map<String, dynamic>?;
+          return {...remark, 'username': user?['username'] ?? 'N/A'};
+        }).toList();
+      } catch (e) {
+        // Proposal remark table might not exist
+        debugPrint('Proposal remarks not available: $e');
+      }
+
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+
+        // Show comprehensive details dialog
+        _showComprehensiveLeadDetailsDialog(
+          leadDetails,
+          salesPersonDetails ?? {'username': 'N/A', 'email': 'N/A'},
+          proposalInputs,
+          adminResponse,
+          activityTimeline,
+          customerDetails.isNotEmpty ? customerDetails.first : null,
+          comments,
+          tasks,
+          followUps,
+          quotations,
+          invoices,
+          mainContacts,
+          leadAttachments,
+          leadContacts,
+          queries,
+          proposalFiles,
+          proposalRemarks,
+        );
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error fetching lead details: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showComprehensiveLeadDetailsDialog(
+    Map<String, dynamic> leadDetails,
+    Map<String, dynamic> salesPersonDetails,
+    List<Map<String, dynamic>> proposalInputs,
+    Map<String, dynamic>? adminResponse,
+    List<Map<String, dynamic>> activityTimeline,
+    Map<String, dynamic>? customerDetails,
+    List<Map<String, dynamic>> comments,
+    List<Map<String, dynamic>> tasks,
+    List<Map<String, dynamic>> followUps,
+    List<Map<String, dynamic>> quotations,
+    List<Map<String, dynamic>> invoices,
+    List<Map<String, dynamic>> mainContacts,
+    List<Map<String, dynamic>> leadAttachments,
+    List<Map<String, dynamic>> leadContacts,
+    List<Map<String, dynamic>> queries,
+    List<Map<String, dynamic>> proposalFiles,
+    List<Map<String, dynamic>> proposalRemarks,
+  ) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: SizedBox(
+            width: MediaQuery.of(context).size.width * 0.9,
+            height: MediaQuery.of(context).size.height * 0.9,
+            child: Column(
+              children: [
+                // Header
+                Container(
+                  padding: EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(16),
+                      topRight: Radius.circular(16),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.leaderboard, color: Colors.blue[700]),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Complete Lead Details - ${leadDetails['project_name'] ?? 'N/A'}',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey[800],
+                              ),
+                            ),
+                            Text(
+                              'Lead ID: ${leadDetails['id']} | Status: ${_getLeadStatus(leadDetails)}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                ),
+                // Content
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Basic Information
+                        _buildDetailSection('Basic Information', [
+                          _buildDetailRowForDialog(
+                            'Project Name',
+                            leadDetails['project_name'] ?? 'N/A',
+                          ),
+                          _buildDetailRowForDialog(
+                            'Client Name',
+                            leadDetails['client_name'] ?? 'N/A',
+                          ),
+                          _buildDetailRowForDialog(
+                            'Project Location',
+                            leadDetails['project_location'] ?? 'N/A',
+                          ),
+                          _buildDetailRowForDialog(
+                            'Lead Type',
+                            leadDetails['lead_type'] ?? 'N/A',
+                          ),
+                          _buildDetailRowForDialog(
+                            'Created Date',
+                            _formatDate(leadDetails['created_at']),
+                          ),
+                          _buildDetailRowForDialog(
+                            'Remark',
+                            leadDetails['remark'] ?? 'N/A',
+                          ),
+                        ]),
+                        SizedBox(height: 20),
+
+                        // Sales Person Information
+                        _buildDetailSection('Sales Person Information', [
+                          _buildDetailRowForDialog(
+                            'Name',
+                            salesPersonDetails['username'] ?? 'N/A',
+                          ),
+                          _buildDetailRowForDialog(
+                            'Email',
+                            salesPersonDetails['email'] ?? 'N/A',
+                          ),
+                        ]),
+                        SizedBox(height: 20),
+
+                        // Customer Details (if available)
+                        if (customerDetails != null)
+                          _buildDetailSection('Customer Details', [
+                            _buildDetailRowForDialog(
+                              'Name',
+                              customerDetails['name'] ?? 'N/A',
+                            ),
+                            _buildDetailRowForDialog(
+                              'Email',
+                              customerDetails['email'] ?? 'N/A',
+                            ),
+                            _buildDetailRowForDialog(
+                              'Phone',
+                              customerDetails['phone'] ?? 'N/A',
+                            ),
+                            _buildDetailRowForDialog(
+                              'Address',
+                              customerDetails['address'] ?? 'N/A',
+                            ),
+                            _buildDetailRowForDialog(
+                              'Company',
+                              customerDetails['company'] ?? 'N/A',
+                            ),
+                          ]),
+                        if (customerDetails != null) SizedBox(height: 20),
+
+                        // Proposal Inputs
+                        if (proposalInputs.isNotEmpty)
+                          _buildDetailSection(
+                            'Proposal Inputs',
+                            proposalInputs
+                                .map(
+                                  (input) => _buildDetailRowForDialog(
+                                    input['input'] ?? 'N/A',
+                                    input['value']?.toString() ?? 'N/A',
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                        if (proposalInputs.isNotEmpty) SizedBox(height: 20),
+
+                        // Admin Response
+                        if (adminResponse != null)
+                          _buildDetailSection('Admin Response', [
+                            _buildDetailRowForDialog(
+                              'Status',
+                              adminResponse['status'] ?? 'N/A',
+                            ),
+                            _buildDetailRowForDialog(
+                              'Rate sq/m',
+                              '₹${adminResponse['rate_sqm']?.toString() ?? '0'}',
+                            ),
+                            _buildDetailRowForDialog(
+                              'Total Amount + GST',
+                              '₹${adminResponse['total_amount_gst']?.toString() ?? '0'}',
+                            ),
+                            _buildDetailRowForDialog(
+                              'Remark',
+                              adminResponse['remark'] ?? 'N/A',
+                            ),
+                            _buildDetailRowForDialog(
+                              'Created Date',
+                              _formatDate(adminResponse['created_at']),
+                            ),
+                          ]),
+                        if (adminResponse != null) SizedBox(height: 20),
+
+                        // Comments
+                        if (comments.isNotEmpty)
+                          _buildDetailSection(
+                            'Comments',
+                            comments
+                                .map(
+                                  (comment) => _buildDetailRowForDialog(
+                                    '${comment['comment'] ?? 'N/A'} (${comment['created_at'] != null ? _formatDate(comment['created_at']) : 'N/A'})',
+                                    comment['user_name'] ?? 'N/A',
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                        if (comments.isNotEmpty) SizedBox(height: 20),
+
+                        // Main Contacts
+                        if (mainContacts.isNotEmpty)
+                          _buildDetailSection(
+                            'Main Contact',
+                            mainContacts
+                                .map(
+                                  (contact) => [
+                                    _buildDetailRowWithCopy(
+                                      'Name',
+                                      contact['name'] ?? 'N/A',
+                                    ),
+                                    _buildDetailRowWithCopy(
+                                      'Designation',
+                                      contact['designation'] ?? 'N/A',
+                                    ),
+                                    _buildDetailRowWithCopy(
+                                      'Email',
+                                      contact['email'] ?? 'N/A',
+                                    ),
+                                    _buildDetailRowWithCopy(
+                                      'Mobile',
+                                      contact['mobile'] ?? 'N/A',
+                                    ),
+                                  ],
+                                )
+                                .expand((x) => x)
+                                .toList(),
+                          ),
+                        if (mainContacts.isNotEmpty) SizedBox(height: 20),
+
+                        // Lead Contacts
+                        if (leadContacts.isNotEmpty)
+                          _buildDetailSection(
+                            'Lead Contacts',
+                            leadContacts
+                                .map(
+                                  (contact) => _buildDetailRowForDialog(
+                                    '${contact['name'] ?? 'N/A'} (${contact['role'] ?? 'N/A'})',
+                                    '${contact['email'] ?? 'N/A'} | ${contact['phone'] ?? 'N/A'} | ${contact['notes'] ?? 'N/A'}',
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                        if (leadContacts.isNotEmpty) SizedBox(height: 20),
+
+                        // Queries
+                        if (queries.isNotEmpty)
+                          _buildDetailSection(
+                            'Queries',
+                            queries
+                                .map(
+                                  (query) => _buildDetailRowForDialog(
+                                    '${query['subject'] ?? 'N/A'} (${_formatDate(query['created_at'])})',
+                                    '${query['query_text'] ?? 'N/A'} | Status: ${query['status'] ?? 'N/A'}',
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                        if (queries.isNotEmpty) SizedBox(height: 20),
+
+                        // Proposal Files
+                        if (proposalFiles.isNotEmpty)
+                          _buildDetailSection(
+                            'Proposal Files',
+                            proposalFiles
+                                .map(
+                                  (file) => _buildDetailRowForDialog(
+                                    '${file['file_name'] ?? 'N/A'} (${file['username'] ?? 'N/A'})',
+                                    '${file['file_link'] ?? 'N/A'}${file['created_at'] != null ? ' - ${_formatDate(file['created_at'])}' : ''}',
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                        if (proposalFiles.isNotEmpty) SizedBox(height: 20),
+
+                        // Proposal Remarks
+                        if (proposalRemarks.isNotEmpty)
+                          _buildDetailSection(
+                            'Proposal Remarks',
+                            proposalRemarks
+                                .map(
+                                  (remark) => _buildDetailRowForDialog(
+                                    '${remark['remark'] ?? 'N/A'} (${remark['username'] ?? 'N/A'})',
+                                    remark['created_at'] != null
+                                        ? _formatDate(remark['created_at'])
+                                        : 'N/A',
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                        if (proposalRemarks.isNotEmpty) SizedBox(height: 20),
+
+                        // Activity Timeline
+                        if (activityTimeline.isNotEmpty)
+                          _buildDetailSection(
+                            'Activity Timeline',
+                            activityTimeline
+                                .map(
+                                  (activity) =>
+                                      _buildActivityTimelineItem(activity),
+                                )
+                                .toList(),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailSection(String title, List<Widget> children) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+          ),
+          SizedBox(height: 12),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRowForDialog(String label, String value) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              '$label:',
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 14,
+                color: Colors.grey[700],
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(value, style: TextStyle(fontSize: 14), softWrap: true),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRowWithCopy(
+    String label,
+    String value, {
+    bool isUrl = false,
+  }) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              '$label:',
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 14,
+                color: Colors.grey[700],
+              ),
+            ),
+          ),
+          Expanded(
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isUrl ? Colors.blue[600] : Colors.grey[800],
+                      decoration: isUrl ? TextDecoration.underline : null,
+                    ),
+                    softWrap: true,
+                  ),
+                ),
+                SizedBox(width: 8),
+                IconButton(
+                  onPressed: () => copyToClipboard(context, value),
+                  icon: Icon(Icons.copy, size: 16, color: Colors.grey[600]),
+                  tooltip: 'Copy to clipboard',
+                  padding: EdgeInsets.zero,
+                  constraints: BoxConstraints(minWidth: 24, minHeight: 24),
+                ),
+                if (isUrl) ...[
+                  SizedBox(width: 4),
+                  IconButton(
+                    onPressed: () => launchURL(value),
+                    icon: Icon(
+                      Icons.open_in_new,
+                      size: 16,
+                      color: Colors.blue[600],
+                    ),
+                    tooltip: 'Open in browser',
+                    padding: EdgeInsets.zero,
+                    constraints: BoxConstraints(minWidth: 24, minHeight: 24),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActivityTimelineItem(Map<String, dynamic> activity) {
+    final activityDate = _formatDate(activity['activity_date']);
+    final activityTime = activity['activity_time'] ?? '';
+    final activityText = activity['activity'] ?? 'N/A';
+    final changesMade = activity['changes_made'] ?? '';
+
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 120,
+                child: Text(
+                  '$activityDate $activityTime:',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                    color: Colors.grey[700],
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      activityText,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (changesMade.isNotEmpty)
+                      Text(
+                        'Changes: $changesMade',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(dynamic date) {
+    if (date == null) return 'N/A';
+    try {
+      final dateTime = date is String ? DateTime.parse(date) : date as DateTime;
+      return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+    } catch (e) {
+      return 'N/A';
+    }
+  }
+
+  String _getLeadStatus(Map<String, dynamic> lead) {
+    // Check if lead is approved first
+    if (lead['approved'] == true) {
+      return 'Approved';
+    }
+
+    final createdAt = lead['created_at'];
+    if (createdAt == null) return 'Unknown';
+
+    try {
+      final createdDateTime = createdAt is String
+          ? DateTime.parse(createdAt)
+          : createdAt as DateTime;
+      final now = DateTime.now();
+      final difference = now.difference(createdDateTime);
+
+      // Check if lead is within last 6 hours
+      if (difference.inHours <= 6) {
+        return 'New/Progress';
+      }
+
+      // Check if lead has proposal_input data
+      final aluminiumArea =
+          double.tryParse(lead['aluminium_area']?.toString() ?? '0') ?? 0;
+      final msWeight =
+          double.tryParse(lead['ms_weight']?.toString() ?? '0') ?? 0;
+
+      if (aluminiumArea == 0 && msWeight == 0) {
+        return 'Proposal Progress';
+      } else {
+        return 'Waiting for Approval';
+      }
+    } catch (e) {
+      return 'Unknown';
+    }
   }
 
   @override
@@ -505,7 +1487,7 @@ class _AdminLeadsPageState extends State<_AdminLeadsPage> {
                                         _LeadActionButton(
                                           icon: Icons.remove_red_eye,
                                           label: 'View',
-                                          onTap: () {},
+                                          onTap: () => _viewLeadDetails(lead),
                                         ),
                                         _LeadActionButton(
                                           icon: Icons.edit,
@@ -682,6 +1664,141 @@ class _AdminLeadsPageState extends State<_AdminLeadsPage> {
                           ),
                         ),
                       ),
+                      SizedBox(height: 16),
+                      // Main Contacts Section
+                      if (_mainContacts.isNotEmpty)
+                        Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(20.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Main Contacts',
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.titleMedium,
+                                ),
+                                Divider(),
+                                if (_isContactsLoading)
+                                  Center(child: CircularProgressIndicator()),
+                                if (_contactsError != null)
+                                  Text(
+                                    _contactsError!,
+                                    style: TextStyle(color: Colors.red),
+                                  ),
+                                if (!_isContactsLoading &&
+                                    _contactsError == null)
+                                  ..._mainContacts.map(
+                                    (contact) => Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 8,
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '${contact['name'] ?? 'N/A'} (${contact['designation'] ?? 'N/A'})',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                          SizedBox(height: 4),
+                                          Text(
+                                            'Email: ${contact['email'] ?? 'N/A'}',
+                                            style: TextStyle(fontSize: 14),
+                                          ),
+                                          Text(
+                                            'Phone: ${contact['phone'] ?? 'N/A'}',
+                                            style: TextStyle(fontSize: 14),
+                                          ),
+                                          if (contact['company'] != null)
+                                            Text(
+                                              'Company: ${contact['company']}',
+                                              style: TextStyle(fontSize: 14),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      // Lead Contacts Section
+                      if (_leadContacts.isNotEmpty)
+                        Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(20.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Contacts',
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.titleMedium,
+                                ),
+                                Divider(),
+                                if (_isContactsLoading)
+                                  Center(child: CircularProgressIndicator()),
+                                if (_contactsError != null)
+                                  Text(
+                                    _contactsError!,
+                                    style: TextStyle(color: Colors.red),
+                                  ),
+                                if (!_isContactsLoading &&
+                                    _contactsError == null)
+                                  ..._leadContacts.map(
+                                    (contact) => Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 8,
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '${contact['name'] ?? 'N/A'} (${contact['role'] ?? 'N/A'})',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                          SizedBox(height: 4),
+                                          Text(
+                                            'Email: ${contact['email'] ?? 'N/A'}',
+                                            style: TextStyle(fontSize: 14),
+                                          ),
+                                          Text(
+                                            'Phone: ${contact['phone'] ?? 'N/A'}',
+                                            style: TextStyle(fontSize: 14),
+                                          ),
+                                          if (contact['notes'] != null)
+                                            Text(
+                                              'Notes: ${contact['notes']}',
+                                              style: TextStyle(fontSize: 14),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -1060,6 +2177,7 @@ class _LeadTableState extends State<LeadTable> {
   String _sortBy = 'date';
   bool _sortAscending = false;
   final Map<String, TextEditingController> _rateControllers = {};
+  final Map<String, double> _totalAmounts = {}; // Store calculated totals
   final TextEditingController _remarkController = TextEditingController();
   bool _isLoading = true;
   Set<String> _selectedLeads = {};
@@ -1193,6 +2311,16 @@ class _LeadTableState extends State<LeadTable> {
           'rate_sqm': adminResponseData?['rate_sqm'] ?? 0,
           'approved': adminResponseData?['status'] == 'Approved',
         });
+      }
+
+      // Initialize total amounts for each lead
+      for (final lead in joinedLeads) {
+        final leadId = lead['lead_id'].toString();
+        final aluminiumArea =
+            double.tryParse(lead['aluminium_area']?.toString() ?? '0') ?? 0;
+        final rate = double.tryParse(lead['rate_sqm']?.toString() ?? '0') ?? 0;
+        final totalAmount = aluminiumArea * rate * 1.18;
+        _totalAmounts[leadId] = totalAmount;
       }
 
       setState(() {
@@ -1656,7 +2784,7 @@ class _LeadTableState extends State<LeadTable> {
               Text('Export Preview'),
             ],
           ),
-          content: Container(
+          content: SizedBox(
             width: double.maxFinite,
             height: 400,
             child: Column(
@@ -1803,7 +2931,7 @@ class _LeadTableState extends State<LeadTable> {
               Text('Export Content'),
             ],
           ),
-          content: Container(
+          content: SizedBox(
             width: double.maxFinite,
             height: 400,
             child: Column(
@@ -1983,30 +3111,31 @@ class _LeadTableState extends State<LeadTable> {
   }
 
   Widget _buildHeader(bool isWide) {
-    return Row(
-      children: [
-        Icon(Icons.leaderboard, size: 32, color: Colors.blue[700]),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Lead Management',
-                style: TextStyle(
-                  fontSize: isWide ? 32 : 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[800],
+    if (isWide) {
+      // Desktop layout - original design
+      return Row(
+        children: [
+          Icon(Icons.leaderboard, size: 32, color: Colors.blue[700]),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Lead Management',
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
                 ),
-              ),
-              Text(
-                'Manage and track all leads in your system',
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-              ),
-            ],
+                Text(
+                  'Manage and track all leads in your system',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                ),
+              ],
+            ),
           ),
-        ),
-        if (isWide) ...[
           IconButton(
             onPressed: _exportLeads,
             icon: Icon(Icons.download),
@@ -2024,8 +3153,99 @@ class _LeadTableState extends State<LeadTable> {
             ),
           ),
         ],
-      ],
-    );
+      );
+    } else {
+      // Mobile layout - compact design
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.leaderboard, size: 24, color: Colors.blue[700]),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Lead Management',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                    height: 1.2,
+                  ),
+                ),
+              ),
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    _showAdvancedFilters = !_showAdvancedFilters;
+                  });
+                },
+                icon: Icon(
+                  Icons.filter_list,
+                  color: Colors.blue[600],
+                  size: 20,
+                ),
+                tooltip: 'Advanced Filters',
+                padding: EdgeInsets.all(8),
+                constraints: BoxConstraints(minWidth: 32, minHeight: 32),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Manage and track all leads in your system',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+              height: 1.2,
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Mobile stats cards with sort functionality
+          _buildMobileStatsCards(),
+          const SizedBox(height: 12),
+          // Centered search box for mobile
+          Center(
+            child: Container(
+              width:
+                  MediaQuery.of(context).size.width *
+                  0.9, // 90% of screen width
+              child: TextField(
+                decoration: InputDecoration(
+                  hintText: 'Search leads...',
+                  prefixIcon: Icon(Icons.search, size: 20),
+                  suffixIcon: IconButton(
+                    onPressed: _fetchLeads,
+                    icon: Icon(Icons.refresh, size: 20),
+                    tooltip: 'Refresh',
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.blue[600]!),
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                ),
+                onChanged: _onSearch,
+                style: TextStyle(fontSize: 14),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
   }
 
   Widget _buildStatsCards() {
@@ -2061,6 +3281,101 @@ class _LeadTableState extends State<LeadTable> {
           Colors.green,
         ),
       ],
+    );
+  }
+
+  Widget _buildMobileStatsCards() {
+    final stats = _calculateStats();
+
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildMobileStatCard(
+            'Total Leads',
+            stats['total'].toString(),
+            Icons.leaderboard,
+            Colors.blue,
+            () => _sortByStatus('total'),
+          ),
+          _buildMobileStatCard(
+            'New/Progress',
+            stats['new'].toString(),
+            Icons.new_releases,
+            Colors.orange,
+            () => _sortByStatus('new'),
+          ),
+          _buildMobileStatCard(
+            'Waiting Approval',
+            stats['waiting'].toString(),
+            Icons.pending,
+            Colors.purple,
+            () => _sortByStatus('waiting'),
+          ),
+          _buildMobileStatCard(
+            'Approved',
+            stats['approved'].toString(),
+            Icons.check_circle,
+            Colors.green,
+            () => _sortByStatus('approved'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+    VoidCallback onSort,
+  ) {
+    return Container(
+      width: 80, // Smaller width for icon-only cards
+      padding: EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Sort button with icon only
+          Container(
+            padding: EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: InkWell(
+              onTap: onSort,
+              borderRadius: BorderRadius.circular(8),
+              child: Icon(icon, color: color, size: 20),
+            ),
+          ),
+          const SizedBox(height: 6),
+          // Count value below icon
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 
@@ -2121,178 +3436,260 @@ class _LeadTableState extends State<LeadTable> {
   }
 
   Widget _buildSearchAndActions(bool isWide) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              flex: 2,
-              child: TextField(
-                decoration: InputDecoration(
-                  hintText: 'Search leads by ID, client, or project...',
-                  prefixIcon: Icon(Icons.search),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.blue[600]!),
-                  ),
-                  filled: true,
-                  fillColor: Colors.white,
-                ),
-                onChanged: _onSearch,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[300]!),
-              ),
-              child: DropdownButton<String>(
-                value: _selectedFilter,
-                underline: SizedBox(),
-                items: _filterOptions.map((String filter) {
-                  return DropdownMenuItem<String>(
-                    value: filter,
-                    child: Text(filter),
-                  );
-                }).toList(),
-                onChanged: (String? newValue) {
-                  if (newValue != null) {
-                    _onFilterChanged(newValue);
-                  }
-                },
-              ),
-            ),
-            const SizedBox(width: 16),
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[300]!),
-              ),
-              child: DropdownButton<String>(
-                value: _sortBy,
-                underline: SizedBox(),
-                items: _sortOptions.map((String sort) {
-                  return DropdownMenuItem<String>(
-                    value: sort,
-                    child: Text(_getSortLabel(sort)),
-                  );
-                }).toList(),
-                onChanged: (String? newValue) {
-                  if (newValue != null) {
-                    _onSortChanged(newValue);
-                  }
-                },
-              ),
-            ),
-            const SizedBox(width: 8),
-            IconButton(
-              onPressed: () {
-                setState(() {
-                  _sortAscending = !_sortAscending;
-                  _applyFilters();
-                });
-              },
-              icon: Icon(
-                _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
-              ),
-              tooltip: 'Sort Direction',
-            ),
-            const SizedBox(width: 16),
-            IconButton(
-              onPressed: () {
-                setState(() {
-                  _showAdvancedFilters = !_showAdvancedFilters;
-                });
-              },
-              icon: Icon(Icons.filter_list),
-              tooltip: 'Advanced Filters',
-            ),
-            if (!isWide) ...[
-              const SizedBox(width: 16),
-              IconButton(
-                onPressed: _fetchLeads,
-                icon: Icon(Icons.refresh),
-                tooltip: 'Refresh',
-              ),
-            ],
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAdvancedFilters() {
-    return Container(
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[300]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    if (isWide) {
+      // Desktop layout - original design
+      return Column(
         children: [
-          Text(
-            'Advanced Filters',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
                 child: TextField(
                   decoration: InputDecoration(
-                    labelText: 'Min Amount',
-                    border: OutlineInputBorder(),
+                    hintText: 'Search leads by ID, client, or project...',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.blue[600]!),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
                   ),
-                  keyboardType: TextInputType.number,
-                  onChanged: (value) {
-                    _advancedFilters['minAmount'] = value;
+                  onChanged: _onSearch,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey[300]!),
+                ),
+                child: DropdownButton<String>(
+                  value: _selectedFilter,
+                  underline: SizedBox(),
+                  items: _filterOptions.map((String filter) {
+                    return DropdownMenuItem<String>(
+                      value: filter,
+                      child: Text(filter),
+                    );
+                  }).toList(),
+                  onChanged: (String? newValue) {
+                    if (newValue != null) {
+                      _onFilterChanged(newValue);
+                    }
                   },
                 ),
               ),
               const SizedBox(width: 16),
-              Expanded(
-                child: TextField(
-                  decoration: InputDecoration(
-                    labelText: 'Max Amount',
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType: TextInputType.number,
-                  onChanged: (value) {
-                    _advancedFilters['maxAmount'] = value;
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey[300]!),
+                ),
+                child: DropdownButton<String>(
+                  value: _sortBy,
+                  underline: SizedBox(),
+                  items: _sortOptions.map((String sort) {
+                    return DropdownMenuItem<String>(
+                      value: sort,
+                      child: Text(_getSortLabel(sort)),
+                    );
+                  }).toList(),
+                  onChanged: (String? newValue) {
+                    if (newValue != null) {
+                      _onSortChanged(newValue);
+                    }
                   },
                 ),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: TextField(
-                  decoration: InputDecoration(
-                    labelText: 'Location',
-                    border: OutlineInputBorder(),
-                  ),
-                  onChanged: (value) {
-                    _advancedFilters['location'] = value;
-                  },
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    _sortAscending = !_sortAscending;
+                    _applyFilters();
+                  });
+                },
+                icon: Icon(
+                  _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
                 ),
+                tooltip: 'Sort Direction',
+              ),
+              const SizedBox(width: 16),
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    _showAdvancedFilters = !_showAdvancedFilters;
+                  });
+                },
+                icon: Icon(Icons.filter_list),
+                tooltip: 'Advanced Filters',
               ),
             ],
           ),
         ],
-      ),
+      );
+    } else {
+      // Mobile layout - search box integrated with header
+      return SizedBox.shrink(); // No separate search section for mobile
+    }
+  }
+
+  Widget _buildAdvancedFilters() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth > 600;
+
+        return Container(
+          padding: EdgeInsets.all(isWide ? 16 : 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(isWide ? 12 : 8),
+            border: Border.all(color: Colors.grey[300]!),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Advanced Filters',
+                style: TextStyle(
+                  fontSize: isWide ? 16 : 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              if (isWide) ...[
+                // Desktop layout - horizontal arrangement
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        decoration: InputDecoration(
+                          labelText: 'Min Amount',
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                        ),
+                        keyboardType: TextInputType.number,
+                        onChanged: (value) {
+                          _advancedFilters['minAmount'] = value;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextField(
+                        decoration: InputDecoration(
+                          labelText: 'Max Amount',
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                        ),
+                        keyboardType: TextInputType.number,
+                        onChanged: (value) {
+                          _advancedFilters['maxAmount'] = value;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextField(
+                        decoration: InputDecoration(
+                          labelText: 'Location',
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                        ),
+                        onChanged: (value) {
+                          _advancedFilters['location'] = value;
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ] else ...[
+                // Mobile layout - vertical arrangement with smaller inputs
+                Column(
+                  children: [
+                    TextField(
+                      decoration: InputDecoration(
+                        labelText: 'Min Amount',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 6,
+                        ),
+                        labelStyle: TextStyle(fontSize: 12),
+                      ),
+                      keyboardType: TextInputType.number,
+                      style: TextStyle(fontSize: 12),
+                      onChanged: (value) {
+                        _advancedFilters['minAmount'] = value;
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      decoration: InputDecoration(
+                        labelText: 'Max Amount',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 6,
+                        ),
+                        labelStyle: TextStyle(fontSize: 12),
+                      ),
+                      keyboardType: TextInputType.number,
+                      style: TextStyle(fontSize: 12),
+                      onChanged: (value) {
+                        _advancedFilters['maxAmount'] = value;
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      decoration: InputDecoration(
+                        labelText: 'Location',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 6,
+                        ),
+                        labelStyle: TextStyle(fontSize: 12),
+                      ),
+                      style: TextStyle(fontSize: 12),
+                      onChanged: (value) {
+                        _advancedFilters['location'] = value;
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -2700,6 +4097,16 @@ class _LeadTableState extends State<LeadTable> {
                       ),
                       style: TextStyle(fontSize: 12),
                       onChanged: (val) {
+                        // Calculate and store total amount in real-time
+                        final aluminiumArea =
+                            double.tryParse(
+                              lead['aluminium_area']?.toString() ?? '0',
+                            ) ??
+                            0;
+                        final currentRate = double.tryParse(val) ?? 0;
+                        final totalAmount = aluminiumArea * currentRate * 1.18;
+                        _totalAmounts[leadId.toString()] = totalAmount;
+
                         setState(() {});
                         _saveRateToDatabase(leadId.toString(), val);
                       },
@@ -2860,7 +4267,7 @@ class _LeadTableState extends State<LeadTable> {
 
         final rateChain = snapshot.data!;
 
-        return Container(
+        return SizedBox(
           width: double.infinity,
           child: Row(
             children: [
@@ -2960,7 +4367,13 @@ class _LeadTableState extends State<LeadTable> {
 
     // Calculate total amount dynamically
     String calculateTotalAmount() {
-      // Get the current rate from the TextField controller
+      // Use stored total amount if available, otherwise calculate
+      final storedTotal = _totalAmounts[leadId.toString()];
+      if (storedTotal != null) {
+        return storedTotal.toStringAsFixed(2);
+      }
+
+      // Fallback calculation
       final controller = _rateControllers[leadId.toString()];
       final currentRate = controller != null
           ? double.tryParse(controller.text) ?? 0
@@ -3090,6 +4503,17 @@ class _LeadTableState extends State<LeadTable> {
                           ),
                           style: TextStyle(fontSize: 14),
                           onChanged: (val) {
+                            // Calculate and store total amount in real-time
+                            final aluminiumArea =
+                                double.tryParse(
+                                  lead['aluminium_area']?.toString() ?? '0',
+                                ) ??
+                                0;
+                            final currentRate = double.tryParse(val) ?? 0;
+                            final totalAmount =
+                                aluminiumArea * currentRate * 1.18;
+                            _totalAmounts[leadId.toString()] = totalAmount;
+
                             setState(() {});
                             _saveRateToDatabase(leadId.toString(), val);
                           },
@@ -3295,6 +4719,47 @@ class _LeadTableState extends State<LeadTable> {
       default:
         return sortBy;
     }
+  }
+
+  void _sortByStatus(String status) {
+    setState(() {
+      switch (status) {
+        case 'total':
+          // Show all leads
+          _filteredLeads = List.from(_leads);
+          break;
+        case 'new':
+          // Show only new/progress leads
+          _filteredLeads = _leads.where((lead) {
+            final adminResponse = lead['approved'];
+            return adminResponse == null || adminResponse == false;
+          }).toList();
+          break;
+        case 'waiting':
+          // Show leads waiting for approval
+          _filteredLeads = _leads.where((lead) {
+            final adminResponse = lead['approved'];
+            return adminResponse == null;
+          }).toList();
+          break;
+        case 'approved':
+          // Show only approved leads
+          _filteredLeads = _leads.where((lead) {
+            final adminResponse = lead['approved'];
+            return adminResponse == true;
+          }).toList();
+          break;
+      }
+    });
+
+    // Show feedback to user
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Filtered by $status'),
+        duration: Duration(seconds: 1),
+        backgroundColor: Colors.blue[600],
+      ),
+    );
   }
 
   void _saveRateToDatabase(String leadId, String rate) async {
@@ -3599,7 +5064,7 @@ class _LeadTableState extends State<LeadTable> {
         debugPrint('Tasks not available: $e');
       }
 
-      // Fetch any follow-ups
+      // Fetch any follow-ups related to this lead
       List<Map<String, dynamic>> followUps = [];
       try {
         followUps = await client
@@ -3612,7 +5077,7 @@ class _LeadTableState extends State<LeadTable> {
         debugPrint('Follow-ups not available: $e');
       }
 
-      // Fetch any quotations
+      // Fetch any quotations related to this lead
       List<Map<String, dynamic>> quotations = [];
       try {
         quotations = await client
@@ -3625,7 +5090,7 @@ class _LeadTableState extends State<LeadTable> {
         debugPrint('Quotations not available: $e');
       }
 
-      // Fetch any invoices
+      // Fetch any invoices related to this lead
       List<Map<String, dynamic>> invoices = [];
       try {
         invoices = await client
@@ -3818,6 +5283,71 @@ class _LeadTableState extends State<LeadTable> {
           ),
           Expanded(
             child: Text(value, style: TextStyle(fontSize: 14), softWrap: true),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRowWithCopy(
+    String label,
+    String value, {
+    bool isUrl = false,
+  }) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              '$label:',
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 14,
+                color: Colors.grey[700],
+              ),
+            ),
+          ),
+          Expanded(
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isUrl ? Colors.blue[600] : Colors.grey[800],
+                      decoration: isUrl ? TextDecoration.underline : null,
+                    ),
+                    softWrap: true,
+                  ),
+                ),
+                SizedBox(width: 8),
+                IconButton(
+                  onPressed: () => copyToClipboard(context, value),
+                  icon: Icon(Icons.copy, size: 16, color: Colors.grey[600]),
+                  tooltip: 'Copy to clipboard',
+                  padding: EdgeInsets.zero,
+                  constraints: BoxConstraints(minWidth: 24, minHeight: 24),
+                ),
+                if (isUrl) ...[
+                  SizedBox(width: 4),
+                  IconButton(
+                    onPressed: () => launchURL(value),
+                    icon: Icon(
+                      Icons.open_in_new,
+                      size: 16,
+                      color: Colors.blue[600],
+                    ),
+                    tooltip: 'Open in browser',
+                    padding: EdgeInsets.zero,
+                    constraints: BoxConstraints(minWidth: 24, minHeight: 24),
+                  ),
+                ],
+              ],
+            ),
           ),
         ],
       ),
@@ -4019,7 +5549,7 @@ class _LeadTableState extends State<LeadTable> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          child: Container(
+          child: SizedBox(
             width: MediaQuery.of(context).size.width * 0.9,
             height: MediaQuery.of(context).size.height * 0.9,
             child: Column(
@@ -4249,9 +5779,10 @@ class _LeadTableState extends State<LeadTable> {
                             'Lead Attachments',
                             leadAttachments
                                 .map(
-                                  (attachment) => _buildDetailRowForDialog(
-                                    '${attachment['file_name'] ?? 'N/A'} (${attachment['username'] ?? 'N/A'})',
-                                    '${attachment['file_link'] ?? 'N/A'}${attachment['created_at'] != null ? ' - ${_formatDate(attachment['created_at'])}' : ''}',
+                                  (attachment) => _buildDetailRowWithCopy(
+                                    attachment['file_name'] ?? 'N/A',
+                                    attachment['file_link'] ?? 'N/A',
+                                    isUrl: true,
                                   ),
                                 )
                                 .toList(),
@@ -4276,14 +5807,29 @@ class _LeadTableState extends State<LeadTable> {
                         // Main Contacts
                         if (mainContacts.isNotEmpty)
                           _buildDetailSection(
-                            'Main Contacts',
+                            'Main Contact',
                             mainContacts
                                 .map(
-                                  (contact) => _buildDetailRowForDialog(
-                                    '${contact['name'] ?? 'N/A'} (${contact['designation'] ?? 'N/A'})',
-                                    '${contact['email'] ?? 'N/A'} | ${contact['phone'] ?? 'N/A'} | ${contact['company'] ?? 'N/A'}',
-                                  ),
+                                  (contact) => [
+                                    _buildDetailRowWithCopy(
+                                      'Name',
+                                      contact['name'] ?? 'N/A',
+                                    ),
+                                    _buildDetailRowWithCopy(
+                                      'Designation',
+                                      contact['designation'] ?? 'N/A',
+                                    ),
+                                    _buildDetailRowWithCopy(
+                                      'Email',
+                                      contact['email'] ?? 'N/A',
+                                    ),
+                                    _buildDetailRowWithCopy(
+                                      'Mobile',
+                                      contact['mobile'] ?? 'N/A',
+                                    ),
+                                  ],
                                 )
+                                .expand((x) => x)
                                 .toList(),
                           ),
                         if (mainContacts.isNotEmpty) SizedBox(height: 20),
@@ -4291,14 +5837,32 @@ class _LeadTableState extends State<LeadTable> {
                         // Lead Contacts
                         if (leadContacts.isNotEmpty)
                           _buildDetailSection(
-                            'Lead Contacts',
+                            'Additional Contacts',
                             leadContacts
                                 .map(
-                                  (contact) => _buildDetailRowForDialog(
-                                    '${contact['name'] ?? 'N/A'} (${contact['role'] ?? 'N/A'})',
-                                    '${contact['email'] ?? 'N/A'} | ${contact['phone'] ?? 'N/A'} | ${contact['notes'] ?? 'N/A'}',
-                                  ),
+                                  (contact) => [
+                                    _buildDetailRowWithCopy(
+                                      'Name',
+                                      contact['contact_name'] ?? 'N/A',
+                                    ),
+                                    _buildDetailRowWithCopy(
+                                      'Designation',
+                                      contact['designation'] ?? 'N/A',
+                                    ),
+                                    _buildDetailRowWithCopy(
+                                      'Email',
+                                      contact['email'] ?? 'N/A',
+                                    ),
+                                    _buildDetailRowWithCopy(
+                                      'Mobile',
+                                      contact['mobile'] ?? 'N/A',
+                                    ),
+                                    SizedBox(
+                                      height: 8,
+                                    ), // Add spacing between contacts
+                                  ],
                                 )
+                                .expand((x) => x)
                                 .toList(),
                           ),
                         if (leadContacts.isNotEmpty) SizedBox(height: 20),
@@ -4324,9 +5888,10 @@ class _LeadTableState extends State<LeadTable> {
                             'Proposal Files',
                             proposalFiles
                                 .map(
-                                  (file) => _buildDetailRowForDialog(
+                                  (file) => _buildDetailRowWithCopy(
                                     '${file['file_name'] ?? 'N/A'} (${file['username'] ?? 'N/A'})',
-                                    '${file['file_link'] ?? 'N/A'}${file['created_at'] != null ? ' - ${_formatDate(file['created_at'])}' : ''}',
+                                    file['file_link'] ?? 'N/A',
+                                    isUrl: true,
                                   ),
                                 )
                                 .toList(),
@@ -4341,7 +5906,9 @@ class _LeadTableState extends State<LeadTable> {
                                 .map(
                                   (remark) => _buildDetailRowForDialog(
                                     '${remark['remark'] ?? 'N/A'} (${remark['username'] ?? 'N/A'})',
-                                    '${remark['created_at'] != null ? _formatDate(remark['created_at']) : 'N/A'}',
+                                    remark['created_at'] != null
+                                        ? _formatDate(remark['created_at'])
+                                        : 'N/A',
                                   ),
                                 )
                                 .toList(),
