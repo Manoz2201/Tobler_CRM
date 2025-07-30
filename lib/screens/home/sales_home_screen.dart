@@ -3692,13 +3692,13 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
             borderRadius: BorderRadius.circular(16),
           ),
           child: SizedBox(
-            width: MediaQuery.of(context).size.width * 0.9,
-            height: MediaQuery.of(context).size.height * 0.9,
+            width: MediaQuery.of(context).size.width * 0.98,
+            height: MediaQuery.of(context).size.height * 0.95,
             child: Column(
               children: [
                 // Header
                 Container(
-                  padding: EdgeInsets.all(20),
+                  padding: EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.blue[50],
                     borderRadius: BorderRadius.only(
@@ -3742,7 +3742,7 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
                 // Content
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: EdgeInsets.all(20),
+                    padding: EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
