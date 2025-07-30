@@ -2829,6 +2829,7 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
   }
 
   Future<void> _fetchLeads() async {
+    debugPrint('Fetching leads for user: ${widget.currentUserId}');
     setState(() {
       _isLoading = true;
     });
@@ -2844,6 +2845,8 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
           )
           .eq('lead_generated_by', widget.currentUserId)
           .order('created_at', ascending: false);
+
+      debugPrint('Fetched ${leadsResult.length} leads from database');
 
       // Fetch users data for sales person names
       final usersResult = await client.from('users').select('id, username');
@@ -2924,12 +2927,15 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
         });
       }
 
+      debugPrint('Processed ${joinedLeads.length} leads for display');
       setState(() {
         _leads = joinedLeads;
         _filteredLeads = joinedLeads;
         _isLoading = false;
       });
+      debugPrint('Leads state updated successfully');
     } catch (e) {
+      debugPrint('Error fetching leads: $e');
       setState(() {
         _isLoading = false;
       });
@@ -4746,9 +4752,6 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
   }
 
   void _deleteLead(Map<String, dynamic> lead) {
-    print(
-      'DEBUG: _deleteLead function called with lead ID: ${lead['lead_id']}',
-    ); // Debug log
     // Show delete confirmation dialog
     showDialog(
       context: context,
@@ -4941,30 +4944,47 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
                 }
 
                 // If no constraints found, proceed with deletion
-                await client.from('leads').delete().eq('id', lead['lead_id']);
+                debugPrint('Attempting to delete lead: ${lead['lead_id']}');
+
+                final deleteResult = await client
+                    .from('leads')
+                    .delete()
+                    .eq('id', lead['lead_id']);
+                debugPrint('Delete result: $deleteResult');
 
                 // Record the delete activity
-                await _recordLeadActivity(
-                  lead['lead_id'].toString(),
-                  'Lead Deleted',
-                  'Lead deleted by sales user',
-                  widget.currentUserId,
-                  widget.currentUserEmail,
-                );
+                try {
+                  await _recordLeadActivity(
+                    lead['lead_id'].toString(),
+                    'Lead Deleted',
+                    'Lead deleted by sales user',
+                    widget.currentUserId,
+                    widget.currentUserEmail,
+                  );
+                  debugPrint('Activity recorded successfully');
+                } catch (activityError) {
+                  debugPrint('Error recording activity: $activityError');
+                  // Don't fail the deletion if activity recording fails
+                }
 
                 // Refresh the leads list
-                _fetchLeads();
+                debugPrint('Refreshing leads list...');
+                await _fetchLeads();
+                debugPrint('Leads list refreshed');
 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Lead ${lead['lead_id']} deleted successfully',
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Lead ${lead['lead_id']} deleted successfully',
+                      ),
+                      backgroundColor: Colors.green,
+                      duration: Duration(seconds: 3),
                     ),
-                    backgroundColor: Colors.green,
-                  ),
-                );
+                  );
+                }
               } catch (e) {
-                print('DEBUG: Error in delete operation: $e'); // Debug log
+                debugPrint('Error during lead deletion: $e');
                 String errorMessage = 'Error deleting lead';
 
                 // Provide more specific error messages
@@ -4976,17 +4996,24 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
                 )) {
                   errorMessage =
                       'Cannot delete lead: It has associated proposal files. Please remove them first.';
+                } else if (e.toString().contains('not found')) {
+                  errorMessage = 'Lead not found or already deleted.';
+                } else if (e.toString().contains('permission')) {
+                  errorMessage =
+                      'Permission denied. You may not have rights to delete this lead.';
                 } else {
                   errorMessage = 'Error deleting lead: ${e.toString()}';
                 }
 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(errorMessage),
-                    backgroundColor: Colors.red,
-                    duration: Duration(seconds: 5),
-                  ),
-                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(errorMessage),
+                      backgroundColor: Colors.red,
+                      duration: Duration(seconds: 5),
+                    ),
+                  );
+                }
               }
             },
             style: ElevatedButton.styleFrom(
@@ -5832,12 +5859,7 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
                         color: Colors.purple[600],
                       ),
                       IconButton(
-                        onPressed: () {
-                          print(
-                            'DEBUG: Delete button clicked for lead: ${lead['lead_id']}',
-                          );
-                          _deleteLead(lead);
-                        },
+                        onPressed: () => _deleteLead(lead),
                         icon: Icon(Icons.delete, size: 20),
                         tooltip: 'Delete Lead',
                         color: Colors.red[600],
@@ -6189,12 +6211,7 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
                           tooltip: 'Status',
                         ),
                         _buildUserIconButton(
-                          onPressed: () {
-                            print(
-                              'DEBUG: Mobile delete button clicked for lead: ${lead['lead_id']}',
-                            );
-                            _deleteLead(lead);
-                          },
+                          onPressed: () => _deleteLead(lead),
                           icon: Icons.delete,
                           color: Colors.red[600]!,
                           tooltip: 'Delete',
