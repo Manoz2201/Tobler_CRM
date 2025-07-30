@@ -4536,6 +4536,215 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
     );
   }
 
+  void _showRelatedFilesDialog(Map<String, dynamic> lead) async {
+    try {
+      final client = Supabase.instance.client;
+
+      // Fetch related files
+      final proposalFiles = await client
+          .from('proposal_file')
+          .select('*')
+          .eq('lead_id', lead['lead_id']);
+
+      if (proposalFiles.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('No related files found for this lead.'),
+            backgroundColor: Colors.blue,
+          ),
+        );
+        return;
+      }
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.file_copy, color: Colors.blue[600]),
+              SizedBox(width: 8),
+              Text('Related Files'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Lead ID: ${lead['lead_id']}',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 12),
+              Text(
+                'This lead has ${proposalFiles.length} associated file(s):',
+                style: TextStyle(fontSize: 14),
+              ),
+              SizedBox(height: 8),
+              ...proposalFiles
+                  .map(
+                    (file) => Padding(
+                      padding: EdgeInsets.symmetric(vertical: 2),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.file_present,
+                            size: 16,
+                            color: Colors.grey[600],
+                          ),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              file['file_name'] ?? 'Unknown file',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                  .toList(),
+              SizedBox(height: 16),
+              Text(
+                'To delete this lead, you must first remove these files.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.orange[600],
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading related files: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _showAdminResponsesDialog(Map<String, dynamic> lead) async {
+    try {
+      final client = Supabase.instance.client;
+
+      // Fetch related admin responses
+      final adminResponses = await client
+          .from('admin_response')
+          .select('*')
+          .eq('lead_id', lead['lead_id']);
+
+      if (adminResponses.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('No admin responses found for this lead.'),
+            backgroundColor: Colors.blue,
+          ),
+        );
+        return;
+      }
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.admin_panel_settings, color: Colors.blue[600]),
+              SizedBox(width: 8),
+              Text('Admin Responses'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Lead ID: ${lead['lead_id']}',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 12),
+              Text(
+                'This lead has ${adminResponses.length} admin response(s):',
+                style: TextStyle(fontSize: 14),
+              ),
+              SizedBox(height: 8),
+              ...adminResponses
+                  .map(
+                    (response) => Padding(
+                      padding: EdgeInsets.symmetric(vertical: 2),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.admin_panel_settings,
+                            size: 16,
+                            color: Colors.grey[600],
+                          ),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Status: ${response['status'] ?? 'Unknown'}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                if (response['remark'] != null &&
+                                    response['remark'].toString().isNotEmpty)
+                                  Text(
+                                    'Remark: ${response['remark']}',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                  .toList(),
+              SizedBox(height: 16),
+              Text(
+                'To delete this lead, you must first remove these admin responses.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.orange[600],
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading admin responses: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   void _deleteLead(Map<String, dynamic> lead) {
     // Show delete confirmation dialog
     showDialog(
@@ -4592,7 +4801,143 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
               try {
                 final client = Supabase.instance.client;
 
-                // Delete the lead from Supabase
+                // First, check if there are any related records that would prevent deletion
+                final proposalFiles = await client
+                    .from('proposal_file')
+                    .select('id')
+                    .eq('lead_id', lead['lead_id']);
+
+                if (proposalFiles.isNotEmpty) {
+                  // Show warning about related files
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: Row(
+                        children: [
+                          Icon(Icons.warning, color: Colors.orange[600]),
+                          SizedBox(width: 8),
+                          Text('Cannot Delete Lead'),
+                        ],
+                      ),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'This lead cannot be deleted because it has associated proposal files.',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                          SizedBox(height: 12),
+                          Text(
+                            'Lead ID: ${lead['lead_id']}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'Project: ${lead['project_name'] ?? 'N/A'}',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            'To delete this lead, you must first:',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            '• Remove all associated proposal files\n• Or contact an administrator',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                        ],
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            _showRelatedFilesDialog(lead);
+                          },
+                          child: const Text('View Files'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('OK'),
+                        ),
+                      ],
+                    ),
+                  );
+                  return;
+                }
+
+                // Check for other potential foreign key constraints
+                final adminResponses = await client
+                    .from('admin_response')
+                    .select('id')
+                    .eq('lead_id', lead['lead_id']);
+
+                if (adminResponses.isNotEmpty) {
+                  // Show warning about admin responses
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: Row(
+                        children: [
+                          Icon(Icons.warning, color: Colors.orange[600]),
+                          SizedBox(width: 8),
+                          Text('Cannot Delete Lead'),
+                        ],
+                      ),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'This lead cannot be deleted because it has associated admin responses.',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                          SizedBox(height: 12),
+                          Text(
+                            'Lead ID: ${lead['lead_id']}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'Project: ${lead['project_name'] ?? 'N/A'}',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            'To delete this lead, you must first:',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            '• Remove all associated admin responses\n• Or contact an administrator',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                        ],
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            _showAdminResponsesDialog(lead);
+                          },
+                          child: const Text('View Responses'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('OK'),
+                        ),
+                      ],
+                    ),
+                  );
+                  return;
+                }
+
+                // If no constraints found, proceed with deletion
                 await client.from('leads').delete().eq('id', lead['lead_id']);
 
                 // Record the delete activity
@@ -4612,14 +4957,30 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
                     content: Text(
                       'Lead ${lead['lead_id']} deleted successfully',
                     ),
-                    backgroundColor: Colors.red,
+                    backgroundColor: Colors.green,
                   ),
                 );
               } catch (e) {
+                String errorMessage = 'Error deleting lead';
+
+                // Provide more specific error messages
+                if (e.toString().contains('foreign key constraint')) {
+                  errorMessage =
+                      'Cannot delete lead: It has associated files or responses. Please remove them first or contact an administrator.';
+                } else if (e.toString().contains(
+                  'proposal_file_lead_id_fkey',
+                )) {
+                  errorMessage =
+                      'Cannot delete lead: It has associated proposal files. Please remove them first.';
+                } else {
+                  errorMessage = 'Error deleting lead: ${e.toString()}';
+                }
+
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Error deleting lead: ${e.toString()}'),
+                    content: Text(errorMessage),
                     backgroundColor: Colors.red,
+                    duration: Duration(seconds: 5),
                   ),
                 );
               }
