@@ -3692,8 +3692,8 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
             borderRadius: BorderRadius.circular(16),
           ),
           child: SizedBox(
-            width: MediaQuery.of(context).size.width * 0.98,
-            height: MediaQuery.of(context).size.height * 0.95,
+            width: MediaQuery.of(context).size.width * 0.95,
+            height: MediaQuery.of(context).size.height * 0.9,
             child: Column(
               children: [
                 // Header
