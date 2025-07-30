@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
 import 'dart:io';
+import 'dart:convert';
+import 'dart:math' as math;
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../screens/auth/login_screen.dart';
 import '../main.dart'
     show
@@ -33,6 +38,9 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
   bool _isLoading = true;
   String? _profileImageUrl;
   final ImagePicker _picker = ImagePicker();
+  bool _isCheckingUpdate = false;
+  String? _updateMessage;
+  bool _updateAvailable = false;
 
   @override
   void initState() {
@@ -189,102 +197,210 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
   }
 
   Future<void> _checkForUpdates() async {
+    setState(() {
+      _isCheckingUpdate = true;
+      _updateMessage = null;
+      _updateAvailable = false;
+    });
+
     try {
-      // Show loading dialog
+      // Get current app version
+      final packageInfo = await PackageInfo.fromPlatform();
+      final currentVersion = packageInfo.version;
+
+      // Get device type
+      String deviceType = 'unknown';
+      if (Platform.isAndroid) {
+        deviceType = 'android';
+      } else if (Platform.isIOS) {
+        deviceType = 'ios';
+      } else if (Platform.isWindows) {
+        deviceType = 'windows';
+      } else if (Platform.isMacOS) {
+        deviceType = 'macos';
+      } else if (Platform.isLinux) {
+        deviceType = 'linux';
+      }
+
+      // Check GitHub releases for latest version
+      final response = await http.get(
+        Uri.parse(
+          'https://api.github.com/repos/aaryesha17/AluminumFormworkCRM/releases/latest',
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final releaseData = json.decode(response.body);
+        final latestVersion =
+            releaseData['tag_name']?.replaceAll('v', '') ?? '';
+        final releaseAssets = releaseData['assets'] as List<dynamic>? ?? [];
+
+        // Find asset for current device type
+        Map<String, dynamic>? deviceAsset;
+        String? downloadUrl;
+
+        for (final asset in releaseAssets) {
+          final assetName = asset['name'] as String? ?? '';
+          if (deviceType == 'android' && assetName.endsWith('.apk')) {
+            deviceAsset = asset;
+            downloadUrl = asset['browser_download_url'];
+            break;
+          } else if (deviceType == 'windows' && assetName.endsWith('.exe')) {
+            deviceAsset = asset;
+            downloadUrl = asset['browser_download_url'];
+            break;
+          } else if (deviceType == 'ios' && assetName.endsWith('.ipa')) {
+            deviceAsset = asset;
+            downloadUrl = asset['browser_download_url'];
+            break;
+          }
+        }
+
+        // Compare versions
+        if (_compareVersions(latestVersion, currentVersion) > 0) {
+          setState(() {
+            _updateAvailable = true;
+            _updateMessage = 'New version $latestVersion available!';
+          });
+
+          // Show update dialog
+          _showUpdateDialog(latestVersion, downloadUrl, deviceAsset);
+        } else {
+          setState(() {
+            _updateMessage = 'You have the latest version ($currentVersion)';
+          });
+        }
+      } else {
+        setState(() {
+          _updateMessage = 'Failed to check for updates. Please try again.';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _updateMessage = 'Error checking for updates: $e';
+      });
+    } finally {
+      setState(() {
+        _isCheckingUpdate = false;
+      });
+    }
+  }
+
+  int _compareVersions(String version1, String version2) {
+    final v1Parts = version1.split('.').map(int.parse).toList();
+    final v2Parts = version2.split('.').map(int.parse).toList();
+
+    for (int i = 0; i < math.max(v1Parts.length, v2Parts.length); i++) {
+      final v1 = i < v1Parts.length ? v1Parts[i] : 0;
+      final v2 = i < v2Parts.length ? v2Parts[i] : 0;
+
+      if (v1 > v2) return 1;
+      if (v1 < v2) return -1;
+    }
+    return 0;
+  }
+
+  void _showUpdateDialog(
+    String latestVersion,
+    String? downloadUrl,
+    Map<String, dynamic>? asset,
+  ) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.system_update, color: Colors.blue),
+              SizedBox(width: 8),
+              Text('Update Available'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('A new version ($latestVersion) is available!'),
+              SizedBox(height: 16),
+              if (asset != null) ...[
+                Text('File: ${asset['name']}'),
+                Text('Size: ${_formatFileSize(asset['size'])}'),
+                SizedBox(height: 8),
+              ],
+              Text('Would you like to download and install the update?'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                if (downloadUrl != null) {
+                  _downloadAndInstall(downloadUrl);
+                }
+              },
+              child: Text('Download & Install'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  String _formatFileSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    if (bytes < 1024 * 1024 * 1024)
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+  }
+
+  Future<void> _downloadAndInstall(String downloadUrl) async {
+    try {
+      // Show download progress
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (BuildContext context) {
           return AlertDialog(
-            title: Row(
+            title: Text('Downloading Update'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                SizedBox(width: 12),
-                Text('Checking for updates...'),
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Downloading the latest version...'),
               ],
             ),
-            content: Text('Please wait while we check for the latest version.'),
           );
         },
       );
 
-      // Simulate update check (replace with actual update logic)
-      await Future.delayed(Duration(seconds: 2));
-
-      // Close loading dialog
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
-
-      // Show update dialog
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: Row(
-                children: [
-                  Icon(Icons.system_update, color: Colors.blue),
-                  SizedBox(width: 8),
-                  Text('Update Available'),
-                ],
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'A new version of the CRM app is available!',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                  SizedBox(height: 12),
-                  Text(
-                    'Version: 2.1.0',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    '• Bug fixes and performance improvements\n• New export features\n• Enhanced security',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text('Later'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    _performUpdate();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue[600],
-                    foregroundColor: Colors.white,
-                  ),
-                  child: Text('Update Now'),
-                ),
-              ],
-            );
-          },
-        );
-      }
-    } catch (e) {
-      debugPrint('Error checking for updates: $e');
-      if (mounted) {
-        Navigator.of(context).pop(); // Close loading dialog
+      // Launch download URL
+      final uri = Uri.parse(downloadUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        Navigator.of(context).pop(); // Close progress dialog
+      } else {
+        Navigator.of(context).pop(); // Close progress dialog
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error checking for updates: $e'),
+            content: Text('Failed to open download link'),
             backgroundColor: Colors.red,
           ),
         );
       }
+    } catch (e) {
+      Navigator.of(context).pop(); // Close progress dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error downloading update: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -514,13 +630,26 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                       Row(
                         children: [
                           ElevatedButton.icon(
-                            onPressed: _checkForUpdates,
-                            icon: const Icon(
-                              Icons.system_update,
-                              color: Colors.white,
-                            ),
+                            onPressed: _isCheckingUpdate
+                                ? null
+                                : _checkForUpdates,
+                            icon: _isCheckingUpdate
+                                ? SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.system_update,
+                                    color: Colors.white,
+                                  ),
                             label: Text(
-                              'Update',
+                              _isCheckingUpdate ? 'Checking...' : 'Update',
                               style: TextStyle(color: Colors.white),
                             ),
                             style: ElevatedButton.styleFrom(
@@ -544,6 +673,46 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                       ),
                     ],
                   ),
+                  // Update status message
+                  if (_updateMessage != null)
+                    Container(
+                      margin: EdgeInsets.only(top: 8),
+                      padding: EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: _updateAvailable
+                            ? Colors.green[50]
+                            : Colors.blue[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: _updateAvailable
+                              ? Colors.green[200]!
+                              : Colors.blue[200]!,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            _updateAvailable ? Icons.check_circle : Icons.info,
+                            color: _updateAvailable
+                                ? Colors.green
+                                : Colors.blue,
+                            size: 16,
+                          ),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _updateMessage!,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: _updateAvailable
+                                    ? Colors.green[800]
+                                    : Colors.blue[800],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   SizedBox(height: isMobile ? 20 : 30),
 
                   // Profile Card
