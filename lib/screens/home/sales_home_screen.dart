@@ -4680,9 +4680,6 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
             Text('• Delete all associated proposal files'),
             Text('• Delete all proposal input data'),
             Text('• Delete all admin responses'),
-            Text('• Delete all contacts'),
-            Text('• Delete all activity logs'),
-            Text('• Delete all notifications'),
             Text('• Permanently remove the lead'),
             Text('• This action CANNOT be undone!'),
             SizedBox(height: 16),
@@ -4725,73 +4722,54 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
       debugPrint('Force deleting lead: $leadId');
 
       // First, delete all associated proposal files
-      final proposalFiles = await client
-          .from('proposal_file')
-          .select('id')
-          .eq('lead_id', leadId);
+      try {
+        final proposalFiles = await client
+            .from('proposal_file')
+            .select('id')
+            .eq('lead_id', leadId);
 
-      if (proposalFiles.isNotEmpty) {
-        debugPrint('Deleting ${proposalFiles.length} proposal files');
-        await client.from('proposal_file').delete().eq('lead_id', leadId);
+        if (proposalFiles.isNotEmpty) {
+          debugPrint('Deleting ${proposalFiles.length} proposal files');
+          await client.from('proposal_file').delete().eq('lead_id', leadId);
+        }
+      } catch (e) {
+        debugPrint('Error deleting proposal files: $e');
+        // Continue with deletion even if this fails
       }
 
       // Delete all admin responses
-      final adminResponses = await client
-          .from('admin_response')
-          .select('id')
-          .eq('lead_id', leadId);
+      try {
+        final adminResponses = await client
+            .from('admin_response')
+            .select('id')
+            .eq('lead_id', leadId);
 
-      if (adminResponses.isNotEmpty) {
-        debugPrint('Deleting ${adminResponses.length} admin responses');
-        await client.from('admin_response').delete().eq('lead_id', leadId);
+        if (adminResponses.isNotEmpty) {
+          debugPrint('Deleting ${adminResponses.length} admin responses');
+          await client.from('admin_response').delete().eq('lead_id', leadId);
+        }
+      } catch (e) {
+        debugPrint('Error deleting admin responses: $e');
+        // Continue with deletion even if this fails
       }
 
       // Delete all proposal input data
-      final proposalInputs = await client
-          .from('proposal_input')
-          .select('id')
-          .eq('lead_id', leadId);
+      try {
+        final proposalInputs = await client
+            .from('proposal_input')
+            .select('id')
+            .eq('lead_id', leadId);
 
-      if (proposalInputs.isNotEmpty) {
-        debugPrint('Deleting ${proposalInputs.length} proposal inputs');
-        await client.from('proposal_input').delete().eq('lead_id', leadId);
+        if (proposalInputs.isNotEmpty) {
+          debugPrint('Deleting ${proposalInputs.length} proposal inputs');
+          await client.from('proposal_input').delete().eq('lead_id', leadId);
+        }
+      } catch (e) {
+        debugPrint('Error deleting proposal inputs: $e');
+        // Continue with deletion even if this fails
       }
 
-      // Delete all contacts associated with this lead
-      final contacts = await client
-          .from('contacts')
-          .select('id')
-          .eq('lead_id', leadId);
-
-      if (contacts.isNotEmpty) {
-        debugPrint('Deleting ${contacts.length} contacts');
-        await client.from('contacts').delete().eq('lead_id', leadId);
-      }
-
-      // Delete all activity logs associated with this lead
-      final activityLogs = await client
-          .from('activity_logs')
-          .select('id')
-          .eq('related_lead_id', leadId);
-
-      if (activityLogs.isNotEmpty) {
-        debugPrint('Deleting ${activityLogs.length} activity logs');
-        await client
-            .from('activity_logs')
-            .delete()
-            .eq('related_lead_id', leadId);
-      }
-
-      // Delete all notifications associated with this lead
-      final notifications = await client
-          .from('notifications')
-          .select('id')
-          .eq('lead_id', leadId);
-
-      if (notifications.isNotEmpty) {
-        debugPrint('Deleting ${notifications.length} notifications');
-        await client.from('notifications').delete().eq('lead_id', leadId);
-      }
+      // Note: Removed contacts, activity_logs, and notifications tables as they don't exist in the database
 
       // Now delete the lead
       debugPrint('Deleting lead from database');
@@ -5103,26 +5081,7 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
                     .select('id')
                     .eq('lead_id', lead['lead_id']);
 
-                final contacts = await client
-                    .from('contacts')
-                    .select('id')
-                    .eq('lead_id', lead['lead_id']);
-
-                final activityLogs = await client
-                    .from('activity_logs')
-                    .select('id')
-                    .eq('related_lead_id', lead['lead_id']);
-
-                final notifications = await client
-                    .from('notifications')
-                    .select('id')
-                    .eq('lead_id', lead['lead_id']);
-
-                if (adminResponses.isNotEmpty ||
-                    proposalInputs.isNotEmpty ||
-                    contacts.isNotEmpty ||
-                    activityLogs.isNotEmpty ||
-                    notifications.isNotEmpty) {
+                if (adminResponses.isNotEmpty || proposalInputs.isNotEmpty) {
                   // Show warning about admin responses
                   showDialog(
                     context: context,
