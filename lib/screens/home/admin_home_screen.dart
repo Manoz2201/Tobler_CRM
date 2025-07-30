@@ -3273,8 +3273,8 @@ class _LeadTableState extends State<LeadTable> {
         ),
         const SizedBox(width: 16),
         _buildStatCard(
-          'New/Progress',
-          stats['new'].toString(),
+          'Proposal Progress',
+          stats['proposalProgress'].toString(),
           Icons.new_releases,
           Colors.orange,
         ),
@@ -3312,11 +3312,11 @@ class _LeadTableState extends State<LeadTable> {
             () => _sortByStatus('total'),
           ),
           _buildMobileStatCard(
-            'New/Progress',
-            stats['new'].toString(),
+            'Proposal Progress',
+            stats['proposalProgress'].toString(),
             Icons.new_releases,
             Colors.orange,
-            () => _sortByStatus('new'),
+            () => _sortByStatus('proposalProgress'),
           ),
           _buildMobileStatCard(
             'Waiting Approval',
@@ -4664,15 +4664,15 @@ class _LeadTableState extends State<LeadTable> {
 
   Map<String, int> _calculateStats() {
     int total = _leads.length;
-    int newCount = 0;
+    int proposalProgressCount = 0;
     int waitingCount = 0;
     int approvedCount = 0;
 
     for (final lead in _leads) {
       final status = _getLeadStatus(lead);
       switch (status) {
-        case 'New/Progress':
-          newCount++;
+        case 'Proposal Progress':
+          proposalProgressCount++;
           break;
         case 'Waiting for Approval':
           waitingCount++;
@@ -4685,7 +4685,7 @@ class _LeadTableState extends State<LeadTable> {
 
     return {
       'total': total,
-      'new': newCount,
+      'proposalProgress': proposalProgressCount,
       'waiting': waitingCount,
       'approved': approvedCount,
     };
@@ -4740,11 +4740,11 @@ class _LeadTableState extends State<LeadTable> {
           // Show all leads
           _filteredLeads = List.from(_leads);
           break;
-        case 'new':
-          // Show only new/progress leads
+        case 'proposalProgress':
+          // Show only proposal progress leads
           _filteredLeads = _leads.where((lead) {
-            final adminResponse = lead['approved'];
-            return adminResponse == null || adminResponse == false;
+            final status = _getLeadStatus(lead);
+            return status == 'Proposal Progress';
           }).toList();
           break;
         case 'waiting':
