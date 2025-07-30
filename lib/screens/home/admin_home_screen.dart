@@ -3273,6 +3273,13 @@ class _LeadTableState extends State<LeadTable> {
         ),
         const SizedBox(width: 16),
         _buildStatCard(
+          'New',
+          stats['new'].toString(),
+          Icons.fiber_new,
+          Colors.teal,
+        ),
+        const SizedBox(width: 16),
+        _buildStatCard(
           'Proposal Progress',
           stats['proposalProgress'].toString(),
           Icons.new_releases,
@@ -3310,6 +3317,13 @@ class _LeadTableState extends State<LeadTable> {
             Icons.leaderboard,
             Colors.blue,
             () => _sortByStatus('total'),
+          ),
+          _buildMobileStatCard(
+            'New',
+            stats['new'].toString(),
+            Icons.fiber_new,
+            Colors.teal,
+            () => _sortByStatus('new'),
           ),
           _buildMobileStatCard(
             'Proposal Progress',
@@ -4664,6 +4678,7 @@ class _LeadTableState extends State<LeadTable> {
 
   Map<String, int> _calculateStats() {
     int total = _leads.length;
+    int newCount = 0;
     int proposalProgressCount = 0;
     int waitingCount = 0;
     int approvedCount = 0;
@@ -4671,6 +4686,9 @@ class _LeadTableState extends State<LeadTable> {
     for (final lead in _leads) {
       final status = _getLeadStatus(lead);
       switch (status) {
+        case 'New':
+          newCount++;
+          break;
         case 'Proposal Progress':
           proposalProgressCount++;
           break;
@@ -4685,6 +4703,7 @@ class _LeadTableState extends State<LeadTable> {
 
     return {
       'total': total,
+      'new': newCount,
       'proposalProgress': proposalProgressCount,
       'waiting': waitingCount,
       'approved': approvedCount,
@@ -4739,6 +4758,13 @@ class _LeadTableState extends State<LeadTable> {
         case 'total':
           // Show all leads
           _filteredLeads = List.from(_leads);
+          break;
+        case 'new':
+          // Show only new leads
+          _filteredLeads = _leads.where((lead) {
+            final status = _getLeadStatus(lead);
+            return status == 'New';
+          }).toList();
           break;
         case 'proposalProgress':
           // Show only proposal progress leads

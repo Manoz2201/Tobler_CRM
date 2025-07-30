@@ -663,12 +663,12 @@ class _LeadsPageState extends State<_LeadsPage> {
     if (lead['aluminium_area'] > 0 || lead['ms_weight'] > 0) {
       return 'Proposal Progress';
     }
-    return 'New/Progress';
+    return 'New';
   }
 
   Color _getStatusColor(String status) {
     switch (status) {
-      case 'New/Progress':
+      case 'New':
         return Colors.blue;
       case 'Proposal Progress':
         return Colors.orange;
@@ -4773,7 +4773,7 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
 
       // Check if lead is within last 6 hours
       if (difference.inHours <= 6) {
-        return 'New/Progress';
+        return 'New';
       }
 
       // Check if lead has proposal_input data
@@ -4794,7 +4794,7 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
 
   Color _getStatusColor(String status) {
     switch (status) {
-      case 'New/Progress':
+      case 'New':
         return Colors.blue;
       case 'Proposal Progress':
         return Colors.orange;
@@ -5342,7 +5342,7 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
     for (final lead in _filteredLeads) {
       final status = _getLeadStatus(lead);
       switch (status) {
-        case 'New/Progress':
+        case 'New':
           newCount++;
           break;
         case 'Waiting for Approval':
@@ -5964,7 +5964,7 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
       case 'total':
         return 'All';
       case 'new':
-        return 'New/Progress';
+        return 'New';
       case 'waiting':
         return 'Waiting for Approval';
       case 'approved':
