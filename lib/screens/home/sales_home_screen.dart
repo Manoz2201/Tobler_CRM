@@ -5832,7 +5832,12 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
                         color: Colors.purple[600],
                       ),
                       IconButton(
-                        onPressed: () => _deleteLead(lead),
+                        onPressed: () {
+                          print(
+                            'DEBUG: Delete button clicked for lead: ${lead['lead_id']}',
+                          );
+                          _deleteLead(lead);
+                        },
                         icon: Icon(Icons.delete, size: 20),
                         tooltip: 'Delete Lead',
                         color: Colors.red[600],
@@ -6184,7 +6189,12 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
                           tooltip: 'Status',
                         ),
                         _buildUserIconButton(
-                          onPressed: () => _deleteLead(lead),
+                          onPressed: () {
+                            print(
+                              'DEBUG: Mobile delete button clicked for lead: ${lead['lead_id']}',
+                            );
+                            _deleteLead(lead);
+                          },
                           icon: Icons.delete,
                           color: Colors.red[600]!,
                           tooltip: 'Delete',
