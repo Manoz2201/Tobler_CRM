@@ -101,7 +101,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
   Widget _buildMobileNavigationBar() {
     return Container(
-      height: 55,
+      height: 60,
+      margin: EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(top: BorderSide(color: Colors.grey[300]!, width: 1)),
@@ -116,7 +117,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       child: SafeArea(
         top: false,
         child: Container(
-          height: 55,
+          height: 60,
           child: LayoutBuilder(
             builder: (context, constraints) {
               // Calculate item width to show exactly 5 items
@@ -153,15 +154,15 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   ) {
     return Container(
       width: width,
-      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      padding: EdgeInsets.symmetric(horizontal: 2, vertical: 2),
       child: InkWell(
         onTap: () => _onItemTapped(index),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
         child: Container(
-          padding: EdgeInsets.all(6),
+          padding: EdgeInsets.all(4),
           decoration: BoxDecoration(
             color: isSelected ? Colors.blue[50] : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(6),
             border: isSelected
                 ? Border.all(color: Colors.blue[300]!, width: 1)
                 : null,
@@ -3068,29 +3069,35 @@ class _LeadTableState extends State<LeadTable> {
         return Scaffold(
           backgroundColor: Colors.grey[50],
           body: Padding(
-            padding: const EdgeInsets.fromLTRB(24.0, 24.0, 0.0, 24.0),
+            padding: EdgeInsets.fromLTRB(
+              isWide ? 24.0 : 16.0,
+              isWide ? 24.0 : 12.0,
+              0.0,
+              isWide ? 24.0 : 8.0,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Header Section
                 _buildHeader(isWide),
-                const SizedBox(height: 24),
+                SizedBox(height: isWide ? 24 : 8),
 
                 // Stats Cards
                 if (isWide) _buildStatsCards(),
-                const SizedBox(height: 24),
+                if (isWide) const SizedBox(height: 24),
 
                 // Search, Filter, and Actions Section
                 _buildSearchAndActions(isWide),
-                const SizedBox(height: 24),
+                SizedBox(height: isWide ? 24 : 8),
 
                 // Advanced Filters
                 if (_showAdvancedFilters) _buildAdvancedFilters(),
-                if (_showAdvancedFilters) const SizedBox(height: 16),
+                if (_showAdvancedFilters) SizedBox(height: isWide ? 16 : 8),
 
                 // Bulk Actions
                 if (_selectedLeads.isNotEmpty) _buildBulkActions(),
-                if (_selectedLeads.isNotEmpty) const SizedBox(height: 16),
+                if (_selectedLeads.isNotEmpty)
+                  SizedBox(height: isWide ? 16 : 8),
 
                 // Content
                 Expanded(
@@ -3191,55 +3198,57 @@ class _LeadTableState extends State<LeadTable> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Text(
             'Manage and track all leads in your system',
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 11,
               color: Colors.grey[600],
               height: 1.2,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           // Mobile stats cards with sort functionality
           _buildMobileStatsCards(),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           // Centered search box for mobile
           Center(
             child: Container(
               width:
                   MediaQuery.of(context).size.width *
-                  0.9, // 90% of screen width
+                  0.95, // 95% of screen width
               child: TextField(
                 decoration: InputDecoration(
                   hintText: 'Search leads...',
-                  prefixIcon: Icon(Icons.search, size: 20),
+                  prefixIcon: Icon(Icons.search, size: 18),
                   suffixIcon: IconButton(
                     onPressed: _fetchLeads,
-                    icon: Icon(Icons.refresh, size: 20),
+                    icon: Icon(Icons.refresh, size: 18),
                     tooltip: 'Refresh',
+                    padding: EdgeInsets.all(4),
+                    constraints: BoxConstraints(minWidth: 24, minHeight: 24),
                   ),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(6),
                     borderSide: BorderSide(color: Colors.grey[300]!),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(6),
                     borderSide: BorderSide(color: Colors.grey[300]!),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(6),
                     borderSide: BorderSide(color: Colors.blue[600]!),
                   ),
                   filled: true,
                   fillColor: Colors.white,
                   contentPadding: EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
+                    horizontal: 8,
+                    vertical: 6,
                   ),
                 ),
                 onChanged: _onSearch,
-                style: TextStyle(fontSize: 14),
+                style: TextStyle(fontSize: 13),
               ),
             ),
           ),
@@ -3288,7 +3297,7 @@ class _LeadTableState extends State<LeadTable> {
     final stats = _calculateStats();
 
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16),
+      padding: EdgeInsets.symmetric(horizontal: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
