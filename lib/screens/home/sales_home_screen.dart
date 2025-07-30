@@ -3316,143 +3316,6 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
           .order('activity_date', ascending: false)
           .order('activity_time', ascending: false);
 
-      // Fetch comprehensive activity data from all tables
-      final allActivityData = await _fetchAllActivityData(leadId);
-
-      // Fetch customer details if available (latest only)
-      List<Map<String, dynamic>> customerDetails = [];
-      if (leadDetails['client_name'] != null) {
-        try {
-          customerDetails = await client
-              .from('customers')
-              .select('*')
-              .eq('name', leadDetails['client_name'])
-              .order('created_at', ascending: false)
-              .limit(1);
-        } catch (e) {
-          // Customer table might not exist or have different structure
-          debugPrint('Customer details not available: $e');
-        }
-      }
-
-      // Fetch any comments or notes
-      List<Map<String, dynamic>> comments = [];
-      try {
-        comments = await client
-            .from('lead_comments')
-            .select('*')
-            .eq('lead_id', leadId)
-            .order('created_at', ascending: false);
-      } catch (e) {
-        // Comments table might not exist
-        debugPrint('Comments not available: $e');
-      }
-
-      // Fetch any tasks related to this lead
-      List<Map<String, dynamic>> tasks = [];
-      try {
-        tasks = await client
-            .from('tasks')
-            .select('*')
-            .eq('lead_id', leadId)
-            .order('due_date', ascending: true);
-      } catch (e) {
-        // Tasks table might not exist
-        debugPrint('Tasks not available: $e');
-      }
-
-      // Fetch any follow-ups
-      List<Map<String, dynamic>> followUps = [];
-      try {
-        followUps = await client
-            .from('lead_followups')
-            .select('*')
-            .eq('lead_id', leadId)
-            .order('followup_date', ascending: false);
-      } catch (e) {
-        // Follow-ups table might not exist
-        debugPrint('Follow-ups not available: $e');
-      }
-
-      // Fetch any quotations
-      List<Map<String, dynamic>> quotations = [];
-      try {
-        quotations = await client
-            .from('quotations')
-            .select('*')
-            .eq('lead_id', leadId)
-            .order('created_at', ascending: false);
-      } catch (e) {
-        // Quotations table might not exist
-        debugPrint('Quotations not available: $e');
-      }
-
-      // Fetch any invoices
-      List<Map<String, dynamic>> invoices = [];
-      try {
-        invoices = await client
-            .from('invoices')
-            .select('*')
-            .eq('lead_id', leadId)
-            .order('created_at', ascending: false);
-      } catch (e) {
-        // Invoices table might not exist
-        debugPrint('Invoices not available: $e');
-      }
-
-      // Fetch main contact information from leads table
-      List<Map<String, dynamic>> mainContacts = [];
-      if (leadDetails['main_contact_name'] != null &&
-          leadDetails['main_contact_name'].toString().isNotEmpty) {
-        mainContacts = [
-          {
-            'name': leadDetails['main_contact_name'],
-            'designation': leadDetails['main_contact_designation'] ?? 'N/A',
-            'email': leadDetails['main_contact_email'] ?? 'N/A',
-            'mobile': leadDetails['main_contact_mobile'] ?? 'N/A',
-          },
-        ];
-      }
-
-      // Fetch lead attachments
-      List<Map<String, dynamic>> leadAttachments = [];
-      try {
-        leadAttachments = await client
-            .from('lead_attachments')
-            .select('file_name, file_link')
-            .eq('lead_id', leadId)
-            .order('created_at', ascending: false);
-      } catch (e) {
-        // Lead attachments table might not exist
-        debugPrint('Lead attachments not available: $e');
-      }
-
-      // Fetch lead contacts
-      List<Map<String, dynamic>> leadContacts = [];
-      try {
-        leadContacts = await client
-            .from('lead_contacts')
-            .select('contact_name, designation, email, mobile')
-            .eq('lead_id', leadId)
-            .order('created_at', ascending: false);
-      } catch (e) {
-        // Lead contacts table might not exist
-        debugPrint('Lead contacts not available: $e');
-      }
-
-      // Fetch queries
-      List<Map<String, dynamic>> queries = [];
-      try {
-        queries = await client
-            .from('queries')
-            .select('*')
-            .eq('lead_id', leadId)
-            .order('created_at', ascending: false);
-      } catch (e) {
-        // Queries table might not exist
-        debugPrint('Queries not available: $e');
-      }
-
       // Fetch proposal files
       List<Map<String, dynamic>> proposalFiles = [];
       try {
@@ -3476,69 +3339,60 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
                   .maybeSingle();
               username = userResult?['username'] ?? 'N/A';
             } catch (e) {
-              // Try dev_user table if users table fails
-              try {
-                final devUserResult = await client
-                    .from('dev_user')
-                    .select('username')
-                    .eq('id', userId)
-                    .maybeSingle();
-                username = devUserResult?['username'] ?? 'N/A';
-              } catch (e) {
-                username = 'N/A';
-              }
+              username = 'N/A';
             }
           }
 
           proposalFiles.add({...file, 'username': username});
         }
       } catch (e) {
-        // Proposal file table might not exist
         debugPrint('Proposal files not available: $e');
       }
 
-      // Fetch proposal remarks with user details
+      // Fetch proposal remarks
       List<Map<String, dynamic>> proposalRemarks = [];
       try {
         final proposalRemarksResult = await client
             .from('proposal_remark')
-            .select('*, users!proposal_remark_user_id_fkey(username)')
+            .select('*')
             .eq('lead_id', leadId)
             .order('created_at', ascending: false);
 
         proposalRemarks = proposalRemarksResult.map((remark) {
-          final user = remark['users'] as Map<String, dynamic>?;
-          return {...remark, 'username': user?['username'] ?? 'N/A'};
+          return {...remark, 'username': 'N/A'};
         }).toList();
       } catch (e) {
-        // Proposal remark table might not exist
         debugPrint('Proposal remarks not available: $e');
+      }
+
+      // Fetch main contact information from leads table
+      List<Map<String, dynamic>> mainContacts = [];
+      if (leadDetails['main_contact_name'] != null &&
+          leadDetails['main_contact_name'].toString().isNotEmpty) {
+        mainContacts = [
+          {
+            'name': leadDetails['main_contact_name'],
+            'designation': leadDetails['main_contact_designation'] ?? 'N/A',
+            'email': leadDetails['main_contact_email'] ?? 'N/A',
+            'mobile': leadDetails['main_contact_mobile'] ?? 'N/A',
+          },
+        ];
       }
 
       // Close loading dialog
       if (mounted) {
         Navigator.of(context).pop();
 
-        // Show comprehensive details dialog
-        _showComprehensiveLeadDetailsDialog(
+        // Show simplified details dialog
+        _showSimplifiedLeadDetailsDialog(
           leadDetails,
           salesPersonDetails ?? {'username': 'N/A', 'email': 'N/A'},
           proposalInputs,
           adminResponse,
           activityTimeline,
-          customerDetails.isNotEmpty ? customerDetails.first : null,
-          comments,
-          tasks,
-          followUps,
-          quotations,
-          invoices,
           mainContacts,
-          leadAttachments,
-          leadContacts,
-          queries,
           proposalFiles,
           proposalRemarks,
-          allActivityData,
         );
       }
     } catch (e) {
@@ -3553,227 +3407,6 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
           ),
         );
       }
-    }
-  }
-
-  Future<List<Map<String, dynamic>>> _fetchAllActivityData(
-    String leadId,
-  ) async {
-    final client = Supabase.instance.client;
-    final List<Map<String, dynamic>> allActivities = [];
-
-    try {
-      // First, get all activities from lead_activity table (primary activity log)
-      try {
-        final leadActivities = await client
-            .from('lead_activity')
-            .select('*')
-            .eq('lead_id', leadId)
-            .order('activity_date', ascending: false)
-            .order('activity_time', ascending: false);
-
-        if (leadActivities.isNotEmpty) {
-          for (final item in leadActivities) {
-            final activityItem = {
-              ...item,
-              'table_source': 'lead_activity',
-              'activity_type': item['activity_type'] ?? 'Lead Activity',
-              'activity_description':
-                  item['description'] ?? 'Activity recorded',
-              'activity_date': item['activity_date'],
-              'activity_time': item['activity_time'],
-              'is_primary_activity': true,
-            };
-            allActivities.add(activityItem);
-          }
-        }
-      } catch (e) {
-        debugPrint('Error fetching from lead_activity: $e');
-      }
-
-      // Then, search for lead_id in all other tables to find related activities
-      final tables = [
-        'activity_logs',
-        'lead_comments',
-        'tasks',
-        'lead_followups',
-        'queries',
-        'proposal_remark',
-        'admin_response',
-        'quotations',
-        'invoices',
-        'lead_attachments',
-        'lead_contacts',
-        'proposal_input',
-        'proposal_file',
-        'leads', // Include leads table for lead creation/updates
-        'users', // Include users table for user-related activities
-      ];
-
-      for (final table in tables) {
-        try {
-          // Search for lead_id in the table
-          final data = await client
-              .from(table)
-              .select('*')
-              .eq('lead_id', leadId);
-
-          if (data.isNotEmpty) {
-            for (final item in data) {
-              // Add table source and format activity data
-              final activityItem = {
-                ...item,
-                'table_source': table,
-                'activity_type': _getActivityType(table, item),
-                'activity_description': _getActivityDescription(table, item),
-                'activity_date':
-                    item['created_at'] ??
-                    item['activity_date'] ??
-                    item['date'] ??
-                    item['updated_at'],
-                'activity_time':
-                    item['created_at'] ?? item['activity_time'] ?? item['time'],
-                'is_primary_activity': false,
-              };
-              allActivities.add(activityItem);
-            }
-          }
-        } catch (e) {
-          // Skip tables that don't exist or have different structure
-          debugPrint('Error fetching from $table: $e');
-        }
-      }
-
-      // Also search for activities where lead_id might be in different column names
-      final alternativeColumnSearches = [
-        {'table': 'activity_logs', 'column': 'related_lead_id'},
-        {'table': 'tasks', 'column': 'related_lead'},
-        {'table': 'comments', 'column': 'lead_reference'},
-        {'table': 'notifications', 'column': 'lead_id'},
-      ];
-
-      for (final search in alternativeColumnSearches) {
-        try {
-          final data = await client
-              .from(search['table']!)
-              .select('*')
-              .eq(search['column']!, leadId);
-
-          if (data.isNotEmpty) {
-            for (final item in data) {
-              final activityItem = {
-                ...item,
-                'table_source': search['table']!,
-                'activity_type': _getActivityType(search['table']!, item),
-                'activity_description': _getActivityDescription(
-                  search['table']!,
-                  item,
-                ),
-                'activity_date':
-                    item['created_at'] ??
-                    item['activity_date'] ??
-                    item['date'] ??
-                    item['updated_at'],
-                'activity_time':
-                    item['created_at'] ?? item['activity_time'] ?? item['time'],
-                'is_primary_activity': false,
-              };
-              allActivities.add(activityItem);
-            }
-          }
-        } catch (e) {
-          // Skip if table or column doesn't exist
-          debugPrint(
-            'Error searching ${search['table']}.${search['column']}: $e',
-          );
-        }
-      }
-
-      // Sort by date and time (most recent first)
-      allActivities.sort((a, b) {
-        final dateA =
-            DateTime.tryParse(a['activity_date']?.toString() ?? '') ??
-            DateTime.now();
-        final dateB =
-            DateTime.tryParse(b['activity_date']?.toString() ?? '') ??
-            DateTime.now();
-        return dateB.compareTo(dateA);
-      });
-
-      return allActivities;
-    } catch (e) {
-      debugPrint('Error fetching all activity data: $e');
-      return [];
-    }
-  }
-
-  String _getActivityType(String table, Map<String, dynamic> item) {
-    switch (table) {
-      case 'activity_logs':
-        return item['activity_type'] ?? 'Activity';
-      case 'lead_activity':
-        return item['activity_type'] ?? 'Lead Activity';
-      case 'lead_comments':
-        return 'Comment';
-      case 'tasks':
-        return 'Task';
-      case 'lead_followups':
-        return 'Follow-up';
-      case 'queries':
-        return 'Query';
-      case 'proposal_remark':
-        return 'Proposal Remark';
-      case 'admin_response':
-        return 'Admin Response';
-      case 'quotations':
-        return 'Quotation';
-      case 'invoices':
-        return 'Invoice';
-      case 'lead_attachments':
-        return 'Attachment';
-      case 'lead_contacts':
-        return 'Contact';
-      case 'proposal_input':
-        return 'Proposal Input';
-      case 'proposal_file':
-        return 'Proposal File';
-      default:
-        return 'Activity';
-    }
-  }
-
-  String _getActivityDescription(String table, Map<String, dynamic> item) {
-    switch (table) {
-      case 'activity_logs':
-        return item['description'] ?? 'Activity logged';
-      case 'lead_activity':
-        return item['description'] ?? 'Lead activity';
-      case 'lead_comments':
-        return item['comment'] ?? 'Comment added';
-      case 'tasks':
-        return '${item['task_title'] ?? 'Task'}: ${item['task_description'] ?? ''}';
-      case 'lead_followups':
-        return item['followup_notes'] ?? 'Follow-up added';
-      case 'queries':
-        return item['query_text'] ?? 'Query submitted';
-      case 'proposal_remark':
-        return item['remark'] ?? 'Proposal remark';
-      case 'admin_response':
-        return item['response_text'] ?? 'Admin response';
-      case 'quotations':
-        return 'Quotation: ${item['quotation_number'] ?? ''}';
-      case 'invoices':
-        return 'Invoice: ${item['invoice_number'] ?? ''}';
-      case 'lead_attachments':
-        return 'Attachment: ${item['file_name'] ?? ''}';
-      case 'lead_contacts':
-        return 'Contact: ${item['contact_name'] ?? ''}';
-      case 'proposal_input':
-        return 'Proposal input updated';
-      case 'proposal_file':
-        return 'Proposal file: ${item['file_name'] ?? ''}';
-      default:
-        return 'Activity recorded';
     }
   }
 
@@ -4048,25 +3681,15 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
     }
   }
 
-  void _showComprehensiveLeadDetailsDialog(
+  void _showSimplifiedLeadDetailsDialog(
     Map<String, dynamic> leadDetails,
     Map<String, dynamic> salesPersonDetails,
     List<Map<String, dynamic>> proposalInputs,
     Map<String, dynamic>? adminResponse,
     List<Map<String, dynamic>> activityTimeline,
-    Map<String, dynamic>? customerDetails,
-    List<Map<String, dynamic>> comments,
-    List<Map<String, dynamic>> tasks,
-    List<Map<String, dynamic>> followUps,
-    List<Map<String, dynamic>> quotations,
-    List<Map<String, dynamic>> invoices,
     List<Map<String, dynamic>> mainContacts,
-    List<Map<String, dynamic>> leadAttachments,
-    List<Map<String, dynamic>> leadContacts,
-    List<Map<String, dynamic>> queries,
     List<Map<String, dynamic>> proposalFiles,
     List<Map<String, dynamic>> proposalRemarks,
-    List<Map<String, dynamic>> allActivityData,
   ) {
     showDialog(
       context: context,
@@ -4172,32 +3795,6 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
                         ]),
                         SizedBox(height: 20),
 
-                        // Customer Details (if available)
-                        if (customerDetails != null)
-                          _buildDetailSection('Customer Details', [
-                            _buildDetailRowForDialog(
-                              'Name',
-                              customerDetails['name'] ?? 'N/A',
-                            ),
-                            _buildDetailRowForDialog(
-                              'Email',
-                              customerDetails['email'] ?? 'N/A',
-                            ),
-                            _buildDetailRowForDialog(
-                              'Phone',
-                              customerDetails['phone'] ?? 'N/A',
-                            ),
-                            _buildDetailRowForDialog(
-                              'Address',
-                              customerDetails['address'] ?? 'N/A',
-                            ),
-                            _buildDetailRowForDialog(
-                              'Company',
-                              customerDetails['company'] ?? 'N/A',
-                            ),
-                          ]),
-                        if (customerDetails != null) SizedBox(height: 20),
-
                         // Proposal Inputs
                         if (proposalInputs.isNotEmpty)
                           _buildDetailSection(
@@ -4239,97 +3836,6 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
                           ]),
                         if (adminResponse != null) SizedBox(height: 20),
 
-                        // Tasks
-                        if (tasks.isNotEmpty)
-                          _buildDetailSection(
-                            'Related Tasks',
-                            tasks
-                                .map(
-                                  (task) => _buildDetailRowForDialog(
-                                    '${task['title'] ?? 'N/A'} (${_formatDate(task['due_date'])})',
-                                    '${task['description'] ?? 'N/A'} - Status: ${task['status'] ?? 'Pending'}',
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                        if (tasks.isNotEmpty) SizedBox(height: 20),
-
-                        // Follow-ups
-                        if (followUps.isNotEmpty)
-                          _buildDetailSection(
-                            'Follow-ups',
-                            followUps
-                                .map(
-                                  (followup) => _buildDetailRowForDialog(
-                                    '${_formatDate(followup['followup_date'])} ${followup['followup_time']}',
-                                    '${followup['notes'] ?? 'N/A'} - Status: ${followup['status'] ?? 'Pending'}',
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                        if (followUps.isNotEmpty) SizedBox(height: 20),
-
-                        // Quotations
-                        if (quotations.isNotEmpty)
-                          _buildDetailSection(
-                            'Quotations',
-                            quotations
-                                .map(
-                                  (quote) => _buildDetailRowForDialog(
-                                    'Quote #${quote['id']} (${_formatDate(quote['created_at'])})',
-                                    'Amount: ₹${quote['total_amount']?.toString() ?? '0'} - Status: ${quote['status'] ?? 'Draft'}',
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                        if (quotations.isNotEmpty) SizedBox(height: 20),
-
-                        // Invoices
-                        if (invoices.isNotEmpty)
-                          _buildDetailSection(
-                            'Invoices',
-                            invoices
-                                .map(
-                                  (invoice) => _buildDetailRowForDialog(
-                                    'Invoice #${invoice['id']} (${_formatDate(invoice['created_at'])})',
-                                    'Amount: ₹${invoice['total_amount']?.toString() ?? '0'} - Status: ${invoice['status'] ?? 'Draft'}',
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                        if (invoices.isNotEmpty) SizedBox(height: 20),
-
-                        // Lead Attachments
-                        if (leadAttachments.isNotEmpty)
-                          _buildDetailSection(
-                            'Lead Attachments',
-                            leadAttachments
-                                .map(
-                                  (attachment) => _buildDetailRowWithCopy(
-                                    attachment['file_name'] ?? 'N/A',
-                                    attachment['file_link'] ?? 'N/A',
-                                    isUrl: true,
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                        if (leadAttachments.isNotEmpty) SizedBox(height: 20),
-
-                        // Comments
-                        if (comments.isNotEmpty)
-                          _buildDetailSection(
-                            'Comments & Notes',
-                            comments
-                                .map(
-                                  (comment) => _buildDetailRowForDialog(
-                                    '${comment['created_by'] ?? 'N/A'} (${_formatDate(comment['created_at'])})',
-                                    comment['comment'] ?? 'N/A',
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                        if (comments.isNotEmpty) SizedBox(height: 20),
-
                         // Main Contacts
                         if (mainContacts.isNotEmpty)
                           _buildDetailSection(
@@ -4359,54 +3865,6 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
                                 .toList(),
                           ),
                         if (mainContacts.isNotEmpty) SizedBox(height: 20),
-
-                        // Lead Contacts
-                        if (leadContacts.isNotEmpty)
-                          _buildDetailSection(
-                            'Additional Contacts',
-                            leadContacts
-                                .map(
-                                  (contact) => [
-                                    _buildDetailRowWithCopy(
-                                      'Name',
-                                      contact['contact_name'] ?? 'N/A',
-                                    ),
-                                    _buildDetailRowWithCopy(
-                                      'Designation',
-                                      contact['designation'] ?? 'N/A',
-                                    ),
-                                    _buildDetailRowWithCopy(
-                                      'Email',
-                                      contact['email'] ?? 'N/A',
-                                    ),
-                                    _buildDetailRowWithCopy(
-                                      'Mobile',
-                                      contact['mobile'] ?? 'N/A',
-                                    ),
-                                    SizedBox(
-                                      height: 8,
-                                    ), // Add spacing between contacts
-                                  ],
-                                )
-                                .expand((x) => x)
-                                .toList(),
-                          ),
-                        if (leadContacts.isNotEmpty) SizedBox(height: 20),
-
-                        // Queries
-                        if (queries.isNotEmpty)
-                          _buildDetailSection(
-                            'Queries',
-                            queries
-                                .map(
-                                  (query) => _buildDetailRowForDialog(
-                                    '${query['subject'] ?? 'N/A'} (${_formatDate(query['created_at'])})',
-                                    '${query['query_text'] ?? 'N/A'} | Status: ${query['status'] ?? 'N/A'}',
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                        if (queries.isNotEmpty) SizedBox(height: 20),
 
                         // Proposal Files
                         if (proposalFiles.isNotEmpty)
@@ -4440,18 +3898,6 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
                                 .toList(),
                           ),
                         if (proposalRemarks.isNotEmpty) SizedBox(height: 20),
-
-                        // Enhanced Activity Timeline
-                        if (allActivityData.isNotEmpty)
-                          _buildDetailSection(
-                            'Activity Timeline',
-                            allActivityData
-                                .map(
-                                  (activity) =>
-                                      _buildActivityTimelineItem(activity),
-                                )
-                                .toList(),
-                          ),
                       ],
                     ),
                   ),
