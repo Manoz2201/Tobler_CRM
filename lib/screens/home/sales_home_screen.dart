@@ -3253,7 +3253,7 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
   void _viewLeadDetails(Map<String, dynamic> lead) async {
     final leadId = lead['lead_id'];
 
-    // Record the view activity
+    // Record the view activity (removed activity_type since it doesn't exist)
     await _recordLeadActivity(
       leadId.toString(),
       'Lead Viewed',
@@ -3304,7 +3304,6 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
           .from('admin_response')
           .select('*')
           .eq('lead_id', leadId)
-          .order('created_at', ascending: false)
           .limit(1)
           .maybeSingle();
 
@@ -3312,9 +3311,7 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
       final activityTimeline = await client
           .from('lead_activity')
           .select('*')
-          .eq('lead_id', leadId)
-          .order('activity_date', ascending: false)
-          .order('activity_time', ascending: false);
+          .eq('lead_id', leadId);
 
       // Fetch proposal files
       List<Map<String, dynamic>> proposalFiles = [];
@@ -3322,8 +3319,7 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
         final proposalFilesResult = await client
             .from('proposal_file')
             .select('file_name, file_link, user_id')
-            .eq('lead_id', leadId)
-            .order('created_at', ascending: false);
+            .eq('lead_id', leadId);
 
         // Fetch usernames for each user_id
         for (final file in proposalFilesResult) {
@@ -3355,8 +3351,7 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
         final proposalRemarksResult = await client
             .from('proposal_remark')
             .select('*')
-            .eq('lead_id', leadId)
-            .order('created_at', ascending: false);
+            .eq('lead_id', leadId);
 
         proposalRemarks = proposalRemarksResult.map((remark) {
           return {...remark, 'username': 'N/A'};
@@ -3664,13 +3659,11 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
 
       await client.from('lead_activity').insert({
         'lead_id': leadId,
-        'activity_type': activityType,
         'description': description,
         'user_id': userId,
         'user_email': userEmail,
         'activity_date': activityDate,
         'activity_time': activityTime,
-        'created_at': now.toIso8601String(),
       });
 
       debugPrint(
