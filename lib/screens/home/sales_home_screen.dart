@@ -5156,6 +5156,19 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
                                 child: _buildCompactStatItem(
                                   'New',
                                   _calculateStats()['new'].toString(),
+                                  Colors.teal,
+                                ),
+                              ),
+                              Container(
+                                width: 1,
+                                height: 30,
+                                color: Colors.grey[300],
+                              ),
+                              Expanded(
+                                child: _buildCompactStatItem(
+                                  'Proposal',
+                                  _calculateStats()['proposalProgress']
+                                      .toString(),
                                   Colors.orange,
                                 ),
                               ),
@@ -5188,6 +5201,60 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
                         ),
                         // Mobile controls removed - filter and export buttons hidden for mobile
                       ] else ...[
+                        // Desktop: Stats cards
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 20),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: _buildStatCard(
+                                  'Total Leads',
+                                  _calculateStats()['total'].toString(),
+                                  Icons.leaderboard,
+                                  Colors.blue,
+                                ),
+                              ),
+                              SizedBox(width: 16),
+                              Expanded(
+                                child: _buildStatCard(
+                                  'New',
+                                  _calculateStats()['new'].toString(),
+                                  Icons.fiber_new,
+                                  Colors.teal,
+                                ),
+                              ),
+                              SizedBox(width: 16),
+                              Expanded(
+                                child: _buildStatCard(
+                                  'Proposal Progress',
+                                  _calculateStats()['proposalProgress']
+                                      .toString(),
+                                  Icons.new_releases,
+                                  Colors.orange,
+                                ),
+                              ),
+                              SizedBox(width: 16),
+                              Expanded(
+                                child: _buildStatCard(
+                                  'Waiting Approval',
+                                  _calculateStats()['waiting'].toString(),
+                                  Icons.pending,
+                                  Colors.purple,
+                                ),
+                              ),
+                              SizedBox(width: 16),
+                              Expanded(
+                                child: _buildStatCard(
+                                  'Approved',
+                                  _calculateStats()['approved'].toString(),
+                                  Icons.check_circle,
+                                  Colors.green,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: 20),
                         // Desktop layout
                         Row(
                           children: [
@@ -5336,6 +5403,7 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
   Map<String, int> _calculateStats() {
     int total = _filteredLeads.length;
     int newCount = 0;
+    int proposalProgressCount = 0;
     int waitingCount = 0;
     int approvedCount = 0;
 
@@ -5344,6 +5412,9 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
       switch (status) {
         case 'New':
           newCount++;
+          break;
+        case 'Proposal Progress':
+          proposalProgressCount++;
           break;
         case 'Waiting for Approval':
           waitingCount++;
@@ -5357,6 +5428,7 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
     return {
       'total': total,
       'new': newCount,
+      'proposalProgress': proposalProgressCount,
       'waiting': waitingCount,
       'approved': approvedCount,
     };
@@ -5965,6 +6037,8 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
         return 'All';
       case 'new':
         return 'New';
+      case 'proposal':
+        return 'Proposal Progress';
       case 'waiting':
         return 'Waiting for Approval';
       case 'approved':
@@ -6282,6 +6356,62 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
           ],
         );
       },
+    );
+  }
+
+  Widget _buildStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Expanded(
+      child: Container(
+        padding: EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                  Text(
+                    title,
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
