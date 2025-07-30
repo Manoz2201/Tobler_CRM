@@ -4678,7 +4678,11 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
             ),
             SizedBox(height: 8),
             Text('• Delete all associated proposal files'),
+            Text('• Delete all proposal input data'),
             Text('• Delete all admin responses'),
+            Text('• Delete all contacts'),
+            Text('• Delete all activity logs'),
+            Text('• Delete all notifications'),
             Text('• Permanently remove the lead'),
             Text('• This action CANNOT be undone!'),
             SizedBox(height: 16),
@@ -4740,6 +4744,53 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
       if (adminResponses.isNotEmpty) {
         debugPrint('Deleting ${adminResponses.length} admin responses');
         await client.from('admin_response').delete().eq('lead_id', leadId);
+      }
+
+      // Delete all proposal input data
+      final proposalInputs = await client
+          .from('proposal_input')
+          .select('id')
+          .eq('lead_id', leadId);
+
+      if (proposalInputs.isNotEmpty) {
+        debugPrint('Deleting ${proposalInputs.length} proposal inputs');
+        await client.from('proposal_input').delete().eq('lead_id', leadId);
+      }
+
+      // Delete all contacts associated with this lead
+      final contacts = await client
+          .from('contacts')
+          .select('id')
+          .eq('lead_id', leadId);
+
+      if (contacts.isNotEmpty) {
+        debugPrint('Deleting ${contacts.length} contacts');
+        await client.from('contacts').delete().eq('lead_id', leadId);
+      }
+
+      // Delete all activity logs associated with this lead
+      final activityLogs = await client
+          .from('activity_logs')
+          .select('id')
+          .eq('related_lead_id', leadId);
+
+      if (activityLogs.isNotEmpty) {
+        debugPrint('Deleting ${activityLogs.length} activity logs');
+        await client
+            .from('activity_logs')
+            .delete()
+            .eq('related_lead_id', leadId);
+      }
+
+      // Delete all notifications associated with this lead
+      final notifications = await client
+          .from('notifications')
+          .select('id')
+          .eq('lead_id', leadId);
+
+      if (notifications.isNotEmpty) {
+        debugPrint('Deleting ${notifications.length} notifications');
+        await client.from('notifications').delete().eq('lead_id', leadId);
       }
 
       // Now delete the lead
@@ -5047,7 +5098,31 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
                     .select('id')
                     .eq('lead_id', lead['lead_id']);
 
-                if (adminResponses.isNotEmpty) {
+                final proposalInputs = await client
+                    .from('proposal_input')
+                    .select('id')
+                    .eq('lead_id', lead['lead_id']);
+
+                final contacts = await client
+                    .from('contacts')
+                    .select('id')
+                    .eq('lead_id', lead['lead_id']);
+
+                final activityLogs = await client
+                    .from('activity_logs')
+                    .select('id')
+                    .eq('related_lead_id', lead['lead_id']);
+
+                final notifications = await client
+                    .from('notifications')
+                    .select('id')
+                    .eq('lead_id', lead['lead_id']);
+
+                if (adminResponses.isNotEmpty ||
+                    proposalInputs.isNotEmpty ||
+                    contacts.isNotEmpty ||
+                    activityLogs.isNotEmpty ||
+                    notifications.isNotEmpty) {
                   // Show warning about admin responses
                   showDialog(
                     context: context,
@@ -5064,7 +5139,7 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'This lead cannot be deleted because it has associated admin responses.',
+                            'This lead cannot be deleted because it has associated data in other tables.',
                             style: TextStyle(fontSize: 16),
                           ),
                           SizedBox(height: 12),
@@ -5086,7 +5161,7 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
                           ),
                           SizedBox(height: 8),
                           Text(
-                            '• Remove all associated admin responses\n• Or contact an administrator',
+                            '• Remove all associated data from other tables\n• Or use Force Delete to remove everything',
                             style: TextStyle(fontSize: 14),
                           ),
                         ],
