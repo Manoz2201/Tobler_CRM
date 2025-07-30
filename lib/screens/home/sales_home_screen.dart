@@ -4746,6 +4746,9 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
   }
 
   void _deleteLead(Map<String, dynamic> lead) {
+    print(
+      'DEBUG: _deleteLead function called with lead ID: ${lead['lead_id']}',
+    ); // Debug log
     // Show delete confirmation dialog
     showDialog(
       context: context,
@@ -4961,6 +4964,7 @@ class _SalesLeadTableState extends State<SalesLeadTable> {
                   ),
                 );
               } catch (e) {
+                print('DEBUG: Error in delete operation: $e'); // Debug log
                 String errorMessage = 'Error deleting lead';
 
                 // Provide more specific error messages
