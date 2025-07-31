@@ -4384,7 +4384,7 @@ class _LeadTableState extends State<LeadTable> {
 
   Widget _buildMobileTable() {
     return ListView.builder(
-      padding: EdgeInsets.symmetric(horizontal: 32),
+      padding: EdgeInsets.symmetric(horizontal: 12),
       itemCount: _filteredLeads.length,
       itemBuilder: (context, index) {
         final lead = _filteredLeads[index];
@@ -4422,7 +4422,6 @@ class _LeadTableState extends State<LeadTable> {
     }
 
     return Container(
-      width: MediaQuery.of(context).size.width - 64, // Match status cards width
       margin: EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: isSelected ? Colors.blue[50] : Colors.white,
