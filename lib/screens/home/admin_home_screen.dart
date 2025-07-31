@@ -159,7 +159,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         onTap: () => _onItemTapped(index),
         borderRadius: BorderRadius.circular(6),
         child: Container(
-          padding: EdgeInsets.all(4),
+          padding: EdgeInsets.all(1),
           decoration: BoxDecoration(
             color: isSelected ? Colors.blue[50] : Colors.transparent,
             borderRadius: BorderRadius.circular(6),
