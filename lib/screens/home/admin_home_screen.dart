@@ -3311,40 +3311,26 @@ class _LeadTableState extends State<LeadTable> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _buildMobileStatCard(
-            'Total Leads',
+          _buildCompactStatItem(
+            'Total',
             stats['total'].toString(),
-            Icons.leaderboard,
             Colors.blue,
-            () => _sortByStatus('total'),
           ),
-          _buildMobileStatCard(
-            'New',
-            stats['new'].toString(),
-            Icons.fiber_new,
-            Colors.teal,
-            () => _sortByStatus('new'),
-          ),
-          _buildMobileStatCard(
-            'Proposal Progress',
+          _buildCompactStatItem('New', stats['new'].toString(), Colors.teal),
+          _buildCompactStatItem(
+            'Proposal',
             stats['proposalProgress'].toString(),
-            Icons.new_releases,
             Colors.orange,
-            () => _sortByStatus('proposalProgress'),
           ),
-          _buildMobileStatCard(
-            'Waiting Approval',
+          _buildCompactStatItem(
+            'Waiting',
             stats['waiting'].toString(),
-            Icons.pending,
             Colors.purple,
-            () => _sortByStatus('waiting'),
           ),
-          _buildMobileStatCard(
+          _buildCompactStatItem(
             'Approved',
             stats['approved'].toString(),
-            Icons.check_circle,
             Colors.green,
-            () => _sortByStatus('approved'),
           ),
         ],
       ),
@@ -6039,5 +6025,65 @@ class _LeadTableState extends State<LeadTable> {
       default:
         return Colors.grey;
     }
+  }
+
+  Widget _buildCompactStatItem(String label, String value, Color color) {
+    final isSelected = _getSelectedFilterFromLabel(label) == _selectedFilter;
+
+    return InkWell(
+      onTap: () => _onStatItemTap(label),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withValues(alpha: 0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: isSelected ? Border.all(color: color, width: 1) : null,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                color: isSelected ? color : Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _getSelectedFilterFromLabel(String label) {
+    switch (label.toLowerCase()) {
+      case 'total':
+        return 'All';
+      case 'new':
+        return 'New';
+      case 'proposal':
+        return 'Proposal Progress';
+      case 'waiting':
+        return 'Waiting for Approval';
+      case 'approved':
+        return 'Approved';
+      default:
+        return 'All';
+    }
+  }
+
+  void _onStatItemTap(String label) {
+    final filterValue = _getSelectedFilterFromLabel(label);
+    _onFilterChanged(filterValue);
   }
 }
