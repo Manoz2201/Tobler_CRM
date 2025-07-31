@@ -154,12 +154,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   ) {
     return Container(
       width: width,
-      padding: EdgeInsets.symmetric(horizontal: 0, vertical: 2),
+      padding: EdgeInsets.symmetric(horizontal: -4, vertical: 2),
       child: InkWell(
         onTap: () => _onItemTapped(index),
         borderRadius: BorderRadius.circular(6),
         child: Container(
-          padding: EdgeInsets.all(1),
+          padding: EdgeInsets.symmetric(horizontal: 2, vertical: 4),
           decoration: BoxDecoration(
             color: isSelected ? Colors.blue[50] : Colors.transparent,
             borderRadius: BorderRadius.circular(6),
