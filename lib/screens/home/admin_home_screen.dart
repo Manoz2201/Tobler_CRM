@@ -101,7 +101,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
   Widget _buildMobileNavigationBar() {
     return Container(
-      height: 60,
+      height: 55,
       margin: EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -117,7 +117,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       child: SafeArea(
         top: false,
         child: Container(
-          height: 60,
+          height: 55,
           child: LayoutBuilder(
             builder: (context, constraints) {
               // Calculate item width to show exactly 5 items
@@ -154,12 +154,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   ) {
     return Container(
       width: width,
-      padding: EdgeInsets.symmetric(horizontal: -4, vertical: 2),
+      padding: EdgeInsets.symmetric(horizontal: 1, vertical: 1),
       child: InkWell(
         onTap: () => _onItemTapped(index),
         borderRadius: BorderRadius.circular(6),
         child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+          padding: EdgeInsets.all(2),
           decoration: BoxDecoration(
             color: isSelected ? Colors.blue[50] : Colors.transparent,
             borderRadius: BorderRadius.circular(6),
@@ -174,19 +174,23 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               Icon(
                 item.icon,
                 color: isSelected ? Colors.blue[600] : Colors.grey[600],
-                size: 20,
+                size: 18,
               ),
-              const SizedBox(height: 2),
-              Text(
-                item.label,
-                style: TextStyle(
-                  fontSize: 8,
-                  color: isSelected ? Colors.blue[600] : Colors.grey[600],
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              const SizedBox(height: 1),
+              Flexible(
+                child: Text(
+                  item.label,
+                  style: TextStyle(
+                    fontSize: 7,
+                    color: isSelected ? Colors.blue[600] : Colors.grey[600],
+                    fontWeight: isSelected
+                        ? FontWeight.w600
+                        : FontWeight.normal,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
