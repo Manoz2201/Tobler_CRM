@@ -4422,6 +4422,7 @@ class _LeadTableState extends State<LeadTable> {
     }
 
     return Container(
+      width: MediaQuery.of(context).size.width - 64, // Match status cards width
       margin: EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: isSelected ? Colors.blue[50] : Colors.white,
