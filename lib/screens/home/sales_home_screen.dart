@@ -134,6 +134,7 @@ class SalesHomeScreen extends StatefulWidget {
 
 class _SalesHomeScreenState extends State<SalesHomeScreen> {
   int _selectedIndex = 0;
+  Map<int, bool> _hoveredItems = {};
   bool _isDockedLeft = true;
   double _dragOffsetX = 0.0;
 
@@ -191,6 +192,113 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
     setState(() {
       _selectedIndex = index;
     });
+  }
+
+  Widget _buildMobileNavigationBar() {
+    return Container(
+      height: 55,
+      margin: EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Colors.grey[300]!, width: 1)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 4,
+            offset: Offset(0, -1),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Container(
+          height: 55,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final itemWidth = constraints.maxWidth / _navItems.length;
+
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: _navItems.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final item = entry.value;
+                    final isSelected = _selectedIndex == index;
+                    return _buildMobileNavItem(
+                      item,
+                      index,
+                      isSelected,
+                      itemWidth,
+                    );
+                  }).toList(),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileNavItem(
+    _NavItem item,
+    int index,
+    bool isSelected,
+    double width,
+  ) {
+    final isHovered = _hoveredItems[index] ?? false;
+
+    return Container(
+      width: width,
+      padding: EdgeInsets.symmetric(horizontal: 1, vertical: 1),
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hoveredItems[index] = true),
+        onExit: (_) => setState(() => _hoveredItems[index] = false),
+        child: InkWell(
+          onTap: () => _onItemTapped(index),
+          borderRadius: BorderRadius.circular(6),
+          child: Container(
+            padding: EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              color: isSelected ? Colors.blue[50] : Colors.transparent,
+              borderRadius: BorderRadius.circular(6),
+              border: isSelected
+                  ? Border.all(color: Colors.blue[300]!, width: 1)
+                  : null,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  item.icon,
+                  color: isSelected ? Colors.blue[600] : Colors.grey[600],
+                  size: 18,
+                ),
+                if (isHovered || isSelected) ...[
+                  const SizedBox(height: 1),
+                  Flexible(
+                    child: Text(
+                      item.label,
+                      style: TextStyle(
+                        fontSize: 7,
+                        color: isSelected ? Colors.blue[600] : Colors.grey[600],
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildNavBar(double screenHeight, double screenWidth) {
@@ -405,21 +513,7 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
           // Mobile layout with bottom navigation
           return Scaffold(
             body: _pages[_selectedIndex],
-            bottomNavigationBar: BottomNavigationBar(
-              currentIndex: _selectedIndex,
-              onTap: _onItemTapped,
-              type: BottomNavigationBarType.fixed,
-              selectedItemColor: const Color(0xFF1976D2),
-              unselectedItemColor: Colors.grey[400],
-              items: _navItems
-                  .map(
-                    (item) => BottomNavigationBarItem(
-                      icon: Icon(item.icon),
-                      label: item.label,
-                    ),
-                  )
-                  .toList(),
-            ),
+            bottomNavigationBar: _buildMobileNavigationBar(),
           );
         }
       },
