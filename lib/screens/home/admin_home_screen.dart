@@ -3075,7 +3075,7 @@ class _LeadTableState extends State<LeadTable> {
             padding: EdgeInsets.fromLTRB(
               isWide ? 24.0 : 16.0,
               isWide ? 24.0 : 12.0,
-              0.0,
+              isWide ? 24.0 : 16.0,
               isWide ? 24.0 : 8.0,
             ),
             child: Column(
