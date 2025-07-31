@@ -4384,7 +4384,7 @@ class _LeadTableState extends State<LeadTable> {
 
   Widget _buildMobileTable() {
     return ListView.builder(
-      padding: EdgeInsets.only(right: 24),
+      padding: EdgeInsets.symmetric(horizontal: 16),
       itemCount: _filteredLeads.length,
       itemBuilder: (context, index) {
         final lead = _filteredLeads[index];
