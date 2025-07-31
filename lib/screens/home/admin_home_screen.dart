@@ -154,7 +154,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   ) {
     return Container(
       width: width,
-      padding: EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+      padding: EdgeInsets.symmetric(horizontal: 0, vertical: 2),
       child: InkWell(
         onTap: () => _onItemTapped(index),
         borderRadius: BorderRadius.circular(6),
