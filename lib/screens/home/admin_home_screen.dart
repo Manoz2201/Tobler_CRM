@@ -3215,44 +3215,40 @@ class _LeadTableState extends State<LeadTable> {
           _buildMobileStatsCards(),
           const SizedBox(height: 8),
           // Centered search box for mobile
-          Center(
-            child: Container(
-              width:
-                  MediaQuery.of(context).size.width *
-                  0.95, // 95% of screen width
-              child: TextField(
-                decoration: InputDecoration(
-                  hintText: 'Search leads...',
-                  prefixIcon: Icon(Icons.search, size: 18),
-                  suffixIcon: IconButton(
-                    onPressed: _fetchLeads,
-                    icon: Icon(Icons.refresh, size: 18),
-                    tooltip: 'Refresh',
-                    padding: EdgeInsets.all(4),
-                    constraints: BoxConstraints(minWidth: 24, minHeight: 24),
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(6),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(6),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(6),
-                    borderSide: BorderSide(color: Colors.blue[600]!),
-                  ),
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 6,
-                  ),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: 'Search leads...',
+                prefixIcon: Icon(Icons.search, size: 18),
+                suffixIcon: IconButton(
+                  onPressed: _fetchLeads,
+                  icon: Icon(Icons.refresh, size: 18),
+                  tooltip: 'Refresh',
+                  padding: EdgeInsets.all(4),
+                  constraints: BoxConstraints(minWidth: 24, minHeight: 24),
                 ),
-                onChanged: _onSearch,
-                style: TextStyle(fontSize: 13),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: BorderSide(color: Colors.blue[600]!),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 6,
+                ),
               ),
+              onChanged: _onSearch,
+              style: TextStyle(fontSize: 13),
             ),
           ),
         ],
