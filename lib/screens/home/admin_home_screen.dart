@@ -3307,30 +3307,58 @@ class _LeadTableState extends State<LeadTable> {
     final stats = _calculateStats();
 
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 8),
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _buildCompactStatItem(
-            'Total',
-            stats['total'].toString(),
-            Colors.blue,
+          Expanded(
+            child: _buildCompactStatItem(
+              'Total',
+              stats['total'].toString(),
+              Colors.blue,
+            ),
           ),
-          _buildCompactStatItem('New', stats['new'].toString(), Colors.teal),
-          _buildCompactStatItem(
-            'Proposal',
-            stats['proposalProgress'].toString(),
-            Colors.orange,
+          Container(width: 1, height: 30, color: Colors.grey[300]),
+          Expanded(
+            child: _buildCompactStatItem(
+              'New',
+              stats['new'].toString(),
+              Colors.teal,
+            ),
           ),
-          _buildCompactStatItem(
-            'Waiting',
-            stats['waiting'].toString(),
-            Colors.purple,
+          Container(width: 1, height: 30, color: Colors.grey[300]),
+          Expanded(
+            child: _buildCompactStatItem(
+              'Proposal',
+              stats['proposalProgress'].toString(),
+              Colors.orange,
+            ),
           ),
-          _buildCompactStatItem(
-            'Approved',
-            stats['approved'].toString(),
-            Colors.green,
+          Container(width: 1, height: 30, color: Colors.grey[300]),
+          Expanded(
+            child: _buildCompactStatItem(
+              'Waiting',
+              stats['waiting'].toString(),
+              Colors.purple,
+            ),
+          ),
+          Container(width: 1, height: 30, color: Colors.grey[300]),
+          Expanded(
+            child: _buildCompactStatItem(
+              'Approved',
+              stats['approved'].toString(),
+              Colors.green,
+            ),
           ),
         ],
       ),
