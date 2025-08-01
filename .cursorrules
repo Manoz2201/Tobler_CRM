@@ -2,7 +2,16 @@
   "rules": [
     {
       "pattern": "**/*.dart",
-      "language": "dart"
+      "language": "dart",
+      "lint": "error",
+      "rule": "avoid_renderflex_overflow",
+      "description": "Always use dynamic sizing or constraints for navigation bars and flex widgets to prevent RenderFlex overflow. Use calculated heights based on content, and avoid hardcoded heights that may not fit all children."
+    },
+    {
+      "pattern": "**/*.dart",
+      "lint": "error",
+      "rule": "auto_correct_pixel_overflow",
+      "description": "Automatically fix RenderFlex overflow errors by making overflowing Row elements horizontally scrollable (SingleChildScrollView) or wrapping them responsively. All screen elements must adapt to screen size to prevent pixel overflow."
     },
     {
       "pattern": "**/*.yaml",
@@ -17,18 +26,6 @@
       "language": "markdown"
     },
     {
-      "pattern": "**/*.dart",
-      "lint": "error",
-      "rule": "avoid_renderflex_overflow",
-      "description": "Always use dynamic sizing or constraints for navigation bars and flex widgets to prevent RenderFlex overflow. Use calculated heights based on content, and avoid hardcoded heights that may not fit all children."
-    },
-    {
-      "pattern": "**/*.dart",
-      "lint": "error",
-      "rule": "auto_correct_pixel_overflow",
-      "description": "Automatically fix RenderFlex overflow errors by making overflowing Row elements horizontally scrollable (SingleChildScrollView) or wrapping them responsively. All screen elements must adapt to screen size to prevent pixel overflow."
-    },
-    {
       "pattern": "**/*",
       "rule": "no_change_without_explicit_request",
       "description": "Do not change any function, UI, or code in the app or codebase unless the user specifically mentions that particular change in their request."
@@ -40,7 +37,8 @@
     ".pub-cache/**",
     ".pub/**",
     "*.g.dart",
-    "*.freezed.dart"
+    "*.freezed.dart",
+    "*.mocks.dart"
   ],
   "crm_app_structure": {
     "screens": {

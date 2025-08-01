@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui';
-import 'dart:convert';
+
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -48,7 +48,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   int _selectedIndex = 0;
   bool _isDockedLeft = true;
   double _dragOffsetX = 0.0;
-  Map<int, bool> _hoveredItems = {};
+  final Map<int, bool> _hoveredItems = {};
 
   final ScrollController _scrollbarController = ScrollController();
 
@@ -117,7 +117,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       ),
       child: SafeArea(
         top: false,
-        child: Container(
+        child: SizedBox(
           height: 55,
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -183,7 +183,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                   size: 18,
                 ),
                 if (isHovered || isSelected) ...[
-                  const SizedBox(height: 1),
                   Flexible(
                     child: Text(
                       item.label,
@@ -1166,17 +1165,7 @@ class _AdminLeadsPageState extends State<_AdminLeadsPage> {
                           ),
                         if (proposalRemarks.isNotEmpty) SizedBox(height: 20),
 
-                        // Activity Timeline
-                        if (activityTimeline.isNotEmpty)
-                          _buildDetailSection(
-                            'Activity Timeline',
-                            activityTimeline
-                                .map(
-                                  (activity) =>
-                                      _buildActivityTimelineItem(activity),
-                                )
-                                .toList(),
-                          ),
+                        // Activity Timeline section removed - unused method
                       ],
                     ),
                   ),
@@ -1300,57 +1289,6 @@ class _AdminLeadsPageState extends State<_AdminLeadsPage> {
                 ],
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActivityTimelineItem(Map<String, dynamic> activity) {
-    final activityDate = _formatDate(activity['activity_date']);
-    final activityTime = activity['activity_time'] ?? '';
-    final activityText = activity['activity'] ?? 'N/A';
-    final changesMade = activity['changes_made'] ?? '';
-
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: 120,
-                child: Text(
-                  '$activityDate $activityTime:',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w500,
-                    fontSize: 14,
-                    color: Colors.grey[700],
-                  ),
-                ),
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      activityText,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    if (changesMade.isNotEmpty)
-                      Text(
-                        'Changes: $changesMade',
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                      ),
-                  ],
-                ),
-              ),
-            ],
           ),
         ],
       ),
@@ -3229,7 +3167,7 @@ class _LeadTableState extends State<LeadTable> {
           const SizedBox(height: 8),
           // Centered search box for mobile
           Center(
-            child: Container(
+            child: SizedBox(
               width:
                   MediaQuery.of(context).size.width *
                   0.95, // 95% of screen width
@@ -3372,60 +3310,6 @@ class _LeadTableState extends State<LeadTable> {
               stats['approved'].toString(),
               Colors.green,
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMobileStatCard(
-    String title,
-    String value,
-    IconData icon,
-    Color color,
-    VoidCallback onSort,
-  ) {
-    return Container(
-      width: 80, // Smaller width for icon-only cards
-      padding: EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Sort button with icon only
-          Container(
-            padding: EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: InkWell(
-              onTap: onSort,
-              borderRadius: BorderRadius.circular(8),
-              child: Icon(icon, color: color, size: 20),
-            ),
-          ),
-          const SizedBox(height: 6),
-          // Count value below icon
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[800],
-            ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -4779,54 +4663,6 @@ class _LeadTableState extends State<LeadTable> {
     }
   }
 
-  void _sortByStatus(String status) {
-    setState(() {
-      switch (status) {
-        case 'total':
-          // Show all leads
-          _filteredLeads = List.from(_leads);
-          break;
-        case 'new':
-          // Show only new leads
-          _filteredLeads = _leads.where((lead) {
-            final status = _getLeadStatus(lead);
-            return status == 'New';
-          }).toList();
-          break;
-        case 'proposalProgress':
-          // Show only proposal progress leads
-          _filteredLeads = _leads.where((lead) {
-            final status = _getLeadStatus(lead);
-            return status == 'Proposal Progress';
-          }).toList();
-          break;
-        case 'waiting':
-          // Show leads waiting for approval
-          _filteredLeads = _leads.where((lead) {
-            final adminResponse = lead['approved'];
-            return adminResponse == null;
-          }).toList();
-          break;
-        case 'approved':
-          // Show only approved leads
-          _filteredLeads = _leads.where((lead) {
-            final adminResponse = lead['approved'];
-            return adminResponse == true;
-          }).toList();
-          break;
-      }
-    });
-
-    // Show feedback to user
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Filtered by $status'),
-        duration: Duration(seconds: 1),
-        backgroundColor: Colors.blue[600],
-      ),
-    );
-  }
-
   void _saveRateToDatabase(String leadId, String rate) async {
     try {
       // You can add a rate column to leads table or create a separate rates table
@@ -5419,175 +5255,6 @@ class _LeadTableState extends State<LeadTable> {
     );
   }
 
-  Widget _buildActivityTimelineItem(Map<String, dynamic> activity) {
-    final activityDate = _formatDate(activity['activity_date']);
-    final activityTime = activity['activity_time'] ?? '';
-    final activityType = activity['activity'] ?? 'N/A';
-    final changesMade = activity['changes_made'];
-
-    return Container(
-      margin: EdgeInsets.symmetric(vertical: 8),
-      padding: EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header with date, time, and activity type
-          Row(
-            children: [
-              Icon(Icons.schedule, size: 16, color: Colors.blue[600]),
-              SizedBox(width: 8),
-              Text(
-                '$activityDate $activityTime',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                  color: Colors.grey[800],
-                ),
-              ),
-              Spacer(),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.blue[100],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  activityType.replaceAll('_', ' ').toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue[700],
-                  ),
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 8),
-
-          // Changes section if available
-          if (changesMade != null) ...[
-            Text(
-              'Changes Made:',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-                color: Colors.grey[700],
-              ),
-            ),
-            SizedBox(height: 6),
-            _buildChangesDisplay(changesMade),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildChangesDisplay(dynamic changesData) {
-    try {
-      // Try to parse as JSON if it's a string
-      Map<String, dynamic> changes;
-      if (changesData is String) {
-        changes = Map<String, dynamic>.from(jsonDecode(changesData));
-      } else if (changesData is Map) {
-        changes = Map<String, dynamic>.from(changesData);
-      } else {
-        return Text(
-          changesData.toString(),
-          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-        );
-      }
-
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: changes.entries.map((entry) {
-          final key = entry.key;
-          final value = entry.value;
-
-          // Format the key for better readability
-          String formattedKey = key
-              .replaceAll('_', ' ')
-              .split(' ')
-              .map(
-                (word) => word.isNotEmpty
-                    ? word[0].toUpperCase() + word.substring(1)
-                    : '',
-              )
-              .join(' ');
-
-          return Padding(
-            padding: EdgeInsets.symmetric(vertical: 2),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  margin: EdgeInsets.only(top: 6, right: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.green[600],
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        formattedKey,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w500,
-                          fontSize: 12,
-                          color: Colors.grey[700],
-                        ),
-                      ),
-                      SizedBox(height: 2),
-                      Container(
-                        width: double.infinity,
-                        padding: EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: Colors.grey[300]!),
-                        ),
-                        child: Text(
-                          value?.toString() ?? 'N/A',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[800],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          );
-        }).toList(),
-      );
-    } catch (e) {
-      // Fallback for non-JSON data
-      return Container(
-        width: double.infinity,
-        padding: EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: Colors.grey[300]!),
-        ),
-        child: Text(
-          changesData.toString(),
-          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-        ),
-      );
-    }
-  }
-
   void _showComprehensiveLeadDetailsDialog(
     Map<String, dynamic> leadDetails,
     Map<String, dynamic> salesPersonDetails,
@@ -5983,17 +5650,7 @@ class _LeadTableState extends State<LeadTable> {
                           ),
                         if (proposalRemarks.isNotEmpty) SizedBox(height: 20),
 
-                        // Activity Timeline
-                        if (activityTimeline.isNotEmpty)
-                          _buildDetailSection(
-                            'Activity Timeline',
-                            activityTimeline
-                                .map(
-                                  (activity) =>
-                                      _buildActivityTimelineItem(activity),
-                                )
-                                .toList(),
-                          ),
+                        // Activity Timeline section removed - unused method
                       ],
                     ),
                   ),

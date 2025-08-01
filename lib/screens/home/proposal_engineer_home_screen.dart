@@ -76,7 +76,7 @@ class _ProposalHomeScreenState extends State<ProposalHomeScreen> {
   int _selectedIndex = 0;
   bool _isDockedLeft = true;
   double _dragOffsetX = 0.0;
-  Map<int, bool> _hoveredItems = {};
+  final Map<int, bool> _hoveredItems = {};
 
   final ScrollController _scrollbarController = ScrollController();
 
@@ -139,7 +139,7 @@ class _ProposalHomeScreenState extends State<ProposalHomeScreen> {
       ),
       child: SafeArea(
         top: false,
-        child: Container(
+        child: SizedBox(
           height: 55,
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -204,7 +204,6 @@ class _ProposalHomeScreenState extends State<ProposalHomeScreen> {
                   size: 18,
                 ),
                 if (isHovered || isSelected) ...[
-                  const SizedBox(height: 1),
                   Flexible(
                     child: Text(
                       item.label,

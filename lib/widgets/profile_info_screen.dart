@@ -353,8 +353,9 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
   String _formatFileSize(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024)
+    if (bytes < 1024 * 1024 * 1024) {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 
@@ -383,85 +384,26 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
       final uri = Uri.parse(downloadUrl);
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
-        Navigator.of(context).pop(); // Close progress dialog
+        if (mounted) {
+          Navigator.of(context).pop(); // Close progress dialog
+        }
       } else {
-        Navigator.of(context).pop(); // Close progress dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to open download link'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      Navigator.of(context).pop(); // Close progress dialog
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error downloading update: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  Future<void> _performUpdate() async {
-    try {
-      // Show update progress dialog
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: Row(
-              children: [
-                SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                SizedBox(width: 12),
-                Text('Updating...'),
-              ],
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Downloading update...'),
-                SizedBox(height: 12),
-                LinearProgressIndicator(),
-              ],
+        if (mounted) {
+          Navigator.of(context).pop(); // Close progress dialog
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to open download link'),
+              backgroundColor: Colors.red,
             ),
           );
-        },
-      );
-
-      // Simulate update process
-      await Future.delayed(Duration(seconds: 3));
-
-      // Close progress dialog
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
-
-      // Show success message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Update completed successfully! Please restart the app.',
-            ),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 5),
-          ),
-        );
+        }
       }
     } catch (e) {
-      debugPrint('Error performing update: $e');
       if (mounted) {
         Navigator.of(context).pop(); // Close progress dialog
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error updating app: $e'),
+            content: Text('Error downloading update: $e'),
             backgroundColor: Colors.red,
           ),
         );
