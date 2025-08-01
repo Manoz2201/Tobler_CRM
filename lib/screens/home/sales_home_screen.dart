@@ -628,7 +628,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
 
   void _onStatusFilterChanged(String? statusFilter) {
     setState(() {
-      _selectedStatusFilter = _selectedStatusFilter == statusFilter ? null : statusFilter;
+      _selectedStatusFilter = _selectedStatusFilter == statusFilter
+          ? null
+          : statusFilter;
       _applyFilters();
     });
   }
@@ -642,7 +644,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           (lead['project_name'] ?? '').toLowerCase().contains(_searchText);
 
       // Apply status filter
-      final matchesStatus = _selectedStatusFilter == null || 
+      final matchesStatus =
+          _selectedStatusFilter == null ||
           _getLeadStatus(lead) == _selectedStatusFilter;
 
       return matchesSearch && matchesStatus;
@@ -804,48 +807,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
               height: 1.2,
             ),
           ),
-          const SizedBox(height: 8),
-          // Mobile stats cards
-          _buildMobileStatsCards(),
-          const SizedBox(height: 8),
-          // Centered search box for mobile
-          Center(
-            child: SizedBox(
-              width: MediaQuery.of(context).size.width * 0.95,
-              child: TextField(
-                decoration: InputDecoration(
-                  hintText: 'Search leads...',
-                  prefixIcon: Icon(Icons.search, size: 18),
-                  suffixIcon: IconButton(
-                    onPressed: _fetchLeads,
-                    icon: Icon(Icons.refresh, size: 18),
-                    tooltip: 'Refresh',
-                    padding: EdgeInsets.all(4),
-                    constraints: BoxConstraints(minWidth: 24, minHeight: 24),
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(6),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(6),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(6),
-                    borderSide: BorderSide(color: Colors.blue[600]!),
-                  ),
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 8,
-                  ),
-                ),
-                onChanged: _onSearch,
-              ),
-            ),
-          ),
+                     const SizedBox(height: 8),
+           // Mobile stats cards
+           _buildMobileStatsCards(),
         ],
       );
     }
@@ -929,7 +893,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     String? statusFilter,
   ) {
     final isSelected = _selectedStatusFilter == statusFilter;
-    
+
     return GestureDetector(
       onTap: () => _onStatusFilterChanged(statusFilter),
       child: AnimatedContainer(
@@ -938,9 +902,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         decoration: BoxDecoration(
           color: isSelected ? color.withValues(alpha: 0.1) : Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: isSelected 
-              ? Border.all(color: color, width: 2)
-              : null,
+          border: isSelected ? Border.all(color: color, width: 2) : null,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.05),
@@ -979,9 +941,11 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                       Text(
                         title,
                         style: TextStyle(
-                          fontSize: 14, 
+                          fontSize: 14,
                           color: isSelected ? color : Colors.grey[600],
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.normal,
                         ),
                       ),
                     ],
@@ -1073,7 +1037,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     String? statusFilter,
   ) {
     final isSelected = _selectedStatusFilter == statusFilter;
-    
+
     return GestureDetector(
       onTap: () => _onStatusFilterChanged(statusFilter),
       child: AnimatedContainer(
@@ -1082,9 +1046,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         decoration: BoxDecoration(
           color: isSelected ? color.withValues(alpha: 0.1) : Colors.white,
           borderRadius: BorderRadius.circular(8),
-          border: isSelected 
-              ? Border.all(color: color, width: 1.5)
-              : null,
+          border: isSelected ? Border.all(color: color, width: 1.5) : null,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.05),
@@ -1115,7 +1077,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             Text(
               title,
               style: TextStyle(
-                fontSize: 10, 
+                fontSize: 10,
                 color: isSelected ? color : Colors.grey[600],
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               ),
