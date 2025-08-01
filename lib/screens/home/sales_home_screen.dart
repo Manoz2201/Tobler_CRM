@@ -1836,7 +1836,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Lead ID: ${lead['project_id'] ?? 'N/A'}',
+                              'Client: ${lead['client_name'] ?? 'N/A'}',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
@@ -1856,7 +1856,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                               ),
                             ),
                             Text(
-                              'Client: ${lead['client_name'] ?? 'N/A'}',
+                              'Lead ID: ${lead['project_id'] ?? 'N/A'}',
                               style: TextStyle(
                                 fontSize: 14,
                                 color: _hoveredRows[leadId] == true
