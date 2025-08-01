@@ -2135,8 +2135,7 @@ class _LeadTableState extends State<LeadTable> {
   final Map<String, double> _totalAmounts = {}; // Store calculated totals
   final TextEditingController _remarkController = TextEditingController();
   bool _isLoading = true;
-  Set<String> _selectedLeads = {};
-  bool _selectAll = false;
+
   bool _showAdvancedFilters = false;
   final Map<String, dynamic> _advancedFilters = {
     'dateRange': null,
@@ -2357,78 +2356,7 @@ class _LeadTableState extends State<LeadTable> {
     });
   }
 
-  void _toggleLeadSelection(String leadId) {
-    setState(() {
-      if (_selectedLeads.contains(leadId)) {
-        _selectedLeads.remove(leadId);
-      } else {
-        _selectedLeads.add(leadId);
-      }
-      _updateSelectAll();
-    });
-  }
 
-  void _toggleSelectAll() {
-    setState(() {
-      _selectAll = !_selectAll;
-      if (_selectAll) {
-        _selectedLeads = _filteredLeads
-            .map((lead) => lead['lead_id'].toString())
-            .toSet();
-      } else {
-        _selectedLeads.clear();
-      }
-    });
-  }
-
-  void _updateSelectAll() {
-    _selectAll =
-        _selectedLeads.length == _filteredLeads.length &&
-        _filteredLeads.isNotEmpty;
-  }
-
-  void _bulkApprove() {
-    if (_selectedLeads.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Please select leads to approve')));
-      return;
-    }
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Bulk Approve Leads'),
-        content: Text(
-          'Are you sure you want to approve ${_selectedLeads.length} selected leads?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              // Implement bulk approve logic
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    '${_selectedLeads.length} leads approved successfully',
-                  ),
-                ),
-              );
-              setState(() {
-                _selectedLeads.clear();
-                _selectAll = false;
-              });
-            },
-            child: Text('Approve'),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _exportLeads() {
     _showCryptoKeyValidationDialog();
@@ -3048,10 +2976,7 @@ class _LeadTableState extends State<LeadTable> {
                 if (_showAdvancedFilters) _buildAdvancedFilters(),
                 if (_showAdvancedFilters) SizedBox(height: isWide ? 16 : 8),
 
-                // Bulk Actions
-                if (_selectedLeads.isNotEmpty) _buildBulkActions(),
-                if (_selectedLeads.isNotEmpty)
-                  SizedBox(height: isWide ? 16 : 8),
+
 
                 // Content
                 Expanded(
@@ -3630,48 +3555,7 @@ class _LeadTableState extends State<LeadTable> {
     );
   }
 
-  Widget _buildBulkActions() {
-    return Container(
-      padding: EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.blue[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.blue[200]!),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.check_circle, color: Colors.blue[700]),
-          const SizedBox(width: 8),
-          Text(
-            '${_selectedLeads.length} leads selected',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Colors.blue[700],
-            ),
-          ),
-          const Spacer(),
-          TextButton.icon(
-            onPressed: _bulkApprove,
-            icon: Icon(Icons.approval),
-            label: Text('Bulk Approve'),
-            style: TextButton.styleFrom(foregroundColor: Colors.green[700]),
-          ),
-          const SizedBox(width: 8),
-          TextButton.icon(
-            onPressed: () {
-              setState(() {
-                _selectedLeads.clear();
-                _selectAll = false;
-              });
-            },
-            icon: Icon(Icons.clear),
-            label: Text('Clear Selection'),
-            style: TextButton.styleFrom(foregroundColor: Colors.grey[600]),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildWideTable() {
     return Container(
@@ -3700,11 +3584,6 @@ class _LeadTableState extends State<LeadTable> {
             ),
             child: Row(
               children: [
-                Checkbox(
-                  value: _selectAll,
-                  onChanged: (value) => _toggleSelectAll(),
-                ),
-                const SizedBox(width: 8),
                 Expanded(
                   flex: 1,
                   child: Container(
@@ -3876,7 +3755,7 @@ class _LeadTableState extends State<LeadTable> {
         double.tryParse(lead['aluminium_area']?.toString() ?? '0') ?? 0;
     final msWeight = double.tryParse(lead['ms_weight']?.toString() ?? '0') ?? 0;
     final rate = double.tryParse(lead['rate_sqm']?.toString() ?? '0') ?? 0;
-    final isSelected = _selectedLeads.contains(leadId.toString());
+
 
     // Calculate total amount dynamically
     String calculateTotalAmount() {
@@ -3893,18 +3772,12 @@ class _LeadTableState extends State<LeadTable> {
         border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
       ),
       child: Material(
-        color: isSelected ? Colors.blue[50] : Colors.transparent,
+        color: Colors.transparent,
         child: InkWell(
-          onTap: () => _toggleLeadSelection(leadId.toString()),
           child: Padding(
             padding: EdgeInsets.all(16),
             child: Row(
               children: [
-                Checkbox(
-                  value: isSelected,
-                  onChanged: (value) => _toggleLeadSelection(leadId.toString()),
-                ),
-                const SizedBox(width: 8),
                 Expanded(
                   flex: 1,
                   child: Container(
@@ -4300,7 +4173,7 @@ class _LeadTableState extends State<LeadTable> {
         double.tryParse(lead['aluminium_area']?.toString() ?? '0') ?? 0;
     final msWeight = double.tryParse(lead['ms_weight']?.toString() ?? '0') ?? 0;
     final rate = double.tryParse(lead['rate_sqm']?.toString() ?? '0') ?? 0;
-    final isSelected = _selectedLeads.contains(leadId.toString());
+
 
     // Calculate total amount dynamically
     String calculateTotalAmount() {
@@ -4320,8 +4193,8 @@ class _LeadTableState extends State<LeadTable> {
 
     return Container(
       margin: EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: isSelected ? Colors.blue[50] : Colors.white,
+              decoration: BoxDecoration(
+          color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
@@ -4334,7 +4207,6 @@ class _LeadTableState extends State<LeadTable> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => _toggleLeadSelection(leadId.toString()),
           borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: EdgeInsets.all(16),
@@ -4343,11 +4215,6 @@ class _LeadTableState extends State<LeadTable> {
               children: [
                 Row(
                   children: [
-                    Checkbox(
-                      value: isSelected,
-                      onChanged: (value) =>
-                          _toggleLeadSelection(leadId.toString()),
-                    ),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,

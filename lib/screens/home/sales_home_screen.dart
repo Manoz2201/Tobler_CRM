@@ -227,8 +227,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
   final Map<String, double> _totalAmounts = {}; // Store calculated totals
   final TextEditingController _remarkController = TextEditingController();
   bool _isLoading = true;
-  Set<String> _selectedLeads = {};
-  bool _selectAll = false;
+
   bool _showAdvancedFilters = false;
   String? _currentUserId;
   String? _currentUsername;
@@ -707,35 +706,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     return 'Tobler-$shortHex';
   }
 
-  void _toggleLeadSelection(String leadId) {
-    setState(() {
-      if (_selectedLeads.contains(leadId)) {
-        _selectedLeads.remove(leadId);
-      } else {
-        _selectedLeads.add(leadId);
-      }
-      _updateSelectAll();
-    });
-  }
 
-  void _toggleSelectAll() {
-    setState(() {
-      _selectAll = !_selectAll;
-      if (_selectAll) {
-        _selectedLeads = _filteredLeads
-            .map((lead) => lead['lead_id'].toString())
-            .toSet();
-      } else {
-        _selectedLeads.clear();
-      }
-    });
-  }
-
-  void _updateSelectAll() {
-    setState(() {
-      _selectAll = _selectedLeads.length == _filteredLeads.length;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -771,10 +742,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                 if (_showAdvancedFilters) _buildAdvancedFilters(),
                 if (_showAdvancedFilters) SizedBox(height: isWide ? 16 : 8),
 
-                // Bulk Actions
-                if (_selectedLeads.isNotEmpty) _buildBulkActions(),
-                if (_selectedLeads.isNotEmpty)
-                  SizedBox(height: isWide ? 16 : 8),
+
 
                 // Content
                 Expanded(
@@ -1564,43 +1532,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     );
   }
 
-  Widget _buildBulkActions() {
-    return Container(
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.blue[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue[200]!),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.check_circle, color: Colors.blue[700]),
-          SizedBox(width: 8),
-          Text(
-            '${_selectedLeads.length} leads selected',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Colors.blue[700],
-            ),
-          ),
-          Spacer(),
-          TextButton.icon(
-            icon: Icon(Icons.delete),
-            label: Text('Delete Selected'),
-            onPressed: () {
-              // TODO: Implement bulk delete
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Bulk delete functionality coming soon'),
-                ),
-              );
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildEmptyState() {
     return Center(
@@ -1657,10 +1589,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                 Expanded(
                   child: Text(
                     '${_filteredLeads.length} leads',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                   ),
                 ),
               ],
@@ -1671,17 +1600,10 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             padding: EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.grey[50],
-              border: Border(
-                top: BorderSide(color: Colors.grey[200]!),
-              ),
+              border: Border(top: BorderSide(color: Colors.grey[200]!)),
             ),
             child: Row(
               children: [
-                Checkbox(
-                  value: _selectAll,
-                  onChanged: (value) => _toggleSelectAll(),
-                ),
-                const SizedBox(width: 8),
                 Expanded(
                   flex: 2,
                   child: Container(
@@ -1843,22 +1765,14 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
   Widget _buildTableRow(Map<String, dynamic> lead, int index) {
     final leadId = lead['lead_id'].toString();
     final totalAmount = _totalAmounts[leadId] ?? 0.0;
-    final isSelected = _selectedLeads.contains(leadId);
 
     return Container(
       decoration: BoxDecoration(
-        color: isSelected
-            ? Colors.blue[50]
-            : (index % 2 == 0 ? Colors.white : Colors.grey[50]),
+        color: (index % 2 == 0 ? Colors.white : Colors.grey[50]),
         border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
       ),
-      child: Row(
-        children: [
-          Checkbox(
-            value: isSelected,
-            onChanged: (value) => _toggleLeadSelection(leadId),
-          ),
-          const SizedBox(width: 8),
+             child: Row(
+         children: [
           Expanded(
             flex: 2,
             child: Container(
@@ -1897,19 +1811,19 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
               ),
             ),
           ),
-                     Expanded(
-             flex: 1,
-             child: Container(
-               padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-               child: Text(
-                 _generateProjectId(leadId),
-                 style: TextStyle(fontWeight: FontWeight.w500),
-                 softWrap: true,
-                 overflow: TextOverflow.ellipsis,
-                 maxLines: 2,
-               ),
-             ),
-           ),
+          Expanded(
+            flex: 1,
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+              child: Text(
+                _generateProjectId(leadId),
+                style: TextStyle(fontWeight: FontWeight.w500),
+                softWrap: true,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 2,
+              ),
+            ),
+          ),
           Expanded(
             flex: 1,
             child: Container(
@@ -2061,13 +1975,12 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
   Widget _buildMobileCard(Map<String, dynamic> lead, int index) {
     final leadId = lead['lead_id'].toString();
     final totalAmount = _totalAmounts[leadId] ?? 0.0;
-    final isSelected = _selectedLeads.contains(leadId);
 
     return Card(
       margin: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Container(
         decoration: BoxDecoration(
-          color: isSelected ? Colors.blue[50] : Colors.white,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Padding(
@@ -2075,12 +1988,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Checkbox(
-                    value: isSelected,
-                    onChanged: (value) => _toggleLeadSelection(leadId),
-                  ),
+                             Row(
+                 children: [
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
