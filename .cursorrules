@@ -4,14 +4,62 @@
       "pattern": "**/*.dart",
       "language": "dart",
       "lint": "error",
-      "rule": "avoid_renderflex_overflow",
-      "description": "Always use dynamic sizing or constraints for navigation bars and flex widgets to prevent RenderFlex overflow. Use calculated heights based on content, and avoid hardcoded heights that may not fit all children."
+      "rule": "flutter_best_practices",
+      "description": "Follow Flutter best practices including proper widget structure, state management, and performance optimization."
     },
     {
       "pattern": "**/*.dart",
       "lint": "error",
-      "rule": "auto_correct_pixel_overflow",
-      "description": "Automatically fix RenderFlex overflow errors by making overflowing Row elements horizontally scrollable (SingleChildScrollView) or wrapping them responsively. All screen elements must adapt to screen size to prevent pixel overflow."
+      "rule": "null_safety",
+      "description": "Always use null safety properly. Avoid nullable types when possible, use late initialization, and handle null cases explicitly."
+    },
+    {
+      "pattern": "**/*.dart",
+      "lint": "error",
+      "rule": "responsive_design",
+      "description": "Implement responsive design using MediaQuery, LayoutBuilder, and adaptive widgets. Support mobile, tablet, and desktop layouts."
+    },
+    {
+      "pattern": "**/*.dart",
+      "lint": "error",
+      "rule": "state_management",
+      "description": "Use Provider pattern consistently for state management. Keep business logic in providers and UI logic in widgets."
+    },
+    {
+      "pattern": "**/*.dart",
+      "lint": "error",
+      "rule": "error_handling",
+      "description": "Implement proper error handling with try-catch blocks, user-friendly error messages, and fallback UI states."
+    },
+    {
+      "pattern": "**/*.dart",
+      "lint": "error",
+      "rule": "performance_optimization",
+      "description": "Use const constructors, ListView.builder for large lists, and avoid unnecessary rebuilds. Optimize for performance."
+    },
+    {
+      "pattern": "**/*.dart",
+      "lint": "error",
+      "rule": "code_organization",
+      "description": "Organize code with proper imports, clear method names, and logical widget structure. Use meaningful variable names."
+    },
+    {
+      "pattern": "**/*.dart",
+      "lint": "error",
+      "rule": "accessibility",
+      "description": "Implement accessibility features including semantic labels, proper contrast ratios, and screen reader support."
+    },
+    {
+      "pattern": "**/*.dart",
+      "lint": "error",
+      "rule": "security",
+      "description": "Handle sensitive data securely, validate user inputs, and implement proper authentication flows."
+    },
+    {
+      "pattern": "**/*.dart",
+      "lint": "error",
+      "rule": "testing",
+      "description": "Write unit tests for business logic, widget tests for UI components, and integration tests for user flows."
     },
     {
       "pattern": "**/*.yaml",
@@ -38,171 +86,285 @@
     ".pub/**",
     "*.g.dart",
     "*.freezed.dart",
-    "*.mocks.dart"
+    "*.mocks.dart",
+    "*.config.dart",
+    "generated/**",
+    "coverage/**",
+    "test/coverage/**"
   ],
-  "crm_app_structure": {
-    "screens": {
-      "auth": {
-        "login": {
-          "path": "lib/screens/auth/login_screen.dart",
-          "dependencies": ["firebase_auth", "provider"],
-          "functions": ["signIn", "resetPassword", "validateEmail"]
-        },
-        "register": {
-          "path": "lib/screens/auth/register_screen.dart",
-          "dependencies": ["firebase_auth", "provider"],
-          "functions": ["signUp", "validatePassword", "createUserProfile"]
-        }
-      },
-      "dashboard": {
-        "main": {
-          "path": "lib/screens/dashboard/dashboard_screen.dart",
-          "dependencies": ["provider", "fl_chart"],
-          "functions": ["loadDashboardData", "refreshStats", "handleNotifications"]
-        }
-      },
-      "customers": {
-        "list": {
-          "path": "lib/screens/customers/customer_list_screen.dart",
-          "dependencies": ["provider", "flutter_slidable"],
-          "functions": ["loadCustomers", "searchCustomers", "filterCustomers"]
-        },
-        "details": {
-          "path": "lib/screens/customers/customer_details_screen.dart",
-          "dependencies": ["provider", "url_launcher"],
-          "functions": ["loadCustomerDetails", "updateCustomer", "deleteCustomer"]
-        },
-        "add": {
-          "path": "lib/screens/customers/add_customer_screen.dart",
-          "dependencies": ["provider", "image_picker"],
-          "functions": ["createCustomer", "validateCustomerData", "uploadCustomerImage"]
-        }
-      },
-      "leads": {
-        "list": {
-          "path": "lib/screens/leads/lead_list_screen.dart",
-          "dependencies": ["provider", "flutter_slidable"],
-          "functions": ["loadLeads", "searchLeads", "filterLeads"]
-        },
-        "details": {
-          "path": "lib/screens/leads/lead_details_screen.dart",
-          "dependencies": ["provider", "url_launcher"],
-          "functions": ["loadLeadDetails", "updateLead", "convertLead"]
-        }
-      },
-      "tasks": {
-        "list": {
-          "path": "lib/screens/tasks/task_list_screen.dart",
-          "dependencies": ["provider", "flutter_slidable"],
-          "functions": ["loadTasks", "createTask", "updateTaskStatus"]
-        },
-        "calendar": {
-          "path": "lib/screens/tasks/task_calendar_screen.dart",
-          "dependencies": ["table_calendar", "provider"],
-          "functions": ["loadCalendarEvents", "addEvent", "updateEvent"]
-        }
-      },
-      "reports": {
-        "analytics": {
-          "path": "lib/screens/reports/analytics_screen.dart",
-          "dependencies": ["fl_chart", "provider"],
-          "functions": ["loadAnalytics", "generateReport", "exportData"]
-        }
-      },
-      "settings": {
-        "profile": {
-          "path": "lib/screens/settings/profile_screen.dart",
-          "dependencies": ["provider", "image_picker"],
-          "functions": ["updateProfile", "changePassword", "updateNotifications"]
-        }
+  "flutter_guidelines": {
+    "architecture": {
+      "pattern": "clean_architecture",
+      "description": "Follow clean architecture principles with clear separation of concerns: UI, Business Logic, and Data layers.",
+      "layers": {
+        "presentation": "lib/screens/, lib/widgets/",
+        "business_logic": "lib/providers/, lib/services/",
+        "data": "lib/models/, lib/repositories/"
       }
+    },
+    "state_management": {
+      "pattern": "provider_pattern",
+      "description": "Use Provider for state management with proper dispose methods and state isolation.",
+      "rules": [
+        "Keep providers focused on single responsibility",
+        "Implement proper dispose methods",
+        "Use ChangeNotifier for reactive state",
+        "Separate business logic from UI logic"
+      ]
+    },
+    "ui_guidelines": {
+      "responsive_design": {
+        "breakpoints": {
+          "mobile": 600,
+          "tablet": 900,
+          "desktop": 1200
+        },
+        "rules": [
+          "Use MediaQuery for screen size detection",
+          "Implement adaptive layouts",
+          "Test on different screen sizes",
+          "Use flexible widgets (Expanded, Flexible)"
+        ]
+      },
+      "material_design": {
+        "rules": [
+          "Follow Material Design 3 guidelines",
+          "Use consistent spacing (8px grid)",
+          "Implement proper typography hierarchy",
+          "Use semantic colors and themes"
+        ]
+      },
+      "performance": {
+        "rules": [
+          "Use const constructors when possible",
+          "Implement ListView.builder for large lists",
+          "Avoid unnecessary widget rebuilds",
+          "Use RepaintBoundary for complex widgets"
+        ]
+      }
+    },
+    "code_quality": {
+      "naming_conventions": {
+        "classes": "PascalCase (e.g., UserProfile)",
+        "variables": "camelCase (e.g., userName)",
+        "constants": "SCREAMING_SNAKE_CASE (e.g., API_BASE_URL)",
+        "files": "snake_case (e.g., user_profile_screen.dart)"
+      },
+      "documentation": {
+        "rules": [
+          "Document all public APIs",
+          "Use meaningful comments for complex logic",
+          "Include parameter descriptions",
+          "Document widget usage examples"
+        ]
+      },
+      "error_handling": {
+        "rules": [
+          "Use try-catch blocks for async operations",
+          "Provide user-friendly error messages",
+          "Implement proper loading states",
+          "Handle edge cases gracefully"
+        ]
+      }
+    },
+    "testing": {
+      "unit_tests": {
+        "coverage": "Minimum 80% for business logic",
+        "rules": [
+          "Test all public methods",
+          "Mock external dependencies",
+          "Test edge cases and error scenarios",
+          "Use descriptive test names"
+        ]
+      },
+      "widget_tests": {
+        "rules": [
+          "Test widget rendering",
+          "Test user interactions",
+          "Test state changes",
+          "Mock dependencies properly"
+        ]
+      },
+      "integration_tests": {
+        "rules": [
+          "Test complete user flows",
+          "Test cross-screen navigation",
+          "Test data persistence",
+          "Test error scenarios"
+        ]
+      }
+    }
+  },
+  "crm_specific_rules": {
+    "authentication": {
+      "rules": [
+        "Implement secure authentication flows",
+        "Handle session management properly",
+        "Validate user permissions",
+        "Implement proper logout functionality"
+      ]
     },
     "data_management": {
+      "supabase_integration": {
+        "rules": [
+          "Use proper RLS (Row Level Security)",
+          "Implement optimistic updates",
+          "Handle offline scenarios",
+          "Cache data appropriately"
+        ]
+      },
       "models": {
-        "path": "lib/models/",
-        "files": [
-          "user_model.dart",
-          "customer_model.dart",
-          "lead_model.dart",
-          "task_model.dart",
-          "report_model.dart"
-        ]
-      },
-      "services": {
-        "path": "lib/services/",
-        "files": [
-          "auth_service.dart",
-          "customer_service.dart",
-          "lead_service.dart",
-          "task_service.dart",
-          "storage_service.dart"
-        ]
-      },
-      "providers": {
-        "path": "lib/providers/",
-        "files": [
-          "auth_provider.dart",
-          "customer_provider.dart",
-          "lead_provider.dart",
-          "task_provider.dart",
-          "theme_provider.dart"
+        "rules": [
+          "Use immutable data classes",
+          "Implement proper serialization",
+          "Validate data integrity",
+          "Use type-safe models"
         ]
       }
     },
-    "utils": {
-      "path": "lib/utils/",
-      "files": [
-        "constants.dart",
-        "theme.dart",
-        "responsive.dart",
-        "validators.dart",
-        "helpers.dart"
+    "user_roles": {
+      "admin": {
+        "capabilities": [
+          "View all leads and data",
+          "Manage user permissions",
+          "Access analytics and reports",
+          "Configure system settings"
+        ]
+      },
+      "sales": {
+        "capabilities": [
+          "View own leads only",
+          "Create and edit leads",
+          "Access customer data",
+          "Generate reports"
+        ]
+      },
+      "proposal_engineer": {
+        "capabilities": [
+          "View assigned proposals",
+          "Create technical proposals",
+          "Upload documents",
+          "Track proposal status"
+        ]
+      }
+    },
+    "ui_components": {
+      "common_widgets": {
+        "loading": "Use consistent loading indicators",
+        "error": "Implement user-friendly error states",
+        "empty": "Show helpful empty state messages",
+        "navigation": "Use consistent navigation patterns"
+      },
+      "forms": {
+        "rules": [
+          "Implement proper form validation",
+          "Show validation errors clearly",
+          "Use appropriate input types",
+          "Provide helpful hints and placeholders"
+        ]
+      },
+      "tables": {
+        "rules": [
+          "Implement responsive table layouts",
+          "Support sorting and filtering",
+          "Handle large datasets efficiently",
+          "Provide pagination when needed"
+        ]
+      }
+    }
+  },
+  "development_workflow": {
+    "git_practices": {
+      "branching": {
+        "main": "Production-ready code only",
+        "develop": "Integration branch for features",
+        "feature": "feature/description (e.g., feature/user-authentication)",
+        "hotfix": "hotfix/description (e.g., hotfix/critical-bug-fix)"
+      },
+      "commit_messages": {
+        "format": "type(scope): description",
+        "types": ["feat", "fix", "docs", "style", "refactor", "test", "chore"],
+        "examples": [
+          "feat(auth): implement user login functionality",
+          "fix(leads): resolve data filtering issue",
+          "docs(api): update authentication documentation"
+        ]
+      }
+    },
+    "code_review": {
+      "checklist": [
+        "Code follows project conventions",
+        "Proper error handling implemented",
+        "Tests are included and passing",
+        "Documentation is updated",
+        "Performance considerations addressed",
+        "Security best practices followed"
       ]
     },
-    "widgets": {
-      "path": "lib/widgets/",
-      "files": [
-        "custom_app_bar.dart",
-        "custom_drawer.dart",
-        "loading_indicator.dart",
-        "error_widget.dart",
-        "custom_text_field.dart"
+    "deployment": {
+      "stages": {
+        "development": "Local development and testing",
+        "staging": "Pre-production testing environment",
+        "production": "Live application deployment"
+      },
+      "requirements": [
+        "All tests passing",
+        "Code review completed",
+        "Performance benchmarks met",
+        "Security audit passed"
+      ]
+    }
+  },
+  "performance_guidelines": {
+    "memory_management": {
+      "rules": [
+        "Dispose controllers and listeners",
+        "Avoid memory leaks in long-running operations",
+        "Use weak references when appropriate",
+        "Monitor memory usage in development"
       ]
     },
-    "responsive_design": {
-      "breakpoints": {
-        "mobile": 600,
-        "tablet": 900,
-        "desktop": 1200
-      },
-      "layouts": {
-        "mobile": "lib/layouts/mobile_layout.dart",
-        "tablet": "lib/layouts/tablet_layout.dart",
-        "desktop": "lib/layouts/desktop_layout.dart"
-      }
+    "network_optimization": {
+      "rules": [
+        "Implement proper caching strategies",
+        "Use pagination for large datasets",
+        "Optimize API calls and reduce redundancy",
+        "Handle network errors gracefully"
+      ]
     },
-    "firebase_config": {
-      "auth": {
-        "email_password": true,
-        "google_signin": true,
-        "phone_auth": true
-      },
-      "firestore": {
-        "collections": [
-          "users",
-          "customers",
-          "leads",
-          "tasks",
-          "reports"
-        ]
-      },
-      "storage": {
-        "paths": [
-          "profile_images",
-          "customer_documents",
-          "lead_attachments"
-        ]
-      }
+    "ui_performance": {
+      "rules": [
+        "Minimize widget rebuilds",
+        "Use appropriate animation durations",
+        "Optimize image loading and caching",
+        "Implement lazy loading for large lists"
+      ]
+    }
+  },
+  "security_guidelines": {
+    "data_protection": {
+      "rules": [
+        "Encrypt sensitive data at rest",
+        "Use secure communication protocols",
+        "Implement proper input validation",
+        "Follow OWASP security guidelines"
+      ]
+    },
+    "authentication": {
+      "rules": [
+        "Implement secure token management",
+        "Use proper password hashing",
+        "Implement session timeout",
+        "Log security events appropriately"
+      ]
+    },
+    "authorization": {
+      "rules": [
+        "Implement role-based access control",
+        "Validate user permissions on all operations",
+        "Use principle of least privilege",
+        "Audit access to sensitive data"
+      ]
     }
   }
 } 
