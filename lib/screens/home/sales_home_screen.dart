@@ -1439,8 +1439,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             },
             child: Container(
               decoration: BoxDecoration(
-                color: _hoveredRows[leadId] == true 
-                    ? Colors.blue.withValues(alpha: 0.05) 
+                color: _hoveredRows[leadId] == true
+                    ? Colors.blue.withValues(alpha: 0.05)
                     : Colors.transparent,
               ),
               child: Row(
@@ -1448,17 +1448,20 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                   Expanded(
                     flex: 2,
                     child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 12,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             lead['client_name'] ?? 'N/A',
                             style: TextStyle(
-                              fontWeight: FontWeight.bold, 
+                              fontWeight: FontWeight.bold,
                               fontSize: 14,
-                              color: _hoveredRows[leadId] == true 
-                                  ? Colors.blue[700] 
+                              color: _hoveredRows[leadId] == true
+                                  ? Colors.blue[700]
                                   : Colors.grey[800],
                             ),
                             softWrap: true,
@@ -1468,9 +1471,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                           Text(
                             _formatDate(lead['date']),
                             style: TextStyle(
-                              fontSize: 12, 
-                              color: _hoveredRows[leadId] == true 
-                                  ? Colors.blue[600] 
+                              fontSize: 12,
+                              color: _hoveredRows[leadId] == true
+                                  ? Colors.blue[600]
                                   : Colors.grey[600],
                             ),
                             softWrap: true,
@@ -1484,13 +1487,16 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                   Expanded(
                     flex: 1,
                     child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 12,
+                      ),
                       child: Text(
                         lead['project_name'] ?? 'N/A',
                         style: TextStyle(
                           fontWeight: FontWeight.w500,
-                          color: _hoveredRows[leadId] == true 
-                              ? Colors.blue[700] 
+                          color: _hoveredRows[leadId] == true
+                              ? Colors.blue[700]
                               : Colors.grey[800],
                         ),
                         softWrap: true,
@@ -1502,13 +1508,16 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                   Expanded(
                     flex: 1,
                     child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 12,
+                      ),
                       child: Text(
                         _generateProjectId(leadId),
                         style: TextStyle(
                           fontWeight: FontWeight.w500,
-                          color: _hoveredRows[leadId] == true 
-                              ? Colors.blue[700] 
+                          color: _hoveredRows[leadId] == true
+                              ? Colors.blue[700]
                               : Colors.grey[800],
                         ),
                         softWrap: true,
@@ -1520,13 +1529,16 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                   Expanded(
                     flex: 1,
                     child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 12,
+                      ),
                       child: Text(
                         lead['project_location'] ?? 'N/A',
                         style: TextStyle(
                           fontWeight: FontWeight.w500,
-                          color: _hoveredRows[leadId] == true 
-                              ? Colors.blue[700] 
+                          color: _hoveredRows[leadId] == true
+                              ? Colors.blue[700]
                               : Colors.grey[800],
                         ),
                         softWrap: true,
@@ -1538,13 +1550,16 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                   Expanded(
                     flex: 1,
                     child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 12,
+                      ),
                       child: Text(
                         '${lead['aluminium_area']?.toStringAsFixed(1) ?? '0.0'} sqm',
                         style: TextStyle(
                           fontWeight: FontWeight.w500,
-                          color: _hoveredRows[leadId] == true 
-                              ? Colors.blue[700] 
+                          color: _hoveredRows[leadId] == true
+                              ? Colors.blue[700]
                               : Colors.grey[800],
                         ),
                         softWrap: true,
@@ -1556,13 +1571,16 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                   Expanded(
                     flex: 1,
                     child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 12,
+                      ),
                       child: Text(
                         '${lead['ms_weight']?.toStringAsFixed(1) ?? '0.0'} kg',
                         style: TextStyle(
                           fontWeight: FontWeight.w500,
-                          color: _hoveredRows[leadId] == true 
-                              ? Colors.blue[700] 
+                          color: _hoveredRows[leadId] == true
+                              ? Colors.blue[700]
                               : Colors.grey[800],
                         ),
                         softWrap: true,
@@ -1574,13 +1592,16 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                   Expanded(
                     flex: 1,
                     child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 12,
+                      ),
                       child: Text(
                         '₹${lead['rate_sqm']?.toStringAsFixed(0) ?? '0'}',
                         style: TextStyle(
                           fontWeight: FontWeight.w500,
-                          color: _hoveredRows[leadId] == true 
-                              ? Colors.blue[700] 
+                          color: _hoveredRows[leadId] == true
+                              ? Colors.blue[700]
                               : Colors.grey[800],
                         ),
                         softWrap: true,
@@ -1592,13 +1613,16 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                   Expanded(
                     flex: 1,
                     child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 12,
+                      ),
                       child: Text(
                         '₹${totalAmount.toStringAsFixed(0)}',
                         style: TextStyle(
                           fontWeight: FontWeight.w500,
-                          color: _hoveredRows[leadId] == true 
-                              ? Colors.blue[700] 
+                          color: _hoveredRows[leadId] == true
+                              ? Colors.blue[700]
                               : Colors.grey[800],
                         ),
                         softWrap: true,
@@ -1610,16 +1634,24 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                   Expanded(
                     flex: 1,
                     child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 12,
+                      ),
                       child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: _getStatusColor(_getLeadStatus(lead)),
                           borderRadius: BorderRadius.circular(12),
-                          boxShadow: _hoveredRows[leadId] == true 
+                          boxShadow: _hoveredRows[leadId] == true
                               ? [
                                   BoxShadow(
-                                    color: _getStatusColor(_getLeadStatus(lead)).withValues(alpha: 0.3),
+                                    color: _getStatusColor(
+                                      _getLeadStatus(lead),
+                                    ).withValues(alpha: 0.3),
                                     blurRadius: 4,
                                     offset: Offset(0, 2),
                                   ),
@@ -1641,7 +1673,10 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                   Expanded(
                     flex: 2,
                     child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 12,
+                      ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -1715,7 +1750,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(8),
-          border: _hoveredRows[leadId] == true 
+          border: _hoveredRows[leadId] == true
               ? Border.all(color: Colors.blue[300]!, width: 1)
               : null,
         ),
@@ -1745,8 +1780,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
-                                color: _hoveredRows[leadId] == true 
-                                    ? Colors.blue[700] 
+                                color: _hoveredRows[leadId] == true
+                                    ? Colors.blue[700]
                                     : Colors.grey[800],
                               ),
                             ),
@@ -1755,8 +1790,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                               'Project: ${lead['project_name'] ?? 'N/A'}',
                               style: TextStyle(
                                 fontSize: 14,
-                                color: _hoveredRows[leadId] == true 
-                                    ? Colors.blue[600] 
+                                color: _hoveredRows[leadId] == true
+                                    ? Colors.blue[600]
                                     : Colors.grey[700],
                               ),
                             ),
@@ -1764,8 +1799,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                               'Client: ${lead['client_name'] ?? 'N/A'}',
                               style: TextStyle(
                                 fontSize: 14,
-                                color: _hoveredRows[leadId] == true 
-                                    ? Colors.blue[600] 
+                                color: _hoveredRows[leadId] == true
+                                    ? Colors.blue[600]
                                     : Colors.grey[700],
                               ),
                             ),
@@ -1773,8 +1808,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                               'Location: ${lead['project_location'] ?? 'N/A'}',
                               style: TextStyle(
                                 fontSize: 14,
-                                color: _hoveredRows[leadId] == true 
-                                    ? Colors.blue[600] 
+                                color: _hoveredRows[leadId] == true
+                                    ? Colors.blue[600]
                                     : Colors.grey[700],
                               ),
                             ),
@@ -1825,14 +1860,19 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                   Row(
                     children: [
                       Container(
-                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: _getStatusColor(_getLeadStatus(lead)),
                           borderRadius: BorderRadius.circular(12),
-                          boxShadow: _hoveredRows[leadId] == true 
+                          boxShadow: _hoveredRows[leadId] == true
                               ? [
                                   BoxShadow(
-                                    color: _getStatusColor(_getLeadStatus(lead)).withValues(alpha: 0.3),
+                                    color: _getStatusColor(
+                                      _getLeadStatus(lead),
+                                    ).withValues(alpha: 0.3),
                                     blurRadius: 4,
                                     offset: Offset(0, 2),
                                   ),
@@ -1986,10 +2026,16 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
               Text('Client: ${lead['client_name']}'),
               Text('Project: ${lead['project_name']}'),
               Text('Location: ${lead['project_location']}'),
-              Text('Area: ${lead['aluminium_area']?.toStringAsFixed(1) ?? '0.0'} sqm'),
-              Text('Weight: ${lead['ms_weight']?.toStringAsFixed(1) ?? '0.0'} kg'),
+              Text(
+                'Area: ${lead['aluminium_area']?.toStringAsFixed(1) ?? '0.0'} sqm',
+              ),
+              Text(
+                'Weight: ${lead['ms_weight']?.toStringAsFixed(1) ?? '0.0'} kg',
+              ),
               Text('Rate: ₹${lead['rate_sqm']?.toStringAsFixed(0) ?? '0'}'),
-              Text('Total: ₹${_totalAmounts[lead['lead_id'].toString()]?.toStringAsFixed(0) ?? '0'}'),
+              Text(
+                'Total: ₹${_totalAmounts[lead['lead_id'].toString()]?.toStringAsFixed(0) ?? '0'}',
+              ),
               Text('Status: ${_getLeadStatus(lead)}'),
               Text('Date: ${_formatDate(lead['date'])}'),
             ],
@@ -2019,22 +2065,45 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     required String leadId,
     bool isDestructive = false,
   }) {
+    // Determine color based on action type
+    Color getActionColor() {
+      if (isDestructive) return Colors.red;
+      
+      switch (tooltip.toLowerCase()) {
+        case 'view details':
+          return Colors.blue;
+        case 'get help':
+          return Colors.orange;
+        case 'edit lead':
+          return Colors.green;
+        case 'refresh data':
+          return Colors.purple;
+        default:
+          return Colors.grey;
+      }
+    }
+
+    final actionColor = getActionColor();
+    
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: AnimatedContainer(
         duration: Duration(milliseconds: 150),
         decoration: BoxDecoration(
           color: _hoveredButtons['$leadId-$tooltip'] == true
-              ? (isDestructive ? Colors.red.withValues(alpha: 0.1) : Colors.blue.withValues(alpha: 0.1))
+              ? actionColor.withValues(alpha: 0.15)
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(8),
+          border: _hoveredButtons['$leadId-$tooltip'] == true
+              ? Border.all(color: actionColor.withValues(alpha: 0.3), width: 1)
+              : null,
         ),
         child: IconButton(
           icon: Icon(
             icon,
             color: _hoveredButtons['$leadId-$tooltip'] == true
-                ? (isDestructive ? Colors.red[700] : Colors.blue[700])
-                : (isDestructive ? Colors.red[600] : Colors.grey[600]),
+                ? actionColor
+                : actionColor.withValues(alpha: 0.7),
             size: 20,
           ),
           onPressed: onPressed,
@@ -2058,20 +2127,41 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     required String leadId,
     bool isDestructive = false,
   }) {
+    // Determine color based on action type
+    Color getActionColor() {
+      if (isDestructive) return Colors.red;
+      
+      switch (tooltip.toLowerCase()) {
+        case 'view':
+          return Colors.blue;
+        case 'edit':
+          return Colors.green;
+        case 'delete':
+          return Colors.red;
+        default:
+          return Colors.grey;
+      }
+    }
+
+    final actionColor = getActionColor();
+    
     return AnimatedContainer(
       duration: Duration(milliseconds: 150),
       decoration: BoxDecoration(
         color: _hoveredButtons['$leadId-$tooltip'] == true
-            ? (isDestructive ? Colors.red.withValues(alpha: 0.1) : Colors.blue.withValues(alpha: 0.1))
+            ? actionColor.withValues(alpha: 0.15)
             : Colors.transparent,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(8),
+        border: _hoveredButtons['$leadId-$tooltip'] == true
+            ? Border.all(color: actionColor.withValues(alpha: 0.3), width: 1)
+            : null,
       ),
       child: IconButton(
         icon: Icon(
           icon,
           color: _hoveredButtons['$leadId-$tooltip'] == true
-              ? (isDestructive ? Colors.red[700] : Colors.blue[700])
-              : (isDestructive ? Colors.red[600] : Colors.grey[600]),
+              ? actionColor
+              : actionColor.withValues(alpha: 0.7),
           size: 18,
         ),
         onPressed: onPressed,
