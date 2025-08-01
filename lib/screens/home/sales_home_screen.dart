@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'package:crm_app/widgets/profile_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../utils/lead_utils.dart';
 
 class SalesHomeScreen extends StatefulWidget {
@@ -269,26 +269,93 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
 
   Future<void> _getCurrentUser() async {
     try {
-      final client = Supabase.instance.client;
-      final user = client.auth.currentUser;
-      if (user != null) {
+      // Import SharedPreferences for cache access
+      final prefs = await SharedPreferences.getInstance();
+
+      // Get cached user_id from memory
+      final cachedUserId = prefs.getString('user_id');
+      final cachedSessionId = prefs.getString('session_id');
+      final cachedSessionActive = prefs.getBool('session_active');
+      final cachedUserType = prefs.getString('user_type');
+
+      debugPrint('[CACHE] Cached user_id: $cachedUserId');
+      debugPrint('[CACHE] Cached session_id: $cachedSessionId');
+      debugPrint('[CACHE] Cached session_active: $cachedSessionActive');
+      debugPrint('[CACHE] Cached user_type: $cachedUserType');
+
+      // Validate cache data
+      if (cachedUserId == null ||
+          cachedSessionId == null ||
+          cachedSessionActive != true) {
+        debugPrint('[CACHE] Invalid cache data, falling back to auth session');
+
+        // Fallback to current auth session
+        final client = Supabase.instance.client;
+        final user = client.auth.currentUser;
+        if (user != null) {
+          setState(() {
+            _currentUserId = user.id;
+          });
+
+          // Get username from users table
+          final userData = await client
+              .from('users')
+              .select('username')
+              .eq('id', user.id)
+              .single();
+
+          setState(() {
+            _currentUsername = userData['username'];
+          });
+        }
+      } else {
+        // Use cached user_id
         setState(() {
-          _currentUserId = user.id;
+          _currentUserId = cachedUserId;
         });
 
-        // Get username from users table
+        // Get username from users table using cached user_id
+        final client = Supabase.instance.client;
         final userData = await client
             .from('users')
             .select('username')
-            .eq('id', user.id)
+            .eq('id', cachedUserId)
             .single();
 
         setState(() {
           _currentUsername = userData['username'];
         });
+
+        debugPrint(
+          '[CACHE] Successfully loaded user from cache: $_currentUsername (ID: $_currentUserId)',
+        );
       }
     } catch (e) {
-      print('Error getting current user: $e');
+      debugPrint('Error getting current user: $e');
+
+      // Fallback to auth session if cache fails
+      try {
+        final client = Supabase.instance.client;
+        final user = client.auth.currentUser;
+        if (user != null) {
+          setState(() {
+            _currentUserId = user.id;
+          });
+
+          // Get username from users table
+          final userData = await client
+              .from('users')
+              .select('username')
+              .eq('id', user.id)
+              .single();
+
+          setState(() {
+            _currentUsername = userData['username'];
+          });
+        }
+      } catch (fallbackError) {
+        debugPrint('Fallback auth also failed: $fallbackError');
+      }
     }
   }
 
@@ -306,12 +373,22 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         return;
       }
 
-      print('Fetching leads for user_id: $_currentUserId');
+      debugPrint('Fetching leads for user_id: $_currentUserId');
 
-      // Use the utility function to fetch leads by user_id
-      final joinedLeads = await LeadUtils.fetchLeadsByUserId(_currentUserId!);
+      // Use the cache-based utility function to fetch leads
+      List<Map<String, dynamic>> joinedLeads;
+      try {
+        // Try to fetch leads using cache memory first
+        joinedLeads = await LeadUtils.fetchLeadsForActiveUser();
+        debugPrint('Successfully fetched leads using cache memory');
+      } catch (cacheError) {
+        debugPrint('Cache-based fetch failed: $cacheError');
+        // Fallback to user_id-based fetch
+        joinedLeads = await LeadUtils.fetchLeadsByUserId(_currentUserId!);
+        debugPrint('Fallback to user_id-based fetch successful');
+      }
 
-      print('Found ${joinedLeads.length} leads for user');
+      debugPrint('Found ${joinedLeads.length} leads for user');
 
       // Add sales person name to each lead
       final leadsWithSalesPerson = joinedLeads.map((lead) {
@@ -330,11 +407,11 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         _isLoading = false;
       });
 
-      print(
+      debugPrint(
         'Successfully loaded ${leadsWithSalesPerson.length} leads for user $_currentUsername',
       );
     } catch (e) {
-      print('Error fetching leads: $e');
+      debugPrint('Error fetching leads: $e');
       setState(() {
         _isLoading = false;
       });

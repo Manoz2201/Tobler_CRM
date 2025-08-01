@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LeadUtils {
   /// Fetches leads for a specific user ID from Supabase
@@ -97,6 +98,35 @@ class LeadUtils {
       return joinedLeads;
     } catch (e) {
       debugPrint('Error in fetchLeadsByUserId: $e');
+      rethrow;
+    }
+  }
+
+  /// Fetches leads for the active user from cache memory
+  /// This function gets the user_id from SharedPreferences cache
+  static Future<List<Map<String, dynamic>>> fetchLeadsForActiveUser() async {
+    try {
+      // Get cached user data
+      final prefs = await SharedPreferences.getInstance();
+      final cachedUserId = prefs.getString('user_id');
+      final cachedSessionId = prefs.getString('session_id');
+      final cachedSessionActive = prefs.getBool('session_active');
+
+      debugPrint('[CACHE] Fetching leads for cached user_id: $cachedUserId');
+      debugPrint('[CACHE] Session active: $cachedSessionActive');
+
+      // Validate cache data
+      if (cachedUserId == null || 
+          cachedSessionId == null || 
+          cachedSessionActive != true) {
+        debugPrint('[CACHE] Invalid cache data, cannot fetch leads');
+        throw Exception('No valid cached user session found');
+      }
+
+      // Fetch leads using cached user_id
+      return await fetchLeadsByUserId(cachedUserId);
+    } catch (e) {
+      debugPrint('Error in fetchLeadsForActiveUser: $e');
       rethrow;
     }
   }
