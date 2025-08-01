@@ -269,10 +269,10 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
 
   Future<void> _getCurrentUser() async {
     try {
-      // Import SharedPreferences for cache access
-      final prefs = await SharedPreferences.getInstance();
+      debugPrint('Getting current user from cache memory...');
 
-      // Get cached user_id from memory
+      // Step 1: Get cached user data
+      final prefs = await SharedPreferences.getInstance();
       final cachedUserId = prefs.getString('user_id');
       final cachedSessionId = prefs.getString('session_id');
       final cachedSessionActive = prefs.getBool('session_active');
@@ -283,7 +283,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       debugPrint('[CACHE] Cached session_active: $cachedSessionActive');
       debugPrint('[CACHE] Cached user_type: $cachedUserType');
 
-      // Validate cache data
+      // Step 2: Validate cache data
       if (cachedUserId == null ||
           cachedSessionId == null ||
           cachedSessionActive != true) {
@@ -307,9 +307,15 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           setState(() {
             _currentUsername = userData['username'];
           });
+
+          debugPrint(
+            '[AUTH] Loaded user from auth session: ${userData['username']} (ID: ${user.id})',
+          );
+        } else {
+          debugPrint('[AUTH] No active user found in auth session');
         }
       } else {
-        // Use cached user_id
+        // Step 3: Use cached user_id
         setState(() {
           _currentUserId = cachedUserId;
         });
@@ -333,7 +339,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     } catch (e) {
       debugPrint('Error getting current user: $e');
 
-      // Fallback to auth session if cache fails
+      // Final fallback to auth session if cache fails
       try {
         final client = Supabase.instance.client;
         final user = client.auth.currentUser;
@@ -352,6 +358,12 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           setState(() {
             _currentUsername = userData['username'];
           });
+
+          debugPrint(
+            '[FALLBACK] Loaded user from fallback: ${userData['username']} (ID: ${user.id})',
+          );
+        } else {
+          debugPrint('[FALLBACK] No user found in fallback');
         }
       } catch (fallbackError) {
         debugPrint('Fallback auth also failed: $fallbackError');
@@ -365,50 +377,141 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     });
 
     try {
-      // Check if current user is available
-      if (_currentUserId == null) {
+      debugPrint('Starting lead fetch process...');
+
+      // Step 1: Get active user from cache memory
+      final prefs = await SharedPreferences.getInstance();
+      final cachedUserId = prefs.getString('user_id');
+      final cachedSessionActive = prefs.getBool('session_active');
+
+      debugPrint('[CACHE] Active user_id: $cachedUserId');
+      debugPrint('[CACHE] Session active: $cachedSessionActive');
+
+      // Step 2: Validate cache data
+      if (cachedUserId == null || cachedSessionActive != true) {
+        debugPrint('[CACHE] Invalid cache data, using fallback');
+
+        // Fallback to current auth session
+        final client = Supabase.instance.client;
+        final user = client.auth.currentUser;
+        if (user == null) {
+          throw Exception('No active user found');
+        }
+
         setState(() {
-          _isLoading = false;
+          _currentUserId = user.id;
         });
-        return;
+      } else {
+        setState(() {
+          _currentUserId = cachedUserId;
+        });
       }
 
       debugPrint('Fetching leads for user_id: $_currentUserId');
 
-      // Use the cache-based utility function to fetch leads
-      List<Map<String, dynamic>> joinedLeads;
-      try {
-        // Try to fetch leads using cache memory first
-        joinedLeads = await LeadUtils.fetchLeadsForActiveUser();
-        debugPrint('Successfully fetched leads using cache memory');
-      } catch (cacheError) {
-        debugPrint('Cache-based fetch failed: $cacheError');
-        // Fallback to user_id-based fetch
-        joinedLeads = await LeadUtils.fetchLeadsByUserId(_currentUserId!);
-        debugPrint('Fallback to user_id-based fetch successful');
+      // Step 3: Fetch leads from Supabase using the active user_id
+      final client = Supabase.instance.client;
+
+      // Fetch leads data for current sales user only
+      final leadsResult = await client
+          .from('leads')
+          .select(
+            'id, created_at, project_name, client_name, project_location, lead_generated_by',
+          )
+          .eq('lead_generated_by', _currentUserId!) // Filter by active user
+          .order('created_at', ascending: false);
+
+      debugPrint('Found ${leadsResult.length} leads from Supabase');
+
+      // Step 4: Fetch related data for calculations
+      final proposalInputResult = await client
+          .from('proposal_input')
+          .select('lead_id, input, value');
+
+      final adminResponseResult = await client
+          .from('admin_response')
+          .select('lead_id, rate_sqm, status, remark');
+
+      // Step 5: Process data (same as admin but filtered by user)
+      final Map<String, double> aluminiumAreaMap = {};
+      final Map<String, List<double>> msWeightMap = {};
+
+      for (final input in proposalInputResult) {
+        final leadId = input['lead_id'];
+        final inputName = input['input']?.toString().toLowerCase() ?? '';
+        final value = double.tryParse(input['value']?.toString() ?? '0') ?? 0;
+
+        if (leadId != null) {
+          // Calculate Aluminium Area (sum of values containing "aluminium" or "alu")
+          if (inputName.contains('aluminium') || inputName.contains('alu')) {
+            aluminiumAreaMap[leadId] = (aluminiumAreaMap[leadId] ?? 0) + value;
+          }
+
+          // Calculate MS Weight (average of values containing "ms" or "ms wt.")
+          if (inputName.contains('ms') || inputName.contains('ms wt.')) {
+            if (!msWeightMap.containsKey(leadId)) {
+              msWeightMap[leadId] = [];
+            }
+            msWeightMap[leadId]!.add(value);
+          }
+        }
       }
 
-      debugPrint('Found ${joinedLeads.length} leads for user');
+      final Map<String, Map<String, dynamic>> adminResponseMap = {};
+      for (final response in adminResponseResult) {
+        final leadId = response['lead_id'];
+        if (leadId != null) {
+          adminResponseMap[leadId] = response;
+        }
+      }
 
-      // Add sales person name to each lead
-      final leadsWithSalesPerson = joinedLeads.map((lead) {
-        return {...lead, 'sales_person_name': _currentUsername ?? ''};
-      }).toList();
+      // Step 6: Join the data (matching admin's Lead Management structure)
+      final List<Map<String, dynamic>> joinedLeads = [];
+      for (final lead in leadsResult) {
+        final leadId = lead['id'];
+        final adminResponseData = adminResponseMap[leadId];
 
-      // Initialize total amounts for each lead
-      for (final lead in leadsWithSalesPerson) {
+        // Calculate MS Weight average
+        final msWeights = msWeightMap[leadId] ?? [];
+        final msWeightAverage = msWeights.isNotEmpty
+            ? msWeights.reduce((a, b) => a + b) / msWeights.length
+            : 0.0;
+
+        // Calculate total amount (including GST)
+        final aluminiumArea = aluminiumAreaMap[leadId] ?? 0;
+        final rate = adminResponseData?['rate_sqm'] ?? 0;
+        final totalAmount = aluminiumArea * rate * 1.18;
+
+        joinedLeads.add({
+          'lead_id': leadId,
+          'date': lead['created_at'],
+          'project_name': lead['project_name'] ?? '',
+          'client_name': lead['client_name'] ?? '',
+          'project_location': lead['project_location'] ?? '',
+          'sales_person_name': _currentUsername ?? '',
+          'aluminium_area': aluminiumArea,
+          'ms_weight': msWeightAverage,
+          'rate_sqm': rate,
+          'total_amount': totalAmount,
+          'approved': adminResponseData?['status'] == 'Approved',
+          'status': adminResponseData?['status'] ?? 'New/Progress',
+        });
+      }
+
+      // Step 7: Initialize total amounts for UI display
+      for (final lead in joinedLeads) {
         final leadId = lead['lead_id'].toString();
         _totalAmounts[leadId] = lead['total_amount'] ?? 0.0;
       }
 
       setState(() {
-        _leads = leadsWithSalesPerson;
-        _filteredLeads = leadsWithSalesPerson;
+        _leads = joinedLeads;
+        _filteredLeads = joinedLeads;
         _isLoading = false;
       });
 
       debugPrint(
-        'Successfully loaded ${leadsWithSalesPerson.length} leads for user $_currentUsername',
+        'Successfully loaded ${joinedLeads.length} leads for user $_currentUsername (ID: $_currentUserId)',
       );
     } catch (e) {
       debugPrint('Error fetching leads: $e');

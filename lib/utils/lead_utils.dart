@@ -102,35 +102,6 @@ class LeadUtils {
     }
   }
 
-  /// Fetches leads for the active user from cache memory
-  /// This function gets the user_id from SharedPreferences cache
-  static Future<List<Map<String, dynamic>>> fetchLeadsForActiveUser() async {
-    try {
-      // Get cached user data
-      final prefs = await SharedPreferences.getInstance();
-      final cachedUserId = prefs.getString('user_id');
-      final cachedSessionId = prefs.getString('session_id');
-      final cachedSessionActive = prefs.getBool('session_active');
-
-      debugPrint('[CACHE] Fetching leads for cached user_id: $cachedUserId');
-      debugPrint('[CACHE] Session active: $cachedSessionActive');
-
-      // Validate cache data
-      if (cachedUserId == null || 
-          cachedSessionId == null || 
-          cachedSessionActive != true) {
-        debugPrint('[CACHE] Invalid cache data, cannot fetch leads');
-        throw Exception('No valid cached user session found');
-      }
-
-      // Fetch leads using cached user_id
-      return await fetchLeadsByUserId(cachedUserId);
-    } catch (e) {
-      debugPrint('Error in fetchLeadsForActiveUser: $e');
-      rethrow;
-    }
-  }
-
   /// Fetches all leads (for admin users)
   static Future<List<Map<String, dynamic>>> fetchAllLeads() async {
     try {
@@ -270,5 +241,41 @@ class LeadUtils {
   /// Calculates total amount for a lead
   static double calculateTotalAmount(double aluminiumArea, double rate) {
     return aluminiumArea * rate * 1.18; // Including GST
+  }
+
+  /// Fetches leads for the active user from cache memory
+  /// This function gets the user_id from SharedPreferences cache and fetches their leads
+  static Future<List<Map<String, dynamic>>> fetchLeadsForActiveUser() async {
+    try {
+      // Import SharedPreferences for cache access
+      final prefs = await SharedPreferences.getInstance();
+
+      // Get cached user_id from memory
+      final cachedUserId = prefs.getString('user_id');
+      final cachedSessionId = prefs.getString('session_id');
+      final cachedSessionActive = prefs.getBool('session_active');
+      final cachedUserType = prefs.getString('user_type');
+
+      debugPrint('[CACHE] Cached user_id: $cachedUserId');
+      debugPrint('[CACHE] Cached session_id: $cachedSessionId');
+      debugPrint('[CACHE] Cached session_active: $cachedSessionActive');
+      debugPrint('[CACHE] Cached user_type: $cachedUserType');
+
+      // Validate cache data
+      if (cachedUserId == null ||
+          cachedSessionId == null ||
+          cachedSessionActive != true) {
+        debugPrint('[CACHE] Invalid cache data, throwing error for fallback');
+        throw Exception('Invalid cache data');
+      }
+
+      debugPrint('[CACHE] Using cached user_id: $cachedUserId');
+      
+      // Fetch leads using the cached user_id
+      return await fetchLeadsByUserId(cachedUserId);
+    } catch (e) {
+      debugPrint('Error in fetchLeadsForActiveUser: $e');
+      rethrow;
+    }
   }
 }
