@@ -240,86 +240,86 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
 
   void _addSampleData() {
     // Add sample data to match the admin interface image
-          final sampleLeads = [
-        {
-          'lead_id': '1',
-          'client_name': 'RK Construction',
-          'project_name': 'Dahisar Project',
-          'project_location': 'Mumbai',
-          'aluminium_area': 0.0,
-          'ms_weight': 0.0,
-          'rate_sqm': 0,
-          'total_amount': 0.0,
-          'project_id': 'Tobler-A49B',
-          'date': '2025-07-30 12:00',
-          'status': 'Proposal Progress',
-        },
-        {
-          'lead_id': '2',
-          'client_name': 'test',
-          'project_name': 'test',
-          'project_location': 'test',
-          'aluminium_area': 0.0,
-          'ms_weight': 0.0,
-          'rate_sqm': 0,
-          'total_amount': 0.0,
-          'project_id': 'Tobler-B72C',
-          'date': '2025-07-30 12:00',
-          'status': 'Proposal Progress',
-        },
-        {
-          'lead_id': '3',
-          'client_name': 'JP Infra',
-          'project_name': 'Thane Project',
-          'project_location': 'Mumbai',
-          'aluminium_area': 0.0,
-          'ms_weight': 0.0,
-          'rate_sqm': 0,
-          'total_amount': 0.0,
-          'project_id': 'Tobler-C91D',
-          'date': '2025-07-30 12:00',
-          'status': 'Proposal Progress',
-        },
-        {
-          'lead_id': '4',
-          'client_name': 'IBCLLP',
-          'project_name': 'IBCLLP',
-          'project_location': 'Mumbai',
-          'aluminium_area': 0.0,
-          'ms_weight': 0.0,
-          'rate_sqm': 0,
-          'total_amount': 0.0,
-          'project_id': 'Tobler-D34E',
-          'date': '2025-07-30 12:00',
-          'status': 'Proposal Progress',
-        },
-        {
-          'lead_id': '5',
-          'client_name': 'West Best Buildcon',
-          'project_name': 'Spenta Housing',
-          'project_location': 'Mumbai',
-          'aluminium_area': 0.0,
-          'ms_weight': 0.0,
-          'rate_sqm': 0,
-          'total_amount': 0.0,
-          'project_id': 'Tobler-E56F',
-          'date': '2025-07-30 12:00',
-          'status': 'Proposal Progress',
-        },
-        {
-          'lead_id': '6',
-          'client_name': 'Mehta Group',
-          'project_name': 'Jogeshwari Project',
-          'project_location': 'Mumbai',
-          'aluminium_area': 0.0,
-          'ms_weight': 0.0,
-          'rate_sqm': 0,
-          'total_amount': 0.0,
-          'project_id': 'Tobler-F78G',
-          'date': '2025-07-30 12:00',
-          'status': 'Proposal Progress',
-        },
-      ];
+    final sampleLeads = [
+      {
+        'lead_id': '1',
+        'client_name': 'RK Construction',
+        'project_name': 'Dahisar Project',
+        'project_location': 'Mumbai',
+        'aluminium_area': 0.0,
+        'ms_weight': 0.0,
+        'rate_sqm': 0,
+        'total_amount': 0.0,
+        'project_id': 'Tobler-A49B',
+        'date': '2025-07-30 12:00',
+        'status': 'Proposal Progress',
+      },
+      {
+        'lead_id': '2',
+        'client_name': 'test',
+        'project_name': 'test',
+        'project_location': 'test',
+        'aluminium_area': 0.0,
+        'ms_weight': 0.0,
+        'rate_sqm': 0,
+        'total_amount': 0.0,
+        'project_id': 'Tobler-B72C',
+        'date': '2025-07-30 12:00',
+        'status': 'Proposal Progress',
+      },
+      {
+        'lead_id': '3',
+        'client_name': 'JP Infra',
+        'project_name': 'Thane Project',
+        'project_location': 'Mumbai',
+        'aluminium_area': 0.0,
+        'ms_weight': 0.0,
+        'rate_sqm': 0,
+        'total_amount': 0.0,
+        'project_id': 'Tobler-C91D',
+        'date': '2025-07-30 12:00',
+        'status': 'Proposal Progress',
+      },
+      {
+        'lead_id': '4',
+        'client_name': 'IBCLLP',
+        'project_name': 'IBCLLP',
+        'project_location': 'Mumbai',
+        'aluminium_area': 0.0,
+        'ms_weight': 0.0,
+        'rate_sqm': 0,
+        'total_amount': 0.0,
+        'project_id': 'Tobler-D34E',
+        'date': '2025-07-30 12:00',
+        'status': 'Proposal Progress',
+      },
+      {
+        'lead_id': '5',
+        'client_name': 'West Best Buildcon',
+        'project_name': 'Spenta Housing',
+        'project_location': 'Mumbai',
+        'aluminium_area': 0.0,
+        'ms_weight': 0.0,
+        'rate_sqm': 0,
+        'total_amount': 0.0,
+        'project_id': 'Tobler-E56F',
+        'date': '2025-07-30 12:00',
+        'status': 'Proposal Progress',
+      },
+      {
+        'lead_id': '6',
+        'client_name': 'Mehta Group',
+        'project_name': 'Jogeshwari Project',
+        'project_location': 'Mumbai',
+        'aluminium_area': 0.0,
+        'ms_weight': 0.0,
+        'rate_sqm': 0,
+        'total_amount': 0.0,
+        'project_id': 'Tobler-F78G',
+        'date': '2025-07-30 12:00',
+        'status': 'Proposal Progress',
+      },
+    ];
 
     // Initialize total amounts for sample data
     for (final lead in sampleLeads) {
@@ -497,7 +497,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
 
       final adminResponseResult = await client
           .from('admin_response')
-          .select('lead_id, rate_sqm, status, remark');
+          .select('lead_id, rate_sqm, status, remark, project_id');
 
       // Step 5: Process data (same as admin but filtered by user)
       final Map<String, double> aluminiumAreaMap = {};
@@ -589,7 +589,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           'ms_weight': msWeightAverage,
           'rate_sqm': rate,
           'total_amount': totalAmount,
-          'project_id': adminResponseData?['project_id'] ?? 'N/A', // Add project_id from admin_response
+          'project_id':
+              adminResponseData?['project_id'] ??
+              'N/A', // Add project_id from admin_response
           'approved': adminResponseData?['status'] == 'Approved',
           'status': dynamicStatus,
         });
@@ -1834,7 +1836,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Client: ${lead['client_name'] ?? 'N/A'}',
+                              'Lead ID: ${lead['project_id'] ?? 'N/A'}',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
