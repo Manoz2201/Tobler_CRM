@@ -592,6 +592,21 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     return LeadUtils.getLeadStatus(lead);
   }
 
+  String _formatDate(dynamic date) {
+    if (date == null) return 'N/A';
+    try {
+      if (date is String) {
+        final parsed = DateTime.parse(date);
+        return '${parsed.year}-${parsed.month.toString().padLeft(2, '0')}-${parsed.day.toString().padLeft(2, '0')} ${parsed.hour.toString().padLeft(2, '0')}:${parsed.minute.toString().padLeft(2, '0')}';
+      } else if (date is DateTime) {
+        return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+      }
+      return 'N/A';
+    } catch (e) {
+      return 'N/A';
+    }
+  }
+
   void _toggleLeadSelection(String leadId) {
     setState(() {
       if (_selectedLeads.contains(leadId)) {
@@ -1189,7 +1204,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
               },
               icon: Icon(
                 Icons.filter_list,
-                color: _showAdvancedFilters ? Colors.blue[600] : Colors.grey[600],
+                color: _showAdvancedFilters
+                    ? Colors.blue[600]
+                    : Colors.grey[600],
               ),
               tooltip: 'Advanced Filters',
             ),
@@ -1199,7 +1216,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
               onPressed: () {
                 // TODO: Implement add new lead functionality
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Add New Lead functionality coming soon')),
+                  SnackBar(
+                    content: Text('Add New Lead functionality coming soon'),
+                  ),
                 );
               },
               icon: Icon(Icons.add),
@@ -1305,7 +1324,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                     items: _filterOptions.map((String value) {
                       return DropdownMenuItem<String>(
                         value: value,
-                        child: Text(value.length > 8 ? value.substring(0, 8) : value),
+                        child: Text(
+                          value.length > 8 ? value.substring(0, 8) : value,
+                        ),
                       );
                     }).toList(),
                     onChanged: (String? newValue) {
@@ -1326,7 +1347,11 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                     onPressed: () {
                       // TODO: Implement add new lead functionality
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Add New Lead functionality coming soon')),
+                        SnackBar(
+                          content: Text(
+                            'Add New Lead functionality coming soon',
+                          ),
+                        ),
                       );
                     },
                     icon: Icon(Icons.add, size: 16),
@@ -1334,7 +1359,10 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green[600],
                       foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                     ),
                   ),
                 ),
@@ -1344,7 +1372,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                     onPressed: () {
                       // TODO: Implement export functionality
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Export functionality coming soon')),
+                        SnackBar(
+                          content: Text('Export functionality coming soon'),
+                        ),
                       );
                     },
                     icon: Icon(Icons.download, size: 16),
@@ -1352,7 +1382,10 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.purple[600],
                       foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                     ),
                   ),
                 ),
@@ -1522,11 +1555,11 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  flex: 1,
+                  flex: 2,
                   child: Container(
                     padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                     child: Text(
-                      'Lead ID',
+                      'Client/Date',
                       style: TextStyle(fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                       softWrap: true,
@@ -1554,7 +1587,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                   child: Container(
                     padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                     child: Text(
-                      'Client',
+                      'Project ID',
                       style: TextStyle(fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                       softWrap: true,
@@ -1582,7 +1615,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                   child: Container(
                     padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                     child: Text(
-                      'Aluminium Area',
+                      'Area',
                       style: TextStyle(fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                       softWrap: true,
@@ -1596,7 +1629,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                   child: Container(
                     padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                     child: Text(
-                      'MS Weight',
+                      'Weight',
                       style: TextStyle(fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                       softWrap: true,
@@ -1610,7 +1643,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                   child: Container(
                     padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                     child: Text(
-                      'Rate sq/m',
+                      'Rate',
                       style: TextStyle(fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                       softWrap: true,
@@ -1624,7 +1657,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                   child: Container(
                     padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                     child: Text(
-                      'Total + GST',
+                      'Total',
                       style: TextStyle(fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                       softWrap: true,
@@ -1699,15 +1732,33 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           ),
           const SizedBox(width: 8),
           Expanded(
-            flex: 1,
+            flex: 2,
             child: Container(
               padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-              child: Text(
-                leadId,
-                style: TextStyle(fontWeight: FontWeight.w500),
-                softWrap: true,
-                overflow: TextOverflow.ellipsis,
-                maxLines: 2,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    lead['client_name'] ?? 'N/A',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                    softWrap: true,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                  Text(
+                    _formatDate(lead['date']),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                    softWrap: true,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ],
               ),
             ),
           ),
@@ -1729,7 +1780,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             child: Container(
               padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
               child: Text(
-                lead['client_name'] ?? 'N/A',
+                'Tobler-${leadId.substring(0, 4).toUpperCase()}',
                 style: TextStyle(fontWeight: FontWeight.w500),
                 softWrap: true,
                 overflow: TextOverflow.ellipsis,
@@ -1754,37 +1805,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             flex: 1,
             child: Container(
               padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${lead['aluminium_area']?.toStringAsFixed(2) ?? '0.00'} sq/m',
-                    style: TextStyle(fontWeight: FontWeight.w500),
-                    softWrap: true,
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                  Text(
-                    'R1(₹${lead['aluminium_area']?.toStringAsFixed(2) ?? '0.00'})',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.blue[600],
-                      decoration: TextDecoration.underline,
-                    ),
-                    softWrap: true,
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 1,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
               child: Text(
-                '${lead['ms_weight']?.toStringAsFixed(2) ?? '0.00'} kg',
+                '${lead['aluminium_area']?.toStringAsFixed(1) ?? '0.0'} sqm',
                 style: TextStyle(fontWeight: FontWeight.w500),
                 softWrap: true,
                 overflow: TextOverflow.ellipsis,
@@ -1796,34 +1818,12 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             flex: 1,
             child: Container(
               padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-              child: TextField(
-                controller: _rateControllers.putIfAbsent(
-                  leadId,
-                  () => TextEditingController(
-                    text: lead['rate_sqm']?.toString() ?? '0',
-                  ),
-                ),
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 8,
-                  ),
-                ),
-                keyboardType: TextInputType.number,
-                style: TextStyle(fontSize: 14),
-                onChanged: (value) {
-                  final rate = double.tryParse(value) ?? 0;
-                  final aluminiumArea =
-                      double.tryParse(
-                        lead['aluminium_area']?.toString() ?? '0',
-                      ) ??
-                      0;
-                  final totalAmount = aluminiumArea * rate * 1.18;
-                  setState(() {
-                    _totalAmounts[leadId] = totalAmount;
-                  });
-                },
+              child: Text(
+                '${lead['ms_weight']?.toStringAsFixed(1) ?? '0.0'} kg',
+                style: TextStyle(fontWeight: FontWeight.w500),
+                softWrap: true,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
               ),
             ),
           ),
@@ -1832,7 +1832,20 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             child: Container(
               padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
               child: Text(
-                '₹${totalAmount.toStringAsFixed(2)}',
+                '₹${lead['rate_sqm']?.toStringAsFixed(0) ?? '0'}',
+                style: TextStyle(fontWeight: FontWeight.w500),
+                softWrap: true,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 1,
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+              child: Text(
+                '₹${totalAmount.toStringAsFixed(0)}',
                 style: TextStyle(fontWeight: FontWeight.w500),
                 softWrap: true,
                 overflow: TextOverflow.ellipsis,
@@ -1870,24 +1883,39 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
-                    icon: Icon(Icons.person, color: Colors.blue),
-                    onPressed: () => _assignLead(lead),
-                    tooltip: 'Assign',
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.visibility, color: Colors.green),
+                    icon: Icon(Icons.visibility, color: Colors.grey[600]),
                     onPressed: () => _viewLead(lead),
                     tooltip: 'View',
+                    padding: EdgeInsets.all(4),
+                    constraints: BoxConstraints(minWidth: 32, minHeight: 32),
                   ),
                   IconButton(
-                    icon: Icon(Icons.help, color: Colors.orange),
+                    icon: Icon(Icons.help, color: Colors.grey[600]),
                     onPressed: () => _helpLead(lead),
                     tooltip: 'Help',
+                    padding: EdgeInsets.all(4),
+                    constraints: BoxConstraints(minWidth: 32, minHeight: 32),
                   ),
                   IconButton(
-                    icon: Icon(Icons.edit, color: Colors.purple),
+                    icon: Icon(Icons.edit, color: Colors.grey[600]),
                     onPressed: () => _editLead(lead),
                     tooltip: 'Edit',
+                    padding: EdgeInsets.all(4),
+                    constraints: BoxConstraints(minWidth: 32, minHeight: 32),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.refresh, color: Colors.grey[600]),
+                    onPressed: () => _refreshLead(lead),
+                    tooltip: 'Refresh',
+                    padding: EdgeInsets.all(4),
+                    constraints: BoxConstraints(minWidth: 32, minHeight: 32),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.delete, color: Colors.grey[600]),
+                    onPressed: () => _deleteLead(lead),
+                    tooltip: 'Delete',
+                    padding: EdgeInsets.all(4),
+                    constraints: BoxConstraints(minWidth: 32, minHeight: 32),
                   ),
                 ],
               ),
@@ -2080,6 +2108,16 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       SnackBar(
         content: Text('Editing lead: ${lead['project_name']}'),
         backgroundColor: Colors.purple,
+      ),
+    );
+  }
+
+  void _refreshLead(Map<String, dynamic> lead) {
+    // TODO: Implement refresh lead
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Refreshing lead: ${lead['project_name']}'),
+        backgroundColor: Colors.blue,
       ),
     );
   }
