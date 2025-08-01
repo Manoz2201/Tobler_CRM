@@ -680,64 +680,145 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
   }
 
   Widget _buildHeader(bool isWide) {
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.leaderboard, color: Colors.blue, size: 28),
-                  SizedBox(width: 12),
-                  Text(
-                    'Lead Management',
-                    style: TextStyle(
-                      fontSize: isWide ? 28 : 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[800],
-                    ),
+    if (isWide) {
+      // Desktop layout - matching admin design
+      return Row(
+        children: [
+          Icon(Icons.leaderboard, size: 32, color: Colors.blue[700]),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Lead Management',
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
                   ),
-                ],
-              ),
-              SizedBox(height: 4),
-              Text(
-                'Manage and track all leads in your system',
-                style: TextStyle(
-                  fontSize: isWide ? 16 : 14,
-                  color: Colors.grey[600],
                 ),
+                Text(
+                  'Manage and track your leads',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: () {
+              // TODO: Implement export functionality for sales
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Export functionality coming soon')),
+              );
+            },
+            icon: Icon(Icons.download),
+            tooltip: 'Export Leads',
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton.icon(
+            onPressed: _fetchLeads,
+            icon: Icon(Icons.refresh),
+            label: Text('Refresh'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue[600],
+              foregroundColor: Colors.white,
+              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ),
+          ),
+        ],
+      );
+    } else {
+      // Mobile layout - compact design matching admin
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.leaderboard, size: 24, color: Colors.blue[700]),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Lead Management',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                    height: 1.2,
+                  ),
+                ),
+              ),
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    _showAdvancedFilters = !_showAdvancedFilters;
+                  });
+                },
+                icon: Icon(
+                  Icons.filter_list,
+                  color: Colors.blue[600],
+                  size: 20,
+                ),
+                tooltip: 'Advanced Filters',
+                padding: EdgeInsets.all(8),
+                constraints: BoxConstraints(minWidth: 32, minHeight: 32),
               ),
             ],
           ),
-        ),
-        Row(
-          children: [
-            CircleAvatar(
-              radius: 20,
-              backgroundColor: Colors.blue[100],
-              child: Icon(Icons.person, color: Colors.blue[700]),
+          const SizedBox(height: 4),
+          Text(
+            'Manage and track your leads',
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey[600],
+              height: 1.2,
             ),
-            SizedBox(width: 8),
-            IconButton(
-              icon: Icon(Icons.download, color: Colors.grey[600]),
-              onPressed: () {
-                // TODO: Implement export functionality
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Export functionality coming soon')),
-                );
-              },
-              tooltip: 'Export',
+          ),
+          const SizedBox(height: 8),
+          // Mobile stats cards
+          _buildMobileStatsCards(),
+          const SizedBox(height: 8),
+          // Centered search box for mobile
+          Center(
+            child: SizedBox(
+              width: MediaQuery.of(context).size.width * 0.95,
+              child: TextField(
+                decoration: InputDecoration(
+                  hintText: 'Search leads...',
+                  prefixIcon: Icon(Icons.search, size: 18),
+                  suffixIcon: IconButton(
+                    onPressed: _fetchLeads,
+                    icon: Icon(Icons.refresh, size: 18),
+                    tooltip: 'Refresh',
+                    padding: EdgeInsets.all(4),
+                    constraints: BoxConstraints(minWidth: 24, minHeight: 24),
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(6),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(6),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(6),
+                    borderSide: BorderSide(color: Colors.blue[600]!),
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 8,
+                  ),
+                ),
+                onChanged: _onSearch,
+              ),
             ),
-            IconButton(
-              icon: Icon(Icons.refresh, color: Colors.grey[600]),
-              onPressed: _fetchLeads,
-              tooltip: 'Refresh',
-            ),
-          ],
-        ),
-      ],
-    );
+          ),
+        ],
+      );
+    }
   }
 
   Widget _buildStatsCards() {
@@ -860,110 +941,427 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     );
   }
 
-  Widget _buildSearchAndActions(bool isWide) {
+  Widget _buildMobileStatsCards() {
+    final totalLeads = _leads.length;
+    final newLeads = _leads
+        .where((lead) => _getLeadStatus(lead) == 'New/Progress')
+        .length;
+    final proposalProgress = _leads
+        .where((lead) => _getLeadStatus(lead) == 'Proposal Progress')
+        .length;
+    final waitingApproval = _leads
+        .where((lead) => _getLeadStatus(lead) == 'Waiting for Approval')
+        .length;
+    final approved = _leads
+        .where((lead) => _getLeadStatus(lead) == 'Approved')
+        .length;
+
+    return Row(
+      children: [
+        Expanded(
+          child: _buildMobileStatCard(
+            'Total',
+            totalLeads.toString(),
+            Icons.leaderboard,
+            Colors.blue,
+          ),
+        ),
+        SizedBox(width: 8),
+        Expanded(
+          child: _buildMobileStatCard(
+            'New',
+            newLeads.toString(),
+            Icons.new_releases,
+            Colors.green,
+          ),
+        ),
+        SizedBox(width: 8),
+        Expanded(
+          child: _buildMobileStatCard(
+            'Progress',
+            proposalProgress.toString(),
+            Icons.pending,
+            Colors.orange,
+          ),
+        ),
+        SizedBox(width: 8),
+        Expanded(
+          child: _buildMobileStatCard(
+            'Waiting',
+            waitingApproval.toString(),
+            Icons.schedule,
+            Colors.purple,
+          ),
+        ),
+        SizedBox(width: 8),
+        Expanded(
+          child: _buildMobileStatCard(
+            'Approved',
+            approved.toString(),
+            Icons.check_circle,
+            Colors.green,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
-      padding: EdgeInsets.all(16),
+      padding: EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: Offset(0, 4),
+            blurRadius: 4,
+            offset: Offset(0, 2),
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
-            flex: 2,
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Search leads by ID, client, or project...',
-                prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.blue),
-                ),
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-              ),
-              onChanged: _onSearch,
-            ),
-          ),
-          SizedBox(width: 16),
           Container(
-            padding: EdgeInsets.symmetric(horizontal: 12),
+            padding: EdgeInsets.all(6),
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey[300]!),
-              borderRadius: BorderRadius.circular(8),
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(6),
             ),
-            child: DropdownButton<String>(
-              value: _selectedFilter,
-              items: _filterOptions.map((filter) {
-                return DropdownMenuItem(value: filter, child: Text(filter));
-              }).toList(),
-              onChanged: (value) {
-                if (value != null) _onFilterChanged(value);
-              },
-              underline: SizedBox(),
-              icon: Icon(Icons.arrow_drop_down),
+            child: Icon(icon, color: color, size: 16),
+          ),
+          SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
             ),
           ),
-          SizedBox(width: 8),
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey[300]!),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: DropdownButton<String>(
-              value: _sortBy,
-              items: _sortOptions.map((sort) {
-                return DropdownMenuItem(
-                  value: sort,
-                  child: Text(sort.replaceAll('_', ' ').toUpperCase()),
-                );
-              }).toList(),
-              onChanged: (value) {
-                if (value != null) _onSortChanged(value);
-              },
-              underline: SizedBox(),
-              icon: Icon(Icons.arrow_drop_down),
-            ),
-          ),
-          SizedBox(width: 8),
-          IconButton(
-            icon: Icon(
-              _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
-            ),
-            onPressed: () => _onSortChanged(_sortBy),
-            tooltip: 'Toggle sort order',
-          ),
-          SizedBox(width: 8),
-          IconButton(
-            icon: Icon(Icons.filter_list),
-            onPressed: () {
-              setState(() {
-                _showAdvancedFilters = !_showAdvancedFilters;
-              });
-            },
-            tooltip: 'Advanced filters',
+          Text(
+            title,
+            style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildSearchAndActions(bool isWide) {
+    if (isWide) {
+      // Desktop layout - matching admin design
+      return Container(
+        padding: EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Search Input
+            Expanded(
+              flex: 3,
+              child: TextField(
+                decoration: InputDecoration(
+                  hintText: 'Search leads...',
+                  prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.blue[600]!),
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                ),
+                onChanged: _onSearch,
+              ),
+            ),
+            SizedBox(width: 16),
+            // Filter Dropdown
+            Container(
+              width: 120,
+              child: DropdownButtonFormField<String>(
+                value: _selectedFilter,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.blue[600]!),
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
+                ),
+                items: _filterOptions.map((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value),
+                  );
+                }).toList(),
+                onChanged: (String? newValue) {
+                  if (newValue != null) {
+                    _onFilterChanged(newValue);
+                  }
+                },
+              ),
+            ),
+            SizedBox(width: 16),
+            // Sort Dropdown
+            Container(
+              width: 140,
+              child: DropdownButtonFormField<String>(
+                value: _sortBy,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.blue[600]!),
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
+                ),
+                items: _sortOptions.map((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text('Sort by ${value.replaceAll('_', ' ')}'),
+                  );
+                }).toList(),
+                onChanged: (String? newValue) {
+                  if (newValue != null) {
+                    _onSortChanged(newValue);
+                  }
+                },
+              ),
+            ),
+            SizedBox(width: 16),
+            // Filter Icon
+            IconButton(
+              onPressed: () {
+                setState(() {
+                  _showAdvancedFilters = !_showAdvancedFilters;
+                });
+              },
+              icon: Icon(
+                Icons.filter_list,
+                color: _showAdvancedFilters ? Colors.blue[600] : Colors.grey[600],
+              ),
+              tooltip: 'Advanced Filters',
+            ),
+            SizedBox(width: 16),
+            // Add New Lead Button
+            ElevatedButton.icon(
+              onPressed: () {
+                // TODO: Implement add new lead functionality
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Add New Lead functionality coming soon')),
+                );
+              },
+              icon: Icon(Icons.add),
+              label: Text('Add New Lead'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green[600],
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+            ),
+            SizedBox(width: 8),
+            // Export Button
+            ElevatedButton.icon(
+              onPressed: () {
+                // TODO: Implement export functionality
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Export functionality coming soon')),
+                );
+              },
+              icon: Icon(Icons.download),
+              label: Text('Export'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.purple[600],
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      // Mobile layout - simplified for mobile
+      return Container(
+        padding: EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 4,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Search and Filter Row
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Search leads...',
+                      prefixIcon: Icon(Icons.search, size: 18),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: BorderSide(color: Colors.blue[600]!),
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                    ),
+                    onChanged: _onSearch,
+                  ),
+                ),
+                SizedBox(width: 8),
+                Container(
+                  width: 80,
+                  child: DropdownButtonFormField<String>(
+                    value: _selectedFilter,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: BorderSide(color: Colors.blue[600]!),
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 8,
+                      ),
+                    ),
+                    items: _filterOptions.map((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value.length > 8 ? value.substring(0, 8) : value),
+                      );
+                    }).toList(),
+                    onChanged: (String? newValue) {
+                      if (newValue != null) {
+                        _onFilterChanged(newValue);
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 8),
+            // Action Buttons Row
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      // TODO: Implement add new lead functionality
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Add New Lead functionality coming soon')),
+                      );
+                    },
+                    icon: Icon(Icons.add, size: 16),
+                    label: Text('Add New Lead'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green[600],
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      // TODO: Implement export functionality
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Export functionality coming soon')),
+                      );
+                    },
+                    icon: Icon(Icons.download, size: 16),
+                    label: Text('Export'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.purple[600],
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   Widget _buildAdvancedFilters() {
@@ -1116,155 +1514,155 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                 topRight: Radius.circular(12),
               ),
             ),
-                         child: Row(
-               children: [
-                 Checkbox(
-                   value: _selectAll,
-                   onChanged: (value) => _toggleSelectAll(),
-                 ),
-                 const SizedBox(width: 8),
-                 Expanded(
-                   flex: 1,
-                   child: Container(
-                     padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                     child: Text(
-                       'Lead ID',
-                       style: TextStyle(fontWeight: FontWeight.bold),
-                       textAlign: TextAlign.center,
-                       softWrap: true,
-                       overflow: TextOverflow.ellipsis,
-                       maxLines: 1,
-                     ),
-                   ),
-                 ),
-                 Expanded(
-                   flex: 1,
-                   child: Container(
-                     padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                     child: Text(
-                       'Project',
-                       style: TextStyle(fontWeight: FontWeight.bold),
-                       textAlign: TextAlign.center,
-                       softWrap: true,
-                       overflow: TextOverflow.ellipsis,
-                       maxLines: 1,
-                     ),
-                   ),
-                 ),
-                 Expanded(
-                   flex: 1,
-                   child: Container(
-                     padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                     child: Text(
-                       'Client',
-                       style: TextStyle(fontWeight: FontWeight.bold),
-                       textAlign: TextAlign.center,
-                       softWrap: true,
-                       overflow: TextOverflow.ellipsis,
-                       maxLines: 1,
-                     ),
-                   ),
-                 ),
-                 Expanded(
-                   flex: 1,
-                   child: Container(
-                     padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                     child: Text(
-                       'Location',
-                       style: TextStyle(fontWeight: FontWeight.bold),
-                       textAlign: TextAlign.center,
-                       softWrap: true,
-                       overflow: TextOverflow.ellipsis,
-                       maxLines: 1,
-                     ),
-                   ),
-                 ),
-                 Expanded(
-                   flex: 1,
-                   child: Container(
-                     padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                     child: Text(
-                       'Aluminium Area',
-                       style: TextStyle(fontWeight: FontWeight.bold),
-                       textAlign: TextAlign.center,
-                       softWrap: true,
-                       overflow: TextOverflow.ellipsis,
-                       maxLines: 1,
-                     ),
-                   ),
-                 ),
-                 Expanded(
-                   flex: 1,
-                   child: Container(
-                     padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                     child: Text(
-                       'MS Weight',
-                       style: TextStyle(fontWeight: FontWeight.bold),
-                       textAlign: TextAlign.center,
-                       softWrap: true,
-                       overflow: TextOverflow.ellipsis,
-                       maxLines: 1,
-                     ),
-                   ),
-                 ),
-                 Expanded(
-                   flex: 1,
-                   child: Container(
-                     padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                     child: Text(
-                       'Rate sq/m',
-                       style: TextStyle(fontWeight: FontWeight.bold),
-                       textAlign: TextAlign.center,
-                       softWrap: true,
-                       overflow: TextOverflow.ellipsis,
-                       maxLines: 1,
-                     ),
-                   ),
-                 ),
-                 Expanded(
-                   flex: 1,
-                   child: Container(
-                     padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                     child: Text(
-                       'Total + GST',
-                       style: TextStyle(fontWeight: FontWeight.bold),
-                       textAlign: TextAlign.center,
-                       softWrap: true,
-                       overflow: TextOverflow.ellipsis,
-                       maxLines: 1,
-                     ),
-                   ),
-                 ),
-                 Expanded(
-                   flex: 1,
-                   child: Container(
-                     padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                     child: Text(
-                       'Status',
-                       style: TextStyle(fontWeight: FontWeight.bold),
-                       textAlign: TextAlign.center,
-                       softWrap: true,
-                       overflow: TextOverflow.ellipsis,
-                       maxLines: 1,
-                     ),
-                   ),
-                 ),
-                 Expanded(
-                   flex: 2,
-                   child: Container(
-                     padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                     child: Text(
-                       'Actions',
-                       style: TextStyle(fontWeight: FontWeight.bold),
-                       textAlign: TextAlign.center,
-                       softWrap: true,
-                       overflow: TextOverflow.ellipsis,
-                       maxLines: 1,
-                     ),
-                   ),
-                 ),
-               ],
-             ),
+            child: Row(
+              children: [
+                Checkbox(
+                  value: _selectAll,
+                  onChanged: (value) => _toggleSelectAll(),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 1,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: Text(
+                      'Lead ID',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                      softWrap: true,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 1,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: Text(
+                      'Project',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                      softWrap: true,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 1,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: Text(
+                      'Client',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                      softWrap: true,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 1,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: Text(
+                      'Location',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                      softWrap: true,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 1,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: Text(
+                      'Aluminium Area',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                      softWrap: true,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 1,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: Text(
+                      'MS Weight',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                      softWrap: true,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 1,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: Text(
+                      'Rate sq/m',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                      softWrap: true,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 1,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: Text(
+                      'Total + GST',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                      softWrap: true,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 1,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: Text(
+                      'Status',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                      softWrap: true,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: Text(
+                      'Actions',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                      softWrap: true,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           // Table Body
           Expanded(
