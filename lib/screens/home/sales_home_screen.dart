@@ -224,6 +224,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
   bool _isLoading = true;
   final Map<String, bool> _hoveredRows = {}; // Track hover state for each row
   final Map<String, bool> _hoveredButtons = {}; // Track hover state for buttons
+  String? _selectedStatusFilter; // Track selected status filter for sorting
 
   String? _currentUserId;
   String? _currentUsername;
@@ -625,14 +626,26 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     });
   }
 
+  void _onStatusFilterChanged(String? statusFilter) {
+    setState(() {
+      _selectedStatusFilter = _selectedStatusFilter == statusFilter ? null : statusFilter;
+      _applyFilters();
+    });
+  }
+
   void _applyFilters() {
     _filteredLeads = _leads.where((lead) {
+      // Apply search filter
       final matchesSearch =
           lead['lead_id'].toString().toLowerCase().contains(_searchText) ||
           (lead['client_name'] ?? '').toLowerCase().contains(_searchText) ||
           (lead['project_name'] ?? '').toLowerCase().contains(_searchText);
 
-      return matchesSearch;
+      // Apply status filter
+      final matchesStatus = _selectedStatusFilter == null || 
+          _getLeadStatus(lead) == _selectedStatusFilter;
+
+      return matchesSearch && matchesStatus;
     }).toList();
   }
 
@@ -841,7 +854,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
   Widget _buildStatsCards() {
     final totalLeads = _leads.length;
     final newLeads = _leads
-        .where((lead) => _getLeadStatus(lead) == 'New/Progress')
+        .where((lead) => _getLeadStatus(lead) == 'New')
         .length;
     final proposalProgress = _leads
         .where((lead) => _getLeadStatus(lead) == 'Proposal Progress')
@@ -861,6 +874,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             totalLeads.toString(),
             Icons.leaderboard,
             Colors.blue,
+            null, // No filter for total
           ),
         ),
         SizedBox(width: 16),
@@ -870,6 +884,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             newLeads.toString(),
             Icons.new_releases,
             Colors.green,
+            'New',
           ),
         ),
         SizedBox(width: 16),
@@ -879,6 +894,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             proposalProgress.toString(),
             Icons.pending,
             Colors.orange,
+            'Proposal Progress',
           ),
         ),
         SizedBox(width: 16),
@@ -888,6 +904,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             waitingApproval.toString(),
             Icons.schedule,
             Colors.purple,
+            'Waiting for Approval',
           ),
         ),
         SizedBox(width: 16),
@@ -897,6 +914,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             approved.toString(),
             Icons.check_circle,
             Colors.green,
+            'Approved',
           ),
         ),
       ],
@@ -908,57 +926,71 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     String value,
     IconData icon,
     Color color,
+    String? statusFilter,
   ) {
-    return Container(
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+    final isSelected = _selectedStatusFilter == statusFilter;
+    
+    return GestureDetector(
+      onTap: () => _onStatusFilterChanged(statusFilter),
+      child: AnimatedContainer(
+        duration: Duration(milliseconds: 200),
+        padding: EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withValues(alpha: 0.1) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: isSelected 
+              ? Border.all(color: color, width: 2)
+              : null,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: color, size: 24),
                 ),
-                child: Icon(icon, color: color, size: 24),
-              ),
-              SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      value,
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey[800],
+                SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        value,
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: isSelected ? color : Colors.grey[800],
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      title,
-                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                    ),
-                  ],
+                      SizedBox(height: 4),
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 14, 
+                          color: isSelected ? color : Colors.grey[600],
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -966,7 +998,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
   Widget _buildMobileStatsCards() {
     final totalLeads = _leads.length;
     final newLeads = _leads
-        .where((lead) => _getLeadStatus(lead) == 'New/Progress')
+        .where((lead) => _getLeadStatus(lead) == 'New')
         .length;
     final proposalProgress = _leads
         .where((lead) => _getLeadStatus(lead) == 'Proposal Progress')
@@ -986,6 +1018,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             totalLeads.toString(),
             Icons.leaderboard,
             Colors.blue,
+            null,
           ),
         ),
         SizedBox(width: 8),
@@ -995,6 +1028,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             newLeads.toString(),
             Icons.new_releases,
             Colors.green,
+            'New',
           ),
         ),
         SizedBox(width: 8),
@@ -1004,6 +1038,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             proposalProgress.toString(),
             Icons.pending,
             Colors.orange,
+            'Proposal Progress',
           ),
         ),
         SizedBox(width: 8),
@@ -1013,6 +1048,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             waitingApproval.toString(),
             Icons.schedule,
             Colors.purple,
+            'Waiting for Approval',
           ),
         ),
         SizedBox(width: 8),
@@ -1022,6 +1058,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             approved.toString(),
             Icons.check_circle,
             Colors.green,
+            'Approved',
           ),
         ),
       ],
@@ -1033,45 +1070,59 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     String value,
     IconData icon,
     Color color,
+    String? statusFilter,
   ) {
-    return Container(
-      padding: EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 4,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(6),
+    final isSelected = _selectedStatusFilter == statusFilter;
+    
+    return GestureDetector(
+      onTap: () => _onStatusFilterChanged(statusFilter),
+      child: AnimatedContainer(
+        duration: Duration(milliseconds: 200),
+        padding: EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withValues(alpha: 0.1) : Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: isSelected 
+              ? Border.all(color: color, width: 1.5)
+              : null,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 4,
+              offset: Offset(0, 2),
             ),
-            child: Icon(icon, color: color, size: 16),
-          ),
-          SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[800],
+          ],
+        ),
+        child: Column(
+          children: [
+            Container(
+              padding: EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Icon(icon, color: color, size: 16),
             ),
-          ),
-          Text(
-            title,
-            style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-            textAlign: TextAlign.center,
-          ),
-        ],
+            SizedBox(height: 4),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: isSelected ? color : Colors.grey[800],
+              ),
+            ),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 10, 
+                color: isSelected ? color : Colors.grey[600],
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
