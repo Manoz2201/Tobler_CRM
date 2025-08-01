@@ -2356,8 +2356,6 @@ class _LeadTableState extends State<LeadTable> {
     });
   }
 
-
-
   void _exportLeads() {
     _showCryptoKeyValidationDialog();
   }
@@ -2976,8 +2974,6 @@ class _LeadTableState extends State<LeadTable> {
                 if (_showAdvancedFilters) _buildAdvancedFilters(),
                 if (_showAdvancedFilters) SizedBox(height: isWide ? 16 : 8),
 
-
-
                 // Content
                 Expanded(
                   child: _isLoading
@@ -3555,8 +3551,6 @@ class _LeadTableState extends State<LeadTable> {
     );
   }
 
-
-
   Widget _buildWideTable() {
     return Container(
       decoration: BoxDecoration(
@@ -3755,7 +3749,6 @@ class _LeadTableState extends State<LeadTable> {
         double.tryParse(lead['aluminium_area']?.toString() ?? '0') ?? 0;
     final msWeight = double.tryParse(lead['ms_weight']?.toString() ?? '0') ?? 0;
     final rate = double.tryParse(lead['rate_sqm']?.toString() ?? '0') ?? 0;
-
 
     // Calculate total amount dynamically
     String calculateTotalAmount() {
@@ -4174,7 +4167,6 @@ class _LeadTableState extends State<LeadTable> {
     final msWeight = double.tryParse(lead['ms_weight']?.toString() ?? '0') ?? 0;
     final rate = double.tryParse(lead['rate_sqm']?.toString() ?? '0') ?? 0;
 
-
     // Calculate total amount dynamically
     String calculateTotalAmount() {
       // Use stored total amount if available, otherwise calculate
@@ -4193,8 +4185,8 @@ class _LeadTableState extends State<LeadTable> {
 
     return Container(
       margin: EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(
-          color: Colors.white,
+      decoration: BoxDecoration(
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(

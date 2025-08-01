@@ -220,44 +220,11 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
   List<Map<String, dynamic>> _leads = [];
   List<Map<String, dynamic>> _filteredLeads = [];
   String _searchText = '';
-  String _selectedFilter = 'All';
-  String _sortBy = 'date';
-  bool _sortAscending = false;
-  final Map<String, TextEditingController> _rateControllers = {};
   final Map<String, double> _totalAmounts = {}; // Store calculated totals
-  final TextEditingController _remarkController = TextEditingController();
   bool _isLoading = true;
 
-  bool _showAdvancedFilters = false;
   String? _currentUserId;
   String? _currentUsername;
-
-  final Map<String, dynamic> _advancedFilters = {
-    'dateRange': null,
-    'location': 'All',
-    'minAmount': '',
-    'maxAmount': '',
-  };
-
-  final List<String> _filterOptions = [
-    'All',
-    'New/Progress',
-    'Proposal Progress',
-    'Waiting for Approval',
-    'Approved',
-  ];
-
-  final List<String> _sortOptions = [
-    'date',
-    'lead_id',
-    'project_name',
-    'client_name',
-    'project_location',
-    'aluminium_area',
-    'ms_weight',
-    'rate_sqm',
-    'total_amount',
-  ];
 
   @override
   void initState() {
@@ -627,25 +594,6 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     });
   }
 
-  void _onFilterChanged(String filter) {
-    setState(() {
-      _selectedFilter = filter;
-      _applyFilters();
-    });
-  }
-
-  void _onSortChanged(String sortBy) {
-    setState(() {
-      if (_sortBy == sortBy) {
-        _sortAscending = !_sortAscending;
-      } else {
-        _sortBy = sortBy;
-        _sortAscending = true;
-      }
-      _applyFilters();
-    });
-  }
-
   void _applyFilters() {
     _filteredLeads = _leads.where((lead) {
       final matchesSearch =
@@ -653,30 +601,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           (lead['client_name'] ?? '').toLowerCase().contains(_searchText) ||
           (lead['project_name'] ?? '').toLowerCase().contains(_searchText);
 
-      if (!matchesSearch) return false;
-
-      if (_selectedFilter == 'All') return true;
-
-      final status = _getLeadStatus(lead);
-      return status == _selectedFilter;
+      return matchesSearch;
     }).toList();
-
-    // Apply sorting
-    _filteredLeads.sort((a, b) {
-      final aValue = a[_sortBy];
-      final bValue = b[_sortBy];
-
-      if (aValue == null && bValue == null) return 0;
-      if (aValue == null) return _sortAscending ? 1 : -1;
-      if (bValue == null) return _sortAscending ? -1 : 1;
-
-      if (aValue is Comparable && bValue is Comparable) {
-        return _sortAscending
-            ? Comparable.compare(aValue, bValue)
-            : Comparable.compare(bValue, aValue);
-      }
-      return 0;
-    });
   }
 
   String _getLeadStatus(Map<String, dynamic> lead) {
@@ -706,8 +632,6 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     return 'Tobler-$shortHex';
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -734,15 +658,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                 if (isWide) _buildStatsCards(),
                 if (isWide) const SizedBox(height: 24),
 
-                // Search, Filter, and Actions Section
-                _buildSearchAndActions(isWide),
-                SizedBox(height: isWide ? 24 : 8),
-
-                // Advanced Filters
-                if (_showAdvancedFilters) _buildAdvancedFilters(),
-                if (_showAdvancedFilters) SizedBox(height: isWide ? 16 : 8),
-
-
+                                 // Search and Actions Section
+                 _buildSearchAndActions(isWide),
+                 SizedBox(height: isWide ? 24 : 8),
 
                 // Content
                 Expanded(
@@ -831,21 +749,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                   ),
                 ),
               ),
-              IconButton(
-                onPressed: () {
-                  setState(() {
-                    _showAdvancedFilters = !_showAdvancedFilters;
-                  });
-                },
-                icon: Icon(
-                  Icons.filter_list,
-                  color: Colors.blue[600],
-                  size: 20,
-                ),
-                tooltip: 'Advanced Filters',
-                padding: EdgeInsets.all(8),
-                constraints: BoxConstraints(minWidth: 32, minHeight: 32),
-              ),
+              
             ],
           ),
           const SizedBox(height: 4),
@@ -1144,7 +1048,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
 
   Widget _buildSearchAndActions(bool isWide) {
     if (isWide) {
-      // Desktop layout - matching admin design
+      // Desktop layout - simplified with only search and Add New Lead button
       return Container(
         padding: EdgeInsets.all(20),
         decoration: BoxDecoration(
@@ -1190,100 +1094,6 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
               ),
             ),
             SizedBox(width: 16),
-            // Filter Dropdown
-            Container(
-              width: 120,
-              child: DropdownButtonFormField<String>(
-                value: _selectedFilter,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: Colors.blue[600]!),
-                  ),
-                  filled: true,
-                  fillColor: Colors.grey[50],
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 12,
-                  ),
-                ),
-                items: _filterOptions.map((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
-                  );
-                }).toList(),
-                onChanged: (String? newValue) {
-                  if (newValue != null) {
-                    _onFilterChanged(newValue);
-                  }
-                },
-              ),
-            ),
-            SizedBox(width: 16),
-            // Sort Dropdown
-            Container(
-              width: 140,
-              child: DropdownButtonFormField<String>(
-                value: _sortBy,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: Colors.blue[600]!),
-                  ),
-                  filled: true,
-                  fillColor: Colors.grey[50],
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 12,
-                  ),
-                ),
-                items: _sortOptions.map((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text('Sort by ${value.replaceAll('_', ' ')}'),
-                  );
-                }).toList(),
-                onChanged: (String? newValue) {
-                  if (newValue != null) {
-                    _onSortChanged(newValue);
-                  }
-                },
-              ),
-            ),
-            SizedBox(width: 16),
-            // Filter Icon
-            IconButton(
-              onPressed: () {
-                setState(() {
-                  _showAdvancedFilters = !_showAdvancedFilters;
-                });
-              },
-              icon: Icon(
-                Icons.filter_list,
-                color: _showAdvancedFilters
-                    ? Colors.blue[600]
-                    : Colors.grey[600],
-              ),
-              tooltip: 'Advanced Filters',
-            ),
-            SizedBox(width: 16),
             // Add New Lead Button
             ElevatedButton.icon(
               onPressed: () {
@@ -1302,28 +1112,11 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                 padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
             ),
-            SizedBox(width: 8),
-            // Export Button
-            ElevatedButton.icon(
-              onPressed: () {
-                // TODO: Implement export functionality
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Export functionality coming soon')),
-                );
-              },
-              icon: Icon(Icons.download),
-              label: Text('Export'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.purple[600],
-                foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              ),
-            ),
           ],
         ),
       );
     } else {
-      // Mobile layout - simplified for mobile
+      // Mobile layout - simplified with only search and Add New Lead button
       return Container(
         padding: EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -1339,197 +1132,63 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         ),
         child: Column(
           children: [
-            // Search and Filter Row
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    decoration: InputDecoration(
-                      hintText: 'Search leads...',
-                      prefixIcon: Icon(Icons.search, size: 18),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(6),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(6),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(6),
-                        borderSide: BorderSide(color: Colors.blue[600]!),
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey[50],
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                    ),
-                    onChanged: _onSearch,
-                  ),
+            // Search Row
+            TextField(
+              decoration: InputDecoration(
+                hintText: 'Search leads...',
+                prefixIcon: Icon(Icons.search, size: 18),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
                 ),
-                SizedBox(width: 8),
-                Container(
-                  width: 80,
-                  child: DropdownButtonFormField<String>(
-                    value: _selectedFilter,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(6),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(6),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(6),
-                        borderSide: BorderSide(color: Colors.blue[600]!),
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey[50],
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 8,
-                      ),
-                    ),
-                    items: _filterOptions.map((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(
-                          value.length > 8 ? value.substring(0, 8) : value,
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (String? newValue) {
-                      if (newValue != null) {
-                        _onFilterChanged(newValue);
-                      }
-                    },
-                  ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
                 ),
-              ],
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: BorderSide(color: Colors.blue[600]!),
+                ),
+                filled: true,
+                fillColor: Colors.grey[50],
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+              ),
+              onChanged: _onSearch,
             ),
             SizedBox(height: 8),
-            // Action Buttons Row
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      // TODO: Implement add new lead functionality
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Add New Lead functionality coming soon',
-                          ),
-                        ),
-                      );
-                    },
-                    icon: Icon(Icons.add, size: 16),
-                    label: Text('Add New Lead'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green[600],
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
+            // Add New Lead Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  // TODO: Implement add new lead functionality
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Add New Lead functionality coming soon',
                       ),
                     ),
+                  );
+                },
+                icon: Icon(Icons.add, size: 16),
+                label: Text('Add New Lead'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green[600],
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
                   ),
                 ),
-                SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      // TODO: Implement export functionality
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Export functionality coming soon'),
-                        ),
-                      );
-                    },
-                    icon: Icon(Icons.download, size: 16),
-                    label: Text('Export'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.purple[600],
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ],
         ),
       );
     }
-  }
-
-  Widget _buildAdvancedFilters() {
-    return Container(
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Advanced Filters',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[800],
-            ),
-          ),
-          SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  decoration: InputDecoration(
-                    labelText: 'Min Amount',
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType: TextInputType.number,
-                  onChanged: (value) {
-                    _advancedFilters['minAmount'] = value;
-                    _applyFilters();
-                  },
-                ),
-              ),
-              SizedBox(width: 16),
-              Expanded(
-                child: TextField(
-                  decoration: InputDecoration(
-                    labelText: 'Max Amount',
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType: TextInputType.number,
-                  onChanged: (value) {
-                    _advancedFilters['maxAmount'] = value;
-                    _applyFilters();
-                  },
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
   }
 
 
@@ -1771,8 +1430,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         color: (index % 2 == 0 ? Colors.white : Colors.grey[50]),
         border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
       ),
-             child: Row(
-         children: [
+      child: Row(
+        children: [
           Expanded(
             flex: 2,
             child: Container(
@@ -1988,8 +1647,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-                             Row(
-                 children: [
+              Row(
+                children: [
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
