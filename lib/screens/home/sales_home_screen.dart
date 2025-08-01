@@ -222,6 +222,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
   String _searchText = '';
   final Map<String, double> _totalAmounts = {}; // Store calculated totals
   bool _isLoading = true;
+  final Map<String, bool> _hoveredRows = {}; // Track hover state for each row
+  final Map<String, bool> _hoveredButtons = {}; // Track hover state for buttons
 
   String? _currentUserId;
   String? _currentUsername;
@@ -658,9 +660,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                 if (isWide) _buildStatsCards(),
                 if (isWide) const SizedBox(height: 24),
 
-                                 // Search and Actions Section
-                 _buildSearchAndActions(isWide),
-                 SizedBox(height: isWide ? 24 : 8),
+                // Search and Actions Section
+                _buildSearchAndActions(isWide),
+                SizedBox(height: isWide ? 24 : 8),
 
                 // Content
                 Expanded(
@@ -749,7 +751,6 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                   ),
                 ),
               ),
-              
             ],
           ),
           const SizedBox(height: 4),
@@ -1167,9 +1168,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                   // TODO: Implement add new lead functionality
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(
-                        'Add New Lead functionality coming soon',
-                      ),
+                      content: Text('Add New Lead functionality coming soon'),
                     ),
                   );
                 },
@@ -1178,10 +1177,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green[600],
                   foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
               ),
             ),
@@ -1190,8 +1186,6 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       );
     }
   }
-
-
 
   Widget _buildEmptyState() {
     return Center(
@@ -1425,198 +1419,276 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     final leadId = lead['lead_id'].toString();
     final totalAmount = _totalAmounts[leadId] ?? 0.0;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: (index % 2 == 0 ? Colors.white : Colors.grey[50]),
-        border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 2,
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: AnimatedContainer(
+        duration: Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          color: (index % 2 == 0 ? Colors.white : Colors.grey[50]),
+          border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => _viewLeadDetails(lead),
+            onHover: (isHovered) {
+              setState(() {
+                // Update hover state for this row
+                _hoveredRows[leadId] = isHovered;
+              });
+            },
             child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    lead['client_name'] ?? 'N/A',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                    softWrap: true,
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                  Text(
-                    _formatDate(lead['date']),
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                    softWrap: true,
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                ],
+              decoration: BoxDecoration(
+                color: _hoveredRows[leadId] == true 
+                    ? Colors.blue.withValues(alpha: 0.05) 
+                    : Colors.transparent,
               ),
-            ),
-          ),
-          Expanded(
-            flex: 1,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-              child: Text(
-                lead['project_name'] ?? 'N/A',
-                style: TextStyle(fontWeight: FontWeight.w500),
-                softWrap: true,
-                overflow: TextOverflow.ellipsis,
-                maxLines: 2,
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 1,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-              child: Text(
-                _generateProjectId(leadId),
-                style: TextStyle(fontWeight: FontWeight.w500),
-                softWrap: true,
-                overflow: TextOverflow.ellipsis,
-                maxLines: 2,
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 1,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-              child: Text(
-                lead['project_location'] ?? 'N/A',
-                style: TextStyle(fontWeight: FontWeight.w500),
-                softWrap: true,
-                overflow: TextOverflow.ellipsis,
-                maxLines: 2,
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 1,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-              child: Text(
-                '${lead['aluminium_area']?.toStringAsFixed(1) ?? '0.0'} sqm',
-                style: TextStyle(fontWeight: FontWeight.w500),
-                softWrap: true,
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 1,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-              child: Text(
-                '${lead['ms_weight']?.toStringAsFixed(1) ?? '0.0'} kg',
-                style: TextStyle(fontWeight: FontWeight.w500),
-                softWrap: true,
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 1,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-              child: Text(
-                '₹${lead['rate_sqm']?.toStringAsFixed(0) ?? '0'}',
-                style: TextStyle(fontWeight: FontWeight.w500),
-                softWrap: true,
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 1,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-              child: Text(
-                '₹${totalAmount.toStringAsFixed(0)}',
-                style: TextStyle(fontWeight: FontWeight.w500),
-                softWrap: true,
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 1,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: _getStatusColor(_getLeadStatus(lead)),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  _getLeadStatus(lead),
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  IconButton(
-                    icon: Icon(Icons.visibility, color: Colors.grey[600]),
-                    onPressed: () => _viewLead(lead),
-                    tooltip: 'View',
-                    padding: EdgeInsets.all(4),
-                    constraints: BoxConstraints(minWidth: 32, minHeight: 32),
+                  Expanded(
+                    flex: 2,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            lead['client_name'] ?? 'N/A',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold, 
+                              fontSize: 14,
+                              color: _hoveredRows[leadId] == true 
+                                  ? Colors.blue[700] 
+                                  : Colors.grey[800],
+                            ),
+                            softWrap: true,
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                          Text(
+                            _formatDate(lead['date']),
+                            style: TextStyle(
+                              fontSize: 12, 
+                              color: _hoveredRows[leadId] == true 
+                                  ? Colors.blue[600] 
+                                  : Colors.grey[600],
+                            ),
+                            softWrap: true,
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                  IconButton(
-                    icon: Icon(Icons.help, color: Colors.grey[600]),
-                    onPressed: () => _helpLead(lead),
-                    tooltip: 'Help',
-                    padding: EdgeInsets.all(4),
-                    constraints: BoxConstraints(minWidth: 32, minHeight: 32),
+                  Expanded(
+                    flex: 1,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                      child: Text(
+                        lead['project_name'] ?? 'N/A',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          color: _hoveredRows[leadId] == true 
+                              ? Colors.blue[700] 
+                              : Colors.grey[800],
+                        ),
+                        softWrap: true,
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 2,
+                      ),
+                    ),
                   ),
-                  IconButton(
-                    icon: Icon(Icons.edit, color: Colors.grey[600]),
-                    onPressed: () => _editLead(lead),
-                    tooltip: 'Edit',
-                    padding: EdgeInsets.all(4),
-                    constraints: BoxConstraints(minWidth: 32, minHeight: 32),
+                  Expanded(
+                    flex: 1,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                      child: Text(
+                        _generateProjectId(leadId),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          color: _hoveredRows[leadId] == true 
+                              ? Colors.blue[700] 
+                              : Colors.grey[800],
+                        ),
+                        softWrap: true,
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 2,
+                      ),
+                    ),
                   ),
-                  IconButton(
-                    icon: Icon(Icons.refresh, color: Colors.grey[600]),
-                    onPressed: () => _refreshLead(lead),
-                    tooltip: 'Refresh',
-                    padding: EdgeInsets.all(4),
-                    constraints: BoxConstraints(minWidth: 32, minHeight: 32),
+                  Expanded(
+                    flex: 1,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                      child: Text(
+                        lead['project_location'] ?? 'N/A',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          color: _hoveredRows[leadId] == true 
+                              ? Colors.blue[700] 
+                              : Colors.grey[800],
+                        ),
+                        softWrap: true,
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 2,
+                      ),
+                    ),
                   ),
-                  IconButton(
-                    icon: Icon(Icons.delete, color: Colors.grey[600]),
-                    onPressed: () => _deleteLead(lead),
-                    tooltip: 'Delete',
-                    padding: EdgeInsets.all(4),
-                    constraints: BoxConstraints(minWidth: 32, minHeight: 32),
+                  Expanded(
+                    flex: 1,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                      child: Text(
+                        '${lead['aluminium_area']?.toStringAsFixed(1) ?? '0.0'} sqm',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          color: _hoveredRows[leadId] == true 
+                              ? Colors.blue[700] 
+                              : Colors.grey[800],
+                        ),
+                        softWrap: true,
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 1,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                      child: Text(
+                        '${lead['ms_weight']?.toStringAsFixed(1) ?? '0.0'} kg',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          color: _hoveredRows[leadId] == true 
+                              ? Colors.blue[700] 
+                              : Colors.grey[800],
+                        ),
+                        softWrap: true,
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 1,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                      child: Text(
+                        '₹${lead['rate_sqm']?.toStringAsFixed(0) ?? '0'}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          color: _hoveredRows[leadId] == true 
+                              ? Colors.blue[700] 
+                              : Colors.grey[800],
+                        ),
+                        softWrap: true,
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 1,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                      child: Text(
+                        '₹${totalAmount.toStringAsFixed(0)}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          color: _hoveredRows[leadId] == true 
+                              ? Colors.blue[700] 
+                              : Colors.grey[800],
+                        ),
+                        softWrap: true,
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 1,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _getStatusColor(_getLeadStatus(lead)),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: _hoveredRows[leadId] == true 
+                              ? [
+                                  BoxShadow(
+                                    color: _getStatusColor(_getLeadStatus(lead)).withValues(alpha: 0.3),
+                                    blurRadius: 4,
+                                    offset: Offset(0, 2),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Text(
+                          _getLeadStatus(lead),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _buildInteractiveIconButton(
+                            icon: Icons.visibility,
+                            onPressed: () => _viewLead(lead),
+                            tooltip: 'View Details',
+                            leadId: leadId,
+                          ),
+                          SizedBox(width: 4),
+                          _buildInteractiveIconButton(
+                            icon: Icons.help,
+                            onPressed: () => _helpLead(lead),
+                            tooltip: 'Get Help',
+                            leadId: leadId,
+                          ),
+                          SizedBox(width: 4),
+                          _buildInteractiveIconButton(
+                            icon: Icons.edit,
+                            onPressed: () => _editLead(lead),
+                            tooltip: 'Edit Lead',
+                            leadId: leadId,
+                          ),
+                          SizedBox(width: 4),
+                          _buildInteractiveIconButton(
+                            icon: Icons.refresh,
+                            onPressed: () => _refreshLead(lead),
+                            tooltip: 'Refresh Data',
+                            leadId: leadId,
+                          ),
+                          SizedBox(width: 4),
+                          _buildInteractiveIconButton(
+                            icon: Icons.delete,
+                            onPressed: () => _deleteLead(lead),
+                            tooltip: 'Delete Lead',
+                            leadId: leadId,
+                            isDestructive: true,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -1637,121 +1709,176 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
 
     return Card(
       margin: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Container(
+      elevation: _hoveredRows[leadId] == true ? 8 : 2,
+      child: AnimatedContainer(
+        duration: Duration(milliseconds: 200),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(8),
+          border: _hoveredRows[leadId] == true 
+              ? Border.all(color: Colors.blue[300]!, width: 1)
+              : null,
         ),
-        child: Padding(
-          padding: EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => _viewLeadDetails(lead),
+            onHover: (isHovered) {
+              setState(() {
+                _hoveredRows[leadId] = isHovered;
+              });
+            },
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Lead ID: $leadId',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Project: ${lead['project_name'] ?? 'N/A'}',
-                          style: TextStyle(fontSize: 14),
-                        ),
-                        Text(
-                          'Client: ${lead['client_name'] ?? 'N/A'}',
-                          style: TextStyle(fontSize: 14),
-                        ),
-                        Text(
-                          'Location: ${lead['project_location'] ?? 'N/A'}',
-                          style: TextStyle(fontSize: 14),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Aluminium Area: ${lead['aluminium_area']?.toStringAsFixed(2) ?? '0.00'} sq/m',
-                          style: TextStyle(fontSize: 12),
-                        ),
-                        Text(
-                          'MS Weight: ${lead['ms_weight']?.toStringAsFixed(2) ?? '0.00'} kg',
-                          style: TextStyle(fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          'Rate: ₹${lead['rate_sqm']?.toStringAsFixed(2) ?? '0.00'}',
-                          style: TextStyle(fontSize: 12),
-                        ),
-                        Text(
-                          'Total: ₹${totalAmount.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 12),
-              Row(
-                children: [
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _getStatusColor(_getLeadStatus(lead)),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      _getLeadStatus(lead),
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                  Spacer(),
                   Row(
                     children: [
-                      IconButton(
-                        icon: Icon(Icons.visibility, size: 20),
-                        onPressed: () => _viewLead(lead),
-                        tooltip: 'View',
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Lead ID: $leadId',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: _hoveredRows[leadId] == true 
+                                    ? Colors.blue[700] 
+                                    : Colors.grey[800],
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Project: ${lead['project_name'] ?? 'N/A'}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: _hoveredRows[leadId] == true 
+                                    ? Colors.blue[600] 
+                                    : Colors.grey[700],
+                              ),
+                            ),
+                            Text(
+                              'Client: ${lead['client_name'] ?? 'N/A'}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: _hoveredRows[leadId] == true 
+                                    ? Colors.blue[600] 
+                                    : Colors.grey[700],
+                              ),
+                            ),
+                            Text(
+                              'Location: ${lead['project_location'] ?? 'N/A'}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: _hoveredRows[leadId] == true 
+                                    ? Colors.blue[600] 
+                                    : Colors.grey[700],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      IconButton(
-                        icon: Icon(Icons.edit, size: 20),
-                        onPressed: () => _editLead(lead),
-                        tooltip: 'Edit',
+                    ],
+                  ),
+                  SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Aluminium Area: ${lead['aluminium_area']?.toStringAsFixed(2) ?? '0.00'} sq/m',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            Text(
+                              'MS Weight: ${lead['ms_weight']?.toStringAsFixed(2) ?? '0.00'} kg',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              'Rate: ₹${lead['rate_sqm']?.toStringAsFixed(2) ?? '0.00'}',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            Text(
+                              'Total: ₹${totalAmount.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _getStatusColor(_getLeadStatus(lead)),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: _hoveredRows[leadId] == true 
+                              ? [
+                                  BoxShadow(
+                                    color: _getStatusColor(_getLeadStatus(lead)).withValues(alpha: 0.3),
+                                    blurRadius: 4,
+                                    offset: Offset(0, 2),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Text(
+                          _getLeadStatus(lead),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      Spacer(),
+                      Row(
+                        children: [
+                          _buildMobileInteractiveButton(
+                            icon: Icons.visibility,
+                            onPressed: () => _viewLead(lead),
+                            tooltip: 'View',
+                            leadId: leadId,
+                          ),
+                          SizedBox(width: 8),
+                          _buildMobileInteractiveButton(
+                            icon: Icons.edit,
+                            onPressed: () => _editLead(lead),
+                            tooltip: 'Edit',
+                            leadId: leadId,
+                          ),
+                          SizedBox(width: 8),
+                          _buildMobileInteractiveButton(
+                            icon: Icons.delete,
+                            onPressed: () => _deleteLead(lead),
+                            tooltip: 'Delete',
+                            leadId: leadId,
+                            isDestructive: true,
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -1842,6 +1969,121 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           ],
         );
       },
+    );
+  }
+
+  void _viewLeadDetails(Map<String, dynamic> lead) {
+    // TODO: Implement detailed view with modal or navigation
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Lead Details: ${lead['project_name']}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Client: ${lead['client_name']}'),
+              Text('Project: ${lead['project_name']}'),
+              Text('Location: ${lead['project_location']}'),
+              Text('Area: ${lead['aluminium_area']?.toStringAsFixed(1) ?? '0.0'} sqm'),
+              Text('Weight: ${lead['ms_weight']?.toStringAsFixed(1) ?? '0.0'} kg'),
+              Text('Rate: ₹${lead['rate_sqm']?.toStringAsFixed(0) ?? '0'}'),
+              Text('Total: ₹${_totalAmounts[lead['lead_id'].toString()]?.toStringAsFixed(0) ?? '0'}'),
+              Text('Status: ${_getLeadStatus(lead)}'),
+              Text('Date: ${_formatDate(lead['date'])}'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _editLead(lead);
+              },
+              child: const Text('Edit'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildInteractiveIconButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+    required String tooltip,
+    required String leadId,
+    bool isDestructive = false,
+  }) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: AnimatedContainer(
+        duration: Duration(milliseconds: 150),
+        decoration: BoxDecoration(
+          color: _hoveredButtons['$leadId-$tooltip'] == true
+              ? (isDestructive ? Colors.red.withValues(alpha: 0.1) : Colors.blue.withValues(alpha: 0.1))
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: IconButton(
+          icon: Icon(
+            icon,
+            color: _hoveredButtons['$leadId-$tooltip'] == true
+                ? (isDestructive ? Colors.red[700] : Colors.blue[700])
+                : (isDestructive ? Colors.red[600] : Colors.grey[600]),
+            size: 20,
+          ),
+          onPressed: onPressed,
+          tooltip: tooltip,
+          padding: EdgeInsets.all(8),
+          constraints: BoxConstraints(minWidth: 36, minHeight: 36),
+          onHover: (isHovered) {
+            setState(() {
+              _hoveredButtons['$leadId-$tooltip'] = isHovered;
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileInteractiveButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+    required String tooltip,
+    required String leadId,
+    bool isDestructive = false,
+  }) {
+    return AnimatedContainer(
+      duration: Duration(milliseconds: 150),
+      decoration: BoxDecoration(
+        color: _hoveredButtons['$leadId-$tooltip'] == true
+            ? (isDestructive ? Colors.red.withValues(alpha: 0.1) : Colors.blue.withValues(alpha: 0.1))
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: IconButton(
+        icon: Icon(
+          icon,
+          color: _hoveredButtons['$leadId-$tooltip'] == true
+              ? (isDestructive ? Colors.red[700] : Colors.blue[700])
+              : (isDestructive ? Colors.red[600] : Colors.grey[600]),
+          size: 18,
+        ),
+        onPressed: onPressed,
+        tooltip: tooltip,
+        padding: EdgeInsets.all(6),
+        constraints: BoxConstraints(minWidth: 32, minHeight: 32),
+        onHover: (isHovered) {
+          setState(() {
+            _hoveredButtons['$leadId-$tooltip'] = isHovered;
+          });
+        },
+      ),
     );
   }
 }
