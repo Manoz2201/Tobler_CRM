@@ -1445,192 +1445,201 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
               ),
               child: Row(
                 children: [
-                  Expanded(
-                    flex: 2,
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 12,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            lead['client_name'] ?? 'N/A',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                              color: _hoveredRows[leadId] == true
-                                  ? Colors.blue[700]
-                                  : Colors.grey[800],
-                            ),
-                            softWrap: true,
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                          ),
-                          Text(
-                            _formatDate(lead['date']),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: _hoveredRows[leadId] == true
-                                  ? Colors.blue[600]
-                                  : Colors.grey[600],
-                            ),
-                            softWrap: true,
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 1,
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 12,
-                      ),
-                      child: Text(
-                        lead['project_name'] ?? 'N/A',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w500,
-                          color: _hoveredRows[leadId] == true
-                              ? Colors.blue[700]
-                              : Colors.grey[800],
-                        ),
-                        softWrap: true,
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 2,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 1,
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 12,
-                      ),
-                      child: Text(
-                        _generateProjectId(leadId),
-                        style: TextStyle(
-                          fontWeight: FontWeight.w500,
-                          color: _hoveredRows[leadId] == true
-                              ? Colors.blue[700]
-                              : Colors.grey[800],
-                        ),
-                        softWrap: true,
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 2,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 1,
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 12,
-                      ),
-                      child: Text(
-                        lead['project_location'] ?? 'N/A',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w500,
-                          color: _hoveredRows[leadId] == true
-                              ? Colors.blue[700]
-                              : Colors.grey[800],
-                        ),
-                        softWrap: true,
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 2,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 1,
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 12,
-                      ),
-                      child: Text(
-                        '${lead['aluminium_area']?.toStringAsFixed(1) ?? '0.0'} sqm',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w500,
-                          color: _hoveredRows[leadId] == true
-                              ? Colors.blue[700]
-                              : Colors.grey[800],
-                        ),
-                        softWrap: true,
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 1,
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 12,
-                      ),
-                      child: Text(
-                        '${lead['ms_weight']?.toStringAsFixed(1) ?? '0.0'} kg',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w500,
-                          color: _hoveredRows[leadId] == true
-                              ? Colors.blue[700]
-                              : Colors.grey[800],
-                        ),
-                        softWrap: true,
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 1,
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 12,
-                      ),
-                      child: Text(
-                        '₹${lead['rate_sqm']?.toStringAsFixed(0) ?? '0'}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w500,
-                          color: _hoveredRows[leadId] == true
-                              ? Colors.blue[700]
-                              : Colors.grey[800],
-                        ),
-                        softWrap: true,
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 1,
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 12,
-                      ),
-                      child: Text(
-                        '₹${totalAmount.toStringAsFixed(0)}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w500,
-                          color: _hoveredRows[leadId] == true
-                              ? Colors.blue[700]
-                              : Colors.grey[800],
-                        ),
-                        softWrap: true,
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                    ),
-                  ),
+                                     Expanded(
+                     flex: 2,
+                     child: Container(
+                       padding: EdgeInsets.symmetric(
+                         horizontal: 4,
+                         vertical: 12,
+                       ),
+                       child: Column(
+                         crossAxisAlignment: CrossAxisAlignment.center,
+                         children: [
+                           Text(
+                             lead['client_name'] ?? 'N/A',
+                             style: TextStyle(
+                               fontWeight: FontWeight.bold,
+                               fontSize: 14,
+                               color: _hoveredRows[leadId] == true
+                                   ? Colors.blue[700]
+                                   : Colors.grey[800],
+                             ),
+                             softWrap: true,
+                             overflow: TextOverflow.ellipsis,
+                             maxLines: 1,
+                             textAlign: TextAlign.center,
+                           ),
+                           Text(
+                             _formatDate(lead['date']),
+                             style: TextStyle(
+                               fontSize: 12,
+                               color: _hoveredRows[leadId] == true
+                                   ? Colors.blue[600]
+                                   : Colors.grey[600],
+                             ),
+                             softWrap: true,
+                             overflow: TextOverflow.ellipsis,
+                             maxLines: 1,
+                             textAlign: TextAlign.center,
+                           ),
+                         ],
+                       ),
+                     ),
+                   ),
+                   Expanded(
+                     flex: 1,
+                     child: Container(
+                       padding: EdgeInsets.symmetric(
+                         horizontal: 4,
+                         vertical: 12,
+                       ),
+                       child: Text(
+                         lead['project_name'] ?? 'N/A',
+                         style: TextStyle(
+                           fontWeight: FontWeight.w500,
+                           color: _hoveredRows[leadId] == true
+                               ? Colors.blue[700]
+                               : Colors.grey[800],
+                         ),
+                         softWrap: true,
+                         overflow: TextOverflow.ellipsis,
+                         maxLines: 2,
+                         textAlign: TextAlign.center,
+                       ),
+                     ),
+                   ),
+                   Expanded(
+                     flex: 1,
+                     child: Container(
+                       padding: EdgeInsets.symmetric(
+                         horizontal: 4,
+                         vertical: 12,
+                       ),
+                       child: Text(
+                         _generateProjectId(leadId),
+                         style: TextStyle(
+                           fontWeight: FontWeight.w500,
+                           color: _hoveredRows[leadId] == true
+                               ? Colors.blue[700]
+                               : Colors.grey[800],
+                         ),
+                         softWrap: true,
+                         overflow: TextOverflow.ellipsis,
+                         maxLines: 2,
+                         textAlign: TextAlign.center,
+                       ),
+                     ),
+                   ),
+                   Expanded(
+                     flex: 1,
+                     child: Container(
+                       padding: EdgeInsets.symmetric(
+                         horizontal: 4,
+                         vertical: 12,
+                       ),
+                       child: Text(
+                         lead['project_location'] ?? 'N/A',
+                         style: TextStyle(
+                           fontWeight: FontWeight.w500,
+                           color: _hoveredRows[leadId] == true
+                               ? Colors.blue[700]
+                               : Colors.grey[800],
+                         ),
+                         softWrap: true,
+                         overflow: TextOverflow.ellipsis,
+                         maxLines: 2,
+                         textAlign: TextAlign.center,
+                       ),
+                     ),
+                   ),
+                   Expanded(
+                     flex: 1,
+                     child: Container(
+                       padding: EdgeInsets.symmetric(
+                         horizontal: 4,
+                         vertical: 12,
+                       ),
+                       child: Text(
+                         '${lead['aluminium_area']?.toStringAsFixed(1) ?? '0.0'} sqm',
+                         style: TextStyle(
+                           fontWeight: FontWeight.w500,
+                           color: _hoveredRows[leadId] == true
+                               ? Colors.blue[700]
+                               : Colors.grey[800],
+                         ),
+                         softWrap: true,
+                         overflow: TextOverflow.ellipsis,
+                         maxLines: 1,
+                         textAlign: TextAlign.center,
+                       ),
+                     ),
+                   ),
+                   Expanded(
+                     flex: 1,
+                     child: Container(
+                       padding: EdgeInsets.symmetric(
+                         horizontal: 4,
+                         vertical: 12,
+                       ),
+                       child: Text(
+                         '${lead['ms_weight']?.toStringAsFixed(1) ?? '0.0'} kg',
+                         style: TextStyle(
+                           fontWeight: FontWeight.w500,
+                           color: _hoveredRows[leadId] == true
+                               ? Colors.blue[700]
+                               : Colors.grey[800],
+                         ),
+                         softWrap: true,
+                         overflow: TextOverflow.ellipsis,
+                         maxLines: 1,
+                         textAlign: TextAlign.center,
+                       ),
+                     ),
+                   ),
+                   Expanded(
+                     flex: 1,
+                     child: Container(
+                       padding: EdgeInsets.symmetric(
+                         horizontal: 4,
+                         vertical: 12,
+                       ),
+                       child: Text(
+                         '₹${lead['rate_sqm']?.toStringAsFixed(0) ?? '0'}',
+                         style: TextStyle(
+                           fontWeight: FontWeight.w500,
+                           color: _hoveredRows[leadId] == true
+                               ? Colors.blue[700]
+                               : Colors.grey[800],
+                         ),
+                         softWrap: true,
+                         overflow: TextOverflow.ellipsis,
+                         maxLines: 1,
+                         textAlign: TextAlign.center,
+                       ),
+                     ),
+                   ),
+                   Expanded(
+                     flex: 1,
+                     child: Container(
+                       padding: EdgeInsets.symmetric(
+                         horizontal: 4,
+                         vertical: 12,
+                       ),
+                       child: Text(
+                         '₹${totalAmount.toStringAsFixed(0)}',
+                         style: TextStyle(
+                           fontWeight: FontWeight.w500,
+                           color: _hoveredRows[leadId] == true
+                               ? Colors.blue[700]
+                               : Colors.grey[800],
+                         ),
+                         softWrap: true,
+                         overflow: TextOverflow.ellipsis,
+                         maxLines: 1,
+                         textAlign: TextAlign.center,
+                       ),
+                     ),
+                   ),
                   Expanded(
                     flex: 1,
                     child: Container(
@@ -2068,7 +2077,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     // Determine color based on action type
     Color getActionColor() {
       if (isDestructive) return Colors.red;
-      
+
       switch (tooltip.toLowerCase()) {
         case 'view details':
           return Colors.blue;
@@ -2084,7 +2093,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     }
 
     final actionColor = getActionColor();
-    
+
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: AnimatedContainer(
@@ -2130,7 +2139,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     // Determine color based on action type
     Color getActionColor() {
       if (isDestructive) return Colors.red;
-      
+
       switch (tooltip.toLowerCase()) {
         case 'view':
           return Colors.blue;
@@ -2144,7 +2153,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     }
 
     final actionColor = getActionColor();
-    
+
     return AnimatedContainer(
       duration: Duration(milliseconds: 150),
       decoration: BoxDecoration(
