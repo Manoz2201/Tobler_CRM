@@ -1116,145 +1116,155 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                 topRight: Radius.circular(12),
               ),
             ),
-            child: Row(
-              children: [
-                Checkbox(
-                  value: _selectAll,
-                  onChanged: (value) => _toggleSelectAll(),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 1,
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                    child: Text(
-                      'Lead ID',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                      softWrap: true,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 1,
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                    child: Text(
-                      'Project',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                      softWrap: true,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 1,
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                    child: Text(
-                      'Client',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                      softWrap: true,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 1,
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                    child: Text(
-                      'Location',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                      softWrap: true,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 1,
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                    child: Text(
-                      'Aluminium Area',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                      softWrap: true,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 1,
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                    child: Text(
-                      'MS Weight',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                      softWrap: true,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 1,
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                    child: Text(
-                      'Rate sq/m',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                      softWrap: true,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 1,
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                    child: Text(
-                      'Total + GST',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                      softWrap: true,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 1,
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                    child: Text(
-                      'Status',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                      softWrap: true,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                    child: Text(
-                      'Actions',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                      softWrap: true,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+                         child: Row(
+               children: [
+                 Checkbox(
+                   value: _selectAll,
+                   onChanged: (value) => _toggleSelectAll(),
+                 ),
+                 const SizedBox(width: 8),
+                 Expanded(
+                   flex: 1,
+                   child: Container(
+                     padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                     child: Text(
+                       'Lead ID',
+                       style: TextStyle(fontWeight: FontWeight.bold),
+                       textAlign: TextAlign.center,
+                       softWrap: true,
+                       overflow: TextOverflow.ellipsis,
+                       maxLines: 1,
+                     ),
+                   ),
+                 ),
+                 Expanded(
+                   flex: 1,
+                   child: Container(
+                     padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                     child: Text(
+                       'Project',
+                       style: TextStyle(fontWeight: FontWeight.bold),
+                       textAlign: TextAlign.center,
+                       softWrap: true,
+                       overflow: TextOverflow.ellipsis,
+                       maxLines: 1,
+                     ),
+                   ),
+                 ),
+                 Expanded(
+                   flex: 1,
+                   child: Container(
+                     padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                     child: Text(
+                       'Client',
+                       style: TextStyle(fontWeight: FontWeight.bold),
+                       textAlign: TextAlign.center,
+                       softWrap: true,
+                       overflow: TextOverflow.ellipsis,
+                       maxLines: 1,
+                     ),
+                   ),
+                 ),
+                 Expanded(
+                   flex: 1,
+                   child: Container(
+                     padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                     child: Text(
+                       'Location',
+                       style: TextStyle(fontWeight: FontWeight.bold),
+                       textAlign: TextAlign.center,
+                       softWrap: true,
+                       overflow: TextOverflow.ellipsis,
+                       maxLines: 1,
+                     ),
+                   ),
+                 ),
+                 Expanded(
+                   flex: 1,
+                   child: Container(
+                     padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                     child: Text(
+                       'Aluminium Area',
+                       style: TextStyle(fontWeight: FontWeight.bold),
+                       textAlign: TextAlign.center,
+                       softWrap: true,
+                       overflow: TextOverflow.ellipsis,
+                       maxLines: 1,
+                     ),
+                   ),
+                 ),
+                 Expanded(
+                   flex: 1,
+                   child: Container(
+                     padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                     child: Text(
+                       'MS Weight',
+                       style: TextStyle(fontWeight: FontWeight.bold),
+                       textAlign: TextAlign.center,
+                       softWrap: true,
+                       overflow: TextOverflow.ellipsis,
+                       maxLines: 1,
+                     ),
+                   ),
+                 ),
+                 Expanded(
+                   flex: 1,
+                   child: Container(
+                     padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                     child: Text(
+                       'Rate sq/m',
+                       style: TextStyle(fontWeight: FontWeight.bold),
+                       textAlign: TextAlign.center,
+                       softWrap: true,
+                       overflow: TextOverflow.ellipsis,
+                       maxLines: 1,
+                     ),
+                   ),
+                 ),
+                 Expanded(
+                   flex: 1,
+                   child: Container(
+                     padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                     child: Text(
+                       'Total + GST',
+                       style: TextStyle(fontWeight: FontWeight.bold),
+                       textAlign: TextAlign.center,
+                       softWrap: true,
+                       overflow: TextOverflow.ellipsis,
+                       maxLines: 1,
+                     ),
+                   ),
+                 ),
+                 Expanded(
+                   flex: 1,
+                   child: Container(
+                     padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                     child: Text(
+                       'Status',
+                       style: TextStyle(fontWeight: FontWeight.bold),
+                       textAlign: TextAlign.center,
+                       softWrap: true,
+                       overflow: TextOverflow.ellipsis,
+                       maxLines: 1,
+                     ),
+                   ),
+                 ),
+                 Expanded(
+                   flex: 2,
+                   child: Container(
+                     padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                     child: Text(
+                       'Actions',
+                       style: TextStyle(fontWeight: FontWeight.bold),
+                       textAlign: TextAlign.center,
+                       softWrap: true,
+                       overflow: TextOverflow.ellipsis,
+                       maxLines: 1,
+                     ),
+                   ),
+                 ),
+               ],
+             ),
           ),
           // Table Body
           Expanded(
