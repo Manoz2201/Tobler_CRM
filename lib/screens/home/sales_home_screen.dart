@@ -544,7 +544,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
 
         // Determine dynamic status based on time and Supabase table checks
         String dynamicStatus = 'Proposal Progress'; // Default status
-        
+
         // Check if lead is approved (found in admin_response table)
         if (adminResponseData?['status'] == 'Approved') {
           dynamicStatus = 'Approved';
@@ -552,12 +552,12 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           // Check if lead is within 12 hours of creation
           final createdAt = lead['created_at'];
           if (createdAt != null) {
-            final DateTime leadDate = createdAt is String 
-                ? DateTime.parse(createdAt) 
+            final DateTime leadDate = createdAt is String
+                ? DateTime.parse(createdAt)
                 : createdAt as DateTime;
             final DateTime now = DateTime.now();
             final Duration difference = now.difference(leadDate);
-            
+
             if (difference.inHours <= 12) {
               dynamicStatus = 'New';
             } else {

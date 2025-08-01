@@ -242,13 +242,13 @@ class LeadUtils {
   static int getStatusColor(String status) {
     switch (status) {
       case 'New':
-        return 0xFF20B2AA; // Sea green
+        return 0xFF4CAF50; // Vibrant green (matching New card icon)
       case 'Proposal Progress':
-        return 0xFFFFF8DC; // Pale yellow
+        return 0xFFFF9800; // Vibrant orange (matching Proposal Progress card icon)
       case 'Waiting for Approval':
-        return 0xFF800080; // Purple
+        return 0xFF9C27B0; // Vibrant purple (matching Waiting Approval card icon)
       case 'Approved':
-        return 0xFF228B22; // Green
+        return 0xFF4CAF50; // Vibrant green (matching Approved card icon)
       default:
         return 0xFF9E9E9E; // Grey
     }
