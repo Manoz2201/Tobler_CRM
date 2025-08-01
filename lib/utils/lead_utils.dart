@@ -210,29 +210,45 @@ class LeadUtils {
 
   /// Gets the status of a lead based on its data
   static String getLeadStatus(Map<String, dynamic> lead) {
+    // Check if lead is approved (found in admin_response table)
     if (lead['approved'] == true) {
       return 'Approved';
     }
-    if (lead['rate_sqm'] != null && lead['rate_sqm'] > 0) {
+    
+    // Check if lead has proposal input (found in proposal_input table)
+    if (lead['aluminium_area'] != null && lead['aluminium_area'] > 0) {
       return 'Waiting for Approval';
     }
-    if (lead['aluminium_area'] != null && lead['aluminium_area'] > 0) {
-      return 'Proposal Progress';
+    
+    // Check if lead is within 12 hours of creation
+    final createdAt = lead['date'];
+    if (createdAt != null) {
+      final DateTime leadDate = createdAt is String 
+          ? DateTime.parse(createdAt) 
+          : createdAt as DateTime;
+      final DateTime now = DateTime.now();
+      final Duration difference = now.difference(leadDate);
+      
+      if (difference.inHours <= 12) {
+        return 'New';
+      }
     }
-    return 'New/Progress';
+    
+    // Default status
+    return 'Proposal Progress';
   }
 
   /// Gets the color for a lead status
   static int getStatusColor(String status) {
     switch (status) {
-      case 'Approved':
-        return 0xFF4CAF50; // Green
-      case 'Waiting for Approval':
-        return 0xFFFF9800; // Orange
+      case 'New':
+        return 0xFF20B2AA; // Sea green
       case 'Proposal Progress':
-        return 0xFF2196F3; // Blue
-      case 'New/Progress':
-        return 0xFF9E9E9E; // Grey
+        return 0xFFFFF8DC; // Pale yellow
+      case 'Waiting for Approval':
+        return 0xFF800080; // Purple
+      case 'Approved':
+        return 0xFF228B22; // Green
       default:
         return 0xFF9E9E9E; // Grey
     }
