@@ -14,6 +14,7 @@ import 'package:crm_app/screens/home/developer_home_screen.dart'
     show UserManagementPage, RoleManagementPage;
 import 'package:intl/intl.dart';
 import '../settings/currency_settings_screen.dart';
+import '../../utils/navigation_utils.dart';
 
 // Helper function to copy text to clipboard
 Future<void> copyToClipboard(BuildContext context, String text) async {
@@ -54,17 +55,10 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
   final ScrollController _scrollbarController = ScrollController();
 
-  final List<_NavItem> _navItems = const [
-    _NavItem('Dashboard', Icons.dashboard),
-    _NavItem('Lead', Icons.leaderboard),
-    _NavItem('User Management', Icons.group),
-    _NavItem('Role Management', Icons.security),
-    _NavItem('AI', Icons.auto_awesome),
-    _NavItem('Settings', Icons.settings),
-    _NavItem('Analytics', Icons.bar_chart),
-    _NavItem('Chat', Icons.chat),
-    _NavItem('Profile', Icons.person),
-  ];
+  List<NavItem> get _navItems {
+    // Admin users get all navigation items including Leads Management
+    return NavigationUtils.getNavigationItemsForRole('admin');
+  }
 
   late final List<Widget> _pages = <Widget>[
     AdminDashboardPage(), // Replace the simple text with a proper dashboard page
@@ -150,7 +144,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   }
 
   Widget _buildMobileNavItem(
-    _NavItem item,
+    NavItem item,
     int index,
     bool isSelected,
     double width,
@@ -428,11 +422,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   }
 }
 
-class _NavItem {
-  final String label;
-  final IconData icon;
-  const _NavItem(this.label, this.icon);
-}
+// Using NavItem from navigation_utils.dart instead of _NavItem
 
 class _AdminLeadsPage extends StatefulWidget {
   @override

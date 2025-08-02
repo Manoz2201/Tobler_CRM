@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
+import '../../utils/navigation_utils.dart';
 
 class SalesHomeScreen extends StatefulWidget {
   final String currentUserType;
@@ -29,15 +30,10 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
   int _selectedIndex = 0;
   final Map<int, bool> _hoveredItems = {};
 
-  final List<_NavItem> _navItems = const [
-    _NavItem('Dashboard', Icons.dashboard),
-    _NavItem('Leads', Icons.leaderboard),
-    _NavItem('Customers', Icons.people),
-    _NavItem('Tasks', Icons.task),
-    _NavItem('Reports', Icons.analytics),
-    _NavItem('Settings', Icons.settings),
-    _NavItem('Profile', Icons.person),
-  ];
+  List<NavItem> get _navItems {
+    // Sales users get Leads Management navigation item
+    return NavigationUtils.getNavigationItemsForRole('sales');
+  }
 
   late final List<Widget> _pages = <Widget>[
     SalesDashboardPage(
@@ -3174,12 +3170,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
   }
 }
 
-class _NavItem {
-  final String label;
-  final IconData icon;
-
-  const _NavItem(this.label, this.icon);
-}
+// Using NavItem from navigation_utils.dart instead of _NavItem
 
 class AddLeadDialog extends StatefulWidget {
   final String? currentUserId;
