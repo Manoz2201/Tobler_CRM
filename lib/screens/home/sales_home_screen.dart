@@ -2111,10 +2111,10 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         leadContactsData = [];
       }
 
-      // 3. Fetch lead_attachments table data
+      // 3. Fetch lead_attachment table data
       try {
         leadAttachmentsData = await client
-            .from('lead_attachments')
+            .from('lead_attachment')
             .select('*')
             .eq('lead_id', leadId);
         debugPrint(
@@ -2509,8 +2509,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
 
         // Sales Person Information Section
         _buildInfoSectionCard('Sales Person Information', [
-          _buildInfoRow('Name', 'manik'),
-          _buildInfoRow('Email', 'sales@gmail.com'),
+          _buildInfoRow('Name', _currentUsername ?? 'N/A'),
+          _buildInfoRow('Email', Supabase.instance.client.auth.currentUser?.email ?? 'N/A'),
         ]),
         SizedBox(height: 16),
 
@@ -2536,10 +2536,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             leadAttachmentsData
                 .map(
                   (attachment) => _buildInfoRow(
-                    'File',
-                    attachment['file_name'] ??
-                        attachment['file_link'] ??
-                        'Attachment',
+                    attachment['file_name'] ?? 'Attachment',
+                    attachment['file_link'] ?? 'No link available',
                   ),
                 )
                 .toList(),
@@ -2568,8 +2566,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             proposalFileData
                 .map(
                   (file) => _buildInfoRow(
-                    'File',
-                    file['file_name'] ?? file['file_link'] ?? 'Proposal File',
+                    file['file_name'] ?? 'Proposal File',
+                    file['file_link'] ?? 'No link available',
                   ),
                 )
                 .toList(),
@@ -2685,9 +2683,10 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
 
   Widget _buildInfoRow(String label, String value) {
     // Check if this is a file link (contains http or https)
-    final bool isFileLink = value.toLowerCase().contains('http://') || 
-                           value.toLowerCase().contains('https://');
-    
+    final bool isFileLink =
+        value.toLowerCase().contains('http://') ||
+        value.toLowerCase().contains('https://');
+
     return Padding(
       padding: EdgeInsets.only(bottom: 8),
       child: Row(
@@ -2712,7 +2711,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                   child: Text(
                     value.isEmpty ? '(empty value)' : value,
                     style: TextStyle(
-                      fontSize: 14, 
+                      fontSize: 14,
                       color: isFileLink ? Colors.blue[600] : Colors.grey[800],
                       decoration: isFileLink ? TextDecoration.underline : null,
                     ),
@@ -2732,9 +2731,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Icon(
-                        Icons.open_in_new, 
-                        size: 12, 
-                        color: Colors.blue[600]
+                        Icons.open_in_new,
+                        size: 12,
+                        color: Colors.blue[600],
                       ),
                     ),
                   ),
@@ -2750,11 +2749,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                       color: Colors.grey[300],
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: Icon(
-                      Icons.copy, 
-                      size: 12, 
-                      color: Colors.grey[600]
-                    ),
+                    child: Icon(Icons.copy, size: 12, color: Colors.grey[600]),
                   ),
                 ),
               ],
