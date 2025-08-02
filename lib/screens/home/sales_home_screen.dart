@@ -2398,76 +2398,93 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
   }
 
   Widget _buildModernHeader(Map<String, dynamic> leadsData) {
-    return Container(
-      padding: EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 20,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.blue[600]!, Colors.blue[700]!],
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: AnimatedContainer(
+        duration: Duration(milliseconds: 200),
+        padding: EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 20,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(5),
+            onTap: () {
+              HapticFeedback.lightImpact();
+            },
+            child: Padding(
+              padding: EdgeInsets.all(4),
+              child: Row(
+                children: [
+                  AnimatedContainer(
+                    duration: Duration(milliseconds: 200),
+                    padding: EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.blue[600]!, Colors.blue[700]!],
+                      ),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Icon(Icons.leaderboard, color: Colors.white, size: 32),
+                  ),
+                  SizedBox(width: 20),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          leadsData['project_name'] ?? 'N/A',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[800],
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          '${leadsData['client_name'] ?? 'N/A'} • ${leadsData['project_location'] ?? 'N/A'}',
+                          style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                        ),
+                        SizedBox(height: 8),
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: _getStatusColor(
+                              _getLeadStatus(leadsData),
+                            ).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(5),
+                            border: Border.all(
+                              color: _getStatusColor(
+                                _getLeadStatus(leadsData),
+                              ).withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Text(
+                            _getLeadStatus(leadsData),
+                            style: TextStyle(
+                              color: _getStatusColor(_getLeadStatus(leadsData)),
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(Icons.leaderboard, color: Colors.white, size: 32),
-          ),
-          SizedBox(width: 20),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  leadsData['project_name'] ?? 'N/A',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[800],
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  '${leadsData['client_name'] ?? 'N/A'} • ${leadsData['project_location'] ?? 'N/A'}',
-                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                ),
-                SizedBox(height: 8),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: _getStatusColor(
-                      _getLeadStatus(leadsData),
-                    ).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: _getStatusColor(
-                        _getLeadStatus(leadsData),
-                      ).withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Text(
-                    _getLeadStatus(leadsData),
-                    style: TextStyle(
-                      color: _getStatusColor(_getLeadStatus(leadsData)),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -2808,190 +2825,259 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     Color color,
     List<Widget> children,
   ) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 15,
-            offset: Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [color.withValues(alpha: 0.1), color.withValues(alpha: 0.2)],
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(icon, color: color, size: 24),
-                ),
-                SizedBox(width: 16),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[800],
-                    ),
-                  ),
-                ),
-              ],
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: AnimatedContainer(
+        duration: Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 15,
+              offset: Offset(0, 5),
             ),
-            SizedBox(height: 20),
-            ...children,
           ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(5),
+            onTap: () {
+              // Add subtle feedback
+              HapticFeedback.lightImpact();
+            },
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      AnimatedContainer(
+                        duration: Duration(milliseconds: 200),
+                        padding: EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              color.withValues(alpha: 0.1),
+                              color.withValues(alpha: 0.2),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: Icon(icon, color: color, size: 24),
+                      ),
+                      SizedBox(width: 16),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[800],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 20),
+                  ...children,
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
   }
 
   Widget _buildModernInfoRow(String label, String value) {
-    return Container(
-      margin: EdgeInsets.only(bottom: 16),
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.grey[200]!,
-          width: 1,
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: AnimatedContainer(
+        duration: Duration(milliseconds: 150),
+        margin: EdgeInsets.only(bottom: 16),
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey[50],
+          borderRadius: BorderRadius.circular(5),
+          border: Border.all(color: Colors.grey[200]!, width: 1),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              color: Colors.grey[700],
-              fontSize: 14,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(5),
+            onTap: () {
+              HapticFeedback.lightImpact();
+            },
+            child: Padding(
+              padding: EdgeInsets.all(4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[700],
+                      fontSize: 14,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    value,
+                    style: TextStyle(
+                      color: Colors.grey[800],
+                      fontSize: 16,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              color: Colors.grey[800],
-              fontSize: 16,
-              height: 1.4,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildModernFileRow(String fileName, String fileLink) {
-    return Container(
-      margin: EdgeInsets.only(bottom: 16),
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.grey[200]!,
-          width: 1,
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: AnimatedContainer(
+        duration: Duration(milliseconds: 150),
+        margin: EdgeInsets.only(bottom: 16),
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey[50],
+          borderRadius: BorderRadius.circular(5),
+          border: Border.all(color: Colors.grey[200]!, width: 1),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.file_present,
-                color: Colors.blue[600],
-                size: 20,
-              ),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  fileName,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[800],
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 8),
-          Container(
-            padding: EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: Colors.blue[200]!,
-                width: 1,
-              ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    fileLink,
-                    style: TextStyle(
-                      color: Colors.blue[600],
-                      fontSize: 12,
-                      fontFamily: 'monospace',
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                SizedBox(width: 8),
-                Row(
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.blue[50],
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: IconButton(
-                        icon: Icon(Icons.open_in_new, size: 16),
-                        onPressed: () => _openFileLink(fileLink),
-                        tooltip: 'Open in browser',
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(5),
+            onTap: () {
+              HapticFeedback.lightImpact();
+            },
+            child: Padding(
+              padding: EdgeInsets.all(4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.file_present,
                         color: Colors.blue[600],
-                        padding: EdgeInsets.all(8),
-                        constraints: BoxConstraints(minWidth: 32, minHeight: 32),
+                        size: 20,
                       ),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          fileName,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[800],
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  Container(
+                    padding: EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(5),
+                      border: Border.all(color: Colors.blue[200]!, width: 1),
                     ),
-                    SizedBox(width: 4),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.grey[50],
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: IconButton(
-                        icon: Icon(Icons.copy, size: 16),
-                        onPressed: () => _copyFileLink(fileLink),
-                        tooltip: 'Copy link',
-                        color: Colors.grey[600],
-                        padding: EdgeInsets.all(8),
-                        constraints: BoxConstraints(minWidth: 32, minHeight: 32),
-                      ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            fileLink,
+                            style: TextStyle(
+                              color: Colors.blue[600],
+                              fontSize: 12,
+                              fontFamily: 'monospace',
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        Row(
+                          children: [
+                            MouseRegion(
+                              cursor: SystemMouseCursors.click,
+                              child: AnimatedContainer(
+                                duration: Duration(milliseconds: 150),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue[50],
+                                  borderRadius: BorderRadius.circular(5),
+                                ),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(5),
+                                    onTap: () => _openFileLink(fileLink),
+                                    child: IconButton(
+                                      icon: Icon(Icons.open_in_new, size: 16),
+                                      onPressed: () => _openFileLink(fileLink),
+                                      tooltip: 'Open in browser',
+                                      color: Colors.blue[600],
+                                      padding: EdgeInsets.all(8),
+                                      constraints: BoxConstraints(
+                                        minWidth: 32,
+                                        minHeight: 32,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 4),
+                            MouseRegion(
+                              cursor: SystemMouseCursors.click,
+                              child: AnimatedContainer(
+                                duration: Duration(milliseconds: 150),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[50],
+                                  borderRadius: BorderRadius.circular(5),
+                                ),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(5),
+                                    onTap: () => _copyFileLink(fileLink),
+                                    child: IconButton(
+                                      icon: Icon(Icons.copy, size: 16),
+                                      onPressed: () => _copyFileLink(fileLink),
+                                      tooltip: 'Copy link',
+                                      color: Colors.grey[600],
+                                      padding: EdgeInsets.all(8),
+                                      constraints: BoxConstraints(
+                                        minWidth: 32,
+                                        minHeight: 32,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
