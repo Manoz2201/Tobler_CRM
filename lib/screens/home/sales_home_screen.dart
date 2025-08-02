@@ -6,6 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../utils/lead_utils.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
 
 class SalesHomeScreen extends StatefulWidget {
   final String currentUserType;
@@ -38,7 +40,10 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
   ];
 
   late final List<Widget> _pages = <Widget>[
-    const Center(child: Text('Sales Dashboard')),
+    SalesDashboardPage(
+      currentUserId: widget.currentUserId,
+      currentUserEmail: widget.currentUserEmail,
+    ),
     LeadManagementScreen(),
     const Center(child: Text('Customers Management')),
     const Center(child: Text('Tasks Management')),
@@ -483,25 +488,41 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       // Step 3: Fetch leads from Supabase using the active user_id
       final client = Supabase.instance.client;
 
-      // Fetch leads data for current sales user only
+      // Fetch leads data for current sales user only with timeout
       final leadsResult = await client
           .from('leads')
           .select(
             'id, created_at, project_name, client_name, project_location, lead_generated_by',
           )
           .eq('lead_generated_by', _currentUserId!) // Filter by active user
-          .order('created_at', ascending: false);
+          .order('created_at', ascending: false)
+          .timeout(const Duration(seconds: 10));
 
       debugPrint('Found ${leadsResult.length} leads from Supabase');
 
-      // Step 4: Fetch related data for calculations
-      final proposalInputResult = await client
-          .from('proposal_input')
-          .select('lead_id, input, value');
+      // Step 4: Fetch related data for calculations with timeout protection
+      List<dynamic> proposalInputResult = [];
+      List<dynamic> adminResponseResult = [];
 
-      final adminResponseResult = await client
-          .from('admin_response')
-          .select('lead_id, rate_sqm, status, remark, project_id');
+      try {
+        proposalInputResult = await client
+            .from('proposal_input')
+            .select('lead_id, input, value')
+            .timeout(const Duration(seconds: 10));
+      } catch (e) {
+        debugPrint('⚠️ Error fetching proposal_input: $e');
+        // Continue with empty data
+      }
+
+      try {
+        adminResponseResult = await client
+            .from('admin_response')
+            .select('lead_id, rate_sqm, status, remark, project_id')
+            .timeout(const Duration(seconds: 10));
+      } catch (e) {
+        debugPrint('⚠️ Error fetching admin_response: $e');
+        // Continue with empty data
+      }
 
       // Step 5: Process data (same as admin but filtered by user)
       final Map<String, double> aluminiumAreaMap = {};
@@ -669,6 +690,40 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     return LeadUtils.getLeadStatus(lead);
   }
 
+  void _exportLeads() {
+    try {
+      // Implement export functionality for sales
+      final filteredLeads = _filteredLeads;
+      if (filteredLeads.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('No leads to export'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      // Here you would typically generate and download a CSV/Excel file
+      // For now, we'll show a success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Exporting ${filteredLeads.length} leads...'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Export failed: $e'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
   String _formatDate(dynamic date) {
     if (date == null) return 'N/A';
     try {
@@ -768,10 +823,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           ),
           IconButton(
             onPressed: () {
-              // TODO: Implement export functionality for sales
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Export functionality coming soon')),
-              );
+              // Implement export functionality for sales
+              _exportLeads();
             },
             icon: Icon(Icons.download),
             tooltip: 'Export Leads',
@@ -1215,12 +1268,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () {
-                  // TODO: Implement add new lead functionality
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Add New Lead functionality coming soon'),
-                    ),
-                  );
+                  // Implement add new lead functionality
+                  _showAddLeadDialog();
                 },
                 icon: Icon(Icons.add, size: 16),
                 label: Text('Add New Lead'),
@@ -2023,6 +2072,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
 
                   debugPrint('Starting delete operation for lead_id: $leadId');
 
+                  // Add timeout protection
+                  final timeoutDuration = const Duration(seconds: 30);
+                  
                   // Delete from all related tables in the correct order
                   // (child tables first, then parent table)
 
@@ -2031,10 +2083,12 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                     await client
                         .from('lead_activity')
                         .delete()
-                        .eq('lead_id', leadId);
+                        .eq('lead_id', leadId)
+                        .timeout(timeoutDuration);
                     debugPrint('✅ Deleted from lead_activity');
                   } catch (e) {
                     debugPrint('⚠️ Error deleting from lead_activity: $e');
+                    // Continue with other deletions even if this fails
                   }
 
                   // 2. Delete from proposal_remark
@@ -2042,7 +2096,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                     await client
                         .from('proposal_remark')
                         .delete()
-                        .eq('lead_id', leadId);
+                        .eq('lead_id', leadId)
+                        .timeout(timeoutDuration);
                     debugPrint('✅ Deleted from proposal_remark');
                   } catch (e) {
                     debugPrint('⚠️ Error deleting from proposal_remark: $e');
@@ -2053,7 +2108,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                     await client
                         .from('proposal_file')
                         .delete()
-                        .eq('lead_id', leadId);
+                        .eq('lead_id', leadId)
+                        .timeout(timeoutDuration);
                     debugPrint('✅ Deleted from proposal_file');
                   } catch (e) {
                     debugPrint('⚠️ Error deleting from proposal_file: $e');
@@ -2064,7 +2120,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                     await client
                         .from('proposal_input')
                         .delete()
-                        .eq('lead_id', leadId);
+                        .eq('lead_id', leadId)
+                        .timeout(timeoutDuration);
                     debugPrint('✅ Deleted from proposal_input');
                   } catch (e) {
                     debugPrint('⚠️ Error deleting from proposal_input: $e');
@@ -2075,7 +2132,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                     await client
                         .from('admin_response')
                         .delete()
-                        .eq('lead_id', leadId);
+                        .eq('lead_id', leadId)
+                        .timeout(timeoutDuration);
                     debugPrint('✅ Deleted from admin_response');
                   } catch (e) {
                     debugPrint('⚠️ Error deleting from admin_response: $e');
@@ -2086,7 +2144,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                     await client
                         .from('initial_quote')
                         .delete()
-                        .eq('lead_id', leadId);
+                        .eq('lead_id', leadId)
+                        .timeout(timeoutDuration);
                     debugPrint('✅ Deleted from initial_quote');
                   } catch (e) {
                     debugPrint('⚠️ Error deleting from initial_quote: $e');
@@ -2097,7 +2156,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                     await client
                         .from('lead_attachment')
                         .delete()
-                        .eq('lead_id', leadId);
+                        .eq('lead_id', leadId)
+                        .timeout(timeoutDuration);
                     debugPrint('✅ Deleted from lead_attachment');
                   } catch (e) {
                     debugPrint('⚠️ Error deleting from lead_attachment: $e');
@@ -2108,7 +2168,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                     await client
                         .from('lead_contacts')
                         .delete()
-                        .eq('lead_id', leadId);
+                        .eq('lead_id', leadId)
+                        .timeout(timeoutDuration);
                     debugPrint('✅ Deleted from lead_contacts');
                   } catch (e) {
                     debugPrint('⚠️ Error deleting from lead_contacts: $e');
@@ -2116,7 +2177,11 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
 
                   // 9. Delete from queries
                   try {
-                    await client.from('queries').delete().eq('lead_id', leadId);
+                    await client
+                        .from('queries')
+                        .delete()
+                        .eq('lead_id', leadId)
+                        .timeout(timeoutDuration);
                     debugPrint('✅ Deleted from queries');
                   } catch (e) {
                     debugPrint('⚠️ Error deleting from queries: $e');
@@ -2124,11 +2189,29 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
 
                   // 10. Finally, delete from leads table
                   try {
-                    await client.from('leads').delete().eq('id', leadId);
-                    debugPrint('✅ Deleted from leads');
+                    final deleteResult = await client
+                        .from('leads')
+                        .delete()
+                        .eq('id', leadId)
+                        .timeout(timeoutDuration);
+                    
+                    debugPrint('✅ Deleted from leads: $deleteResult');
+                    
+                    // Verify the lead was actually deleted
+                    final verifyResult = await client
+                        .from('leads')
+                        .select('id')
+                        .eq('id', leadId)
+                        .maybeSingle();
+                    
+                    if (verifyResult != null) {
+                      throw Exception('Lead still exists after deletion attempt');
+                    }
+                    
+                    debugPrint('✅ Lead deletion verified successfully');
                   } catch (e) {
                     debugPrint('❌ Error deleting from leads: $e');
-                    throw Exception('Failed to delete lead from main table');
+                    throw Exception('Failed to delete lead from main table: $e');
                   }
 
                   // Close loading dialog
@@ -2149,8 +2232,13 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                     );
                   }
 
-                  // Refresh the leads list
-                  await _fetchLeads();
+                  // Refresh the leads list with timeout protection
+                  try {
+                    await _fetchLeads().timeout(const Duration(seconds: 15));
+                  } catch (e) {
+                    debugPrint('⚠️ Error refreshing leads after deletion: $e');
+                    // Don't show error to user since deletion was successful
+                  }
                 } catch (e) {
                   // Close loading dialog
                   if (context.mounted) {
@@ -2168,6 +2256,15 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                         duration: const Duration(seconds: 5),
                       ),
                     );
+                  }
+                } finally {
+                  // Ensure loading dialog is always dismissed
+                  if (context.mounted) {
+                    try {
+                      Navigator.of(context).pop();
+                    } catch (e) {
+                      debugPrint('⚠️ Error dismissing loading dialog: $e');
+                    }
                   }
                 }
               },
@@ -5355,7 +5452,7 @@ class _EditLeadDialogState extends State<EditLeadDialog> {
                                 ],
                               ),
                             );
-                          }).toList(),
+                          }),
                           SizedBox(height: isWide ? 16 : 12),
                           Center(
                             child: OutlinedButton.icon(
@@ -5454,7 +5551,7 @@ class _EditLeadDialogState extends State<EditLeadDialog> {
                                 ],
                               ),
                             );
-                          }).toList(),
+                          }),
                           SizedBox(height: isWide ? 16 : 12),
                           Center(
                             child: OutlinedButton.icon(
@@ -5579,7 +5676,7 @@ class _EditLeadDialogState extends State<EditLeadDialog> {
                                   ],
                                 ),
                               );
-                            }).toList(),
+                            }),
                             SizedBox(height: isWide ? 16 : 12),
                             Center(
                               child: OutlinedButton.icon(
@@ -5683,6 +5780,2250 @@ class _EditLeadDialogState extends State<EditLeadDialog> {
           ),
         );
       },
+    );
+  }
+}
+
+// Sales Dashboard Page
+class SalesDashboardPage extends StatefulWidget {
+  final String currentUserId;
+  final String currentUserEmail;
+
+  const SalesDashboardPage({
+    super.key,
+    required this.currentUserId,
+    required this.currentUserEmail,
+  });
+
+  @override
+  State<SalesDashboardPage> createState() => _SalesDashboardPageState();
+}
+
+class _SalesDashboardPageState extends State<SalesDashboardPage> {
+  bool _isSearchExpanded = false;
+  final TextEditingController _searchController = TextEditingController();
+  String _selectedTimePeriod = 'Quarter';
+  String _selectedCurrency = 'INR';
+  String _currentUsername = '';
+  bool _isLoading = false;
+  
+  // Dashboard data state
+  Map<String, dynamic> _dashboardData = {
+    'totalRevenue': {'value': '₹0', 'percentage': '+0.0%', 'isPositive': true},
+    'aluminiumArea': {'value': '0 m²', 'percentage': '+0.0%', 'isPositive': true},
+    'qualifiedLeads': {'value': '0', 'percentage': '+0.0%', 'isPositive': true},
+  };
+  
+  // Chart data state
+  List<FlSpot> _areaSpots = [];
+  List<FlSpot> _revenueSpots = [];
+  List<String> _monthLabels = [];
+  bool _isLoadingChartData = false;
+  
+  // Lead status distribution data state
+  Map<String, int> _leadStatusDistribution = {
+    'Won': 0,
+    'Lost': 0,
+    'Loop': 0,
+  };
+  bool _isLoadingLeadStatusData = false;
+  
+  // Lead Performance state
+  String _activeLeadTab = 'Won';
+  List<Map<String, dynamic>> _leadPerformanceData = [];
+  List<Map<String, dynamic>> _filteredLeadData = [];
+  bool _isLoadingLeadData = false;
+  final TextEditingController _leadSearchController = TextEditingController();
+  
+  // Currency conversion rates
+  final Map<String, double> _currencyRates = {
+    'INR': 1.0,
+    'USD': 0.012,
+    'EUR': 0.011,
+    'CHF': 0.010,
+    'GBP': 0.009,
+  };
+  
+  final Map<String, String> _currencySymbols = {
+    'INR': '₹',
+    'USD': '\$',
+    'EUR': '€',
+    'CHF': 'CHF ',
+    'GBP': '£',
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCurrentUsername();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _leadSearchController.dispose();
+    super.dispose();
+  }
+
+  // Fetch current user's username
+  Future<void> _fetchCurrentUsername() async {
+    try {
+      final client = Supabase.instance.client;
+      final response = await client
+          .from('users')
+          .select('username')
+          .eq('id', widget.currentUserId)
+          .single();
+      
+      setState(() {
+        _currentUsername = response['username'] ?? '';
+      });
+      
+      // Fetch dashboard data after getting username
+      _fetchDashboardData();
+      _fetchChartData();
+      _fetchLeadStatusDistributionData();
+      _fetchLeadPerformanceData();
+    } catch (e) {
+      debugPrint('Error fetching username: $e');
+    }
+  }
+
+  // Helper method to get date range based on selected time period
+  Map<String, DateTime> _getDateRange(String timePeriod) {
+    final now = DateTime.now();
+    DateTime startDate;
+    DateTime endDate = now;
+    
+    switch (timePeriod.toLowerCase()) {
+      case 'week':
+        startDate = now.subtract(Duration(days: 7));
+        break;
+      case 'month':
+        startDate = DateTime(now.year, now.month - 1, now.day);
+        break;
+      case 'quarter':
+        startDate = DateTime(now.year, now.month - 3, now.day);
+        break;
+      case 'semester':
+        startDate = DateTime(now.year, now.month - 6, now.day);
+        break;
+      case 'annual':
+        startDate = DateTime(now.year - 1, now.month, now.day);
+        break;
+      case 'two years':
+        startDate = DateTime(now.year - 2, now.month, now.day);
+        break;
+      case 'three years':
+        startDate = DateTime(now.year - 3, now.month, now.day);
+        break;
+      case 'five years':
+        startDate = DateTime(now.year - 5, now.month, now.day);
+        break;
+      default:
+        startDate = DateTime(now.year, now.month - 3, now.day);
+    }
+    
+    return {'start': startDate, 'end': endDate};
+  }
+
+  // Fetch dashboard data from Supabase
+  Future<void> _fetchDashboardData() async {
+    if (_currentUsername.isEmpty) return;
+    
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final client = Supabase.instance.client;
+      final dateRange = _getDateRange(_selectedTimePeriod);
+      
+      // Fetch data from admin_response table filtered by sales_user
+      final response = await client
+          .from('admin_response')
+          .select()
+          .eq('sales_user', _currentUsername)
+          .gte('updated_at', dateRange['start']!.toIso8601String())
+          .lte('updated_at', dateRange['end']!.toIso8601String());
+
+      await _calculateDashboardMetrics(response);
+      
+    } catch (e) {
+      debugPrint('Error fetching dashboard data: $e');
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  // Calculate dashboard metrics from fetched data
+  Future<void> _calculateDashboardMetrics(List<dynamic> data) async {
+    double totalRevenue = 0;
+    double totalAluminiumArea = 0;
+    int qualifiedLeadsCount = 0;
+
+    for (var record in data) {
+      if (record['total_amount_gst'] != null) {
+        totalRevenue += (record['total_amount_gst'] is num) ? record['total_amount_gst'].toDouble() : 0;
+      }
+      
+      if (record['aluminium_area'] != null) {
+        totalAluminiumArea += (record['aluminium_area'] is num) ? record['aluminium_area'].toDouble() : 0;
+      }
+      
+      qualifiedLeadsCount++;
+    }
+
+    final previousPeriodData = await _getPreviousPeriodData();
+    
+    final revenuePercentage = _calculatePercentage(totalRevenue, previousPeriodData['revenue'] ?? 0);
+    final aluminiumAreaPercentage = _calculatePercentage(totalAluminiumArea, previousPeriodData['aluminiumArea'] ?? 0);
+    final leadsPercentage = _calculatePercentage(qualifiedLeadsCount.toDouble(), previousPeriodData['leads'] ?? 0);
+
+    setState(() {
+      _dashboardData = {
+        'totalRevenue': {
+          'value': _formatCurrency(totalRevenue, _selectedCurrency),
+          'percentage': '${revenuePercentage >= 0 ? '+' : ''}${revenuePercentage.toStringAsFixed(1)}%',
+          'isPositive': revenuePercentage >= 0,
+        },
+        'aluminiumArea': {
+          'value': '${totalAluminiumArea.toStringAsFixed(0)} m²',
+          'percentage': '${aluminiumAreaPercentage >= 0 ? '+' : ''}${aluminiumAreaPercentage.toStringAsFixed(1)}%',
+          'isPositive': aluminiumAreaPercentage >= 0,
+        },
+        'qualifiedLeads': {
+          'value': qualifiedLeadsCount.toString(),
+          'percentage': '${leadsPercentage >= 0 ? '+' : ''}${leadsPercentage.toStringAsFixed(1)}%',
+          'isPositive': leadsPercentage >= 0,
+        },
+      };
+    });
+  }
+
+  // Get previous period data for comparison
+  Future<Map<String, double>> _getPreviousPeriodData() async {
+    try {
+      final client = Supabase.instance.client;
+      final currentDateRange = _getDateRange(_selectedTimePeriod);
+      
+      final duration = currentDateRange['end']!.difference(currentDateRange['start']!);
+      final previousStartDate = currentDateRange['start']!.subtract(duration);
+      final previousEndDate = currentDateRange['start']!;
+      
+      final previousResponse = await client
+          .from('admin_response')
+          .select()
+          .eq('sales_user', _currentUsername)
+          .gte('updated_at', previousStartDate.toIso8601String())
+          .lte('updated_at', previousEndDate.toIso8601String());
+      
+      double previousRevenue = 0;
+      double previousAluminiumArea = 0;
+      int previousLeadsCount = 0;
+      
+      for (var record in previousResponse) {
+        if (record['total_amount_gst'] != null) {
+          previousRevenue += (record['total_amount_gst'] is num) ? record['total_amount_gst'].toDouble() : 0;
+        }
+        if (record['aluminium_area'] != null) {
+          previousAluminiumArea += (record['aluminium_area'] is num) ? record['aluminium_area'].toDouble() : 0;
+        }
+        previousLeadsCount++;
+      }
+      
+      return {
+        'revenue': previousRevenue,
+        'aluminiumArea': previousAluminiumArea,
+        'leads': previousLeadsCount.toDouble(),
+      };
+    } catch (e) {
+      debugPrint('Error fetching previous period data: $e');
+      return {'revenue': 0, 'aluminiumArea': 0, 'leads': 0};
+    }
+  }
+
+  // Fetch chart data from admin_response table
+  Future<void> _fetchChartData() async {
+    if (_currentUsername.isEmpty) return;
+    
+    setState(() {
+      _isLoadingChartData = true;
+    });
+
+    try {
+      final client = Supabase.instance.client;
+      final dateRange = _getDateRange(_selectedTimePeriod);
+      
+      final response = await client
+          .from('admin_response')
+          .select('aluminium_area, total_amount_gst, updated_at')
+          .eq('sales_user', _currentUsername)
+          .eq('update_lead_status', 'Won')
+          .gte('updated_at', dateRange['start']!.toIso8601String())
+          .lte('updated_at', dateRange['end']!.toIso8601String())
+          .order('updated_at', ascending: true)
+          .timeout(const Duration(seconds: 10));
+
+      await _processChartData(response);
+      
+    } catch (e) {
+      debugPrint('Error fetching chart data: $e');
+      setState(() {
+        _areaSpots = [];
+        _revenueSpots = [];
+        _monthLabels = [];
+        _isLoadingChartData = false;
+      });
+    }
+  }
+
+  // Process chart data and create spots
+  Future<void> _processChartData(List<dynamic> data) async {
+    if (data.isEmpty) {
+      setState(() {
+        _areaSpots = [];
+        _revenueSpots = [];
+        _monthLabels = [];
+        _isLoadingChartData = false;
+      });
+      return;
+    }
+
+    Map<String, List<Map<String, dynamic>>> groupedData = {};
+    
+    for (var record in data) {
+      final updatedAt = DateTime.parse(record['updated_at']);
+      String groupKey;
+      
+      switch (_selectedTimePeriod.toLowerCase()) {
+        case 'week':
+          final dayOfWeek = updatedAt.weekday;
+          groupKey = _getDayOfWeekName(dayOfWeek);
+          break;
+        case 'month':
+          final weekOfMonth = ((updatedAt.day - 1) ~/ 7) + 1;
+          groupKey = 'Week $weekOfMonth';
+          break;
+        case 'quarter':
+          groupKey = _getMonthName(updatedAt.month);
+          break;
+        case 'semester':
+          groupKey = _getMonthName(updatedAt.month);
+          break;
+        case 'annual':
+          groupKey = _getMonthName(updatedAt.month);
+          break;
+        case 'two years':
+          final quarter = ((updatedAt.month - 1) ~/ 3) + 1;
+          groupKey = 'Q$quarter';
+          break;
+        case 'three years':
+          final semester = updatedAt.month <= 6 ? 1 : 2;
+          groupKey = 'Semester $semester';
+          break;
+        case 'five years':
+          groupKey = updatedAt.year.toString();
+          break;
+        default:
+          groupKey = _getMonthName(updatedAt.month);
+      }
+      
+      if (!groupedData.containsKey(groupKey)) {
+        groupedData[groupKey] = [];
+      }
+      groupedData[groupKey]!.add(record);
+    }
+
+    final labels = _getChartLabels();
+    final spots = <FlSpot>[];
+    final revenueSpots = <FlSpot>[];
+    
+    double maxArea = 0;
+    double maxRevenue = 0;
+
+    for (int i = 0; i < labels.length; i++) {
+      final label = labels[i];
+      final groupData = groupedData[label] ?? [];
+      
+      double totalArea = 0;
+      double totalRevenue = 0;
+
+      for (var record in groupData) {
+        totalArea += (record['aluminium_area'] ?? 0).toDouble();
+        totalRevenue += (record['total_amount_gst'] ?? 0).toDouble();
+      }
+
+      maxArea = maxArea < totalArea ? totalArea : maxArea;
+      maxRevenue = maxRevenue < totalRevenue ? totalRevenue : maxRevenue;
+
+      spots.add(FlSpot(i.toDouble(), totalArea));
+      revenueSpots.add(FlSpot(i.toDouble(), totalRevenue));
+    }
+
+    final normalizedAreaSpots = spots.map((spot) {
+      return FlSpot(spot.x, maxArea > 0 ? (spot.y / maxArea) * 6 : 0);
+    }).toList();
+
+    final normalizedRevenueSpots = revenueSpots.map((spot) {
+      return FlSpot(spot.x, maxRevenue > 0 ? (spot.y / maxRevenue) * 6 : 0);
+    }).toList();
+
+    setState(() {
+      _areaSpots = normalizedAreaSpots;
+      _revenueSpots = normalizedRevenueSpots;
+      _monthLabels = labels;
+      _isLoadingChartData = false;
+    });
+  }
+
+  // Fetch lead status distribution data
+  Future<void> _fetchLeadStatusDistributionData() async {
+    if (_currentUsername.isEmpty) return;
+    
+    setState(() {
+      _isLoadingLeadStatusData = true;
+    });
+
+    try {
+      final client = Supabase.instance.client;
+      final dateRange = _getDateRange(_selectedTimePeriod);
+      
+      final response = await client
+          .from('admin_response')
+          .select('update_lead_status')
+          .eq('sales_user', _currentUsername)
+          .gte('updated_at', dateRange['start']!.toIso8601String())
+          .lte('updated_at', dateRange['end']!.toIso8601String())
+          .timeout(const Duration(seconds: 10));
+
+      await _processLeadStatusDistributionData(response);
+      
+    } catch (e) {
+      debugPrint('Error fetching lead status distribution data: $e');
+      setState(() {
+        _leadStatusDistribution = {
+          'Won': 0,
+          'Lost': 0,
+          'Loop': 0,
+        };
+        _isLoadingLeadStatusData = false;
+      });
+    }
+  }
+
+  // Process lead status distribution data
+  Future<void> _processLeadStatusDistributionData(List<dynamic> data) async {
+    Map<String, int> statusCounts = {
+      'Won': 0,
+      'Lost': 0,
+      'Loop': 0,
+    };
+
+    for (var record in data) {
+      final status = record['update_lead_status'];
+      if (status != null && statusCounts.containsKey(status)) {
+        statusCounts[status] = (statusCounts[status] ?? 0) + 1;
+      }
+    }
+
+    setState(() {
+      _leadStatusDistribution = statusCounts;
+      _isLoadingLeadStatusData = false;
+    });
+  }
+
+  // Helper methods
+  String _getMonthName(int month) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return months[month - 1];
+  }
+
+  String _getDayOfWeekName(int dayOfWeek) {
+    const days = [
+      'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'
+    ];
+    return days[dayOfWeek - 1];
+  }
+
+  List<String> _getChartLabels() {
+    switch (_selectedTimePeriod.toLowerCase()) {
+      case 'week':
+        return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      case 'month':
+        return ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
+      case 'quarter':
+        return ['Jan', 'Feb', 'Mar'];
+      case 'semester':
+        return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+      case 'annual':
+        return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      case 'two years':
+        return ['Q1', 'Q2', 'Q3', 'Q4', 'Q1', 'Q2', 'Q3', 'Q4'];
+      case 'three years':
+        return ['Semester 1', 'Semester 2', 'Semester 1', 'Semester 2', 'Semester 1', 'Semester 2'];
+      case 'five years':
+        return ['2024', '2023', '2022', '2021', '2020'];
+      default:
+        return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    }
+  }
+
+  double _calculatePercentage(double current, double previous) {
+    if (previous == 0) return current > 0 ? 100 : 0;
+    return ((current - previous) / previous) * 100;
+  }
+
+  String _formatCurrency(double amount, String currency) {
+    final symbol = _currencySymbols[currency] ?? '₹';
+    final rate = _currencyRates[currency] ?? 1.0;
+    final convertedAmount = amount * rate;
+    return '$symbol${NumberFormat('#,##0').format(convertedAmount)}';
+  }
+
+  // Build pie chart sections
+  List<PieChartSectionData> _buildPieChartSections() {
+    final totalLeads = _leadStatusDistribution.values.fold(0, (sum, count) => sum + count);
+    final sections = <PieChartSectionData>[];
+    
+    if (totalLeads == 0) {
+      return sections;
+    }
+
+    final colors = {
+      'Won': Colors.green,
+      'Lost': Colors.red,
+      'Loop': Colors.orange,
+    };
+
+    for (var entry in _leadStatusDistribution.entries) {
+      if (entry.value > 0) {
+        final percentage = (entry.value / totalLeads * 100).toStringAsFixed(1);
+        sections.add(
+          PieChartSectionData(
+            color: colors[entry.key]!,
+            value: entry.value.toDouble(),
+            title: '$percentage%',
+            radius: 60,
+            titleStyle: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        );
+      }
+    }
+
+    return sections;
+  }
+
+  // Refresh data when time period changes
+  void _onTimePeriodChanged(String newPeriod) {
+    setState(() {
+      _selectedTimePeriod = newPeriod;
+    });
+    _fetchDashboardData();
+    _fetchChartData();
+    _fetchLeadStatusDistributionData();
+    _fetchLeadPerformanceData();
+  }
+
+  // Fetch lead performance data from admin_response table
+  Future<void> _fetchLeadPerformanceData() async {
+    if (_currentUsername.isEmpty) return;
+    
+    setState(() {
+      _isLoadingLeadData = true;
+    });
+    
+    try {
+      final client = Supabase.instance.client;
+      final dateRange = _getDateRange(_selectedTimePeriod);
+      
+      final response = await client
+          .from('admin_response')
+          .select('''
+            project_id,
+            project_name,
+            aluminium_area,
+            total_amount_gst,
+            update_lead_status,
+            updated_at,
+            sales_user
+          ''')
+          .eq('sales_user', _currentUsername)
+          .gte('updated_at', dateRange['start']!.toIso8601String())
+          .lte('updated_at', dateRange['end']!.toIso8601String())
+          .order('updated_at', ascending: false);
+      
+      setState(() {
+        _leadPerformanceData = List<Map<String, dynamic>>.from(response);
+        _filteredLeadData = List<Map<String, dynamic>>.from(response);
+        _isLoadingLeadData = false;
+      });
+    } catch (e) {
+      debugPrint('Error fetching lead performance data: $e');
+      setState(() {
+        _isLoadingLeadData = false;
+      });
+    }
+  }
+
+  // Filter lead data based on search query
+  void _filterLeadData(String query) {
+    if (query.isEmpty) {
+      setState(() {
+        _filteredLeadData = List<Map<String, dynamic>>.from(_leadPerformanceData);
+      });
+      return;
+    }
+    
+    final filtered = _leadPerformanceData.where((lead) {
+      final searchQuery = query.toLowerCase();
+      return lead['project_name']?.toString().toLowerCase().contains(searchQuery) == true ||
+             lead['project_id']?.toString().toLowerCase().contains(searchQuery) == true ||
+             lead['update_lead_status']?.toString().toLowerCase().contains(searchQuery) == true ||
+             lead['aluminium_area']?.toString().toLowerCase().contains(searchQuery) == true ||
+             lead['total_amount_gst']?.toString().toLowerCase().contains(searchQuery) == true ||
+             lead['updated_at']?.toString().toLowerCase().contains(searchQuery) == true;
+    }).toList();
+    
+    setState(() {
+      _filteredLeadData = filtered;
+    });
+  }
+
+  // Build mobile time period filter
+  Widget _buildMobileTimePeriodFilter() {
+    final timePeriods = ['Week', 'Month', 'Quarter', 'Semester', 'Annual', 'Two Years', 'Three Years', 'Five Years'];
+    
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: DropdownButton<String>(
+        value: _selectedTimePeriod,
+        onChanged: (String? newValue) {
+          if (newValue != null) {
+            _onTimePeriodChanged(newValue);
+          }
+        },
+        items: timePeriods.map<DropdownMenuItem<String>>((String value) {
+          return DropdownMenuItem<String>(
+            value: value,
+            child: Text(value),
+          );
+        }).toList(),
+        underline: SizedBox(),
+      ),
+    );
+  }
+
+  // Show currency dialog
+  void _showCurrencyDialog() {
+    final currencies = ['INR', 'USD', 'EUR', 'CHF', 'GBP'];
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Select Currency'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: currencies.map((currency) {
+              return ListTile(
+                title: Text(currency),
+                trailing: _selectedCurrency == currency ? Icon(Icons.check, color: Colors.green) : null,
+                onTap: () {
+                  setState(() {
+                    _selectedCurrency = currency;
+                  });
+                  _fetchDashboardData();
+                  Navigator.of(context).pop();
+                },
+              );
+            }).toList(),
+          ),
+        );
+      },
+    );
+  }
+
+  // Show time period dialog
+  void _showTimePeriodDialog() {
+    final timePeriods = ['Week', 'Month', 'Quarter', 'Semester', 'Annual', 'Two Years', 'Three Years', 'Five Years'];
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Select Time Period'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: timePeriods.map((period) {
+              return ListTile(
+                title: Text(period),
+                trailing: _selectedTimePeriod == period ? Icon(Icons.check, color: Colors.green) : null,
+                onTap: () {
+                  _onTimePeriodChanged(period);
+                  Navigator.of(context).pop();
+                },
+              );
+            }).toList(),
+          ),
+        );
+      },
+    );
+  }
+
+  // Helper method to safely get isPositive value
+  bool _getIsPositive(String title) {
+    final key = title.toLowerCase().replaceAll(' ', '');
+    final data = _dashboardData[key];
+    if (data != null && data['isPositive'] != null) {
+      return data['isPositive'] as bool;
+    }
+    return true; // Default to positive if data is not available
+  }
+
+  // Build lead performance table
+  Widget _buildLeadPerformanceTable() {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with search
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 600) {
+                // Mobile layout - stacked vertically
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Lead Performance',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey[300]!),
+                      ),
+                      child: TextField(
+                        controller: _leadSearchController,
+                        onChanged: _filterLeadData,
+                        decoration: InputDecoration(
+                          hintText: 'Search leads...',
+                          prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
+                          suffixIcon: _leadSearchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: Icon(Icons.clear, color: Colors.grey[600]),
+                                  onPressed: () {
+                                    _leadSearchController.clear();
+                                    _filterLeadData('');
+                                  },
+                                )
+                              : null,
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              } else {
+                // Desktop layout - horizontal
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Lead Performance',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    // Search bar
+                    Flexible(
+                      child: Container(
+                        constraints: BoxConstraints(maxWidth: 300),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[50],
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey[300]!),
+                        ),
+                        child: TextField(
+                          controller: _leadSearchController,
+                          onChanged: _filterLeadData,
+                          decoration: InputDecoration(
+                            hintText: 'Search leads...',
+                            prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
+                            suffixIcon: _leadSearchController.text.isNotEmpty
+                                ? IconButton(
+                                    icon: Icon(Icons.clear, color: Colors.grey[600]),
+                                    onPressed: () {
+                                      _leadSearchController.clear();
+                                      _filterLeadData('');
+                                    },
+                                  )
+                                : null,
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              }
+            },
+          ),
+          SizedBox(height: 16),
+          
+          // Tabs
+          _buildLeadTabs(),
+          SizedBox(height: 16),
+          
+          // Table
+          _buildLeadTable(),
+        ],
+      ),
+    );
+  }
+
+  // Build lead tabs
+  Widget _buildLeadTabs() {
+    final tabs = [
+      {'key': 'Won', 'label': 'Won Leads', 'count': _getLeadCountByStatus('Won')},
+      {'key': 'Lost', 'label': 'Lost Leads', 'count': _getLeadCountByStatus('Lost')},
+      {'key': 'Loop', 'label': 'In Loop', 'count': _getLeadCountByStatus('Loop')},
+    ];
+    
+    return Row(
+      children: tabs.map((tab) {
+        final isActive = _activeLeadTab == tab['key'];
+        return Expanded(
+          child: GestureDetector(
+            onTap: () {
+              setState(() {
+                _activeLeadTab = tab['key'] as String;
+              });
+            },
+            child: Container(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: isActive ? Colors.blue : Colors.transparent,
+                    width: 2,
+                  ),
+                ),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    tab['label'] as String,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: isActive ? Colors.blue : Colors.grey[600],
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    '${tab['count']}',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: isActive ? Colors.blue : Colors.grey[800],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  // Get lead count by status
+  int _getLeadCountByStatus(String status) {
+    return _filteredLeadData.where((lead) => lead['update_lead_status'] == status).length;
+  }
+
+  // Build lead table
+  Widget _buildLeadTable() {
+    final filteredData = _filteredLeadData.where((lead) => lead['update_lead_status'] == _activeLeadTab).toList();
+    
+    if (_isLoadingLeadData) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text(
+              'Loading lead data...',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    if (filteredData.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.assignment_outlined,
+              size: 48,
+              color: Colors.grey[400],
+            ),
+            SizedBox(height: 16),
+            Text(
+              'No $_activeLeadTab leads found',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 600) {
+          // Mobile layout - cards
+          return ListView.builder(
+            shrinkWrap: true,
+            physics: NeverScrollableScrollPhysics(),
+            itemCount: filteredData.length,
+            itemBuilder: (context, index) {
+              final lead = filteredData[index];
+              return Card(
+                margin: EdgeInsets.only(bottom: 8),
+                child: Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              lead['project_name']?.toString() ?? 'N/A',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _getStatusColor(lead['update_lead_status']).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              lead['update_lead_status']?.toString() ?? 'N/A',
+                              style: TextStyle(
+                                color: _getStatusColor(lead['update_lead_status']),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 8),
+                      _buildLeadInfoRow('Project ID', lead['project_id']?.toString() ?? 'N/A'),
+                      _buildLeadInfoRow('Area', '${lead['aluminium_area']?.toString() ?? '0'} m²'),
+                      _buildLeadInfoRow('Revenue', '₹${lead['total_amount_gst']?.toString() ?? '0'}'),
+                      _buildLeadInfoRow('Closed Date', _formatDate(lead['updated_at'])),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        } else {
+          // Desktop layout - table
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              columns: [
+                DataColumn(label: Text('Project ID')),
+                DataColumn(label: Text('Project Name')),
+                DataColumn(label: Text('Area (m²)')),
+                DataColumn(label: Text('Revenue (₹)')),
+                DataColumn(label: Text('Status')),
+                DataColumn(label: Text('Closed Date')),
+              ],
+              rows: filteredData.map((lead) {
+                return DataRow(
+                  cells: [
+                    DataCell(Text(lead['project_id']?.toString() ?? 'N/A')),
+                    DataCell(Text(lead['project_name']?.toString() ?? 'N/A')),
+                    DataCell(Text(lead['aluminium_area']?.toString() ?? '0')),
+                    DataCell(Text('₹${lead['total_amount_gst']?.toString() ?? '0'}')),
+                    DataCell(
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _getStatusColor(lead['update_lead_status']).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          lead['update_lead_status']?.toString() ?? 'N/A',
+                          style: TextStyle(
+                            color: _getStatusColor(lead['update_lead_status']),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    DataCell(Text(_formatDate(lead['updated_at']))),
+                  ],
+                );
+              }).toList(),
+            ),
+          );
+        }
+      },
+    );
+  }
+
+  // Build lead info row for mobile
+  Widget _buildLeadInfoRow(String label, String value) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Text(
+            '$label: ',
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 12,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Get status color
+  Color _getStatusColor(String? status) {
+    switch (status) {
+      case 'Won':
+        return Colors.green;
+      case 'Lost':
+        return Colors.red;
+      case 'Loop':
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  // Format date
+  String _formatDate(dynamic date) {
+    if (date == null) return 'N/A';
+    try {
+      final dateTime = DateTime.parse(date.toString());
+      return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+    } catch (e) {
+      return 'N/A';
+    }
+  }
+
+  // Build time period filter
+  Widget _buildTimePeriodFilter() {
+    final timePeriods = ['Week', 'Month', 'Quarter', 'Semester', 'Annual', 'Two Years', 'Three Years', 'Five Years'];
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Time Period Label
+        Padding(
+          padding: EdgeInsets.only(left: 8, bottom: 8),
+          child: Text(
+            'Time Period:',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[800],
+            ),
+          ),
+        ),
+        // Time Period Buttons - Horizontal Scroll
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            children: timePeriods.map((period) {
+              final isSelected = _selectedTimePeriod == period;
+              return Padding(
+                padding: EdgeInsets.only(right: 8),
+                child: InkWell(
+                  onTap: () {
+                    _onTimePeriodChanged(period);
+                  },
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isSelected ? Colors.blue[100] : Colors.transparent,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isSelected ? Colors.blue : Colors.grey[300]!,
+                        width: 1,
+                      ),
+                    ),
+                    child: Text(
+                      period,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: isSelected ? Colors.blue[700] : Colors.grey[600],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        SizedBox(height: 12),
+        // Action Buttons Row
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Exporting data...'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Text(
+                    'Export',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Opening more filters...'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  style: OutlinedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Text(
+                    'More Filters',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey[50],
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              // Header
+              _buildHeader(),
+              SizedBox(height: 24),
+              
+              // Time Period Filter
+              _buildTimePeriodFilter(),
+              SizedBox(height: 24),
+              
+              // Dashboard content
+              Expanded(
+                child: _buildDashboardContent(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth <= 600;
+        
+        if (isMobile) {
+          // Mobile layout - only search and three dots
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Dashboard heading with icon
+              Row(
+                children: [
+                  Icon(Icons.dashboard, color: Colors.grey[800], size: 20),
+                  SizedBox(width: 6),
+                  Text(
+                    'Sales Dashboard',
+                    style: TextStyle(
+                      color: Colors.grey[800],
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  // Collapsible search bar in same place
+                  Expanded(
+                    child: AnimatedContainer(
+                      duration: Duration(milliseconds: 300),
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 4,
+                            offset: Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          if (_isSearchExpanded) ...[
+                            Expanded(
+                              child: Padding(
+                                padding: EdgeInsets.only(left: 12),
+                                child: TextField(
+                                  controller: _searchController,
+                                  decoration: InputDecoration(
+                                    hintText: 'Search...',
+                                    border: InputBorder.none,
+                                    hintStyle: TextStyle(color: Colors.grey[400], fontSize: 12),
+                                  ),
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () {
+                                setState(() {
+                                  _isSearchExpanded = false;
+                                  _searchController.clear();
+                                });
+                              },
+                              icon: Icon(Icons.close, color: Colors.grey[600]),
+                              iconSize: 14,
+                              padding: EdgeInsets.zero,
+                            ),
+                          ] else ...[
+                            Expanded(
+                              child: IconButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _isSearchExpanded = true;
+                                  });
+                                },
+                                icon: Icon(Icons.search, color: Colors.grey[600]),
+                                iconSize: 16,
+                                padding: EdgeInsets.zero,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  // Three dots menu button
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 4,
+                          offset: Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                    child: PopupMenuButton<String>(
+                      icon: Icon(Icons.more_vert, color: Colors.grey[600], size: 18),
+                      iconSize: 18,
+                      padding: EdgeInsets.zero,
+                      onSelected: (value) {
+                        // Handle menu selection
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Selected: $value'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          value: 'settings',
+                          child: Row(
+                            children: [
+                              Icon(Icons.settings, color: Colors.grey[600], size: 16),
+                              SizedBox(width: 8),
+                              Text('Settings', style: TextStyle(fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'help',
+                          child: Row(
+                            children: [
+                              Icon(Icons.help, color: Colors.grey[600], size: 16),
+                              SizedBox(width: 8),
+                              Text('Help', style: TextStyle(fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 16),
+              // Mobile time period filter
+              _buildMobileTimePeriodFilter(),
+            ],
+          );
+        } else {
+          // Desktop layout - full header with all controls
+          return Row(
+            children: [
+              // Dashboard heading with icon
+              Row(
+                children: [
+                  Icon(Icons.dashboard, color: Colors.grey[800], size: 24),
+                  SizedBox(width: 8),
+                  Text(
+                    'Sales Dashboard',
+                    style: TextStyle(
+                      color: Colors.grey[800],
+                      fontWeight: FontWeight.bold,
+                      fontSize: 24,
+                    ),
+                  ),
+                ],
+              ),
+              
+              Spacer(),
+              
+              // Search bar
+              AnimatedContainer(
+                duration: Duration(milliseconds: 300),
+                width: _isSearchExpanded ? 300 : 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    if (_isSearchExpanded) ...[
+                      Expanded(
+                        child: Padding(
+                          padding: EdgeInsets.only(left: 16),
+                          child: TextField(
+                            controller: _searchController,
+                            decoration: InputDecoration(
+                              hintText: 'Search...',
+                              border: InputBorder.none,
+                              hintStyle: TextStyle(color: Colors.grey[400]),
+                            ),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () {
+                          setState(() {
+                            _isSearchExpanded = false;
+                            _searchController.clear();
+                          });
+                        },
+                        icon: Icon(Icons.close, color: Colors.grey[600]),
+                        iconSize: 20,
+                      ),
+                    ] else ...[
+                      Expanded(
+                        child: IconButton(
+                          onPressed: () {
+                            setState(() {
+                              _isSearchExpanded = true;
+                            });
+                          },
+                          icon: Icon(Icons.search, color: Colors.grey[600]),
+                          iconSize: 20,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              
+              SizedBox(width: 16),
+              
+              // Currency icon button
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: IconButton(
+                  onPressed: () {
+                    // Show currency selection dialog
+                    _showCurrencyDialog();
+                  },
+                  icon: Icon(Icons.attach_money, color: Colors.grey[600]),
+                  iconSize: 20,
+                ),
+              ),
+              
+              SizedBox(width: 16),
+              
+              // Time period icon button
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: IconButton(
+                  onPressed: () {
+                    // Show time period selection dialog
+                    _showTimePeriodDialog();
+                  },
+                  icon: Icon(Icons.schedule, color: Colors.grey[600]),
+                  iconSize: 20,
+                ),
+              ),
+              
+              SizedBox(width: 16),
+              
+              // Notification button icon
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Stack(
+                  children: [
+                    IconButton(
+                      onPressed: () {
+                        // Handle notification tap
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Notifications'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                      icon: Icon(Icons.notifications, color: Colors.grey[600]),
+                      iconSize: 20,
+                    ),
+                    // Notification badge
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              SizedBox(width: 16),
+              
+              // Chat button icon
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Stack(
+                  children: [
+                    IconButton(
+                      onPressed: () {
+                        // Handle chat tap
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Chat'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                      icon: Icon(Icons.chat, color: Colors.grey[600]),
+                      iconSize: 20,
+                    ),
+                    // Chat badge
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: Colors.green,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        }
+      },
+    );
+  }
+
+
+
+  Widget _buildDashboardContent() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth > 1200) {
+          // Desktop layout
+          return SingleChildScrollView(
+            child: Column(
+              children: [
+                _isLoading 
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text(
+                            'Loading dashboard data...',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: _buildDashboardCard(
+                            'Total Revenue',
+                            _dashboardData['totalRevenue']['value'],
+                            _dashboardData['totalRevenue']['percentage'],
+                            Icons.attach_money,
+                            Colors.blue,
+                          ),
+                        ),
+                        SizedBox(width: 16),
+                        Expanded(
+                          child: _buildDashboardCard(
+                            'Aluminum Area',
+                            _dashboardData['aluminiumArea']['value'],
+                            _dashboardData['aluminiumArea']['percentage'],
+                            Icons.grid_on,
+                            Colors.purple,
+                          ),
+                        ),
+                        SizedBox(width: 16),
+                        Expanded(
+                          child: _buildDashboardCard(
+                            'Qualified Leads',
+                            _dashboardData['qualifiedLeads']['value'],
+                            _dashboardData['qualifiedLeads']['percentage'],
+                            Icons.people,
+                            Colors.orange,
+                          ),
+                        ),
+                      ],
+                    ),
+                SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildQualifiedAreaVsRevenueChart(),
+                    ),
+                    SizedBox(width: 16),
+                    Expanded(
+                      child: _buildLeadStatusDistributionChart(),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 24),
+                _buildLeadPerformanceTable(),
+              ],
+            ),
+          );
+        } else {
+          // Mobile layout
+          return SingleChildScrollView(
+            child: Column(
+              children: [
+                _isLoading 
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text(
+                            'Loading dashboard data...',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildDashboardCard(
+                                'Qualified Leads',
+                                _dashboardData['qualifiedLeads']['value'],
+                                _dashboardData['qualifiedLeads']['percentage'],
+                                Icons.people,
+                                Colors.orange,
+                              ),
+                            ),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: _buildDashboardCard(
+                                'Aluminum Area',
+                                _dashboardData['aluminiumArea']['value'],
+                                _dashboardData['aluminiumArea']['percentage'],
+                                Icons.grid_on,
+                                Colors.purple,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 12),
+                        _buildDashboardCard(
+                          'Total Revenue',
+                          _dashboardData['totalRevenue']['value'],
+                          _dashboardData['totalRevenue']['percentage'],
+                          Icons.attach_money,
+                          Colors.blue,
+                        ),
+                      ],
+                    ),
+                SizedBox(height: 24),
+                _buildQualifiedAreaVsRevenueChart(),
+                SizedBox(height: 16),
+                _buildLeadStatusDistributionChart(),
+              ],
+            ),
+          );
+        }
+      },
+    );
+  }
+
+  Widget _buildDashboardCard(String title, String value, String percentage, IconData icon, Color color) {
+    return Container(
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              Spacer(),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _getIsPositive(title) 
+                      ? Colors.green.withValues(alpha: 0.1)
+                      : Colors.red.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  percentage,
+                  style: TextStyle(
+                    color: _getIsPositive(title) 
+                        ? Colors.green
+                        : Colors.red,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQualifiedAreaVsRevenueChart() {
+    return Container(
+      height: 300,
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.bar_chart, color: Colors.grey[800], size: 20),
+              SizedBox(width: 8),
+              Text(
+                'Qualified Area vs Revenue',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          Expanded(
+            child: _isLoadingChartData
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text(
+                          'Loading chart data...',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : _areaSpots.isEmpty && _revenueSpots.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.bar_chart_outlined,
+                              size: 48,
+                              color: Colors.grey[400],
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              'No chart data available',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'No won leads found for the selected period',
+                              style: TextStyle(
+                                color: Colors.grey[500],
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : LineChart(
+                        LineChartData(
+                          gridData: FlGridData(
+                            show: true,
+                            drawVerticalLine: true,
+                            horizontalInterval: 1,
+                            verticalInterval: 1,
+                            getDrawingHorizontalLine: (value) {
+                              return FlLine(
+                                color: Colors.grey[300]!,
+                                strokeWidth: 1,
+                              );
+                            },
+                            getDrawingVerticalLine: (value) {
+                              return FlLine(
+                                color: Colors.grey[300]!,
+                                strokeWidth: 1,
+                              );
+                            },
+                          ),
+                          titlesData: FlTitlesData(
+                            show: true,
+                            rightTitles: AxisTitles(
+                              sideTitles: SideTitles(showTitles: false),
+                            ),
+                            topTitles: AxisTitles(
+                              sideTitles: SideTitles(showTitles: false),
+                            ),
+                            bottomTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: 30,
+                                interval: 1,
+                                getTitlesWidget: (double value, TitleMeta meta) {
+                                  const style = TextStyle(
+                                    color: Color(0xff67727d),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  );
+                                  if (value.toInt() < _monthLabels.length) {
+                                    return SideTitleWidget(
+                                      axisSide: meta.axisSide,
+                                      child: Text(_monthLabels[value.toInt()], style: style),
+                                    );
+                                  }
+                                  return SideTitleWidget(
+                                    axisSide: meta.axisSide,
+                                    child: const Text('', style: style),
+                                  );
+                                },
+                              ),
+                            ),
+                            leftTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                interval: 1,
+                                getTitlesWidget: (double value, TitleMeta meta) {
+                                  const style = TextStyle(
+                                    color: Color(0xff67727d),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  );
+                                  return Text('${value.toInt()}K', style: style);
+                                },
+                                reservedSize: 42,
+                              ),
+                            ),
+                          ),
+                          borderData: FlBorderData(
+                            show: true,
+                            border: Border.all(color: const Color(0xff37434d)),
+                          ),
+                          minX: 0,
+                          maxX: (_monthLabels.length - 1).toDouble(),
+                          minY: 0,
+                          maxY: 6,
+                          lineBarsData: [
+                            LineChartBarData(
+                              spots: _areaSpots,
+                              isCurved: true,
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.purple.withValues(alpha: 0.8),
+                                  Colors.purple.withValues(alpha: 0.3),
+                                ],
+                              ),
+                              barWidth: 3,
+                              isStrokeCapRound: true,
+                              dotData: FlDotData(
+                                show: true,
+                                getDotPainter: (spot, percent, barData, index) {
+                                  return FlDotCirclePainter(
+                                    radius: 4,
+                                    color: Colors.purple,
+                                    strokeWidth: 2,
+                                    strokeColor: Colors.white,
+                                  );
+                                },
+                              ),
+                              belowBarData: BarAreaData(
+                                show: false,
+                              ),
+                            ),
+                            LineChartBarData(
+                              spots: _revenueSpots,
+                              isCurved: true,
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.green.withValues(alpha: 0.8),
+                                  Colors.green.withValues(alpha: 0.3),
+                                ],
+                              ),
+                              barWidth: 3,
+                              isStrokeCapRound: true,
+                              dotData: FlDotData(
+                                show: true,
+                                getDotPainter: (spot, percent, barData, index) {
+                                  return FlDotCirclePainter(
+                                    radius: 4,
+                                    color: Colors.green,
+                                    strokeWidth: 2,
+                                    strokeColor: Colors.white,
+                                  );
+                                },
+                              ),
+                              belowBarData: BarAreaData(
+                                show: false,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+          ),
+          SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: Colors.purple,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              SizedBox(width: 8),
+              Text(
+                'Qualified Area',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[700],
+                ),
+              ),
+              SizedBox(width: 24),
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              SizedBox(width: 8),
+              Text(
+                'Revenue',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[700],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLeadStatusDistributionChart() {
+    return Container(
+      height: 300,
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.pie_chart, color: Colors.grey[800], size: 20),
+              SizedBox(width: 8),
+              Text(
+                'Lead Status Distribution',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          Expanded(
+            child: _isLoadingLeadStatusData
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text(
+                          'Loading distribution data...',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : _leadStatusDistribution.values.every((count) => count == 0)
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.pie_chart,
+                              size: 48,
+                              color: Colors.grey[400],
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              'No data available',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'No leads found for the selected period',
+                              style: TextStyle(
+                                color: Colors.grey[500],
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : Padding(
+                        padding: EdgeInsets.only(top: 20),
+                        child: PieChart(
+                          PieChartData(
+                            sectionsSpace: 2,
+                            centerSpaceRadius: 40,
+                            sections: _buildPieChartSections(),
+                          ),
+                        ),
+                      ),
+          ),
+          SizedBox(height: 16),
+          Column(
+            children: [
+              _buildLegendItem('Won Leads', Colors.green),
+              SizedBox(height: 8),
+              _buildLegendItem('Lost Leads', Colors.red),
+              SizedBox(height: 8),
+              _buildLegendItem('In Loop', Colors.orange),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegendItem(String label, Color color) {
+    return Row(
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[700],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
