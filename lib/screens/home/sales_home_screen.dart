@@ -2140,14 +2140,29 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         leadActivityData = [];
       }
 
-      // 5. Fetch proposal_input table data
+      // 5. Fetch proposal_input table data with username
       try {
         proposalInputData = await client
             .from('proposal_input')
-            .select('*')
+            .select('input, value, user_id')
             .eq('lead_id', leadId);
+        
+        // Fetch usernames for each proposal input
+        for (int i = 0; i < proposalInputData.length; i++) {
+          try {
+            final userData = await client
+                .from('users')
+                .select('username')
+                .eq('id', proposalInputData[i]['user_id'])
+                .single();
+            proposalInputData[i]['username'] = userData['username'] ?? 'Unknown';
+          } catch (e) {
+            proposalInputData[i]['username'] = 'Unknown';
+          }
+        }
+        
         debugPrint(
-          '✅ Successfully fetched ${proposalInputData.length} proposal inputs',
+          '✅ Successfully fetched ${proposalInputData.length} proposal inputs with usernames',
         );
       } catch (e) {
         debugPrint('❌ Error fetching proposal inputs: $e');
@@ -2158,7 +2173,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       try {
         proposalFileData = await client
             .from('proposal_file')
-            .select('*')
+            .select('filename, file_link')
             .eq('lead_id', leadId);
         debugPrint(
           '✅ Successfully fetched ${proposalFileData.length} proposal files',
@@ -2172,7 +2187,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       try {
         proposalRemarkData = await client
             .from('proposal_remark')
-            .select('*')
+            .select('remark')
             .eq('lead_id', leadId);
         debugPrint(
           '✅ Successfully fetched ${proposalRemarkData.length} proposal remarks',
@@ -2510,6 +2525,39 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           ),
         ]),
         SizedBox(height: 16),
+
+        // Proposal Response Section
+        if (proposalInputData.isNotEmpty || proposalRemarkData.isNotEmpty || proposalFileData.isNotEmpty)
+          _buildInfoSectionCard('Proposal Response', [
+            // Proposal Inputs
+            if (proposalInputData.isNotEmpty) ...[
+              ...proposalInputData.map((input) => _buildInfoRow(
+                input['input'] ?? 'Input',
+                '${input['value']?.toString() ?? 'N/A'} (by ${input['username'] ?? 'Unknown'})',
+              )),
+              if (proposalRemarkData.isNotEmpty || proposalFileData.isNotEmpty) 
+                SizedBox(height: 8),
+            ],
+            
+            // Proposal Remarks
+            if (proposalRemarkData.isNotEmpty) ...[
+              ...proposalRemarkData.map((remark) => _buildInfoRow(
+                'Remark',
+                remark['remark'] ?? 'No remark',
+              )),
+              if (proposalFileData.isNotEmpty) SizedBox(height: 8),
+            ],
+            
+            // Proposal Files
+            if (proposalFileData.isNotEmpty) ...[
+              ...proposalFileData.map((file) => _buildInfoRow(
+                file['filename'] ?? 'File',
+                file['file_link'] ?? 'No link available',
+              )),
+            ],
+          ]),
+        if (proposalInputData.isNotEmpty || proposalRemarkData.isNotEmpty || proposalFileData.isNotEmpty)
+          SizedBox(height: 16),
       ],
     );
   }
