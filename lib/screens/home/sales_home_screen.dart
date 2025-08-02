@@ -4,6 +4,8 @@ import 'package:crm_app/widgets/profile_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../utils/lead_utils.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart';
 
 class SalesHomeScreen extends StatefulWidget {
   final String currentUserType;
@@ -1740,12 +1742,12 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                                                     _buildInteractiveIconButton(
-                             icon: Icons.visibility,
-                             onPressed: () => _viewLeadDetails(lead),
-                             tooltip: 'View Details',
-                             leadId: leadId,
-                           ),
+                          _buildInteractiveIconButton(
+                            icon: Icons.visibility,
+                            onPressed: () => _viewLeadDetails(lead),
+                            tooltip: 'View Details',
+                            leadId: leadId,
+                          ),
                           SizedBox(width: 4),
                           _buildInteractiveIconButton(
                             icon: Icons.help,
@@ -1951,12 +1953,12 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                       Spacer(),
                       Row(
                         children: [
-                                                     _buildMobileInteractiveButton(
-                             icon: Icons.visibility,
-                             onPressed: () => _viewLeadDetails(lead),
-                             tooltip: 'View',
-                             leadId: leadId,
-                           ),
+                          _buildMobileInteractiveButton(
+                            icon: Icons.visibility,
+                            onPressed: () => _viewLeadDetails(lead),
+                            tooltip: 'View',
+                            leadId: leadId,
+                          ),
                           SizedBox(width: 8),
                           _buildMobileInteractiveButton(
                             icon: Icons.edit,
@@ -2074,7 +2076,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
 
   Future<void> _viewLeadDetails(Map<String, dynamic> lead) async {
     final leadId = lead['lead_id'].toString();
-    
+
     debugPrint('Starting _viewLeadDetails for lead_id: $leadId');
 
     setState(() {
@@ -2083,7 +2085,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
 
     try {
       final client = Supabase.instance.client;
-      
+
       debugPrint('Fetching data for lead_id: $leadId');
 
       // Fetch all related data for the specific lead with error handling
@@ -2124,7 +2126,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             .from('lead_attachment')
             .select('*')
             .eq('lead_id', leadId);
-        debugPrint('Successfully fetched ${leadAttachmentsData.length} attachments');
+        debugPrint(
+          'Successfully fetched ${leadAttachmentsData.length} attachments',
+        );
       } catch (e) {
         debugPrint('Error fetching attachments: $e');
       }
@@ -2135,7 +2139,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             .select('*')
             .eq('lead_id', leadId)
             .order('created_at', ascending: false);
-        debugPrint('Successfully fetched ${leadActivityData.length} activities');
+        debugPrint(
+          'Successfully fetched ${leadActivityData.length} activities',
+        );
       } catch (e) {
         debugPrint('Error fetching activities: $e');
       }
@@ -2145,7 +2151,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             .from('proposal_input')
             .select('*')
             .eq('lead_id', leadId);
-        debugPrint('Successfully fetched ${proposalInputData.length} proposal inputs');
+        debugPrint(
+          'Successfully fetched ${proposalInputData.length} proposal inputs',
+        );
       } catch (e) {
         debugPrint('Error fetching proposal inputs: $e');
       }
@@ -2155,7 +2163,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             .from('proposal_file')
             .select('*')
             .eq('lead_id', leadId);
-        debugPrint('Successfully fetched ${proposalFileData.length} proposal files');
+        debugPrint(
+          'Successfully fetched ${proposalFileData.length} proposal files',
+        );
       } catch (e) {
         debugPrint('Error fetching proposal files: $e');
       }
@@ -2165,7 +2175,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             .from('proposal_remark')
             .select('*')
             .eq('lead_id', leadId);
-        debugPrint('Successfully fetched ${proposalRemarkData.length} proposal remarks');
+        debugPrint(
+          'Successfully fetched ${proposalRemarkData.length} proposal remarks',
+        );
       } catch (e) {
         debugPrint('Error fetching proposal remarks: $e');
       }
@@ -2193,7 +2205,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       });
 
       debugPrint('Showing comprehensive details dialog');
-      
+
       // Show comprehensive details dialog
       if (mounted) {
         showDialog(
@@ -2583,24 +2595,65 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     );
   }
 
-  void _openFileLink(String link) {
-    // TODO: Implement URL launcher
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Opening link: $link'),
-        backgroundColor: Colors.blue,
-      ),
-    );
+  Future<void> _openFileLink(String link) async {
+    try {
+      final Uri url = Uri.parse(link);
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Opening link in browser...'),
+              backgroundColor: Colors.blue,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Could not open link: $link'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error opening link: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening link: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
-  void _copyFileLink(String link) {
-    // TODO: Implement clipboard copy
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Link copied to clipboard: $link'),
-        backgroundColor: Colors.green,
-      ),
-    );
+  Future<void> _copyFileLink(String link) async {
+    try {
+      await Clipboard.setData(ClipboardData(text: link));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Link copied to clipboard!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error copying link: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error copying link: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildMobileInteractiveButton({
