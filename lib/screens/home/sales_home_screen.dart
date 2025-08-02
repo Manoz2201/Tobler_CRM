@@ -2321,43 +2321,91 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     Map<String, dynamic> adminResponseData,
   ) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text(
           'Lead Details',
-          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 20),
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 20,
+            color: Colors.white,
+          ),
         ),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.grey[800],
+        backgroundColor: Colors.transparent,
         elevation: 0,
+        flexibleSpace: ClipRRect(
+          borderRadius: BorderRadius.only(
+            bottomLeft: Radius.circular(20),
+            bottomRight: Radius.circular(20),
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.blue[600]!.withValues(alpha: 0.9),
+                  Colors.blue[800]!.withValues(alpha: 0.9),
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 20,
+                  offset: Offset(0, 10),
+                ),
+              ],
+            ),
+          ),
+        ),
         actions: [
           Container(
             margin: EdgeInsets.only(right: 8),
-            child: IconButton(
-              icon: Icon(Icons.refresh, size: 20),
-              onPressed: () {
-                HapticFeedback.lightImpact();
-                Navigator.of(context).pop();
-                _viewLeadDetails(leadsData);
-              },
-              style: IconButton.styleFrom(
-                backgroundColor: Colors.blue[50],
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(5),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(5),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(5),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: IconButton(
+                    icon: Icon(Icons.refresh, size: 20, color: Colors.white),
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      Navigator.of(context).pop();
+                      _viewLeadDetails(leadsData);
+                    },
+                    tooltip: 'Refresh Data',
+                  ),
                 ),
               ),
-              tooltip: 'Refresh Data',
             ),
           ),
           Container(
             margin: EdgeInsets.only(right: 16),
-            child: IconButton(
-              icon: Icon(Icons.close, size: 24),
-              onPressed: () => Navigator.of(context).pop(),
-              style: IconButton.styleFrom(
-                backgroundColor: Colors.grey[100],
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(5),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(5),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(5),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: IconButton(
+                    icon: Icon(Icons.close, size: 24, color: Colors.white),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
                 ),
               ),
             ),
@@ -2367,9 +2415,13 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Colors.white, Colors.grey[50]!],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.blue[50]!.withValues(alpha: 0.3),
+              Colors.purple[50]!.withValues(alpha: 0.3),
+              Colors.white.withValues(alpha: 0.8),
+            ],
           ),
         ),
         child: SingleChildScrollView(
@@ -2378,7 +2430,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header with Project Info
-              _buildModernHeader(leadsData),
+              _buildGlassmorphicHeader(leadsData),
               SizedBox(height: 32),
 
               // Interactive Grid Layout for Sections
@@ -2420,100 +2472,135 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     );
   }
 
-  Widget _buildModernHeader(Map<String, dynamic> leadsData) {
+  Widget _buildGlassmorphicHeader(Map<String, dynamic> leadsData) {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: AnimatedContainer(
-        duration: Duration(milliseconds: 200),
+        duration: Duration(milliseconds: 300),
         padding: EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: Colors.white,
           borderRadius: BorderRadius.circular(5),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 20,
-              offset: Offset(0, 8),
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 25,
+              offset: Offset(0, 10),
             ),
           ],
         ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(5),
-            onTap: () {
-              HapticFeedback.lightImpact();
-            },
-            child: Padding(
-              padding: EdgeInsets.all(4),
-              child: Row(
-                children: [
-                  AnimatedContainer(
-                    duration: Duration(milliseconds: 200),
-                    padding: EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.blue[600]!, Colors.blue[700]!],
-                      ),
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                    child: Icon(
-                      Icons.leaderboard,
-                      color: Colors.white,
-                      size: 32,
-                    ),
-                  ),
-                  SizedBox(width: 20),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(5),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.25),
+                borderRadius: BorderRadius.circular(5),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.4),
+                  width: 1.5,
+                ),
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(5),
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                  },
+                  child: Padding(
+                    padding: EdgeInsets.all(4),
+                    child: Row(
                       children: [
-                        Text(
-                          leadsData['project_name'] ?? 'N/A',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[800],
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          '${leadsData['client_name'] ?? 'N/A'} • ${leadsData['project_location'] ?? 'N/A'}',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
+                        AnimatedContainer(
+                          duration: Duration(milliseconds: 300),
+                          padding: EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: _getStatusColor(
-                              _getLeadStatus(leadsData),
-                            ).withValues(alpha: 0.1),
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.blue[600]!.withValues(alpha: 0.9),
+                                Colors.blue[700]!.withValues(alpha: 0.9),
+                              ],
+                            ),
                             borderRadius: BorderRadius.circular(5),
-                            border: Border.all(
-                              color: _getStatusColor(
-                                _getLeadStatus(leadsData),
-                              ).withValues(alpha: 0.3),
-                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.blue[600]!.withValues(alpha: 0.3),
+                                blurRadius: 15,
+                                offset: Offset(0, 5),
+                              ),
+                            ],
                           ),
-                          child: Text(
-                            _getLeadStatus(leadsData),
-                            style: TextStyle(
-                              color: _getStatusColor(_getLeadStatus(leadsData)),
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
+                          child: Icon(
+                            Icons.leaderboard,
+                            color: Colors.white,
+                            size: 32,
+                          ),
+                        ),
+                        SizedBox(width: 20),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                leadsData['project_name'] ?? 'N/A',
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey[800],
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                '${leadsData['client_name'] ?? 'N/A'} • ${leadsData['project_location'] ?? 'N/A'}',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _getStatusColor(
+                                    _getLeadStatus(leadsData),
+                                  ).withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(5),
+                                  border: Border.all(
+                                    color: _getStatusColor(
+                                      _getLeadStatus(leadsData),
+                                    ).withValues(alpha: 0.4),
+                                    width: 1,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: _getStatusColor(
+                                        _getLeadStatus(leadsData),
+                                      ).withValues(alpha: 0.2),
+                                      blurRadius: 8,
+                                      offset: Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Text(
+                                  _getLeadStatus(leadsData),
+                                  style: TextStyle(
+                                    color: _getStatusColor(_getLeadStatus(leadsData)),
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
-                ],
+                ),
               ),
             ),
           ),
@@ -2861,63 +2948,84 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: AnimatedContainer(
-        duration: Duration(milliseconds: 200),
+        duration: Duration(milliseconds: 300),
         decoration: BoxDecoration(
-          color: Colors.white,
           borderRadius: BorderRadius.circular(5),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 15,
-              offset: Offset(0, 5),
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 20,
+              offset: Offset(0, 8),
             ),
           ],
         ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(5),
-            onTap: () {
-              // Add subtle feedback
-              HapticFeedback.lightImpact();
-            },
-            child: Padding(
-              padding: EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      AnimatedContainer(
-                        duration: Duration(milliseconds: 200),
-                        padding: EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              color.withValues(alpha: 0.1),
-                              color.withValues(alpha: 0.2),
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(5),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(5),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(5),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.5),
+                  width: 1.5,
+                ),
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(5),
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                  },
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            AnimatedContainer(
+                              duration: Duration(milliseconds: 300),
+                              padding: EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    color.withValues(alpha: 0.2),
+                                    color.withValues(alpha: 0.3),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(5),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: color.withValues(alpha: 0.2),
+                                    blurRadius: 10,
+                                    offset: Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: Icon(icon, color: color, size: 24),
+                            ),
+                            SizedBox(width: 16),
+                            Expanded(
+                              child: Text(
+                                title,
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey[800],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        child: Icon(icon, color: color, size: 24),
-                      ),
-                      SizedBox(width: 16),
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[800],
-                          ),
-                        ),
-                      ),
-                    ],
+                        SizedBox(height: 20),
+                        ...children,
+                      ],
+                    ),
                   ),
-                  SizedBox(height: 20),
-                  ...children,
-                ],
+                ),
               ),
             ),
           ),
@@ -2930,79 +3038,102 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: AnimatedContainer(
-        duration: Duration(milliseconds: 150),
+        duration: Duration(milliseconds: 200),
         margin: EdgeInsets.only(bottom: 16),
-        padding: EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.grey[50],
           borderRadius: BorderRadius.circular(5),
-          border: Border.all(color: Colors.grey[200]!, width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: Offset(0, 3),
+            ),
+          ],
         ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(5),
-            onTap: () {
-              HapticFeedback.lightImpact();
-              // Show detailed information in a tooltip or dialog
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: Text(label),
-                  content: Text(value),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: Text('Close'),
-                    ),
-                  ],
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(5),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.25),
+                borderRadius: BorderRadius.circular(5),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.4),
+                  width: 1,
                 ),
-              );
-            },
-            child: Padding(
-              padding: EdgeInsets.all(4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          label,
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(5),
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    // Show detailed information in a tooltip or dialog
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: Text(label),
+                        content: Text(value),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: Text('Close'),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                label,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey[700],
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.blue[50],
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                              child: Text(
+                                'Tap for details',
+                                style: TextStyle(
+                                  color: Colors.blue[600],
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          value,
                           style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey[700],
-                            fontSize: 14,
+                            color: Colors.grey[800],
+                            fontSize: 16,
+                            height: 1.4,
                           ),
                         ),
-                      ),
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.blue[50],
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                        child: Text(
-                          'Tap for details',
-                          style: TextStyle(
-                            color: Colors.blue[600],
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    value,
-                    style: TextStyle(
-                      color: Colors.grey[800],
-                      fontSize: 16,
-                      height: 1.4,
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
             ),
           ),
@@ -3015,140 +3146,171 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: AnimatedContainer(
-        duration: Duration(milliseconds: 150),
+        duration: Duration(milliseconds: 200),
         margin: EdgeInsets.only(bottom: 16),
-        padding: EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.grey[50],
           borderRadius: BorderRadius.circular(5),
-          border: Border.all(color: Colors.grey[200]!, width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: Offset(0, 3),
+            ),
+          ],
         ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(5),
-            onTap: () {
-              HapticFeedback.lightImpact();
-            },
-            child: Padding(
-              padding: EdgeInsets.all(4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.file_present,
-                        color: Colors.blue[600],
-                        size: 20,
-                      ),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          fileName,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey[800],
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 8),
-                  Container(
-                    padding: EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(5),
-                      border: Border.all(color: Colors.blue[200]!, width: 1),
-                    ),
-                    child: Row(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(5),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.25),
+                borderRadius: BorderRadius.circular(5),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.4),
+                  width: 1,
+                ),
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(5),
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                  },
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(
-                            fileLink,
-                            style: TextStyle(
-                              color: Colors.blue[600],
-                              fontSize: 12,
-                              fontFamily: 'monospace',
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        SizedBox(width: 8),
                         Row(
                           children: [
-                            MouseRegion(
-                              cursor: SystemMouseCursors.click,
-                              child: AnimatedContainer(
-                                duration: Duration(milliseconds: 150),
-                                decoration: BoxDecoration(
-                                  color: Colors.blue[50],
-                                  borderRadius: BorderRadius.circular(5),
-                                ),
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(5),
-                                    onTap: () => _openFileLink(fileLink),
-                                    child: IconButton(
-                                      icon: Icon(Icons.open_in_new, size: 16),
-                                      onPressed: () => _openFileLink(fileLink),
-                                      tooltip: 'Open in browser',
-                                      color: Colors.blue[600],
-                                      padding: EdgeInsets.all(8),
-                                      constraints: BoxConstraints(
-                                        minWidth: 32,
-                                        minHeight: 32,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
+                            Icon(
+                              Icons.file_present,
+                              color: Colors.blue[600],
+                              size: 20,
                             ),
-                            SizedBox(width: 4),
-                            MouseRegion(
-                              cursor: SystemMouseCursors.click,
-                              child: AnimatedContainer(
-                                duration: Duration(milliseconds: 150),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[50],
-                                  borderRadius: BorderRadius.circular(5),
-                                ),
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(5),
-                                    onTap: () => _copyFileLink(fileLink),
-                                    child: IconButton(
-                                      icon: Icon(Icons.copy, size: 16),
-                                      onPressed: () => _copyFileLink(fileLink),
-                                      tooltip: 'Copy link',
-                                      color: Colors.grey[600],
-                                      padding: EdgeInsets.all(8),
-                                      constraints: BoxConstraints(
-                                        minWidth: 32,
-                                        minHeight: 32,
-                                      ),
-                                    ),
-                                  ),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                fileName,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey[800],
+                                  fontSize: 14,
                                 ),
                               ),
                             ),
                           ],
                         ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+                        SizedBox(height: 8),
+                        Container(
+                          padding: EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.3),
+                            borderRadius: BorderRadius.circular(5),
+                            border: Border.all(
+                              color: Colors.blue[200]!.withValues(alpha: 0.5),
+                              width: 1,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.blue[200]!.withValues(alpha: 0.2),
+                                blurRadius: 5,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  fileLink,
+                                  style: TextStyle(
+                                    color: Colors.blue[600],
+                                    fontSize: 12,
+                                    fontFamily: 'monospace',
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Row(
+                                children: [
+                                  MouseRegion(
+                                    cursor: SystemMouseCursors.click,
+                                    child: AnimatedContainer(
+                                      duration: Duration(milliseconds: 150),
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue[50],
+                                        borderRadius: BorderRadius.circular(5),
+                                      ),
+                                      child: Material(
+                                        color: Colors.transparent,
+                                        child: InkWell(
+                                          borderRadius: BorderRadius.circular(5),
+                                          onTap: () => _openFileLink(fileLink),
+                                                                                     child: IconButton(
+                                             icon: Icon(Icons.open_in_new, size: 16),
+                                             onPressed: () => _openFileLink(fileLink),
+                                             tooltip: 'Open in browser',
+                                             color: Colors.blue[600],
+                                             padding: EdgeInsets.all(8),
+                                             constraints: BoxConstraints(
+                                               minWidth: 32,
+                                               minHeight: 32,
+                                             ),
+                                           ),
+                                         ),
+                                       ),
+                                     ),
+                                   ),
+                                   SizedBox(width: 4),
+                                   MouseRegion(
+                                     cursor: SystemMouseCursors.click,
+                                     child: AnimatedContainer(
+                                       duration: Duration(milliseconds: 150),
+                                       decoration: BoxDecoration(
+                                         color: Colors.grey[50],
+                                         borderRadius: BorderRadius.circular(5),
+                                       ),
+                                       child: Material(
+                                         color: Colors.transparent,
+                                         child: InkWell(
+                                           borderRadius: BorderRadius.circular(5),
+                                           onTap: () => _copyFileLink(fileLink),
+                                           child: IconButton(
+                                             icon: Icon(Icons.copy, size: 16),
+                                             onPressed: () => _copyFileLink(fileLink),
+                                             tooltip: 'Copy link',
+                                             color: Colors.grey[600],
+                                             padding: EdgeInsets.all(8),
+                                             constraints: BoxConstraints(
+                                               minWidth: 32,
+                                               minHeight: 32,
+                                             ),
+                                           ),
+                                         ),
+                                       ),
+                                     ),
+                                   ),
+                                 ],
+                               ),
+                             ],
+                           ),
+                         ),
+                       ],
+                     ),
+                   ),
+                 ),
+               ),
+             ),
+           ),
+         ),
+       ),
+     );
+   }
+                                      
 
   Widget _buildSectionCard(
     String title,
