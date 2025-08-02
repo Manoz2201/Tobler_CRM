@@ -87,10 +87,13 @@ jobs:
     - name: Install dependencies
       run: flutter pub get
       
-    - name: Setup iOS
+    - name: Clean and regenerate iOS project
       run: |
+        flutter clean
+        flutter pub get
         cd ios
-        pod install
+        rm -rf Pods Podfile.lock
+        pod install --repo-update
         cd ..
       
     - name: Build iOS Debug
