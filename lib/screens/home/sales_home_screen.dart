@@ -1153,12 +1153,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             // Add New Lead Button
             ElevatedButton.icon(
               onPressed: () {
-                // TODO: Implement add new lead functionality
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Add New Lead functionality coming soon'),
-                  ),
-                );
+                _showAddLeadDialog();
               },
               icon: Icon(Icons.add),
               label: Text('Add New Lead'),
@@ -1745,30 +1740,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           _buildInteractiveIconButton(
-                            icon: Icons.visibility,
-                            onPressed: () => _viewLeadDetails(lead),
-                            tooltip: 'View Details',
-                            leadId: leadId,
-                          ),
-                          SizedBox(width: 4),
-                          _buildInteractiveIconButton(
-                            icon: Icons.help,
-                            onPressed: () => _helpLead(lead),
-                            tooltip: 'Get Help',
-                            leadId: leadId,
-                          ),
-                          SizedBox(width: 4),
-                          _buildInteractiveIconButton(
                             icon: Icons.edit,
                             onPressed: () => _editLead(lead),
                             tooltip: 'Edit Lead',
-                            leadId: leadId,
-                          ),
-                          SizedBox(width: 4),
-                          _buildInteractiveIconButton(
-                            icon: Icons.refresh,
-                            onPressed: () => _refreshLead(lead),
-                            tooltip: 'Refresh Data',
                             leadId: leadId,
                           ),
                           SizedBox(width: 4),
@@ -1956,13 +1930,6 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                       Row(
                         children: [
                           _buildMobileInteractiveButton(
-                            icon: Icons.visibility,
-                            onPressed: () => _viewLeadDetails(lead),
-                            tooltip: 'View',
-                            leadId: leadId,
-                          ),
-                          SizedBox(width: 8),
-                          _buildMobileInteractiveButton(
                             icon: Icons.edit,
                             onPressed: () => _editLead(lead),
                             tooltip: 'Edit',
@@ -1993,44 +1960,37 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     return Color(LeadUtils.getStatusColor(status));
   }
 
-  void _helpLead(Map<String, dynamic> lead) {
-    // TODO: Implement help functionality
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Help for lead: ${lead['project_name']}'),
-        backgroundColor: Colors.orange,
-      ),
-    );
-  }
-
   void _editLead(Map<String, dynamic> lead) {
-    // TODO: Implement edit lead
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Editing lead: ${lead['project_name']}'),
-        backgroundColor: Colors.purple,
-      ),
+    // Open edit lead dialog with pre-filled data
+    debugPrint('Edit lead called with data: $lead');
+    debugPrint('Lead ID: ${lead['lead_id']}');
+    debugPrint('Lead ID type: ${lead['lead_id'].runtimeType}');
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return EditLeadDialog(
+          currentUserId: _currentUserId,
+          leadId: lead['lead_id'].toString(),
+          onLeadUpdated: () {
+            _fetchLeads(); // Refresh the leads list
+          },
+        );
+      },
     );
   }
 
-  void _refreshLead(Map<String, dynamic> lead) {
-    // TODO: Implement refresh lead
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Refreshing lead: ${lead['project_name']}'),
-        backgroundColor: Colors.blue,
-      ),
-    );
-  }
+  Future<void> _deleteLead(Map<String, dynamic> lead) async {
+    final leadId = lead['lead_id'].toString();
 
-  void _deleteLead(Map<String, dynamic> lead) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Delete Lead'),
           content: Text(
-            'Are you sure you want to delete lead: ${lead['project_name']}?',
+            'Are you sure you want to delete lead: ${lead['project_name']}?\n\nThis action cannot be undone and will delete all related data.',
           ),
           actions: [
             TextButton(
@@ -2038,15 +1998,178 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
               child: const Text('Cancel'),
             ),
             TextButton(
-              onPressed: () {
-                // TODO: Implement delete lead
+              onPressed: () async {
                 Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Deleted lead: ${lead['project_name']}'),
-                    backgroundColor: Colors.red,
-                  ),
+
+                // Show loading dialog
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (BuildContext context) {
+                    return const AlertDialog(
+                      content: Row(
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(width: 16),
+                          Text('Deleting lead...'),
+                        ],
+                      ),
+                    );
+                  },
                 );
+
+                try {
+                  final client = Supabase.instance.client;
+
+                  debugPrint('Starting delete operation for lead_id: $leadId');
+
+                  // Delete from all related tables in the correct order
+                  // (child tables first, then parent table)
+
+                  // 1. Delete from lead_activity
+                  try {
+                    await client
+                        .from('lead_activity')
+                        .delete()
+                        .eq('lead_id', leadId);
+                    debugPrint('✅ Deleted from lead_activity');
+                  } catch (e) {
+                    debugPrint('⚠️ Error deleting from lead_activity: $e');
+                  }
+
+                  // 2. Delete from proposal_remark
+                  try {
+                    await client
+                        .from('proposal_remark')
+                        .delete()
+                        .eq('lead_id', leadId);
+                    debugPrint('✅ Deleted from proposal_remark');
+                  } catch (e) {
+                    debugPrint('⚠️ Error deleting from proposal_remark: $e');
+                  }
+
+                  // 3. Delete from proposal_file
+                  try {
+                    await client
+                        .from('proposal_file')
+                        .delete()
+                        .eq('lead_id', leadId);
+                    debugPrint('✅ Deleted from proposal_file');
+                  } catch (e) {
+                    debugPrint('⚠️ Error deleting from proposal_file: $e');
+                  }
+
+                  // 4. Delete from proposal_input
+                  try {
+                    await client
+                        .from('proposal_input')
+                        .delete()
+                        .eq('lead_id', leadId);
+                    debugPrint('✅ Deleted from proposal_input');
+                  } catch (e) {
+                    debugPrint('⚠️ Error deleting from proposal_input: $e');
+                  }
+
+                  // 5. Delete from admin_response
+                  try {
+                    await client
+                        .from('admin_response')
+                        .delete()
+                        .eq('lead_id', leadId);
+                    debugPrint('✅ Deleted from admin_response');
+                  } catch (e) {
+                    debugPrint('⚠️ Error deleting from admin_response: $e');
+                  }
+
+                  // 6. Delete from initial_quote
+                  try {
+                    await client
+                        .from('initial_quote')
+                        .delete()
+                        .eq('lead_id', leadId);
+                    debugPrint('✅ Deleted from initial_quote');
+                  } catch (e) {
+                    debugPrint('⚠️ Error deleting from initial_quote: $e');
+                  }
+
+                  // 7. Delete from lead_attachment
+                  try {
+                    await client
+                        .from('lead_attachment')
+                        .delete()
+                        .eq('lead_id', leadId);
+                    debugPrint('✅ Deleted from lead_attachment');
+                  } catch (e) {
+                    debugPrint('⚠️ Error deleting from lead_attachment: $e');
+                  }
+
+                  // 8. Delete from lead_contacts
+                  try {
+                    await client
+                        .from('lead_contacts')
+                        .delete()
+                        .eq('lead_id', leadId);
+                    debugPrint('✅ Deleted from lead_contacts');
+                  } catch (e) {
+                    debugPrint('⚠️ Error deleting from lead_contacts: $e');
+                  }
+
+                  // 9. Delete from queries
+                  try {
+                    await client.from('queries').delete().eq('lead_id', leadId);
+                    debugPrint('✅ Deleted from queries');
+                  } catch (e) {
+                    debugPrint('⚠️ Error deleting from queries: $e');
+                  }
+
+                  // 10. Finally, delete from leads table
+                  try {
+                    await client.from('leads').delete().eq('id', leadId);
+                    debugPrint('✅ Deleted from leads');
+                  } catch (e) {
+                    debugPrint('❌ Error deleting from leads: $e');
+                    throw Exception('Failed to delete lead from main table');
+                  }
+
+                  // Close loading dialog
+                  if (context.mounted) {
+                    Navigator.of(context).pop();
+                  }
+
+                  // Show success message
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Successfully deleted lead: ${lead['project_name']}',
+                        ),
+                        backgroundColor: Colors.green,
+                        duration: const Duration(seconds: 3),
+                      ),
+                    );
+                  }
+
+                  // Refresh the leads list
+                  await _fetchLeads();
+                } catch (e) {
+                  // Close loading dialog
+                  if (context.mounted) {
+                    Navigator.of(context).pop();
+                  }
+
+                  debugPrint('❌ Error during delete operation: $e');
+
+                  // Show error message
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error deleting lead: ${e.toString()}'),
+                        backgroundColor: Colors.red,
+                        duration: const Duration(seconds: 5),
+                      ),
+                    );
+                  }
+                }
               },
               child: const Text('Delete'),
             ),
@@ -2212,20 +2335,39 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
 
       // 9. Fetch admin_response table data
       try {
-        adminResponseData = await client
+        final adminResponseResult = await client
             .from('admin_response')
             .select(
-              'aluminium_area, ms_weight, total_amount_gst, status, remark, created_at, updated_at',
+              'aluminium_area, ms_weight, rate_sqm, total_amount_gst, status, remark, created_at, updated_at',
             )
-            .eq('lead_id', leadId)
-            .single();
-        debugPrint('✅ Successfully fetched admin response');
+            .eq('lead_id', leadId);
+
+        if (adminResponseResult.isNotEmpty) {
+          adminResponseData = adminResponseResult.first;
+          debugPrint(
+            '✅ Successfully fetched admin response with data: ${adminResponseData['aluminium_area']}, ${adminResponseData['ms_weight']}, ${adminResponseData['rate_sqm']}, ${adminResponseData['total_amount_gst']}',
+          );
+        } else {
+          debugPrint('⚠️ No admin response found for lead_id: $leadId');
+          // Create empty admin response data
+          adminResponseData = {
+            'aluminium_area': 0,
+            'ms_weight': 0,
+            'rate_sqm': 0,
+            'total_amount_gst': 0,
+            'status': 'Pending',
+            'remark': 'No admin response yet',
+            'created_at': null,
+            'updated_at': null,
+          };
+        }
       } catch (e) {
         debugPrint('❌ Error fetching admin response: $e');
         // Create empty admin response data
         adminResponseData = {
           'aluminium_area': 0,
           'ms_weight': 0,
+          'rate_sqm': 0,
           'total_amount_gst': 0,
           'status': 'Pending',
           'remark': 'No admin response yet',
@@ -2580,13 +2722,14 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             '${adminResponseData['ms_weight']?.toStringAsFixed(2) ?? '0.00'} kg',
           ),
           _buildInfoRow(
+            'Rate per sqm',
+            '₹${adminResponseData['rate_sqm']?.toStringAsFixed(2) ?? '0.00'}',
+          ),
+          _buildInfoRow(
             'Total Amount (GST)',
             '₹${adminResponseData['total_amount_gst']?.toString() ?? '0'}',
           ),
-          _buildInfoRow(
-            'Status',
-            adminResponseData['status'] ?? 'Pending',
-          ),
+          _buildInfoRow('Status', adminResponseData['status'] ?? 'Pending'),
           _buildInfoRow(
             'Remark',
             adminResponseData['remark'] ?? 'No admin response yet',
@@ -2777,6 +2920,18 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     }
   }
 
+  void _showAddLeadDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AddLeadDialog(
+        currentUserId: _currentUserId,
+        onLeadAdded: () {
+          _fetchLeads(); // Refresh the leads list
+        },
+      ),
+    );
+  }
+
   Widget _buildMobileInteractiveButton({
     required IconData icon,
     required VoidCallback onPressed,
@@ -2840,4 +2995,2613 @@ class _NavItem {
   final IconData icon;
 
   const _NavItem(this.label, this.icon);
+}
+
+class AddLeadDialog extends StatefulWidget {
+  final String? currentUserId;
+  final VoidCallback onLeadAdded;
+
+  const AddLeadDialog({
+    super.key,
+    required this.currentUserId,
+    required this.onLeadAdded,
+  });
+
+  @override
+  State<AddLeadDialog> createState() => _AddLeadDialogState();
+}
+
+class _AddLeadDialogState extends State<AddLeadDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _projectNameController = TextEditingController();
+  final _clientNameController = TextEditingController();
+  final _projectLocationController = TextEditingController();
+  final _remarkController = TextEditingController();
+  final _mainContactNameController = TextEditingController();
+  final _mainContactEmailController = TextEditingController();
+  final _mainContactMobileController = TextEditingController();
+  final _mainContactDesignationController = TextEditingController();
+
+  // Additional contact fields
+  final List<Map<String, TextEditingController>> _additionalContacts = [];
+
+  // Attachment fields
+  final List<Map<String, TextEditingController>> _attachments = [];
+
+  // Initial quote fields (for scaffolding)
+  final List<Map<String, TextEditingController>> _initialQuotes = [];
+
+  bool _isLoading = false;
+  String _selectedLeadType = 'Monolithic Formwork';
+
+  final List<String> _leadTypes = ['Monolithic Formwork', 'Scaffolding'];
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize with one additional contact and one attachment
+    _addAdditionalContact();
+    _addAttachment();
+    if (_selectedLeadType == 'Scaffolding') {
+      _addInitialQuote();
+    }
+  }
+
+  @override
+  void dispose() {
+    _projectNameController.dispose();
+    _clientNameController.dispose();
+    _projectLocationController.dispose();
+    _remarkController.dispose();
+    _mainContactNameController.dispose();
+    _mainContactEmailController.dispose();
+    _mainContactMobileController.dispose();
+    _mainContactDesignationController.dispose();
+
+    // Dispose additional contacts
+    for (final contact in _additionalContacts) {
+      contact['name']?.dispose();
+      contact['designation']?.dispose();
+      contact['email']?.dispose();
+      contact['mobile']?.dispose();
+    }
+
+    // Dispose attachments
+    for (final attachment in _attachments) {
+      attachment['name']?.dispose();
+      attachment['link']?.dispose();
+    }
+
+    // Dispose initial quotes
+    for (final quote in _initialQuotes) {
+      quote['item']?.dispose();
+      quote['quantity']?.dispose();
+      quote['rate']?.dispose();
+      quote['amount']?.dispose();
+    }
+
+    super.dispose();
+  }
+
+  void _addAdditionalContact() {
+    _additionalContacts.add({
+      'name': TextEditingController(),
+      'designation': TextEditingController(),
+      'email': TextEditingController(),
+      'mobile': TextEditingController(),
+    });
+    setState(() {});
+  }
+
+  void _removeAdditionalContact(int index) {
+    if (_additionalContacts.length > 1) {
+      _additionalContacts[index]['name']?.dispose();
+      _additionalContacts[index]['designation']?.dispose();
+      _additionalContacts[index]['email']?.dispose();
+      _additionalContacts[index]['mobile']?.dispose();
+      _additionalContacts.removeAt(index);
+      setState(() {});
+    }
+  }
+
+  void _addAttachment() {
+    _attachments.add({
+      'name': TextEditingController(),
+      'link': TextEditingController(),
+    });
+    setState(() {});
+  }
+
+  void _removeAttachment(int index) {
+    if (_attachments.length > 1) {
+      _attachments[index]['name']?.dispose();
+      _attachments[index]['link']?.dispose();
+      _attachments.removeAt(index);
+      setState(() {});
+    }
+  }
+
+  void _addInitialQuote() {
+    _initialQuotes.add({
+      'item': TextEditingController(),
+      'quantity': TextEditingController(),
+      'rate': TextEditingController(),
+      'amount': TextEditingController(),
+    });
+    setState(() {});
+  }
+
+  void _removeInitialQuote(int index) {
+    if (_initialQuotes.length > 1) {
+      _initialQuotes[index]['item']?.dispose();
+      _initialQuotes[index]['quantity']?.dispose();
+      _initialQuotes[index]['rate']?.dispose();
+      _initialQuotes[index]['amount']?.dispose();
+      _initialQuotes.removeAt(index);
+      setState(() {});
+    }
+  }
+
+  // Helper methods for responsive form design
+  Widget _buildSectionHeader(String title, IconData icon, bool isWide) {
+    return Container(
+      padding: EdgeInsets.all(isWide ? 16 : 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.blue[600]!.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(icon, color: Colors.blue[600], size: isWide ? 20 : 16),
+          ),
+          SizedBox(width: 12),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: isWide ? 18 : 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFormField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    String? Function(String?)? validator,
+    int maxLines = 1,
+    TextInputType? keyboardType,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextFormField(
+        controller: controller,
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Colors.grey[300]!),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Colors.grey[300]!),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Colors.blue[600]!),
+          ),
+          prefixIcon: Icon(icon, color: Colors.grey[600]),
+          filled: true,
+          fillColor: Colors.grey[50],
+          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+        validator: validator,
+        maxLines: maxLines,
+        keyboardType: keyboardType,
+      ),
+    );
+  }
+
+  Widget _buildDropdownField({
+    required String value,
+    required String label,
+    required IconData icon,
+    required List<DropdownMenuItem<String>> items,
+    required void Function(String?) onChanged,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: DropdownButtonFormField<String>(
+        value: value,
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Colors.grey[300]!),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Colors.grey[300]!),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Colors.blue[600]!),
+          ),
+          prefixIcon: Icon(icon, color: Colors.grey[600]),
+          filled: true,
+          fillColor: Colors.grey[50],
+          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+        items: items,
+        onChanged: onChanged,
+      ),
+    );
+  }
+
+  Future<void> _saveLead() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    if (widget.currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('User session not found. Please login again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final client = Supabase.instance.client;
+
+      // Insert new lead into the leads table
+      final result = await client.from('leads').insert({
+        'project_name': _projectNameController.text.trim(),
+        'client_name': _clientNameController.text.trim(),
+        'project_location': _projectLocationController.text.trim(),
+        'lead_type': _selectedLeadType,
+        'remark': _remarkController.text.trim(),
+        'main_contact_name': _mainContactNameController.text.trim(),
+        'main_contact_email': _mainContactEmailController.text.trim(),
+        'main_contact_mobile': _mainContactMobileController.text.trim(),
+        'main_contact_designation': _mainContactDesignationController.text
+            .trim(),
+        'lead_generated_by': widget.currentUserId,
+        'created_at': DateTime.now().toIso8601String(),
+      }).select();
+
+      if (result.isNotEmpty) {
+        final newLead = result.first;
+        final leadId = newLead['id'];
+
+        // Insert additional contacts into lead_contacts table
+        for (final contact in _additionalContacts) {
+          if (contact['name']?.text.trim().isNotEmpty == true) {
+            await client.from('lead_contacts').insert({
+              'lead_id': leadId,
+              'contact_name': contact['name']?.text.trim(),
+              'designation': contact['designation']?.text.trim(),
+              'email': contact['email']?.text.trim(),
+              'mobile': contact['mobile']?.text.trim(),
+              'created_at': DateTime.now().toIso8601String(),
+            });
+          }
+        }
+
+        // Insert attachments into lead_attachments table
+        for (final attachment in _attachments) {
+          if (attachment['name']?.text.trim().isNotEmpty == true) {
+            await client.from('lead_attachments').insert({
+              'lead_id': leadId,
+              'file_name': attachment['name']?.text.trim(),
+              'file_link': attachment['link']?.text.trim(),
+              'created_at': DateTime.now().toIso8601String(),
+            });
+          }
+        }
+
+        // Insert initial quotes for scaffolding leads
+        if (_selectedLeadType == 'Scaffolding') {
+          for (final quote in _initialQuotes) {
+            if (quote['item']?.text.trim().isNotEmpty == true) {
+              await client.from('initial_quote').insert({
+                'lead_id': leadId,
+                'item': quote['item']?.text.trim(),
+                'quantity':
+                    double.tryParse(quote['quantity']?.text.trim() ?? '0') ?? 0,
+                'rate': double.tryParse(quote['rate']?.text.trim() ?? '0') ?? 0,
+                'amount':
+                    double.tryParse(quote['amount']?.text.trim() ?? '0') ?? 0,
+                'created_at': DateTime.now().toIso8601String(),
+              });
+            }
+          }
+        }
+
+        // Log the activity (commented out due to column structure issues)
+        // await client.from('lead_activity').insert({
+        //   'lead_id': leadId,
+        //   'user_id': widget.currentUserId,
+        //   'activity_type': 'Lead Created',
+        //   'changes_made': 'New lead created by sales user',
+        //   'created_at': DateTime.now().toIso8601String(),
+        // });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Lead added successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+
+          widget.onLeadAdded();
+          Navigator.of(context).pop();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error adding lead: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error adding lead: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth > 700;
+
+        return Dialog(
+          insetPadding: EdgeInsets.all(isWide ? 24 : 16),
+          child: Container(
+            width: isWide ? 800 : double.infinity,
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.9,
+            ),
+            child: Column(
+              children: [
+                // Header - matching lead management style
+                Container(
+                  padding: EdgeInsets.all(isWide ? 24 : 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(12),
+                      topRight: Radius.circular(12),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 10,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue[600]!.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.add_circle,
+                          color: Colors.blue[600],
+                          size: 24,
+                        ),
+                      ),
+                      SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Add New Lead',
+                              style: TextStyle(
+                                fontSize: isWide ? 24 : 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey[800],
+                              ),
+                            ),
+                            Text(
+                              'Create a new lead for your client',
+                              style: TextStyle(
+                                fontSize: isWide ? 14 : 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: Icon(Icons.close, color: Colors.grey[600]),
+                        tooltip: 'Close',
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Form Content
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(color: Colors.grey[50]),
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.all(isWide ? 24 : 16),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Project Information Section
+                            _buildSectionHeader(
+                              'Project Information',
+                              Icons.business,
+                              isWide,
+                            ),
+                            SizedBox(height: isWide ? 20 : 16),
+
+                            // Project Information Grid
+                            if (isWide) ...[
+                              // Desktop: 2-column layout
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildFormField(
+                                      controller: _projectNameController,
+                                      label: 'Project Name *',
+                                      icon: Icons.business,
+                                      validator: (value) {
+                                        if (value == null ||
+                                            value.trim().isEmpty) {
+                                          return 'Project name is required';
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                  ),
+                                  SizedBox(width: 16),
+                                  Expanded(
+                                    child: _buildFormField(
+                                      controller: _clientNameController,
+                                      label: 'Client Name *',
+                                      icon: Icons.person,
+                                      validator: (value) {
+                                        if (value == null ||
+                                            value.trim().isEmpty) {
+                                          return 'Client name is required';
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 16),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildFormField(
+                                      controller: _projectLocationController,
+                                      label: 'Project Location *',
+                                      icon: Icons.location_on,
+                                      validator: (value) {
+                                        if (value == null ||
+                                            value.trim().isEmpty) {
+                                          return 'Project location is required';
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                  ),
+                                  SizedBox(width: 16),
+                                  Expanded(
+                                    child: _buildDropdownField(
+                                      value: _selectedLeadType,
+                                      label: 'Lead Type *',
+                                      icon: Icons.category,
+                                      items: _leadTypes.map((type) {
+                                        return DropdownMenuItem(
+                                          value: type,
+                                          child: Text(type),
+                                        );
+                                      }).toList(),
+                                      onChanged: (value) {
+                                        setState(() {
+                                          _selectedLeadType = value!;
+
+                                          // Handle scaffolding initial quotes
+                                          if (value == 'Scaffolding' &&
+                                              _initialQuotes.isEmpty) {
+                                            _addInitialQuote();
+                                          } else if (value ==
+                                              'Monolithic Formwork') {
+                                            // Clear initial quotes for non-scaffolding leads
+                                            for (final quote
+                                                in _initialQuotes) {
+                                              quote['item']?.dispose();
+                                              quote['quantity']?.dispose();
+                                              quote['rate']?.dispose();
+                                              quote['amount']?.dispose();
+                                            }
+                                            _initialQuotes.clear();
+                                          }
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ] else ...[
+                              // Mobile: Single column layout
+                              _buildFormField(
+                                controller: _projectNameController,
+                                label: 'Project Name *',
+                                icon: Icons.business,
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) {
+                                    return 'Project name is required';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              SizedBox(height: 16),
+                              _buildFormField(
+                                controller: _clientNameController,
+                                label: 'Client Name *',
+                                icon: Icons.person,
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) {
+                                    return 'Client name is required';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              SizedBox(height: 16),
+                              _buildFormField(
+                                controller: _projectLocationController,
+                                label: 'Project Location *',
+                                icon: Icons.location_on,
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) {
+                                    return 'Project location is required';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              SizedBox(height: 16),
+                              _buildDropdownField(
+                                value: _selectedLeadType,
+                                label: 'Lead Type *',
+                                icon: Icons.category,
+                                items: _leadTypes.map((type) {
+                                  return DropdownMenuItem(
+                                    value: type,
+                                    child: Text(type),
+                                  );
+                                }).toList(),
+                                onChanged: (value) {
+                                  setState(() {
+                                    _selectedLeadType = value!;
+
+                                    // Handle scaffolding initial quotes
+                                    if (value == 'Scaffolding' &&
+                                        _initialQuotes.isEmpty) {
+                                      _addInitialQuote();
+                                    } else if (value == 'Monolithic Formwork') {
+                                      // Clear initial quotes for non-scaffolding leads
+                                      for (final quote in _initialQuotes) {
+                                        quote['item']?.dispose();
+                                        quote['quantity']?.dispose();
+                                        quote['rate']?.dispose();
+                                        quote['amount']?.dispose();
+                                      }
+                                      _initialQuotes.clear();
+                                    }
+                                  });
+                                },
+                              ),
+                            ],
+                            SizedBox(height: 16),
+
+                            // Remark
+                            _buildFormField(
+                              controller: _remarkController,
+                              label: 'Remark',
+                              icon: Icons.note,
+                              maxLines: 3,
+                            ),
+                            SizedBox(height: isWide ? 32 : 24),
+
+                            // Main Contact Information Section
+                            _buildSectionHeader(
+                              'Main Contact Information',
+                              Icons.person_outline,
+                              isWide,
+                            ),
+                            SizedBox(height: isWide ? 20 : 16),
+
+                            // Main Contact Information Grid
+                            if (isWide) ...[
+                              // Desktop: 2-column layout
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildFormField(
+                                      controller: _mainContactNameController,
+                                      label: 'Contact Name',
+                                      icon: Icons.person_outline,
+                                    ),
+                                  ),
+                                  SizedBox(width: 16),
+                                  Expanded(
+                                    child: _buildFormField(
+                                      controller:
+                                          _mainContactDesignationController,
+                                      label: 'Designation',
+                                      icon: Icons.work,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 16),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildFormField(
+                                      controller: _mainContactEmailController,
+                                      label: 'Email',
+                                      icon: Icons.email,
+                                      keyboardType: TextInputType.emailAddress,
+                                    ),
+                                  ),
+                                  SizedBox(width: 16),
+                                  Expanded(
+                                    child: _buildFormField(
+                                      controller: _mainContactMobileController,
+                                      label: 'Mobile',
+                                      icon: Icons.phone,
+                                      keyboardType: TextInputType.phone,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ] else ...[
+                              // Mobile: Single column layout
+                              _buildFormField(
+                                controller: _mainContactNameController,
+                                label: 'Contact Name',
+                                icon: Icons.person_outline,
+                              ),
+                              SizedBox(height: 16),
+                              _buildFormField(
+                                controller: _mainContactDesignationController,
+                                label: 'Designation',
+                                icon: Icons.work,
+                              ),
+                              SizedBox(height: 16),
+                              _buildFormField(
+                                controller: _mainContactEmailController,
+                                label: 'Email',
+                                icon: Icons.email,
+                                keyboardType: TextInputType.emailAddress,
+                              ),
+                              SizedBox(height: 16),
+                              _buildFormField(
+                                controller: _mainContactMobileController,
+                                label: 'Mobile',
+                                icon: Icons.phone,
+                                keyboardType: TextInputType.phone,
+                              ),
+                            ],
+                            SizedBox(height: isWide ? 32 : 24),
+
+                            // Additional Contacts Section
+                            _buildSectionHeader(
+                              'Additional Contacts',
+                              Icons.people,
+                              isWide,
+                            ),
+                            SizedBox(height: isWide ? 20 : 16),
+
+                            // Additional Contacts List
+                            ..._additionalContacts.asMap().entries.map((entry) {
+                              final index = entry.key;
+                              final contact = entry.value;
+                              return Container(
+                                margin: EdgeInsets.only(bottom: 16),
+                                padding: EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.05,
+                                      ),
+                                      blurRadius: 4,
+                                      offset: Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: Colors.blue[600]!.withValues(
+                                              alpha: 0.1,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
+                                          ),
+                                          child: Icon(
+                                            Icons.person,
+                                            color: Colors.blue[600],
+                                            size: 16,
+                                          ),
+                                        ),
+                                        SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            'Contact ${index + 1}',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.grey[700],
+                                              fontSize: isWide ? 14 : 12,
+                                            ),
+                                          ),
+                                        ),
+                                        if (_additionalContacts.length > 1)
+                                          IconButton(
+                                            onPressed: () =>
+                                                _removeAdditionalContact(index),
+                                            icon: Icon(
+                                              Icons.remove_circle,
+                                              color: Colors.red,
+                                              size: 20,
+                                            ),
+                                            tooltip: 'Remove Contact',
+                                          ),
+                                      ],
+                                    ),
+                                    SizedBox(height: 12),
+                                    if (isWide) ...[
+                                      // Desktop: 2-column layout
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: _buildFormField(
+                                              controller: contact['name']!,
+                                              label: 'Name',
+                                              icon: Icons.person_outline,
+                                            ),
+                                          ),
+                                          SizedBox(width: 12),
+                                          Expanded(
+                                            child: _buildFormField(
+                                              controller:
+                                                  contact['designation']!,
+                                              label: 'Designation',
+                                              icon: Icons.work,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      SizedBox(height: 12),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: _buildFormField(
+                                              controller: contact['email']!,
+                                              label: 'Email',
+                                              icon: Icons.email,
+                                              keyboardType:
+                                                  TextInputType.emailAddress,
+                                            ),
+                                          ),
+                                          SizedBox(width: 12),
+                                          Expanded(
+                                            child: _buildFormField(
+                                              controller: contact['mobile']!,
+                                              label: 'Mobile',
+                                              icon: Icons.phone,
+                                              keyboardType: TextInputType.phone,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ] else ...[
+                                      // Mobile: Single column layout
+                                      _buildFormField(
+                                        controller: contact['name']!,
+                                        label: 'Name',
+                                        icon: Icons.person_outline,
+                                      ),
+                                      SizedBox(height: 12),
+                                      _buildFormField(
+                                        controller: contact['designation']!,
+                                        label: 'Designation',
+                                        icon: Icons.work,
+                                      ),
+                                      SizedBox(height: 12),
+                                      _buildFormField(
+                                        controller: contact['email']!,
+                                        label: 'Email',
+                                        icon: Icons.email,
+                                        keyboardType:
+                                            TextInputType.emailAddress,
+                                      ),
+                                      SizedBox(height: 12),
+                                      _buildFormField(
+                                        controller: contact['mobile']!,
+                                        label: 'Mobile',
+                                        icon: Icons.phone,
+                                        keyboardType: TextInputType.phone,
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              );
+                            }),
+
+                            // Add Contact Button
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: _addAdditionalContact,
+                                icon: Icon(Icons.add, size: isWide ? 20 : 16),
+                                label: Text(
+                                  'Add Contact',
+                                  style: TextStyle(fontSize: isWide ? 14 : 12),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.blue[600],
+                                  side: BorderSide(color: Colors.blue[600]!),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: isWide ? 20 : 16,
+                                    vertical: isWide ? 12 : 8,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: isWide ? 32 : 24),
+
+                            // Attachments Section
+                            _buildSectionHeader(
+                              'Attachments',
+                              Icons.attach_file,
+                              isWide,
+                            ),
+                            SizedBox(height: isWide ? 20 : 16),
+
+                            // Attachments List
+                            ..._attachments.asMap().entries.map((entry) {
+                              final index = entry.key;
+                              final attachment = entry.value;
+                              return Container(
+                                margin: EdgeInsets.only(bottom: 16),
+                                padding: EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.05,
+                                      ),
+                                      blurRadius: 4,
+                                      offset: Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: Colors.green[600]!
+                                                .withValues(alpha: 0.1),
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
+                                          ),
+                                          child: Icon(
+                                            Icons.attach_file,
+                                            color: Colors.green[600],
+                                            size: 16,
+                                          ),
+                                        ),
+                                        SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            'Attachment ${index + 1}',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.grey[700],
+                                              fontSize: isWide ? 14 : 12,
+                                            ),
+                                          ),
+                                        ),
+                                        if (_attachments.length > 1)
+                                          IconButton(
+                                            onPressed: () =>
+                                                _removeAttachment(index),
+                                            icon: Icon(
+                                              Icons.remove_circle,
+                                              color: Colors.red,
+                                              size: 20,
+                                            ),
+                                            tooltip: 'Remove Attachment',
+                                          ),
+                                      ],
+                                    ),
+                                    SizedBox(height: 12),
+                                    if (isWide) ...[
+                                      // Desktop: 2-column layout
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: _buildFormField(
+                                              controller: attachment['name']!,
+                                              label: 'File Name',
+                                              icon: Icons.attach_file,
+                                            ),
+                                          ),
+                                          SizedBox(width: 12),
+                                          Expanded(
+                                            child: _buildFormField(
+                                              controller: attachment['link']!,
+                                              label: 'File Link',
+                                              icon: Icons.link,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ] else ...[
+                                      // Mobile: Single column layout
+                                      _buildFormField(
+                                        controller: attachment['name']!,
+                                        label: 'File Name',
+                                        icon: Icons.attach_file,
+                                      ),
+                                      SizedBox(height: 12),
+                                      _buildFormField(
+                                        controller: attachment['link']!,
+                                        label: 'File Link',
+                                        icon: Icons.link,
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              );
+                            }),
+
+                            // Add Attachment Button
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: _addAttachment,
+                                icon: Icon(Icons.add, size: isWide ? 20 : 16),
+                                label: Text(
+                                  'Add Attachment',
+                                  style: TextStyle(fontSize: isWide ? 14 : 12),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.green[600],
+                                  side: BorderSide(color: Colors.green[600]!),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: isWide ? 20 : 16,
+                                    vertical: isWide ? 12 : 8,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: isWide ? 32 : 24),
+
+                            // Initial Quote Section (for Scaffolding)
+                            if (_selectedLeadType == 'Scaffolding') ...[
+                              _buildSectionHeader(
+                                'Initial Quote',
+                                Icons.receipt,
+                                isWide,
+                              ),
+                              SizedBox(height: isWide ? 20 : 16),
+
+                              // Quote Table Header
+                              Container(
+                                padding: EdgeInsets.all(isWide ? 16 : 12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.05,
+                                      ),
+                                      blurRadius: 4,
+                                      offset: Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      flex: 2,
+                                      child: Text(
+                                        'Item',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: isWide ? 14 : 12,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        'Quantity',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: isWide ? 14 : 12,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        'Rate',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: isWide ? 14 : 12,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        'Amount',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: isWide ? 14 : 12,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: isWide ? 48 : 40,
+                                    ), // Space for remove button
+                                  ],
+                                ),
+                              ),
+                              SizedBox(height: 8),
+
+                              // Quote Items List
+                              ..._initialQuotes.asMap().entries.map((entry) {
+                                final index = entry.key;
+                                final quote = entry.value;
+                                return Container(
+                                  margin: EdgeInsets.only(bottom: 8),
+                                  padding: EdgeInsets.all(isWide ? 16 : 12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(8),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.05,
+                                        ),
+                                        blurRadius: 4,
+                                        offset: Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        flex: 2,
+                                        child: _buildFormField(
+                                          controller: quote['item']!,
+                                          label: 'Item',
+                                          icon: Icons.inventory,
+                                        ),
+                                      ),
+                                      SizedBox(width: 8),
+                                      Expanded(
+                                        child: _buildFormField(
+                                          controller: quote['quantity']!,
+                                          label: 'Qty',
+                                          icon: Icons.numbers,
+                                          keyboardType: TextInputType.number,
+                                        ),
+                                      ),
+                                      SizedBox(width: 8),
+                                      Expanded(
+                                        child: _buildFormField(
+                                          controller: quote['rate']!,
+                                          label: 'Rate',
+                                          icon: Icons.currency_rupee,
+                                          keyboardType: TextInputType.number,
+                                        ),
+                                      ),
+                                      SizedBox(width: 8),
+                                      Expanded(
+                                        child: _buildFormField(
+                                          controller: quote['amount']!,
+                                          label: 'Amount',
+                                          icon: Icons.calculate,
+                                          keyboardType: TextInputType.number,
+                                        ),
+                                      ),
+                                      SizedBox(width: 8),
+                                      if (_initialQuotes.length > 1)
+                                        IconButton(
+                                          onPressed: () =>
+                                              _removeInitialQuote(index),
+                                          icon: Icon(
+                                            Icons.remove_circle,
+                                            color: Colors.red,
+                                            size: 20,
+                                          ),
+                                          tooltip: 'Remove Item',
+                                        ),
+                                    ],
+                                  ),
+                                );
+                              }),
+
+                              // Add Quote Item Button
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: _addInitialQuote,
+                                  icon: Icon(Icons.add, size: isWide ? 20 : 16),
+                                  label: Text(
+                                    'Add Quote Item',
+                                    style: TextStyle(
+                                      fontSize: isWide ? 14 : 12,
+                                    ),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.orange[600],
+                                    side: BorderSide(
+                                      color: Colors.orange[600]!,
+                                    ),
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: isWide ? 20 : 16,
+                                      vertical: isWide ? 12 : 8,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              SizedBox(height: isWide ? 32 : 24),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Action Buttons - matching lead management style
+                Container(
+                  padding: EdgeInsets.all(isWide ? 24 : 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(12),
+                      bottomRight: Radius.circular(12),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 10,
+                        offset: Offset(0, -4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Cancel Button
+                      OutlinedButton.icon(
+                        onPressed: _isLoading
+                            ? null
+                            : () => Navigator.of(context).pop(),
+                        icon: Icon(Icons.close, size: isWide ? 20 : 16),
+                        label: Text(
+                          'Cancel',
+                          style: TextStyle(fontSize: isWide ? 14 : 12),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.grey[600],
+                          side: BorderSide(color: Colors.grey[400]!),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isWide ? 24 : 16,
+                            vertical: isWide ? 12 : 8,
+                          ),
+                        ),
+                      ),
+
+                      // Save Button
+                      ElevatedButton.icon(
+                        onPressed: _isLoading ? null : _saveLead,
+                        icon: _isLoading
+                            ? SizedBox(
+                                width: isWide ? 20 : 16,
+                                height: isWide ? 20 : 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
+                            : Icon(Icons.save, size: isWide ? 20 : 16),
+                        label: Text(
+                          _isLoading ? 'Saving...' : 'Save Lead',
+                          style: TextStyle(fontSize: isWide ? 14 : 12),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue[600],
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isWide ? 24 : 16,
+                            vertical: isWide ? 12 : 8,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class EditLeadDialog extends StatefulWidget {
+  final String? currentUserId;
+  final String leadId;
+  final VoidCallback onLeadUpdated;
+
+  const EditLeadDialog({
+    super.key,
+    required this.currentUserId,
+    required this.leadId,
+    required this.onLeadUpdated,
+  });
+
+  @override
+  State<EditLeadDialog> createState() => _EditLeadDialogState();
+}
+
+class _EditLeadDialogState extends State<EditLeadDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _projectNameController = TextEditingController();
+  final _clientNameController = TextEditingController();
+  final _projectLocationController = TextEditingController();
+  final _remarkController = TextEditingController();
+  final _mainContactNameController = TextEditingController();
+  final _mainContactEmailController = TextEditingController();
+  final _mainContactMobileController = TextEditingController();
+  final _mainContactDesignationController = TextEditingController();
+
+  // Additional contact fields
+  final List<Map<String, TextEditingController>> _additionalContacts = [];
+
+  // Attachment fields
+  final List<Map<String, TextEditingController>> _attachments = [];
+
+  // Initial quote fields (for scaffolding)
+  final List<Map<String, TextEditingController>> _initialQuotes = [];
+
+  bool _isLoading = false;
+  bool _isDataLoading = true;
+  String _selectedLeadType = 'Monolithic Formwork';
+
+  final List<String> _leadTypes = ['Monolithic Formwork', 'Scaffolding'];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchLeadData();
+  }
+
+  Future<void> _fetchLeadData() async {
+    try {
+      final client = Supabase.instance.client;
+
+      // Fetch main lead data
+      final leadResult = await client
+          .from('leads')
+          .select()
+          .eq('id', widget.leadId)
+          .single();
+
+      // Fetch additional contacts
+      final contactsResult = await client
+          .from('lead_contacts')
+          .select()
+          .eq('lead_id', widget.leadId);
+
+      // Fetch attachments
+      final attachmentsResult = await client
+          .from('lead_attachments')
+          .select()
+          .eq('lead_id', widget.leadId);
+
+      // Fetch initial quotes (for scaffolding leads)
+      final quotesResult = await client
+          .from('initial_quote')
+          .select()
+          .eq('lead_id', widget.leadId);
+
+      if (mounted) {
+        setState(() {
+          // Populate main lead data
+          _projectNameController.text = leadResult['project_name'] ?? '';
+          _clientNameController.text = leadResult['client_name'] ?? '';
+          _projectLocationController.text =
+              leadResult['project_location'] ?? '';
+          _remarkController.text = leadResult['remark'] ?? '';
+          _mainContactNameController.text =
+              leadResult['main_contact_name'] ?? '';
+          _mainContactEmailController.text =
+              leadResult['main_contact_email'] ?? '';
+          _mainContactMobileController.text =
+              leadResult['main_contact_mobile'] ?? '';
+          _mainContactDesignationController.text =
+              leadResult['main_contact_designation'] ?? '';
+          _selectedLeadType = leadResult['lead_type'] ?? 'Monolithic Formwork';
+
+          // Clear existing controllers
+          for (final contact in _additionalContacts) {
+            contact['name']?.dispose();
+            contact['designation']?.dispose();
+            contact['email']?.dispose();
+            contact['mobile']?.dispose();
+          }
+          _additionalContacts.clear();
+
+          for (final attachment in _attachments) {
+            attachment['name']?.dispose();
+            attachment['link']?.dispose();
+          }
+          _attachments.clear();
+
+          for (final quote in _initialQuotes) {
+            quote['item']?.dispose();
+            quote['quantity']?.dispose();
+            quote['rate']?.dispose();
+            quote['amount']?.dispose();
+          }
+          _initialQuotes.clear();
+
+          // Populate additional contacts
+          for (final contact in contactsResult) {
+            _additionalContacts.add({
+              'name': TextEditingController(
+                text: contact['contact_name'] ?? '',
+              ),
+              'designation': TextEditingController(
+                text: contact['designation'] ?? '',
+              ),
+              'email': TextEditingController(text: contact['email'] ?? ''),
+              'mobile': TextEditingController(text: contact['mobile'] ?? ''),
+            });
+          }
+
+          // Populate attachments
+          for (final attachment in attachmentsResult) {
+            _attachments.add({
+              'name': TextEditingController(
+                text: attachment['file_name'] ?? '',
+              ),
+              'link': TextEditingController(
+                text: attachment['file_link'] ?? '',
+              ),
+            });
+          }
+
+          // Populate initial quotes
+          for (final quote in quotesResult) {
+            _initialQuotes.add({
+              'item': TextEditingController(text: quote['item'] ?? ''),
+              'quantity': TextEditingController(
+                text: quote['quantity']?.toString() ?? '',
+              ),
+              'rate': TextEditingController(
+                text: quote['rate']?.toString() ?? '',
+              ),
+              'amount': TextEditingController(
+                text: quote['amount']?.toString() ?? '',
+              ),
+            });
+          }
+
+          // Ensure at least one contact and attachment
+          if (_additionalContacts.isEmpty) {
+            _addAdditionalContact();
+          }
+          if (_attachments.isEmpty) {
+            _addAttachment();
+          }
+          if (_selectedLeadType == 'Scaffolding' && _initialQuotes.isEmpty) {
+            _addInitialQuote();
+          }
+
+          _isDataLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching lead data: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading lead data: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        Navigator.of(context).pop();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _projectNameController.dispose();
+    _clientNameController.dispose();
+    _projectLocationController.dispose();
+    _remarkController.dispose();
+    _mainContactNameController.dispose();
+    _mainContactEmailController.dispose();
+    _mainContactMobileController.dispose();
+    _mainContactDesignationController.dispose();
+
+    // Dispose additional contacts
+    for (final contact in _additionalContacts) {
+      contact['name']?.dispose();
+      contact['designation']?.dispose();
+      contact['email']?.dispose();
+      contact['mobile']?.dispose();
+    }
+
+    // Dispose attachments
+    for (final attachment in _attachments) {
+      attachment['name']?.dispose();
+      attachment['link']?.dispose();
+    }
+
+    // Dispose initial quotes
+    for (final quote in _initialQuotes) {
+      quote['item']?.dispose();
+      quote['quantity']?.dispose();
+      quote['rate']?.dispose();
+      quote['amount']?.dispose();
+    }
+
+    super.dispose();
+  }
+
+  void _addAdditionalContact() {
+    _additionalContacts.add({
+      'name': TextEditingController(),
+      'designation': TextEditingController(),
+      'email': TextEditingController(),
+      'mobile': TextEditingController(),
+    });
+    setState(() {});
+  }
+
+  void _removeAdditionalContact(int index) {
+    if (_additionalContacts.length > 1) {
+      _additionalContacts[index]['name']?.dispose();
+      _additionalContacts[index]['designation']?.dispose();
+      _additionalContacts[index]['email']?.dispose();
+      _additionalContacts[index]['mobile']?.dispose();
+      _additionalContacts.removeAt(index);
+      setState(() {});
+    }
+  }
+
+  void _addAttachment() {
+    _attachments.add({
+      'name': TextEditingController(),
+      'link': TextEditingController(),
+    });
+    setState(() {});
+  }
+
+  void _removeAttachment(int index) {
+    if (_attachments.length > 1) {
+      _attachments[index]['name']?.dispose();
+      _attachments[index]['link']?.dispose();
+      _attachments.removeAt(index);
+      setState(() {});
+    }
+  }
+
+  void _addInitialQuote() {
+    _initialQuotes.add({
+      'item': TextEditingController(),
+      'quantity': TextEditingController(),
+      'rate': TextEditingController(),
+      'amount': TextEditingController(),
+    });
+    setState(() {});
+  }
+
+  void _removeInitialQuote(int index) {
+    if (_initialQuotes.length > 1) {
+      _initialQuotes[index]['item']?.dispose();
+      _initialQuotes[index]['quantity']?.dispose();
+      _initialQuotes[index]['rate']?.dispose();
+      _initialQuotes[index]['amount']?.dispose();
+      _initialQuotes.removeAt(index);
+      setState(() {});
+    }
+  }
+
+  // Helper methods for responsive form design (same as AddLeadDialog)
+  Widget _buildSectionHeader(String title, IconData icon, bool isWide) {
+    return Container(
+      padding: EdgeInsets.all(isWide ? 16 : 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.blue[600]!.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(icon, color: Colors.blue[600], size: isWide ? 20 : 16),
+          ),
+          SizedBox(width: 12),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: isWide ? 18 : 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFormField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    String? Function(String?)? validator,
+    int maxLines = 1,
+    TextInputType? keyboardType,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextFormField(
+        controller: controller,
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Colors.grey[300]!),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Colors.grey[300]!),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Colors.blue[600]!),
+          ),
+          prefixIcon: Icon(icon, color: Colors.grey[600]),
+          filled: true,
+          fillColor: Colors.grey[50],
+          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+        validator: validator,
+        maxLines: maxLines,
+        keyboardType: keyboardType,
+      ),
+    );
+  }
+
+  Widget _buildDropdownField({
+    required String value,
+    required String label,
+    required IconData icon,
+    required List<DropdownMenuItem<String>> items,
+    required void Function(String?) onChanged,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: DropdownButtonFormField<String>(
+        value: value,
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Colors.grey[300]!),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Colors.grey[300]!),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Colors.blue[600]!),
+          ),
+          prefixIcon: Icon(icon, color: Colors.grey[600]),
+          filled: true,
+          fillColor: Colors.grey[50],
+          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+        items: items,
+        onChanged: onChanged,
+      ),
+    );
+  }
+
+  Future<void> _updateLead() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    if (widget.currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('User session not found. Please login again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final client = Supabase.instance.client;
+
+      debugPrint('Starting lead update for lead ID: ${widget.leadId}');
+      debugPrint('Project Name: ${_projectNameController.text.trim()}');
+      debugPrint('Client Name: ${_clientNameController.text.trim()}');
+      debugPrint('Project Location: ${_projectLocationController.text.trim()}');
+      debugPrint('Lead Type: $_selectedLeadType');
+
+      // First, verify the lead exists
+      final existingLead = await client
+          .from('leads')
+          .select('id, project_name')
+          .eq('id', widget.leadId)
+          .maybeSingle();
+
+      if (existingLead == null) {
+        throw Exception('Lead with ID ${widget.leadId} not found');
+      }
+
+      debugPrint('Found existing lead: ${existingLead['project_name']}');
+
+      // Update main lead data
+      final updateResult = await client
+          .from('leads')
+          .update({
+            'project_name': _projectNameController.text.trim(),
+            'client_name': _clientNameController.text.trim(),
+            'project_location': _projectLocationController.text.trim(),
+            'lead_type': _selectedLeadType,
+            'remark': _remarkController.text.trim(),
+            'main_contact_name': _mainContactNameController.text.trim(),
+            'main_contact_email': _mainContactEmailController.text.trim(),
+            'main_contact_mobile': _mainContactMobileController.text.trim(),
+            'main_contact_designation': _mainContactDesignationController.text
+                .trim(),
+          })
+          .eq('id', widget.leadId);
+
+      debugPrint('Lead update result: $updateResult');
+
+      // Delete existing additional contacts and insert new ones
+      debugPrint('Deleting existing contacts for lead ID: ${widget.leadId}');
+      await client.from('lead_contacts').delete().eq('lead_id', widget.leadId);
+
+      debugPrint('Inserting ${_additionalContacts.length} contacts');
+      for (final contact in _additionalContacts) {
+        if (contact['name']?.text.trim().isNotEmpty == true) {
+          final contactData = {
+            'lead_id': widget.leadId,
+            'contact_name': contact['name']?.text.trim(),
+            'designation': contact['designation']?.text.trim(),
+            'email': contact['email']?.text.trim(),
+            'mobile': contact['mobile']?.text.trim(),
+            'created_at': DateTime.now().toIso8601String(),
+          };
+          debugPrint('Inserting contact: $contactData');
+          await client.from('lead_contacts').insert(contactData);
+        }
+      }
+
+      // Delete existing attachments and insert new ones
+      debugPrint('Deleting existing attachments for lead ID: ${widget.leadId}');
+      await client
+          .from('lead_attachments')
+          .delete()
+          .eq('lead_id', widget.leadId);
+
+      debugPrint('Inserting ${_attachments.length} attachments');
+      for (final attachment in _attachments) {
+        if (attachment['name']?.text.trim().isNotEmpty == true) {
+          final attachmentData = {
+            'lead_id': widget.leadId,
+            'file_name': attachment['name']?.text.trim(),
+            'file_link': attachment['link']?.text.trim(),
+            'created_at': DateTime.now().toIso8601String(),
+          };
+          debugPrint('Inserting attachment: $attachmentData');
+          await client.from('lead_attachments').insert(attachmentData);
+        }
+      }
+
+      // Delete existing initial quotes and insert new ones for scaffolding leads
+      debugPrint('Deleting existing quotes for lead ID: ${widget.leadId}');
+      await client.from('initial_quote').delete().eq('lead_id', widget.leadId);
+
+      if (_selectedLeadType == 'Scaffolding') {
+        debugPrint(
+          'Inserting ${_initialQuotes.length} quotes for scaffolding lead',
+        );
+        for (final quote in _initialQuotes) {
+          if (quote['item']?.text.trim().isNotEmpty == true) {
+            final quoteData = {
+              'lead_id': widget.leadId,
+              'item': quote['item']?.text.trim(),
+              'quantity':
+                  double.tryParse(quote['quantity']?.text.trim() ?? '0') ?? 0,
+              'rate': double.tryParse(quote['rate']?.text.trim() ?? '0') ?? 0,
+              'amount':
+                  double.tryParse(quote['amount']?.text.trim() ?? '0') ?? 0,
+              'created_at': DateTime.now().toIso8601String(),
+            };
+            debugPrint('Inserting quote: $quoteData');
+            await client.from('initial_quote').insert(quoteData);
+          }
+        }
+      }
+
+      // Log the activity (commented out due to column structure issues)
+      // await client.from('lead_activity').insert({
+      //   'lead_id': widget.leadId,
+      //   'user_id': widget.currentUserId,
+      //   'activity_type': 'Lead Updated',
+      //   'changes_made': 'Lead information updated by sales user',
+      //   'created_at': DateTime.now().toIso8601String(),
+      // });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Lead "${_projectNameController.text.trim()}" updated successfully!',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        widget.onLeadUpdated();
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      debugPrint('Error updating lead: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating lead: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isDataLoading) {
+      return Dialog(
+        child: Container(
+          padding: EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Loading lead data...'),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth > 700;
+
+        return Dialog(
+          insetPadding: EdgeInsets.all(isWide ? 24 : 16),
+          child: Container(
+            width: isWide ? 800 : double.infinity,
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.9,
+            ),
+            child: Column(
+              children: [
+                // Header - matching lead management style
+                Container(
+                  padding: EdgeInsets.all(isWide ? 24 : 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(12),
+                      topRight: Radius.circular(12),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 10,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.orange[600]!.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.edit,
+                          color: Colors.orange[600],
+                          size: 24,
+                        ),
+                      ),
+                      SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Edit Lead',
+                              style: TextStyle(
+                                fontSize: isWide ? 24 : 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey[800],
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Update lead information and related data',
+                              style: TextStyle(
+                                fontSize: isWide ? 14 : 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: Icon(Icons.close, color: Colors.grey[600]),
+                        tooltip: 'Close',
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Form Content - same structure as AddLeadDialog
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.all(isWide ? 24 : 16),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Project Information Section
+                          _buildSectionHeader(
+                            'Project Information',
+                            Icons.business,
+                            isWide,
+                          ),
+                          SizedBox(height: isWide ? 16 : 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildFormField(
+                                  controller: _projectNameController,
+                                  label: 'Project Name',
+                                  icon: Icons.business,
+                                  validator: (value) {
+                                    if (value == null || value.trim().isEmpty) {
+                                      return 'Project name is required';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ),
+                              SizedBox(width: isWide ? 16 : 12),
+                              Expanded(
+                                child: _buildFormField(
+                                  controller: _clientNameController,
+                                  label: 'Client Name',
+                                  icon: Icons.person,
+                                  validator: (value) {
+                                    if (value == null || value.trim().isEmpty) {
+                                      return 'Client name is required';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: isWide ? 16 : 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildFormField(
+                                  controller: _projectLocationController,
+                                  label: 'Project Location',
+                                  icon: Icons.location_on,
+                                  validator: (value) {
+                                    if (value == null || value.trim().isEmpty) {
+                                      return 'Project location is required';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ),
+                              SizedBox(width: isWide ? 16 : 12),
+                              Expanded(
+                                child: _buildDropdownField(
+                                  value: _selectedLeadType,
+                                  label: 'Lead Type',
+                                  icon: Icons.category,
+                                  items: _leadTypes.map((type) {
+                                    return DropdownMenuItem<String>(
+                                      value: type,
+                                      child: Text(type),
+                                    );
+                                  }).toList(),
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _selectedLeadType =
+                                          value ?? 'Monolithic Formwork';
+                                      // Add initial quote if switching to Scaffolding
+                                      if (_selectedLeadType == 'Scaffolding' &&
+                                          _initialQuotes.isEmpty) {
+                                        _addInitialQuote();
+                                      }
+                                    });
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: isWide ? 16 : 12),
+                          _buildFormField(
+                            controller: _remarkController,
+                            label: 'Remarks',
+                            icon: Icons.note,
+                            maxLines: 3,
+                          ),
+                          SizedBox(height: isWide ? 32 : 24),
+
+                          // Main Contact Section
+                          _buildSectionHeader(
+                            'Main Contact',
+                            Icons.contact_phone,
+                            isWide,
+                          ),
+                          SizedBox(height: isWide ? 16 : 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildFormField(
+                                  controller: _mainContactNameController,
+                                  label: 'Contact Name',
+                                  icon: Icons.person,
+                                  validator: (value) {
+                                    if (value == null || value.trim().isEmpty) {
+                                      return 'Contact name is required';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ),
+                              SizedBox(width: isWide ? 16 : 12),
+                              Expanded(
+                                child: _buildFormField(
+                                  controller: _mainContactDesignationController,
+                                  label: 'Designation',
+                                  icon: Icons.work,
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: isWide ? 16 : 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildFormField(
+                                  controller: _mainContactEmailController,
+                                  label: 'Email',
+                                  icon: Icons.email,
+                                  keyboardType: TextInputType.emailAddress,
+                                  validator: (value) {
+                                    if (value == null || value.trim().isEmpty) {
+                                      return 'Email is required';
+                                    }
+                                    if (!RegExp(
+                                      r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                                    ).hasMatch(value)) {
+                                      return 'Please enter a valid email';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ),
+                              SizedBox(width: isWide ? 16 : 12),
+                              Expanded(
+                                child: _buildFormField(
+                                  controller: _mainContactMobileController,
+                                  label: 'Mobile',
+                                  icon: Icons.phone,
+                                  keyboardType: TextInputType.phone,
+                                  validator: (value) {
+                                    if (value == null || value.trim().isEmpty) {
+                                      return 'Mobile number is required';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: isWide ? 32 : 24),
+
+                          // Additional Contacts Section
+                          _buildSectionHeader(
+                            'Additional Contacts',
+                            Icons.people,
+                            isWide,
+                          ),
+                          SizedBox(height: isWide ? 16 : 12),
+                          ..._additionalContacts.asMap().entries.map((entry) {
+                            final index = entry.key;
+                            final contact = entry.value;
+                            return Container(
+                              margin: EdgeInsets.only(bottom: isWide ? 16 : 12),
+                              padding: EdgeInsets.all(isWide ? 16 : 12),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[50],
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.grey[200]!),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.person,
+                                        color: Colors.grey[600],
+                                        size: 16,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Contact ${index + 1}',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.grey[700],
+                                        ),
+                                      ),
+                                      Spacer(),
+                                      if (_additionalContacts.length > 1)
+                                        IconButton(
+                                          onPressed: () =>
+                                              _removeAdditionalContact(index),
+                                          icon: Icon(
+                                            Icons.remove_circle,
+                                            color: Colors.red[400],
+                                          ),
+                                          tooltip: 'Remove Contact',
+                                          padding: EdgeInsets.all(4),
+                                          constraints: BoxConstraints(
+                                            minWidth: 24,
+                                            minHeight: 24,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: _buildFormField(
+                                          controller: contact['name']!,
+                                          label: 'Name',
+                                          icon: Icons.person,
+                                        ),
+                                      ),
+                                      SizedBox(width: isWide ? 16 : 12),
+                                      Expanded(
+                                        child: _buildFormField(
+                                          controller: contact['designation']!,
+                                          label: 'Designation',
+                                          icon: Icons.work,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: isWide ? 16 : 12),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: _buildFormField(
+                                          controller: contact['email']!,
+                                          label: 'Email',
+                                          icon: Icons.email,
+                                          keyboardType:
+                                              TextInputType.emailAddress,
+                                        ),
+                                      ),
+                                      SizedBox(width: isWide ? 16 : 12),
+                                      Expanded(
+                                        child: _buildFormField(
+                                          controller: contact['mobile']!,
+                                          label: 'Mobile',
+                                          icon: Icons.phone,
+                                          keyboardType: TextInputType.phone,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                          SizedBox(height: isWide ? 16 : 12),
+                          Center(
+                            child: OutlinedButton.icon(
+                              onPressed: _addAdditionalContact,
+                              icon: Icon(Icons.add, size: isWide ? 18 : 16),
+                              label: Text(
+                                'Add Another Contact',
+                                style: TextStyle(fontSize: isWide ? 14 : 12),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.blue[600],
+                                side: BorderSide(color: Colors.blue[600]!),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: isWide ? 20 : 16,
+                                  vertical: isWide ? 12 : 8,
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: isWide ? 32 : 24),
+
+                          // Attachments Section
+                          _buildSectionHeader(
+                            'Attachments',
+                            Icons.attach_file,
+                            isWide,
+                          ),
+                          SizedBox(height: isWide ? 16 : 12),
+                          ..._attachments.asMap().entries.map((entry) {
+                            final index = entry.key;
+                            final attachment = entry.value;
+                            return Container(
+                              margin: EdgeInsets.only(bottom: isWide ? 16 : 12),
+                              padding: EdgeInsets.all(isWide ? 16 : 12),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[50],
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.grey[200]!),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.attach_file,
+                                        color: Colors.grey[600],
+                                        size: 16,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Attachment ${index + 1}',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.grey[700],
+                                        ),
+                                      ),
+                                      Spacer(),
+                                      if (_attachments.length > 1)
+                                        IconButton(
+                                          onPressed: () =>
+                                              _removeAttachment(index),
+                                          icon: Icon(
+                                            Icons.remove_circle,
+                                            color: Colors.red[400],
+                                          ),
+                                          tooltip: 'Remove Attachment',
+                                          padding: EdgeInsets.all(4),
+                                          constraints: BoxConstraints(
+                                            minWidth: 24,
+                                            minHeight: 24,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: _buildFormField(
+                                          controller: attachment['name']!,
+                                          label: 'File Name',
+                                          icon: Icons.description,
+                                        ),
+                                      ),
+                                      SizedBox(width: isWide ? 16 : 12),
+                                      Expanded(
+                                        child: _buildFormField(
+                                          controller: attachment['link']!,
+                                          label: 'File Link',
+                                          icon: Icons.link,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                          SizedBox(height: isWide ? 16 : 12),
+                          Center(
+                            child: OutlinedButton.icon(
+                              onPressed: _addAttachment,
+                              icon: Icon(Icons.add, size: isWide ? 18 : 16),
+                              label: Text(
+                                'Add Another Attachment',
+                                style: TextStyle(fontSize: isWide ? 14 : 12),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.blue[600],
+                                side: BorderSide(color: Colors.blue[600]!),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: isWide ? 20 : 16,
+                                  vertical: isWide ? 12 : 8,
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: isWide ? 32 : 24),
+
+                          // Initial Quote Section (for Scaffolding leads)
+                          if (_selectedLeadType == 'Scaffolding') ...[
+                            _buildSectionHeader(
+                              'Initial Quote',
+                              Icons.receipt,
+                              isWide,
+                            ),
+                            SizedBox(height: isWide ? 16 : 12),
+                            ..._initialQuotes.asMap().entries.map((entry) {
+                              final index = entry.key;
+                              final quote = entry.value;
+                              return Container(
+                                margin: EdgeInsets.only(
+                                  bottom: isWide ? 16 : 12,
+                                ),
+                                padding: EdgeInsets.all(isWide ? 16 : 12),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[50],
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.grey[200]!),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.receipt,
+                                          color: Colors.grey[600],
+                                          size: 16,
+                                        ),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          'Quote Item ${index + 1}',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.grey[700],
+                                          ),
+                                        ),
+                                        Spacer(),
+                                        if (_initialQuotes.length > 1)
+                                          IconButton(
+                                            onPressed: () =>
+                                                _removeInitialQuote(index),
+                                            icon: Icon(
+                                              Icons.remove_circle,
+                                              color: Colors.red[400],
+                                            ),
+                                            tooltip: 'Remove Quote Item',
+                                            padding: EdgeInsets.all(4),
+                                            constraints: BoxConstraints(
+                                              minWidth: 24,
+                                              minHeight: 24,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: _buildFormField(
+                                            controller: quote['item']!,
+                                            label: 'Item',
+                                            icon: Icons.inventory,
+                                          ),
+                                        ),
+                                        SizedBox(width: isWide ? 16 : 12),
+                                        Expanded(
+                                          child: _buildFormField(
+                                            controller: quote['quantity']!,
+                                            label: 'Quantity',
+                                            icon: Icons.numbers,
+                                            keyboardType: TextInputType.number,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    SizedBox(height: isWide ? 16 : 12),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: _buildFormField(
+                                            controller: quote['rate']!,
+                                            label: 'Rate',
+                                            icon: Icons.attach_money,
+                                            keyboardType: TextInputType.number,
+                                          ),
+                                        ),
+                                        SizedBox(width: isWide ? 16 : 12),
+                                        Expanded(
+                                          child: _buildFormField(
+                                            controller: quote['amount']!,
+                                            label: 'Amount',
+                                            icon: Icons.calculate,
+                                            keyboardType: TextInputType.number,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                            SizedBox(height: isWide ? 16 : 12),
+                            Center(
+                              child: OutlinedButton.icon(
+                                onPressed: _addInitialQuote,
+                                icon: Icon(Icons.add, size: isWide ? 18 : 16),
+                                label: Text(
+                                  'Add Another Quote Item',
+                                  style: TextStyle(fontSize: isWide ? 14 : 12),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.orange[600],
+                                  side: BorderSide(color: Colors.orange[600]!),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: isWide ? 20 : 16,
+                                    vertical: isWide ? 12 : 8,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: isWide ? 32 : 24),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Action Buttons - matching lead management style
+                Container(
+                  padding: EdgeInsets.all(isWide ? 24 : 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(12),
+                      bottomRight: Radius.circular(12),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 10,
+                        offset: Offset(0, -4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Cancel Button
+                      OutlinedButton.icon(
+                        onPressed: _isLoading
+                            ? null
+                            : () => Navigator.of(context).pop(),
+                        icon: Icon(Icons.close, size: isWide ? 20 : 16),
+                        label: Text(
+                          'Cancel',
+                          style: TextStyle(fontSize: isWide ? 14 : 12),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.grey[600],
+                          side: BorderSide(color: Colors.grey[400]!),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isWide ? 24 : 16,
+                            vertical: isWide ? 12 : 8,
+                          ),
+                        ),
+                      ),
+
+                      // Update Button
+                      ElevatedButton.icon(
+                        onPressed: _isLoading ? null : _updateLead,
+                        icon: _isLoading
+                            ? SizedBox(
+                                width: isWide ? 20 : 16,
+                                height: isWide ? 20 : 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
+                            : Icon(Icons.save, size: isWide ? 20 : 16),
+                        label: Text(
+                          _isLoading ? 'Updating...' : 'Update Lead',
+                          style: TextStyle(fontSize: isWide ? 14 : 12),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange[600],
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isWide ? 24 : 16,
+                            vertical: isWide ? 12 : 8,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
