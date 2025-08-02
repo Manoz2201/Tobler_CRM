@@ -2302,309 +2302,199 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     List<dynamic> proposalRemarkData,
     Map<String, dynamic> adminResponseData,
   ) {
-    return Scaffold(
+    return Dialog(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: Text(
-          'Lead Details',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 20,
-            color: Colors.white,
-          ),
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        flexibleSpace: ClipRRect(
-          borderRadius: BorderRadius.only(
-            bottomLeft: Radius.circular(20),
-            bottomRight: Radius.circular(20),
-          ),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.blue[600]!.withValues(alpha: 0.9),
-                  Colors.blue[800]!.withValues(alpha: 0.9),
-                ],
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  blurRadius: 20,
-                  offset: Offset(0, 10),
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          Container(
-            margin: EdgeInsets.only(right: 8),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(5),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(5),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.3),
-                      width: 1,
-                    ),
-                  ),
-                  child: IconButton(
-                    icon: Icon(Icons.refresh, size: 20, color: Colors.white),
-                    onPressed: () {
-                      HapticFeedback.lightImpact();
-                      Navigator.of(context).pop();
-                      _viewLeadDetails(leadsData);
-                    },
-                    tooltip: 'Refresh Data',
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Container(
-            margin: EdgeInsets.only(right: 16),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(5),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(5),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.3),
-                      width: 1,
-                    ),
-                  ),
-                  child: IconButton(
-                    icon: Icon(Icons.close, size: 24, color: Colors.white),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-      body: Container(
+      insetPadding: EdgeInsets.all(16),
+      child: Container(
+        width: MediaQuery.of(context).size.width * 0.95,
+        height: MediaQuery.of(context).size.height * 0.9,
         decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Colors.blue[50]!.withValues(alpha: 0.3),
-              Colors.purple[50]!.withValues(alpha: 0.3),
-              Colors.white.withValues(alpha: 0.8),
+              Colors.white.withValues(alpha: 0.95),
+              Colors.grey[50]!.withValues(alpha: 0.95),
             ],
           ),
-        ),
-        child: SingleChildScrollView(
-          padding: EdgeInsets.all(24),
-          child: Container(
-            padding: EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(5),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.4),
-                width: 1,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header with Project Info
-                _buildGlassmorphicHeader(leadsData),
-                SizedBox(height: 32),
-
-                // Interactive Grid Layout for Sections
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isWide = constraints.maxWidth > 800;
-                    return Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                      child: isWide
-                          ? _buildWideLayout(
-                              leadsData,
-                              leadContactsData,
-                              leadAttachmentsData,
-                              leadActivityData,
-                              proposalInputData,
-                              proposalFileData,
-                              proposalRemarkData,
-                              adminResponseData,
-                            )
-                          : _buildMobileLayout(
-                              leadsData,
-                              leadContactsData,
-                              leadAttachmentsData,
-                              leadActivityData,
-                              proposalInputData,
-                              proposalFileData,
-                              proposalRemarkData,
-                              adminResponseData,
-                            ),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGlassmorphicHeader(Map<String, dynamic> leadsData) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: AnimatedContainer(
-        duration: Duration(milliseconds: 300),
-        padding: EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(5),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 25,
-              offset: Offset(0, 10),
+              color: Colors.black.withValues(alpha: 0.2),
+              blurRadius: 30,
+              offset: Offset(0, 15),
             ),
           ],
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(5),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.25),
-                borderRadius: BorderRadius.circular(5),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.4),
-                  width: 1.5,
+        child: Column(
+          children: [
+            // Modern Header
+            _buildModernHeader(leadsData),
+
+            // Content Area
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(20),
+                    bottomRight: Radius.circular(20),
+                  ),
                 ),
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(5),
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                  },
-                  child: Padding(
-                    padding: EdgeInsets.all(4),
-                    child: Row(
-                      children: [
-                        AnimatedContainer(
-                          duration: Duration(milliseconds: 300),
-                          padding: EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Colors.blue[600]!.withValues(alpha: 0.9),
-                                Colors.blue[700]!.withValues(alpha: 0.9),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(5),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.blue[600]!.withValues(alpha: 0.3),
-                                blurRadius: 15,
-                                offset: Offset(0, 5),
-                              ),
-                            ],
-                          ),
-                          child: Icon(
-                            Icons.leaderboard,
-                            color: Colors.white,
-                            size: 32,
-                          ),
-                        ),
-                        SizedBox(width: 20),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                leadsData['project_name'] ?? 'N/A',
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.grey[800],
-                                ),
-                              ),
-                              SizedBox(height: 4),
-                              Text(
-                                '${leadsData['client_name'] ?? 'N/A'} • ${leadsData['project_location'] ?? 'N/A'}',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              SizedBox(height: 8),
-                              Container(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: _getStatusColor(
-                                    _getLeadStatus(leadsData),
-                                  ).withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(5),
-                                  border: Border.all(
-                                    color: _getStatusColor(
-                                      _getLeadStatus(leadsData),
-                                    ).withValues(alpha: 0.4),
-                                    width: 1,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: _getStatusColor(
-                                        _getLeadStatus(leadsData),
-                                      ).withValues(alpha: 0.2),
-                                      blurRadius: 8,
-                                      offset: Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Text(
-                                  _getLeadStatus(leadsData),
-                                  style: TextStyle(
-                                    color: _getStatusColor(
-                                      _getLeadStatus(leadsData),
-                                    ),
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.all(24),
+                  child: _buildContentGrid(
+                    leadsData,
+                    leadContactsData,
+                    leadAttachmentsData,
+                    leadActivityData,
+                    proposalInputData,
+                    proposalFileData,
+                    proposalRemarkData,
+                    adminResponseData,
                   ),
                 ),
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildWideLayout(
+  Widget _buildModernHeader(Map<String, dynamic> leadsData) {
+    return Container(
+      padding: EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Colors.blue[600]!, Colors.blue[800]!],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.blue[600]!.withValues(alpha: 0.3),
+            blurRadius: 20,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Project Icon
+          Container(
+            padding: EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.3),
+                width: 1,
+              ),
+            ),
+            child: Icon(Icons.leaderboard, color: Colors.white, size: 32),
+          ),
+          SizedBox(width: 20),
+
+          // Project Info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  leadsData['project_name'] ?? 'N/A',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  '${leadsData['client_name'] ?? 'N/A'} • ${leadsData['project_location'] ?? 'N/A'}',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.white.withValues(alpha: 0.9),
+                  ),
+                ),
+                SizedBox(height: 12),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(
+                      _getLeadStatus(leadsData),
+                    ).withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Text(
+                    _getLeadStatus(leadsData),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Action Buttons
+          Row(
+            children: [
+              _buildHeaderActionButton(
+                icon: Icons.refresh,
+                tooltip: 'Refresh',
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _viewLeadDetails(leadsData);
+                },
+              ),
+              SizedBox(width: 12),
+              _buildHeaderActionButton(
+                icon: Icons.close,
+                tooltip: 'Close',
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderActionButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: IconButton(
+        icon: Icon(icon, color: Colors.white, size: 20),
+        onPressed: onPressed,
+        tooltip: tooltip,
+        padding: EdgeInsets.all(8),
+      ),
+    );
+  }
+
+  Widget _buildContentGrid(
     Map<String, dynamic> leadsData,
     List<dynamic> leadContactsData,
     List<dynamic> leadAttachmentsData,
@@ -2614,31 +2504,196 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     List<dynamic> proposalRemarkData,
     Map<String, dynamic> adminResponseData,
   ) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Left Column
-        Expanded(
-          child: Column(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth > 800;
+
+        if (isWide) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildModernSectionCard(
+              // Left Column
+              Expanded(
+                child: Column(
+                  children: [
+                    _buildInfoCard(
+                      'Basic Information',
+                      Icons.info_outline,
+                      Colors.blue,
+                      [
+                        _buildInfoRow(
+                          'Project Name',
+                          leadsData['project_name'] ?? 'N/A',
+                        ),
+                        _buildInfoRow(
+                          'Client Name',
+                          leadsData['client_name'] ?? 'N/A',
+                        ),
+                        _buildInfoRow(
+                          'Location',
+                          leadsData['project_location'] ?? 'N/A',
+                        ),
+                        _buildInfoRow(
+                          'Created Date',
+                          _formatDate(leadsData['created_at']),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 20),
+                    if (leadContactsData.isNotEmpty) ...[
+                      _buildInfoCard(
+                        'Contacts',
+                        Icons.people_outline,
+                        Colors.green,
+                        leadContactsData
+                            .map(
+                              (contact) => _buildInfoRow(
+                                contact['name'] ?? 'N/A',
+                                '${contact['email'] ?? 'N/A'}\n${contact['phone'] ?? 'N/A'}',
+                              ),
+                            )
+                            .toList(),
+                      ),
+                      SizedBox(height: 20),
+                    ],
+                    if (leadAttachmentsData.isNotEmpty) ...[
+                      _buildInfoCard(
+                        'Attachments',
+                        Icons.attach_file,
+                        Colors.orange,
+                        leadAttachmentsData
+                            .map(
+                              (attachment) => _buildFileRow(
+                                attachment['file_name'] ?? 'N/A',
+                                attachment['file_link'] ?? '',
+                              ),
+                            )
+                            .toList(),
+                      ),
+                      SizedBox(height: 20),
+                    ],
+                  ],
+                ),
+              ),
+              SizedBox(width: 20),
+              // Right Column
+              Expanded(
+                child: Column(
+                  children: [
+                    if (leadActivityData.isNotEmpty) ...[
+                      _buildInfoCard(
+                        'Activity Timeline',
+                        Icons.timeline,
+                        Colors.purple,
+                        leadActivityData
+                            .map(
+                              (activity) => _buildInfoRow(
+                                _formatDate(activity['created_at']),
+                                activity['description'] ?? 'N/A',
+                              ),
+                            )
+                            .toList(),
+                      ),
+                      SizedBox(height: 20),
+                    ],
+                    if (proposalInputData.isNotEmpty) ...[
+                      _buildInfoCard(
+                        'Proposal Inputs',
+                        Icons.input,
+                        Colors.teal,
+                        proposalInputData
+                            .map(
+                              (input) => _buildInfoRow(
+                                input['input'] ?? 'N/A',
+                                input['value']?.toString() ?? 'N/A',
+                              ),
+                            )
+                            .toList(),
+                      ),
+                      SizedBox(height: 20),
+                    ],
+                    if (proposalFileData.isNotEmpty) ...[
+                      _buildInfoCard(
+                        'Proposal Files',
+                        Icons.file_copy,
+                        Colors.indigo,
+                        proposalFileData
+                            .map(
+                              (file) => _buildFileRow(
+                                file['file_name'] ?? 'N/A',
+                                file['file_link'] ?? '',
+                              ),
+                            )
+                            .toList(),
+                      ),
+                      SizedBox(height: 20),
+                    ],
+                    if (proposalRemarkData.isNotEmpty) ...[
+                      _buildInfoCard(
+                        'Proposal Remarks',
+                        Icons.comment_outlined,
+                        Colors.amber,
+                        proposalRemarkData
+                            .map(
+                              (remark) => _buildInfoRow(
+                                _formatDate(remark['created_at']),
+                                remark['remark'] ?? 'N/A',
+                              ),
+                            )
+                            .toList(),
+                      ),
+                      SizedBox(height: 20),
+                    ],
+                    _buildInfoCard(
+                      'Admin Response',
+                      Icons.admin_panel_settings_outlined,
+                      Colors.red,
+                      [
+                        _buildInfoRow(
+                          'Status',
+                          adminResponseData['status'] ?? 'N/A',
+                        ),
+                        _buildInfoRow(
+                          'Rate (sq/m)',
+                          adminResponseData['rate_sqm']?.toString() ?? 'N/A',
+                        ),
+                        _buildInfoRow(
+                          'Remark',
+                          adminResponseData['remark'] ?? 'N/A',
+                        ),
+                        if (adminResponseData['project_id'] != null)
+                          _buildInfoRow(
+                            'Project ID',
+                            adminResponseData['project_id'],
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        } else {
+          return Column(
+            children: [
+              _buildInfoCard(
                 'Basic Information',
                 Icons.info_outline,
                 Colors.blue,
                 [
-                  _buildModernInfoRow(
+                  _buildInfoRow(
                     'Project Name',
                     leadsData['project_name'] ?? 'N/A',
                   ),
-                  _buildModernInfoRow(
+                  _buildInfoRow(
                     'Client Name',
                     leadsData['client_name'] ?? 'N/A',
                   ),
-                  _buildModernInfoRow(
+                  _buildInfoRow(
                     'Location',
                     leadsData['project_location'] ?? 'N/A',
                   ),
-                  _buildModernInfoRow(
+                  _buildInfoRow(
                     'Created Date',
                     _formatDate(leadsData['created_at']),
                   ),
@@ -2646,13 +2701,13 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
               ),
               SizedBox(height: 20),
               if (leadContactsData.isNotEmpty) ...[
-                _buildModernSectionCard(
+                _buildInfoCard(
                   'Contacts',
                   Icons.people_outline,
                   Colors.green,
                   leadContactsData
                       .map(
-                        (contact) => _buildModernInfoRow(
+                        (contact) => _buildInfoRow(
                           contact['name'] ?? 'N/A',
                           '${contact['email'] ?? 'N/A'}\n${contact['phone'] ?? 'N/A'}',
                         ),
@@ -2662,13 +2717,13 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                 SizedBox(height: 20),
               ],
               if (leadAttachmentsData.isNotEmpty) ...[
-                _buildModernSectionCard(
+                _buildInfoCard(
                   'Attachments',
                   Icons.attach_file,
                   Colors.orange,
                   leadAttachmentsData
                       .map(
-                        (attachment) => _buildModernFileRow(
+                        (attachment) => _buildFileRow(
                           attachment['file_name'] ?? 'N/A',
                           attachment['file_link'] ?? '',
                         ),
@@ -2677,22 +2732,14 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                 ),
                 SizedBox(height: 20),
               ],
-            ],
-          ),
-        ),
-        SizedBox(width: 20),
-        // Right Column
-        Expanded(
-          child: Column(
-            children: [
               if (leadActivityData.isNotEmpty) ...[
-                _buildModernSectionCard(
+                _buildInfoCard(
                   'Activity Timeline',
                   Icons.timeline,
                   Colors.purple,
                   leadActivityData
                       .map(
-                        (activity) => _buildModernInfoRow(
+                        (activity) => _buildInfoRow(
                           _formatDate(activity['created_at']),
                           activity['description'] ?? 'N/A',
                         ),
@@ -2702,13 +2749,13 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                 SizedBox(height: 20),
               ],
               if (proposalInputData.isNotEmpty) ...[
-                _buildModernSectionCard(
+                _buildInfoCard(
                   'Proposal Inputs',
                   Icons.input,
                   Colors.teal,
                   proposalInputData
                       .map(
-                        (input) => _buildModernInfoRow(
+                        (input) => _buildInfoRow(
                           input['input'] ?? 'N/A',
                           input['value']?.toString() ?? 'N/A',
                         ),
@@ -2718,13 +2765,13 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                 SizedBox(height: 20),
               ],
               if (proposalFileData.isNotEmpty) ...[
-                _buildModernSectionCard(
+                _buildInfoCard(
                   'Proposal Files',
                   Icons.file_copy,
                   Colors.indigo,
                   proposalFileData
                       .map(
-                        (file) => _buildModernFileRow(
+                        (file) => _buildFileRow(
                           file['file_name'] ?? 'N/A',
                           file['file_link'] ?? '',
                         ),
@@ -2734,13 +2781,13 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                 SizedBox(height: 20),
               ],
               if (proposalRemarkData.isNotEmpty) ...[
-                _buildModernSectionCard(
+                _buildInfoCard(
                   'Proposal Remarks',
                   Icons.comment_outlined,
                   Colors.amber,
                   proposalRemarkData
                       .map(
-                        (remark) => _buildModernInfoRow(
+                        (remark) => _buildInfoRow(
                           _formatDate(remark['created_at']),
                           remark['remark'] ?? 'N/A',
                         ),
@@ -2749,571 +2796,199 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                 ),
                 SizedBox(height: 20),
               ],
-              _buildModernSectionCard(
+              _buildInfoCard(
                 'Admin Response',
                 Icons.admin_panel_settings_outlined,
                 Colors.red,
                 [
-                  _buildModernInfoRow(
-                    'Status',
-                    adminResponseData['status'] ?? 'N/A',
-                  ),
-                  _buildModernInfoRow(
+                  _buildInfoRow('Status', adminResponseData['status'] ?? 'N/A'),
+                  _buildInfoRow(
                     'Rate (sq/m)',
                     adminResponseData['rate_sqm']?.toString() ?? 'N/A',
                   ),
-                  _buildModernInfoRow(
-                    'Remark',
-                    adminResponseData['remark'] ?? 'N/A',
-                  ),
+                  _buildInfoRow('Remark', adminResponseData['remark'] ?? 'N/A'),
                   if (adminResponseData['project_id'] != null)
-                    _buildModernInfoRow(
+                    _buildInfoRow(
                       'Project ID',
                       adminResponseData['project_id'],
                     ),
                 ],
               ),
             ],
-          ),
-        ),
-      ],
+          );
+        }
+      },
     );
   }
 
-  Widget _buildMobileLayout(
-    Map<String, dynamic> leadsData,
-    List<dynamic> leadContactsData,
-    List<dynamic> leadAttachmentsData,
-    List<dynamic> leadActivityData,
-    List<dynamic> proposalInputData,
-    List<dynamic> proposalFileData,
-    List<dynamic> proposalRemarkData,
-    Map<String, dynamic> adminResponseData,
-  ) {
-    return Column(
-      children: [
-        _buildModernSectionCard(
-          'Basic Information',
-          Icons.info_outline,
-          Colors.blue,
-          [
-            _buildModernInfoRow(
-              'Project Name',
-              leadsData['project_name'] ?? 'N/A',
-            ),
-            _buildModernInfoRow(
-              'Client Name',
-              leadsData['client_name'] ?? 'N/A',
-            ),
-            _buildModernInfoRow(
-              'Location',
-              leadsData['project_location'] ?? 'N/A',
-            ),
-            _buildModernInfoRow(
-              'Created Date',
-              _formatDate(leadsData['created_at']),
-            ),
-          ],
-        ),
-        SizedBox(height: 20),
-        if (leadContactsData.isNotEmpty) ...[
-          _buildModernSectionCard(
-            'Contacts',
-            Icons.people_outline,
-            Colors.green,
-            leadContactsData
-                .map(
-                  (contact) => _buildModernInfoRow(
-                    contact['name'] ?? 'N/A',
-                    '${contact['email'] ?? 'N/A'}\n${contact['phone'] ?? 'N/A'}',
-                  ),
-                )
-                .toList(),
-          ),
-          SizedBox(height: 20),
-        ],
-        if (leadAttachmentsData.isNotEmpty) ...[
-          _buildModernSectionCard(
-            'Attachments',
-            Icons.attach_file,
-            Colors.orange,
-            leadAttachmentsData
-                .map(
-                  (attachment) => _buildModernFileRow(
-                    attachment['file_name'] ?? 'N/A',
-                    attachment['file_link'] ?? '',
-                  ),
-                )
-                .toList(),
-          ),
-          SizedBox(height: 20),
-        ],
-        if (leadActivityData.isNotEmpty) ...[
-          _buildModernSectionCard(
-            'Activity Timeline',
-            Icons.timeline,
-            Colors.purple,
-            leadActivityData
-                .map(
-                  (activity) => _buildModernInfoRow(
-                    _formatDate(activity['created_at']),
-                    activity['description'] ?? 'N/A',
-                  ),
-                )
-                .toList(),
-          ),
-          SizedBox(height: 20),
-        ],
-        if (proposalInputData.isNotEmpty) ...[
-          _buildModernSectionCard(
-            'Proposal Inputs',
-            Icons.input,
-            Colors.teal,
-            proposalInputData
-                .map(
-                  (input) => _buildModernInfoRow(
-                    input['input'] ?? 'N/A',
-                    input['value']?.toString() ?? 'N/A',
-                  ),
-                )
-                .toList(),
-          ),
-          SizedBox(height: 20),
-        ],
-        if (proposalFileData.isNotEmpty) ...[
-          _buildModernSectionCard(
-            'Proposal Files',
-            Icons.file_copy,
-            Colors.indigo,
-            proposalFileData
-                .map(
-                  (file) => _buildModernFileRow(
-                    file['file_name'] ?? 'N/A',
-                    file['file_link'] ?? '',
-                  ),
-                )
-                .toList(),
-          ),
-          SizedBox(height: 20),
-        ],
-        if (proposalRemarkData.isNotEmpty) ...[
-          _buildModernSectionCard(
-            'Proposal Remarks',
-            Icons.comment_outlined,
-            Colors.amber,
-            proposalRemarkData
-                .map(
-                  (remark) => _buildModernInfoRow(
-                    _formatDate(remark['created_at']),
-                    remark['remark'] ?? 'N/A',
-                  ),
-                )
-                .toList(),
-          ),
-          SizedBox(height: 20),
-        ],
-        _buildModernSectionCard(
-          'Admin Response',
-          Icons.admin_panel_settings_outlined,
-          Colors.red,
-          [
-            _buildModernInfoRow('Status', adminResponseData['status'] ?? 'N/A'),
-            _buildModernInfoRow(
-              'Rate (sq/m)',
-              adminResponseData['rate_sqm']?.toString() ?? 'N/A',
-            ),
-            _buildModernInfoRow('Remark', adminResponseData['remark'] ?? 'N/A'),
-            if (adminResponseData['project_id'] != null)
-              _buildModernInfoRow(
-                'Project ID',
-                adminResponseData['project_id'],
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildModernSectionCard(
+  Widget _buildInfoCard(
     String title,
     IconData icon,
     Color color,
     List<Widget> children,
   ) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: AnimatedContainer(
-        duration: Duration(milliseconds: 300),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(5),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 20,
-              offset: Offset(0, 8),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(5),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(5),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.5),
-                  width: 1.5,
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 20,
+            offset: Offset(0, 8),
+          ),
+        ],
+        border: Border.all(color: color.withValues(alpha: 0.1), width: 1),
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: color, size: 24),
                 ),
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(5),
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                  },
-                  child: Padding(
-                    padding: EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            AnimatedContainer(
-                              duration: Duration(milliseconds: 300),
-                              padding: EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    color.withValues(alpha: 0.2),
-                                    color.withValues(alpha: 0.3),
-                                  ],
-                                ),
-                                borderRadius: BorderRadius.circular(5),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: color.withValues(alpha: 0.2),
-                                    blurRadius: 10,
-                                    offset: Offset(0, 3),
-                                  ),
-                                ],
-                              ),
-                              child: Icon(icon, color: color, size: 24),
-                            ),
-                            SizedBox(width: 16),
-                            Expanded(
-                              child: Text(
-                                title,
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.grey[800],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 20),
-                        ...children,
-                      ],
+                SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[800],
                     ),
                   ),
                 ),
-              ),
+              ],
             ),
-          ),
+            SizedBox(height: 16),
+            ...children,
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildModernInfoRow(String label, String value) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: AnimatedContainer(
-        duration: Duration(milliseconds: 200),
-        margin: EdgeInsets.only(bottom: 16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(5),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: Offset(0, 3),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(5),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.25),
-                borderRadius: BorderRadius.circular(5),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.4),
-                  width: 1,
-                ),
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(5),
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    // Show detailed information in a tooltip or dialog
-                    showDialog(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: Text(label),
-                        content: Text(value),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: Text('Close'),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                  child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                label,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.grey[700],
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.blue[50],
-                                borderRadius: BorderRadius.circular(5),
-                              ),
-                              child: Text(
-                                'Tap for details',
-                                style: TextStyle(
-                                  color: Colors.blue[600],
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          value,
-                          style: TextStyle(
-                            color: Colors.grey[800],
-                            fontSize: 16,
-                            height: 1.4,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+  Widget _buildInfoRow(String label, String value) {
+    return Container(
+      margin: EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!, width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[700],
+              fontSize: 14,
             ),
           ),
-        ),
+          SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              color: Colors.grey[800],
+              fontSize: 16,
+              height: 1.4,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildModernFileRow(String fileName, String fileLink) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: AnimatedContainer(
-        duration: Duration(milliseconds: 200),
-        margin: EdgeInsets.only(bottom: 16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(5),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: Offset(0, 3),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(5),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.25),
-                borderRadius: BorderRadius.circular(5),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.4),
-                  width: 1,
-                ),
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(5),
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                  },
-                  child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.file_present,
-                              color: Colors.blue[600],
-                              size: 20,
-                            ),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                fileName,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.grey[800],
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 8),
-                        Container(
-                          padding: EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.3),
-                            borderRadius: BorderRadius.circular(5),
-                            border: Border.all(
-                              color: Colors.blue[200]!.withValues(alpha: 0.5),
-                              width: 1,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.blue[200]!.withValues(alpha: 0.2),
-                                blurRadius: 5,
-                                offset: Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  fileLink,
-                                  style: TextStyle(
-                                    color: Colors.blue[600],
-                                    fontSize: 12,
-                                    fontFamily: 'monospace',
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              SizedBox(width: 8),
-                              Row(
-                                children: [
-                                  MouseRegion(
-                                    cursor: SystemMouseCursors.click,
-                                    child: AnimatedContainer(
-                                      duration: Duration(milliseconds: 150),
-                                      decoration: BoxDecoration(
-                                        color: Colors.blue[50],
-                                        borderRadius: BorderRadius.circular(5),
-                                      ),
-                                      child: Material(
-                                        color: Colors.transparent,
-                                        child: InkWell(
-                                          borderRadius: BorderRadius.circular(
-                                            5,
-                                          ),
-                                          onTap: () => _openFileLink(fileLink),
-                                          child: IconButton(
-                                            icon: Icon(
-                                              Icons.open_in_new,
-                                              size: 16,
-                                            ),
-                                            onPressed: () =>
-                                                _openFileLink(fileLink),
-                                            tooltip: 'Open in browser',
-                                            color: Colors.blue[600],
-                                            padding: EdgeInsets.all(8),
-                                            constraints: BoxConstraints(
-                                              minWidth: 32,
-                                              minHeight: 32,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  SizedBox(width: 4),
-                                  MouseRegion(
-                                    cursor: SystemMouseCursors.click,
-                                    child: AnimatedContainer(
-                                      duration: Duration(milliseconds: 150),
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey[50],
-                                        borderRadius: BorderRadius.circular(5),
-                                      ),
-                                      child: Material(
-                                        color: Colors.transparent,
-                                        child: InkWell(
-                                          borderRadius: BorderRadius.circular(
-                                            5,
-                                          ),
-                                          onTap: () => _copyFileLink(fileLink),
-                                          child: IconButton(
-                                            icon: Icon(Icons.copy, size: 16),
-                                            onPressed: () =>
-                                                _copyFileLink(fileLink),
-                                            tooltip: 'Copy link',
-                                            color: Colors.grey[600],
-                                            padding: EdgeInsets.all(8),
-                                            constraints: BoxConstraints(
-                                              minWidth: 32,
-                                              minHeight: 32,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+  Widget _buildFileRow(String fileName, String fileLink) {
+    return Container(
+      margin: EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!, width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.file_present, color: Colors.blue[600], size: 20),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  fileName,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[800],
+                    fontSize: 14,
                   ),
                 ),
               ),
+            ],
+          ),
+          SizedBox(height: 8),
+          Container(
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.blue[200]!, width: 1),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    fileLink,
+                    style: TextStyle(
+                      color: Colors.blue[600],
+                      fontSize: 12,
+                      fontFamily: 'monospace',
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                SizedBox(width: 8),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.open_in_new, size: 16),
+                      onPressed: () => _openFileLink(fileLink),
+                      tooltip: 'Open in browser',
+                      color: Colors.blue[600],
+                      padding: EdgeInsets.all(8),
+                      constraints: BoxConstraints(minWidth: 32, minHeight: 32),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.copy, size: 16),
+                      onPressed: () => _copyFileLink(fileLink),
+                      tooltip: 'Copy link',
+                      color: Colors.grey[600],
+                      padding: EdgeInsets.all(8),
+                      constraints: BoxConstraints(minWidth: 32, minHeight: 32),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-        ),
+        ],
       ),
     );
   }
+
+
 
   Future<void> _openFileLink(String link) async {
     try {
