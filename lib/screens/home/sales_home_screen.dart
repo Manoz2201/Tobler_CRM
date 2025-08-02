@@ -4,6 +4,8 @@ import 'package:crm_app/widgets/profile_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../utils/lead_utils.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart';
 
 class SalesHomeScreen extends StatefulWidget {
   final String currentUserType;
@@ -2186,9 +2188,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             .from('queries')
             .select('*')
             .eq('lead_id', leadId);
-        debugPrint(
-          '✅ Successfully fetched ${queriesData.length} queries',
-        );
+        debugPrint('✅ Successfully fetched ${queriesData.length} queries');
       } catch (e) {
         debugPrint('❌ Error fetching queries: $e');
         queriesData = [];
@@ -2618,7 +2618,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                 .map(
                   (query) => _buildInfoRow(
                     'Query',
-                    query['query'] ?? query['description'] ?? 'No query details',
+                    query['query'] ??
+                        query['description'] ??
+                        'No query details',
                   ),
                 )
                 .toList(),
@@ -2682,6 +2684,10 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
   }
 
   Widget _buildInfoRow(String label, String value) {
+    // Check if this is a file link (contains http or https)
+    final bool isFileLink = value.toLowerCase().contains('http://') || 
+                           value.toLowerCase().contains('https://');
+    
     return Padding(
       padding: EdgeInsets.only(bottom: 8),
       child: Row(
@@ -2705,19 +2711,51 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                 Expanded(
                   child: Text(
                     value.isEmpty ? '(empty value)' : value,
-                    style: TextStyle(fontSize: 14, color: Colors.grey[800]),
+                    style: TextStyle(
+                      fontSize: 14, 
+                      color: isFileLink ? Colors.blue[600] : Colors.grey[800],
+                      decoration: isFileLink ? TextDecoration.underline : null,
+                    ),
                   ),
                 ),
                 SizedBox(width: 8),
-                // Copy icon
-                Container(
-                  width: 20,
-                  height: 20,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(4),
+                // Action buttons for file links
+                if (isFileLink) ...[
+                  // Open in browser button
+                  GestureDetector(
+                    onTap: () => _openFileLink(value),
+                    child: Container(
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: Colors.blue[100],
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Icon(
+                        Icons.open_in_new, 
+                        size: 12, 
+                        color: Colors.blue[600]
+                      ),
+                    ),
                   ),
-                  child: Icon(Icons.copy, size: 12, color: Colors.grey[600]),
+                  SizedBox(width: 4),
+                ],
+                // Copy icon
+                GestureDetector(
+                  onTap: () => _copyFileLink(value),
+                  child: Container(
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Icon(
+                      Icons.copy, 
+                      size: 12, 
+                      color: Colors.grey[600]
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -2725,6 +2763,64 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _openFileLink(String url) async {
+    try {
+      final Uri uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Opening file in browser...'),
+              backgroundColor: Colors.blue,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Could not open file link'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening file: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _copyFileLink(String url) async {
+    try {
+      await Clipboard.setData(ClipboardData(text: url));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('File link copied to clipboard'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error copying link: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildMobileInteractiveButton({
