@@ -4,8 +4,6 @@ import 'package:crm_app/widgets/profile_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../utils/lead_utils.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter/services.dart';
 
 class SalesHomeScreen extends StatefulWidget {
   final String currentUserType;
@@ -2319,17 +2317,10 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         margin: isMobile ? EdgeInsets.all(3) : null, // 3px offset for mobile
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.white.withValues(alpha: 0.95),
-              Colors.grey[50]!.withValues(alpha: 0.95),
-            ],
-          ),
+          color: Colors.black, // Dark background as shown in image
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.2),
+              color: Colors.black.withValues(alpha: 0.3),
               blurRadius: 30,
               offset: Offset(0, 15),
             ),
@@ -2337,19 +2328,20 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         ),
         child: Column(
           children: [
-            // Modern Header - 20% height for mobile
+            // Blue Header - 20% height for mobile
             SizedBox(
-              height: isMobile 
-                  ? (MediaQuery.of(context).size.height - 6) * 0.2 // 20% of form height
+              height: isMobile
+                  ? (MediaQuery.of(context).size.height - 6) *
+                        0.2 // 20% of form height
                   : null,
-              child: _buildModernHeader(leadsData),
+              child: _buildImageStyleHeader(leadsData),
             ),
 
-            // Content Area
+            // Content Area with Admin Response section
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Colors.black, // Dark background
                   borderRadius: BorderRadius.only(
                     bottomLeft: Radius.circular(isMobile ? 16 : 20),
                     bottomRight: Radius.circular(isMobile ? 16 : 20),
@@ -2357,16 +2349,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                 ),
                 child: SingleChildScrollView(
                   padding: EdgeInsets.all(isMobile ? 16 : 24),
-                  child: _buildContentGrid(
-                    leadsData,
-                    leadContactsData,
-                    leadAttachmentsData,
-                    leadActivityData,
-                    proposalInputData,
-                    proposalFileData,
-                    proposalRemarkData,
-                    adminResponseData,
-                  ),
+                  child: _buildAdminResponseSection(adminResponseData),
                 ),
               ),
             ),
@@ -2376,7 +2359,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     );
   }
 
-  Widget _buildModernHeader(Map<String, dynamic> leadsData) {
+  Widget _buildImageStyleHeader(Map<String, dynamic> leadsData) {
     final isMobile = MediaQuery.of(context).size.width < 600;
 
     return Container(
@@ -2386,11 +2369,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           topLeft: Radius.circular(isMobile ? 16 : 20),
           topRight: Radius.circular(isMobile ? 16 : 20),
         ),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Colors.blue[600]!, Colors.blue[800]!],
-        ),
+        color: Colors.blue[600], // Solid blue background as shown in image
         boxShadow: [
           BoxShadow(
             color: Colors.blue[600]!.withValues(alpha: 0.3),
@@ -2402,7 +2381,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       child: isMobile
           ? Row(
               children: [
-                // Project Icon
+                // Project Icon (white bar chart icon)
                 Container(
                   padding: EdgeInsets.all(8),
                   decoration: BoxDecoration(
@@ -2413,11 +2392,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                       width: 1,
                     ),
                   ),
-                  child: Icon(
-                    Icons.leaderboard,
-                    color: Colors.white,
-                    size: 20,
-                  ),
+                  child: Icon(Icons.bar_chart, color: Colors.white, size: 20),
                 ),
                 SizedBox(width: 12),
 
@@ -2428,7 +2403,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        leadsData['project_name'] ?? 'N/A',
+                        leadsData['project_name'] ?? 'Dahisar Project',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -2439,7 +2414,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                       ),
                       SizedBox(height: 2),
                       Text(
-                        '${leadsData['client_name'] ?? 'N/A'} • ${leadsData['project_location'] ?? 'N/A'}',
+                        '${leadsData['client_name'] ?? 'RK Construction'} • ${leadsData['project_location'] ?? 'Mumbai'}',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.white.withValues(alpha: 0.9),
@@ -2449,11 +2424,12 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                       ),
                       SizedBox(height: 4),
                       Container(
-                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
-                          color: _getStatusColor(
-                            _getLeadStatus(leadsData),
-                          ).withValues(alpha: 0.2),
+                          color: Colors.green.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: Colors.white.withValues(alpha: 0.3),
@@ -2461,7 +2437,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                           ),
                         ),
                         child: Text(
-                          _getLeadStatus(leadsData),
+                          'Proposal Progress',
                           style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
@@ -2496,7 +2472,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             )
           : Row(
               children: [
-                // Project Icon
+                // Project Icon (white bar chart icon)
                 Container(
                   padding: EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -2507,7 +2483,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                       width: 1,
                     ),
                   ),
-                  child: Icon(Icons.leaderboard, color: Colors.white, size: 32),
+                  child: Icon(Icons.bar_chart, color: Colors.white, size: 32),
                 ),
                 SizedBox(width: 20),
 
@@ -2517,7 +2493,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        leadsData['project_name'] ?? 'N/A',
+                        leadsData['project_name'] ?? 'Dahisar Project',
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
@@ -2526,7 +2502,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                       ),
                       SizedBox(height: 8),
                       Text(
-                        '${leadsData['client_name'] ?? 'N/A'} • ${leadsData['project_location'] ?? 'N/A'}',
+                        '${leadsData['client_name'] ?? 'RK Construction'} • ${leadsData['project_location'] ?? 'Mumbai'}',
                         style: TextStyle(
                           fontSize: 16,
                           color: Colors.white.withValues(alpha: 0.9),
@@ -2539,9 +2515,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                           vertical: 8,
                         ),
                         decoration: BoxDecoration(
-                          color: _getStatusColor(
-                            _getLeadStatus(leadsData),
-                          ).withValues(alpha: 0.2),
+                          color: Colors.green.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
                             color: Colors.white.withValues(alpha: 0.3),
@@ -2549,7 +2523,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                           ),
                         ),
                         child: Text(
-                          _getLeadStatus(leadsData),
+                          'Proposal Progress',
                           style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
@@ -2585,6 +2559,94 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     );
   }
 
+  Widget _buildAdminResponseSection(Map<String, dynamic> adminResponseData) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Admin Response Header with Icon
+        Row(
+          children: [
+            Container(
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red[400]!.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Colors.red[400]!.withValues(alpha: 0.3),
+                  width: 1,
+                ),
+              ),
+              child: Icon(
+                Icons.admin_panel_settings,
+                color: Colors.red[400],
+                size: 20,
+              ),
+            ),
+            SizedBox(width: 12),
+            Text(
+              'Admin Response',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 20),
+
+        // Admin Response Cards
+        _buildAdminResponseCard('Status', adminResponseData['status'] ?? 'Pending'),
+        SizedBox(height: 12),
+        _buildAdminResponseCard('Rate (sq/m)', adminResponseData['rate_sqm']?.toString() ?? '0'),
+        SizedBox(height: 12),
+        _buildAdminResponseCard('Remark', adminResponseData['remark'] ?? 'EMPTY'),
+        SizedBox(height: 12),
+        _buildAdminResponseCard('Project ID', adminResponseData['project_id'] ?? 'Tobler-A49B'),
+      ],
+    );
+  }
+
+  Widget _buildAdminResponseCard(String label, String value) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey[800],
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildHeaderActionButton({
     required IconData icon,
     required String tooltip,
@@ -2608,560 +2670,11 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     );
   }
 
-  Widget _buildContentGrid(
-    Map<String, dynamic> leadsData,
-    List<dynamic> leadContactsData,
-    List<dynamic> leadAttachmentsData,
-    List<dynamic> leadActivityData,
-    List<dynamic> proposalInputData,
-    List<dynamic> proposalFileData,
-    List<dynamic> proposalRemarkData,
-    Map<String, dynamic> adminResponseData,
-  ) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isWide = constraints.maxWidth > 800;
 
-        if (isWide) {
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Left Column
-              Expanded(
-                child: Column(
-                  children: [
-                    _buildInfoCard(
-                      'Basic Information',
-                      Icons.info_outline,
-                      Colors.blue,
-                      [
-                        _buildInfoRow(
-                          'Project Name',
-                          leadsData['project_name'] ?? 'N/A',
-                        ),
-                        _buildInfoRow(
-                          'Client Name',
-                          leadsData['client_name'] ?? 'N/A',
-                        ),
-                        _buildInfoRow(
-                          'Location',
-                          leadsData['project_location'] ?? 'N/A',
-                        ),
-                        _buildInfoRow(
-                          'Created Date',
-                          _formatDate(leadsData['created_at']),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 20),
-                    if (leadContactsData.isNotEmpty) ...[
-                      _buildInfoCard(
-                        'Contacts',
-                        Icons.people_outline,
-                        Colors.green,
-                        leadContactsData
-                            .map(
-                              (contact) => _buildInfoRow(
-                                contact['name'] ?? 'N/A',
-                                '${contact['email'] ?? 'N/A'}\n${contact['phone'] ?? 'N/A'}',
-                              ),
-                            )
-                            .toList(),
-                      ),
-                      SizedBox(height: 20),
-                    ],
-                    if (leadAttachmentsData.isNotEmpty) ...[
-                      _buildInfoCard(
-                        'Attachments',
-                        Icons.attach_file,
-                        Colors.orange,
-                        leadAttachmentsData
-                            .map(
-                              (attachment) => _buildFileRow(
-                                attachment['file_name'] ?? 'N/A',
-                                attachment['file_link'] ?? '',
-                              ),
-                            )
-                            .toList(),
-                      ),
-                      SizedBox(height: 20),
-                    ],
-                  ],
-                ),
-              ),
-              SizedBox(width: 20),
-              // Right Column
-              Expanded(
-                child: Column(
-                  children: [
-                    if (leadActivityData.isNotEmpty) ...[
-                      _buildInfoCard(
-                        'Activity Timeline',
-                        Icons.timeline,
-                        Colors.purple,
-                        leadActivityData
-                            .map(
-                              (activity) => _buildInfoRow(
-                                _formatDate(activity['created_at']),
-                                activity['description'] ?? 'N/A',
-                              ),
-                            )
-                            .toList(),
-                      ),
-                      SizedBox(height: 20),
-                    ],
-                    if (proposalInputData.isNotEmpty) ...[
-                      _buildInfoCard(
-                        'Proposal Inputs',
-                        Icons.input,
-                        Colors.teal,
-                        proposalInputData
-                            .map(
-                              (input) => _buildInfoRow(
-                                input['input'] ?? 'N/A',
-                                input['value']?.toString() ?? 'N/A',
-                              ),
-                            )
-                            .toList(),
-                      ),
-                      SizedBox(height: 20),
-                    ],
-                    if (proposalFileData.isNotEmpty) ...[
-                      _buildInfoCard(
-                        'Proposal Files',
-                        Icons.file_copy,
-                        Colors.indigo,
-                        proposalFileData
-                            .map(
-                              (file) => _buildFileRow(
-                                file['file_name'] ?? 'N/A',
-                                file['file_link'] ?? '',
-                              ),
-                            )
-                            .toList(),
-                      ),
-                      SizedBox(height: 20),
-                    ],
-                    if (proposalRemarkData.isNotEmpty) ...[
-                      _buildInfoCard(
-                        'Proposal Remarks',
-                        Icons.comment_outlined,
-                        Colors.amber,
-                        proposalRemarkData
-                            .map(
-                              (remark) => _buildInfoRow(
-                                _formatDate(remark['created_at']),
-                                remark['remark'] ?? 'N/A',
-                              ),
-                            )
-                            .toList(),
-                      ),
-                      SizedBox(height: 20),
-                    ],
-                    _buildInfoCard(
-                      'Admin Response',
-                      Icons.admin_panel_settings_outlined,
-                      Colors.red,
-                      [
-                        _buildInfoRow(
-                          'Status',
-                          adminResponseData['status'] ?? 'N/A',
-                        ),
-                        _buildInfoRow(
-                          'Rate (sq/m)',
-                          adminResponseData['rate_sqm']?.toString() ?? 'N/A',
-                        ),
-                        _buildInfoRow(
-                          'Remark',
-                          adminResponseData['remark'] ?? 'N/A',
-                        ),
-                        if (adminResponseData['project_id'] != null)
-                          _buildInfoRow(
-                            'Project ID',
-                            adminResponseData['project_id'],
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          );
-        } else {
-          return Column(
-            children: [
-              _buildInfoCard(
-                'Basic Information',
-                Icons.info_outline,
-                Colors.blue,
-                [
-                  _buildInfoRow(
-                    'Project Name',
-                    leadsData['project_name'] ?? 'N/A',
-                  ),
-                  _buildInfoRow(
-                    'Client Name',
-                    leadsData['client_name'] ?? 'N/A',
-                  ),
-                  _buildInfoRow(
-                    'Location',
-                    leadsData['project_location'] ?? 'N/A',
-                  ),
-                  _buildInfoRow(
-                    'Created Date',
-                    _formatDate(leadsData['created_at']),
-                  ),
-                ],
-              ),
-              SizedBox(height: 20),
-              if (leadContactsData.isNotEmpty) ...[
-                _buildInfoCard(
-                  'Contacts',
-                  Icons.people_outline,
-                  Colors.green,
-                  leadContactsData
-                      .map(
-                        (contact) => _buildInfoRow(
-                          contact['name'] ?? 'N/A',
-                          '${contact['email'] ?? 'N/A'}\n${contact['phone'] ?? 'N/A'}',
-                        ),
-                      )
-                      .toList(),
-                ),
-                SizedBox(height: 20),
-              ],
-              if (leadAttachmentsData.isNotEmpty) ...[
-                _buildInfoCard(
-                  'Attachments',
-                  Icons.attach_file,
-                  Colors.orange,
-                  leadAttachmentsData
-                      .map(
-                        (attachment) => _buildFileRow(
-                          attachment['file_name'] ?? 'N/A',
-                          attachment['file_link'] ?? '',
-                        ),
-                      )
-                      .toList(),
-                ),
-                SizedBox(height: 20),
-              ],
-              if (leadActivityData.isNotEmpty) ...[
-                _buildInfoCard(
-                  'Activity Timeline',
-                  Icons.timeline,
-                  Colors.purple,
-                  leadActivityData
-                      .map(
-                        (activity) => _buildInfoRow(
-                          _formatDate(activity['created_at']),
-                          activity['description'] ?? 'N/A',
-                        ),
-                      )
-                      .toList(),
-                ),
-                SizedBox(height: 20),
-              ],
-              if (proposalInputData.isNotEmpty) ...[
-                _buildInfoCard(
-                  'Proposal Inputs',
-                  Icons.input,
-                  Colors.teal,
-                  proposalInputData
-                      .map(
-                        (input) => _buildInfoRow(
-                          input['input'] ?? 'N/A',
-                          input['value']?.toString() ?? 'N/A',
-                        ),
-                      )
-                      .toList(),
-                ),
-                SizedBox(height: 20),
-              ],
-              if (proposalFileData.isNotEmpty) ...[
-                _buildInfoCard(
-                  'Proposal Files',
-                  Icons.file_copy,
-                  Colors.indigo,
-                  proposalFileData
-                      .map(
-                        (file) => _buildFileRow(
-                          file['file_name'] ?? 'N/A',
-                          file['file_link'] ?? '',
-                        ),
-                      )
-                      .toList(),
-                ),
-                SizedBox(height: 20),
-              ],
-              if (proposalRemarkData.isNotEmpty) ...[
-                _buildInfoCard(
-                  'Proposal Remarks',
-                  Icons.comment_outlined,
-                  Colors.amber,
-                  proposalRemarkData
-                      .map(
-                        (remark) => _buildInfoRow(
-                          _formatDate(remark['created_at']),
-                          remark['remark'] ?? 'N/A',
-                        ),
-                      )
-                      .toList(),
-                ),
-                SizedBox(height: 20),
-              ],
-              _buildInfoCard(
-                'Admin Response',
-                Icons.admin_panel_settings_outlined,
-                Colors.red,
-                [
-                  _buildInfoRow('Status', adminResponseData['status'] ?? 'N/A'),
-                  _buildInfoRow(
-                    'Rate (sq/m)',
-                    adminResponseData['rate_sqm']?.toString() ?? 'N/A',
-                  ),
-                  _buildInfoRow('Remark', adminResponseData['remark'] ?? 'N/A'),
-                  if (adminResponseData['project_id'] != null)
-                    _buildInfoRow(
-                      'Project ID',
-                      adminResponseData['project_id'],
-                    ),
-                ],
-              ),
-            ],
-          );
-        }
-      },
-    );
-  }
 
-  Widget _buildInfoCard(
-    String title,
-    IconData icon,
-    Color color,
-    List<Widget> children,
-  ) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 20,
-            offset: Offset(0, 8),
-          ),
-        ],
-        border: Border.all(color: color.withValues(alpha: 0.1), width: 1),
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(icon, color: color, size: 24),
-                ),
-                SizedBox(width: 16),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[800],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 16),
-            ...children,
-          ],
-        ),
-      ),
-    );
-  }
 
-  Widget _buildInfoRow(String label, String value) {
-    return Container(
-      margin: EdgeInsets.only(bottom: 12),
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!, width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              color: Colors.grey[700],
-              fontSize: 14,
-            ),
-          ),
-          SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              color: Colors.grey[800],
-              fontSize: 16,
-              height: 1.4,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildFileRow(String fileName, String fileLink) {
-    return Container(
-      margin: EdgeInsets.only(bottom: 12),
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!, width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.file_present, color: Colors.blue[600], size: 20),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  fileName,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[800],
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 8),
-          Container(
-            padding: EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.blue[200]!, width: 1),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    fileLink,
-                    style: TextStyle(
-                      color: Colors.blue[600],
-                      fontSize: 12,
-                      fontFamily: 'monospace',
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                SizedBox(width: 8),
-                Row(
-                  children: [
-                    IconButton(
-                      icon: Icon(Icons.open_in_new, size: 16),
-                      onPressed: () => _openFileLink(fileLink),
-                      tooltip: 'Open in browser',
-                      color: Colors.blue[600],
-                      padding: EdgeInsets.all(8),
-                      constraints: BoxConstraints(minWidth: 32, minHeight: 32),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.copy, size: 16),
-                      onPressed: () => _copyFileLink(fileLink),
-                      tooltip: 'Copy link',
-                      color: Colors.grey[600],
-                      padding: EdgeInsets.all(8),
-                      constraints: BoxConstraints(minWidth: 32, minHeight: 32),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
-  Future<void> _openFileLink(String link) async {
-    try {
-      final Uri url = Uri.parse(link);
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url, mode: LaunchMode.externalApplication);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Opening link in browser...'),
-              backgroundColor: Colors.blue,
-            ),
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Could not open link: $link'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      debugPrint('Error opening link: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error opening link: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _copyFileLink(String link) async {
-    try {
-      await Clipboard.setData(ClipboardData(text: link));
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Link copied to clipboard!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (e) {
-      debugPrint('Error copying link: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error copying link: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
 
   Widget _buildMobileInteractiveButton({
     required IconData icon,
