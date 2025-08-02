@@ -2317,7 +2317,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         margin: isMobile ? EdgeInsets.all(3) : null, // 3px offset for mobile
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
-          color: Colors.black, // Dark background as shown in image
+          color: Colors.grey[800], // Dark grey background as shown in image
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.3),
@@ -2328,20 +2328,14 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         ),
         child: Column(
           children: [
-            // Blue Header - 20% height for mobile
-            SizedBox(
-              height: isMobile
-                  ? (MediaQuery.of(context).size.height - 6) *
-                        0.2 // 20% of form height
-                  : null,
-              child: _buildImageStyleHeader(leadsData),
-            ),
-
-            // Content Area with Admin Response section
+            // Header with DEBUG ribbon
+            _buildCompleteLeadDetailsHeader(leadsData),
+            
+            // Content Area with multiple information sections
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.black, // Dark background
+                  color: Colors.grey[800], // Dark grey background
                   borderRadius: BorderRadius.only(
                     bottomLeft: Radius.circular(isMobile ? 16 : 20),
                     bottomRight: Radius.circular(isMobile ? 16 : 20),
@@ -2349,7 +2343,16 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                 ),
                 child: SingleChildScrollView(
                   padding: EdgeInsets.all(isMobile ? 16 : 24),
-                  child: _buildAdminResponseSection(adminResponseData),
+                  child: _buildCompleteLeadDetailsContent(
+                    leadsData,
+                    leadContactsData,
+                    leadAttachmentsData,
+                    leadActivityData,
+                    proposalInputData,
+                    proposalFileData,
+                    proposalRemarkData,
+                    adminResponseData,
+                  ),
                 ),
               ),
             ),
@@ -2359,7 +2362,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     );
   }
 
-  Widget _buildImageStyleHeader(Map<String, dynamic> leadsData) {
+  Widget _buildCompleteLeadDetailsHeader(Map<String, dynamic> leadsData) {
     final isMobile = MediaQuery.of(context).size.width < 600;
 
     return Container(
@@ -2369,251 +2372,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           topLeft: Radius.circular(isMobile ? 16 : 20),
           topRight: Radius.circular(isMobile ? 16 : 20),
         ),
-        color: Colors.blue[600], // Solid blue background as shown in image
-        boxShadow: [
-          BoxShadow(
-            color: Colors.blue[600]!.withValues(alpha: 0.3),
-            blurRadius: 20,
-            offset: Offset(0, 10),
-          ),
-        ],
-      ),
-      child: isMobile
-          ? Row(
-              children: [
-                // Project Icon (white bar chart icon)
-                Container(
-                  padding: EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.3),
-                      width: 1,
-                    ),
-                  ),
-                  child: Icon(Icons.bar_chart, color: Colors.white, size: 20),
-                ),
-                SizedBox(width: 12),
-
-                // Project Info
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        leadsData['project_name'] ?? 'Dahisar Project',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        '${leadsData['client_name'] ?? 'RK Construction'} • ${leadsData['project_location'] ?? 'Mumbai'}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white.withValues(alpha: 0.9),
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                      SizedBox(height: 4),
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.green.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.3),
-                            width: 1,
-                          ),
-                        ),
-                        child: Text(
-                          'Proposal Progress',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Action Buttons
-                Row(
-                  children: [
-                    _buildHeaderActionButton(
-                      icon: Icons.refresh,
-                      tooltip: 'Refresh',
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        _viewLeadDetails(leadsData);
-                      },
-                    ),
-                    SizedBox(width: 6),
-                    _buildHeaderActionButton(
-                      icon: Icons.close,
-                      tooltip: 'Close',
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                  ],
-                ),
-              ],
-            )
-          : Row(
-              children: [
-                // Project Icon (white bar chart icon)
-                Container(
-                  padding: EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.3),
-                      width: 1,
-                    ),
-                  ),
-                  child: Icon(Icons.bar_chart, color: Colors.white, size: 32),
-                ),
-                SizedBox(width: 20),
-
-                // Project Info
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        leadsData['project_name'] ?? 'Dahisar Project',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        '${leadsData['client_name'] ?? 'RK Construction'} • ${leadsData['project_location'] ?? 'Mumbai'}',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.white.withValues(alpha: 0.9),
-                        ),
-                      ),
-                      SizedBox(height: 12),
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.green.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.3),
-                            width: 1,
-                          ),
-                        ),
-                        child: Text(
-                          'Proposal Progress',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Action Buttons
-                Row(
-                  children: [
-                    _buildHeaderActionButton(
-                      icon: Icons.refresh,
-                      tooltip: 'Refresh',
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        _viewLeadDetails(leadsData);
-                      },
-                    ),
-                    SizedBox(width: 12),
-                    _buildHeaderActionButton(
-                      icon: Icons.close,
-                      tooltip: 'Close',
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-    );
-  }
-
-  Widget _buildAdminResponseSection(Map<String, dynamic> adminResponseData) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Admin Response Header with Icon
-        Row(
-          children: [
-            Container(
-              padding: EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.red[400]!.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: Colors.red[400]!.withValues(alpha: 0.3),
-                  width: 1,
-                ),
-              ),
-              child: Icon(
-                Icons.admin_panel_settings,
-                color: Colors.red[400],
-                size: 20,
-              ),
-            ),
-            SizedBox(width: 12),
-            Text(
-              'Admin Response',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: 20),
-
-        // Admin Response Cards
-        _buildAdminResponseCard('Status', adminResponseData['status'] ?? 'Pending'),
-        SizedBox(height: 12),
-        _buildAdminResponseCard('Rate (sq/m)', adminResponseData['rate_sqm']?.toString() ?? '0'),
-        SizedBox(height: 12),
-        _buildAdminResponseCard('Remark', adminResponseData['remark'] ?? 'EMPTY'),
-        SizedBox(height: 12),
-        _buildAdminResponseCard('Project ID', adminResponseData['project_id'] ?? 'Tobler-A49B'),
-      ],
-    );
-  }
-
-  Widget _buildAdminResponseCard(String label, String value) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.grey[100], // Light grey header background as shown in image
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.1),
@@ -2622,24 +2381,77 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
-            ),
+          // Main header content
+          Row(
+            children: [
+              // Blue bar chart icon
+              Icon(
+                Icons.bar_chart,
+                color: Colors.blue[600],
+                size: isMobile ? 24 : 32,
+              ),
+              SizedBox(width: isMobile ? 12 : 16),
+              
+              // Title and subtitle
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Complete Lead Details - ${leadsData['project_name'] ?? 'Rohan'}',
+                      style: TextStyle(
+                        fontSize: isMobile ? 16 : 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Lead ID: ${leadsData['id'] ?? '7b194011-8d1b-4700-8987-f34780ad6425'} | Status: Active',
+                      style: TextStyle(
+                        fontSize: isMobile ? 10 : 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Close button
+              IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: Icon(
+                  Icons.close,
+                  color: Colors.grey[600],
+                  size: isMobile ? 20 : 24,
+                ),
+              ),
+            ],
           ),
-          SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[800],
-              fontWeight: FontWeight.w600,
+          
+          // DEBUG ribbon
+          Positioned(
+            top: 0,
+            right: 0,
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.only(
+                  topRight: Radius.circular(isMobile ? 16 : 20),
+                  bottomLeft: Radius.circular(8),
+                ),
+              ),
+              child: Text(
+                'DEBUG',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: isMobile ? 10 : 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ),
         ],
@@ -2647,30 +2459,159 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     );
   }
 
-  Widget _buildHeaderActionButton({
-    required IconData icon,
-    required String tooltip,
-    required VoidCallback onPressed,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.3),
-          width: 1,
+  Widget _buildCompleteLeadDetailsContent(
+    Map<String, dynamic> leadsData,
+    List<dynamic> leadContactsData,
+    List<dynamic> leadAttachmentsData,
+    List<dynamic> leadActivityData,
+    List<dynamic> proposalInputData,
+    List<dynamic> proposalFileData,
+    List<dynamic> proposalRemarkData,
+    Map<String, dynamic> adminResponseData,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Basic Information Section
+        _buildInfoSectionCard(
+          'Basic Information',
+          [
+            _buildInfoRow('Project Name', leadsData['project_name'] ?? 'Rohan'),
+            _buildInfoRow('Client Name', leadsData['client_name'] ?? 'Rohan'),
+            _buildInfoRow('Project Location', leadsData['project_location'] ?? 'Rohan'),
+            _buildInfoRow('Lead Type', 'Monolithic Formwork'),
+            _buildInfoRow('Created Date', _formatDate(leadsData['created_at'])),
+            _buildInfoRow('Remark', leadsData['remark'] ?? 'Rohan'),
+          ],
         ),
+        SizedBox(height: 16),
+
+        // Sales Person Information Section
+        _buildInfoSectionCard(
+          'Sales Person Information',
+          [
+            _buildInfoRow('Name', 'manik'),
+            _buildInfoRow('Email', 'sales@gmail.com'),
+          ],
+        ),
+        SizedBox(height: 16),
+
+        // Proposal Inputs Section
+        if (proposalInputData.isNotEmpty)
+          _buildInfoSectionCard(
+            'Proposal Inputs',
+            proposalInputData.map((input) => _buildInfoRow(
+              input['input'] ?? 'Area',
+              input['value']?.toString() ?? '30006',
+            )).toList(),
+          ),
+        if (proposalInputData.isNotEmpty) SizedBox(height: 16),
+
+        // Main Contact Section
+        if (leadContactsData.isNotEmpty)
+          _buildInfoSectionCard(
+            'Main Contact',
+            leadContactsData.map((contact) => [
+              _buildInfoRow('Name', contact['name'] ?? 'Rohan'),
+              _buildInfoRow('Designation', contact['designation'] ?? 'Rohan'),
+              _buildInfoRow('Email', contact['email'] ?? 'Rohan'),
+              _buildInfoRow('Mobile', contact['mobile'] ?? ''),
+            ]).expand((list) => list).toList(),
+          ),
+        if (leadContactsData.isNotEmpty) SizedBox(height: 16),
+
+        // Additional sections can be added here
+      ],
+    );
+  }
+
+  Widget _buildInfoSectionCard(String title, List<Widget> children) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.grey[50], // Light grey card background
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
-      child: IconButton(
-        icon: Icon(icon, color: Colors.white, size: 20),
-        onPressed: onPressed,
-        tooltip: tooltip,
-        padding: EdgeInsets.all(8),
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
+            ),
+            SizedBox(height: 12),
+            ...children,
+          ],
+        ),
       ),
     );
   }
 
-
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 2,
+            child: Text(
+              '$label:',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    value.isEmpty ? '(empty value)' : value,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                ),
+                SizedBox(width: 8),
+                // Copy icon
+                Container(
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Icon(
+                    Icons.copy,
+                    size: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
 
 
