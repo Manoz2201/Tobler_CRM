@@ -37,10 +37,20 @@ jobs:
 
   # Build for Multiple Platforms
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        platform: [android, web, ios, macos, windows]
+        include:
+          - platform: android
+            os: ubuntu-latest
+          - platform: web
+            os: ubuntu-latest
+          - platform: ios
+            os: macos-latest
+          - platform: macos
+            os: macos-latest
+          - platform: windows
+            os: windows-latest
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -54,6 +64,13 @@ jobs:
     - name: Install dependencies
       run: flutter pub get
       
+    - name: Setup iOS (if needed)
+      if: matrix.platform == 'ios'
+      run: |
+        cd ios
+        pod install --repo-update
+        cd ..
+        
     - name: Build ${{ matrix.platform }}
       run: |
         case "${{ matrix.platform }}" in
