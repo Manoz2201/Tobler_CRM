@@ -2072,50 +2072,104 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     );
   }
 
-  void _viewLeadDetails(Map<String, dynamic> lead) {
-    // TODO: Implement detailed view with modal or navigation
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Lead Details: ${lead['project_name']}'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Client: ${lead['client_name']}'),
-              Text('Project: ${lead['project_name']}'),
-              Text('Location: ${lead['project_location']}'),
-              Text(
-                'Area: ${lead['aluminium_area']?.toStringAsFixed(1) ?? '0.0'} sqm',
+  Future<void> _viewLeadDetails(Map<String, dynamic> lead) async {
+    final leadId = lead['lead_id'].toString();
+    
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final client = Supabase.instance.client;
+      
+      // Fetch all related data for the specific lead
+      final leadsData = await client
+          .from('leads')
+          .select('*')
+          .eq('id', leadId)
+          .single();
+
+      final leadContactsData = await client
+          .from('lead_contacts')
+          .select('*')
+          .eq('lead_id', leadId);
+
+      final leadAttachmentsData = await client
+          .from('lead_attachment')
+          .select('*')
+          .eq('lead_id', leadId);
+
+      final leadActivityData = await client
+          .from('lead_activity')
+          .select('*')
+          .eq('lead_id', leadId)
+          .order('created_at', ascending: false);
+
+      final proposalInputData = await client
+          .from('proposal_input')
+          .select('*')
+          .eq('lead_id', leadId);
+
+      final proposalFileData = await client
+          .from('proposal_file')
+          .select('*')
+          .eq('lead_id', leadId);
+
+      final proposalRemarkData = await client
+          .from('proposal_remark')
+          .select('*')
+          .eq('lead_id', leadId);
+
+      final adminResponseData = await client
+          .from('admin_response')
+          .select('*')
+          .eq('lead_id', leadId)
+          .single();
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      // Show comprehensive details dialog
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return Dialog(
+              insetPadding: EdgeInsets.all(16),
+              child: Container(
+                width: MediaQuery.of(context).size.width * 0.9,
+                height: MediaQuery.of(context).size.height * 0.8,
+                child: _buildLeadDetailsDialog(
+                  leadsData,
+                  leadContactsData,
+                  leadAttachmentsData,
+                  leadActivityData,
+                  proposalInputData,
+                  proposalFileData,
+                  proposalRemarkData,
+                  adminResponseData,
+                ),
               ),
-              Text(
-                'Weight: ${lead['ms_weight']?.toStringAsFixed(1) ?? '0.0'} kg',
-              ),
-              Text('Rate: ₹${lead['rate_sqm']?.toStringAsFixed(0) ?? '0'}'),
-              Text(
-                'Total: ₹${_totalAmounts[lead['lead_id'].toString()]?.toStringAsFixed(0) ?? '0'}',
-              ),
-              Text('Status: ${_getLeadStatus(lead)}'),
-              Text('Date: ${_formatDate(lead['date'])}'),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _editLead(lead);
-              },
-              child: const Text('Edit'),
-            ),
-          ],
+            );
+          },
         );
-      },
-    );
+      }
+    } catch (e) {
+      debugPrint('Error fetching lead details: $e');
+      setState(() {
+        _isLoading = false;
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading lead details: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildInteractiveIconButton({
@@ -2176,6 +2230,284 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             });
           },
         ),
+      ),
+    );
+  }
+
+  Widget _buildLeadDetailsDialog(
+    Map<String, dynamic> leadsData,
+    List<dynamic> leadContactsData,
+    List<dynamic> leadAttachmentsData,
+    List<dynamic> leadActivityData,
+    List<dynamic> proposalInputData,
+    List<dynamic> proposalFileData,
+    List<dynamic> proposalRemarkData,
+    Map<String, dynamic> adminResponseData,
+  ) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: Text('Lead Details: ${leadsData['project_name'] ?? 'N/A'}'),
+        backgroundColor: Colors.blue[700],
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.close),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Basic Information Section
+            _buildSectionCard(
+              'Basic Information',
+              Icons.info,
+              Colors.blue,
+              [
+                _buildInfoRow('Project Name', leadsData['project_name'] ?? 'N/A'),
+                _buildInfoRow('Client Name', leadsData['client_name'] ?? 'N/A'),
+                _buildInfoRow('Location', leadsData['project_location'] ?? 'N/A'),
+                _buildInfoRow('Created Date', _formatDate(leadsData['created_at'])),
+                _buildInfoRow('Status', _getLeadStatus(leadsData)),
+              ],
+            ),
+            SizedBox(height: 16),
+
+            // Contacts Section
+            if (leadContactsData.isNotEmpty)
+              _buildSectionCard(
+                'Contacts',
+                Icons.people,
+                Colors.green,
+                leadContactsData.map((contact) => _buildInfoRow(
+                  contact['name'] ?? 'N/A',
+                  '${contact['email'] ?? 'N/A'} | ${contact['phone'] ?? 'N/A'}',
+                )).toList(),
+              ),
+            if (leadContactsData.isNotEmpty) SizedBox(height: 16),
+
+            // Attachments Section
+            if (leadAttachmentsData.isNotEmpty)
+              _buildSectionCard(
+                'Attachments',
+                Icons.attach_file,
+                Colors.orange,
+                leadAttachmentsData.map((attachment) => _buildFileRow(
+                  attachment['file_name'] ?? 'N/A',
+                  attachment['file_link'] ?? '',
+                )).toList(),
+              ),
+            if (leadAttachmentsData.isNotEmpty) SizedBox(height: 16),
+
+            // Activity Section
+            if (leadActivityData.isNotEmpty)
+              _buildSectionCard(
+                'Activity Timeline',
+                Icons.timeline,
+                Colors.purple,
+                leadActivityData.map((activity) => _buildInfoRow(
+                  _formatDate(activity['created_at']),
+                  activity['description'] ?? 'N/A',
+                )).toList(),
+              ),
+            if (leadActivityData.isNotEmpty) SizedBox(height: 16),
+
+            // Proposal Input Section
+            if (proposalInputData.isNotEmpty)
+              _buildSectionCard(
+                'Proposal Inputs',
+                Icons.input,
+                Colors.teal,
+                proposalInputData.map((input) => _buildInfoRow(
+                  input['input'] ?? 'N/A',
+                  input['value']?.toString() ?? 'N/A',
+                )).toList(),
+              ),
+            if (proposalInputData.isNotEmpty) SizedBox(height: 16),
+
+            // Proposal Files Section
+            if (proposalFileData.isNotEmpty)
+              _buildSectionCard(
+                'Proposal Files',
+                Icons.file_copy,
+                Colors.indigo,
+                proposalFileData.map((file) => _buildFileRow(
+                  file['file_name'] ?? 'N/A',
+                  file['file_link'] ?? '',
+                )).toList(),
+              ),
+            if (proposalFileData.isNotEmpty) SizedBox(height: 16),
+
+            // Proposal Remarks Section
+            if (proposalRemarkData.isNotEmpty)
+              _buildSectionCard(
+                'Proposal Remarks',
+                Icons.comment,
+                Colors.amber,
+                proposalRemarkData.map((remark) => _buildInfoRow(
+                  _formatDate(remark['created_at']),
+                  remark['remark'] ?? 'N/A',
+                )).toList(),
+              ),
+            if (proposalRemarkData.isNotEmpty) SizedBox(height: 16),
+
+            // Admin Response Section
+            _buildSectionCard(
+              'Admin Response',
+              Icons.admin_panel_settings,
+              Colors.red,
+              [
+                _buildInfoRow('Status', adminResponseData['status'] ?? 'N/A'),
+                _buildInfoRow('Rate (sq/m)', adminResponseData['rate_sqm']?.toString() ?? 'N/A'),
+                _buildInfoRow('Remark', adminResponseData['remark'] ?? 'N/A'),
+                if (adminResponseData['project_id'] != null)
+                  _buildInfoRow('Project ID', adminResponseData['project_id']),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionCard(String title, IconData icon, Color color, List<Widget> children) {
+    return Card(
+      elevation: 4,
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: color, size: 20),
+                ),
+                SizedBox(width: 12),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 12),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              '$label:',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[700],
+                fontSize: 14,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                color: Colors.grey[800],
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFileRow(String fileName, String fileLink) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  fileName,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[800],
+                    fontSize: 14,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  fileLink,
+                  style: TextStyle(
+                    color: Colors.blue[600],
+                    fontSize: 12,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Row(
+            children: [
+              IconButton(
+                icon: Icon(Icons.open_in_new, size: 18),
+                onPressed: () => _openFileLink(fileLink),
+                tooltip: 'Open in browser',
+                color: Colors.blue[600],
+              ),
+              IconButton(
+                icon: Icon(Icons.copy, size: 18),
+                onPressed: () => _copyFileLink(fileLink),
+                tooltip: 'Copy link',
+                color: Colors.grey[600],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openFileLink(String link) {
+    // TODO: Implement URL launcher
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Opening link: $link'),
+        backgroundColor: Colors.blue,
+      ),
+    );
+  }
+
+  void _copyFileLink(String link) {
+    // TODO: Implement clipboard copy
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Link copied to clipboard: $link'),
+        backgroundColor: Colors.green,
       ),
     );
   }
