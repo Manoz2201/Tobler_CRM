@@ -214,6 +214,8 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
 }
 
 class LeadManagementScreen extends StatefulWidget {
+  const LeadManagementScreen({super.key});
+
   @override
   State<LeadManagementScreen> createState() => _LeadManagementScreenState();
 }
@@ -2193,7 +2195,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           builder: (BuildContext context) {
             return Dialog(
               insetPadding: EdgeInsets.all(16),
-              child: Container(
+              child: SizedBox(
                 width: MediaQuery.of(context).size.width * 0.9,
                 height: MediaQuery.of(context).size.height * 0.8,
                 child: _buildLeadDetailsDialog(
