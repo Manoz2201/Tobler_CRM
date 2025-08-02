@@ -2215,7 +2215,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         adminResponseData = await client
             .from('admin_response')
             .select(
-              'status, rate_sqm, total_amount_gst, remark, date, project_id',
+              'aluminium_area, ms_weight, total_amount_gst, status, remark, created_at, updated_at',
             )
             .eq('lead_id', leadId)
             .single();
@@ -2224,12 +2224,13 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         debugPrint('❌ Error fetching admin response: $e');
         // Create empty admin response data
         adminResponseData = {
-          'status': 'Pending',
-          'rate_sqm': 0,
+          'aluminium_area': 0,
+          'ms_weight': 0,
           'total_amount_gst': 0,
+          'status': 'Pending',
           'remark': 'No admin response yet',
-          'date': null,
-          'project_id': null,
+          'created_at': null,
+          'updated_at': null,
         };
       }
 
@@ -2567,6 +2568,39 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             proposalRemarkData.isNotEmpty ||
             proposalFileData.isNotEmpty)
           SizedBox(height: 16),
+
+        // Management Response Section
+        _buildInfoSectionCard('Management Response', [
+          _buildInfoRow(
+            'Aluminium Area',
+            '${adminResponseData['aluminium_area']?.toStringAsFixed(2) ?? '0.00'} sqm',
+          ),
+          _buildInfoRow(
+            'MS Weight',
+            '${adminResponseData['ms_weight']?.toStringAsFixed(2) ?? '0.00'} kg',
+          ),
+          _buildInfoRow(
+            'Total Amount (GST)',
+            '₹${adminResponseData['total_amount_gst']?.toString() ?? '0'}',
+          ),
+          _buildInfoRow(
+            'Status',
+            adminResponseData['status'] ?? 'Pending',
+          ),
+          _buildInfoRow(
+            'Remark',
+            adminResponseData['remark'] ?? 'No admin response yet',
+          ),
+          _buildInfoRow(
+            'Created Date',
+            _formatDate(adminResponseData['created_at']),
+          ),
+          _buildInfoRow(
+            'Updated Date',
+            _formatDate(adminResponseData['updated_at']),
+          ),
+        ]),
+        SizedBox(height: 16),
       ],
     );
   }
