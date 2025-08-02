@@ -2426,7 +2426,17 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         ),
         child: SingleChildScrollView(
           padding: EdgeInsets.all(24),
-          child: Column(
+          child: Container(
+            padding: EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(5),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.4),
+                width: 1,
+              ),
+            ),
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header with Project Info
@@ -2588,7 +2598,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                                 child: Text(
                                   _getLeadStatus(leadsData),
                                   style: TextStyle(
-                                    color: _getStatusColor(_getLeadStatus(leadsData)),
+                                    color: _getStatusColor(
+                                      _getLeadStatus(leadsData),
+                                    ),
                                     fontWeight: FontWeight.w600,
                                     fontSize: 14,
                                   ),
@@ -3248,69 +3260,77 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                                       child: Material(
                                         color: Colors.transparent,
                                         child: InkWell(
-                                          borderRadius: BorderRadius.circular(5),
+                                          borderRadius: BorderRadius.circular(
+                                            5,
+                                          ),
                                           onTap: () => _openFileLink(fileLink),
-                                                                                     child: IconButton(
-                                             icon: Icon(Icons.open_in_new, size: 16),
-                                             onPressed: () => _openFileLink(fileLink),
-                                             tooltip: 'Open in browser',
-                                             color: Colors.blue[600],
-                                             padding: EdgeInsets.all(8),
-                                             constraints: BoxConstraints(
-                                               minWidth: 32,
-                                               minHeight: 32,
-                                             ),
-                                           ),
-                                         ),
-                                       ),
-                                     ),
-                                   ),
-                                   SizedBox(width: 4),
-                                   MouseRegion(
-                                     cursor: SystemMouseCursors.click,
-                                     child: AnimatedContainer(
-                                       duration: Duration(milliseconds: 150),
-                                       decoration: BoxDecoration(
-                                         color: Colors.grey[50],
-                                         borderRadius: BorderRadius.circular(5),
-                                       ),
-                                       child: Material(
-                                         color: Colors.transparent,
-                                         child: InkWell(
-                                           borderRadius: BorderRadius.circular(5),
-                                           onTap: () => _copyFileLink(fileLink),
-                                           child: IconButton(
-                                             icon: Icon(Icons.copy, size: 16),
-                                             onPressed: () => _copyFileLink(fileLink),
-                                             tooltip: 'Copy link',
-                                             color: Colors.grey[600],
-                                             padding: EdgeInsets.all(8),
-                                             constraints: BoxConstraints(
-                                               minWidth: 32,
-                                               minHeight: 32,
-                                             ),
-                                           ),
-                                         ),
-                                       ),
-                                     ),
-                                   ),
-                                 ],
-                               ),
-                             ],
-                           ),
-                         ),
-                       ],
-                     ),
-                   ),
-                 ),
-               ),
-             ),
-           ),
-         ),
-       ),
-     );
-   }
-                                      
+                                          child: IconButton(
+                                            icon: Icon(
+                                              Icons.open_in_new,
+                                              size: 16,
+                                            ),
+                                            onPressed: () =>
+                                                _openFileLink(fileLink),
+                                            tooltip: 'Open in browser',
+                                            color: Colors.blue[600],
+                                            padding: EdgeInsets.all(8),
+                                            constraints: BoxConstraints(
+                                              minWidth: 32,
+                                              minHeight: 32,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  SizedBox(width: 4),
+                                  MouseRegion(
+                                    cursor: SystemMouseCursors.click,
+                                    child: AnimatedContainer(
+                                      duration: Duration(milliseconds: 150),
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[50],
+                                        borderRadius: BorderRadius.circular(5),
+                                      ),
+                                      child: Material(
+                                        color: Colors.transparent,
+                                        child: InkWell(
+                                          borderRadius: BorderRadius.circular(
+                                            5,
+                                          ),
+                                          onTap: () => _copyFileLink(fileLink),
+                                          child: IconButton(
+                                            icon: Icon(Icons.copy, size: 16),
+                                            onPressed: () =>
+                                                _copyFileLink(fileLink),
+                                            tooltip: 'Copy link',
+                                            color: Colors.grey[600],
+                                            padding: EdgeInsets.all(8),
+                                            constraints: BoxConstraints(
+                                              minWidth: 32,
+                                              minHeight: 32,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildSectionCard(
     String title,
