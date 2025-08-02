@@ -2332,6 +2332,24 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         elevation: 0,
         actions: [
           Container(
+            margin: EdgeInsets.only(right: 8),
+            child: IconButton(
+              icon: Icon(Icons.refresh, size: 20),
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                Navigator.of(context).pop();
+                _viewLeadDetails(leadsData);
+              },
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.blue[50],
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(5),
+                ),
+              ),
+              tooltip: 'Refresh Data',
+            ),
+          ),
+          Container(
             margin: EdgeInsets.only(right: 16),
             child: IconButton(
               icon: Icon(Icons.close, size: 24),
@@ -2339,7 +2357,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
               style: IconButton.styleFrom(
                 backgroundColor: Colors.grey[100],
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(5),
                 ),
               ),
             ),
@@ -2363,31 +2381,36 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
               _buildModernHeader(leadsData),
               SizedBox(height: 32),
 
-              // Grid Layout for Sections
+              // Interactive Grid Layout for Sections
               LayoutBuilder(
                 builder: (context, constraints) {
                   final isWide = constraints.maxWidth > 800;
-                  return isWide
-                      ? _buildWideLayout(
-                          leadsData,
-                          leadContactsData,
-                          leadAttachmentsData,
-                          leadActivityData,
-                          proposalInputData,
-                          proposalFileData,
-                          proposalRemarkData,
-                          adminResponseData,
-                        )
-                      : _buildMobileLayout(
-                          leadsData,
-                          leadContactsData,
-                          leadAttachmentsData,
-                          leadActivityData,
-                          proposalInputData,
-                          proposalFileData,
-                          proposalRemarkData,
-                          adminResponseData,
-                        );
+                  return Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: isWide
+                        ? _buildWideLayout(
+                            leadsData,
+                            leadContactsData,
+                            leadAttachmentsData,
+                            leadActivityData,
+                            proposalInputData,
+                            proposalFileData,
+                            proposalRemarkData,
+                            adminResponseData,
+                          )
+                        : _buildMobileLayout(
+                            leadsData,
+                            leadContactsData,
+                            leadAttachmentsData,
+                            leadActivityData,
+                            proposalInputData,
+                            proposalFileData,
+                            proposalRemarkData,
+                            adminResponseData,
+                          ),
+                  );
                 },
               ),
             ],
@@ -2434,7 +2457,11 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                       ),
                       borderRadius: BorderRadius.circular(5),
                     ),
-                    child: Icon(Icons.leaderboard, color: Colors.white, size: 32),
+                    child: Icon(
+                      Icons.leaderboard,
+                      color: Colors.white,
+                      size: 32,
+                    ),
                   ),
                   SizedBox(width: 20),
                   Expanded(
@@ -2452,11 +2479,17 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                         SizedBox(height: 4),
                         Text(
                           '${leadsData['client_name'] ?? 'N/A'} • ${leadsData['project_location'] ?? 'N/A'}',
-                          style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey[600],
+                          ),
                         ),
                         SizedBox(height: 8),
                         Container(
-                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: _getStatusColor(
                               _getLeadStatus(leadsData),
@@ -2911,19 +2944,54 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             borderRadius: BorderRadius.circular(5),
             onTap: () {
               HapticFeedback.lightImpact();
+              // Show detailed information in a tooltip or dialog
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: Text(label),
+                  content: Text(value),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text('Close'),
+                    ),
+                  ],
+                ),
+              );
             },
             child: Padding(
               padding: EdgeInsets.all(4),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey[700],
-                      fontSize: 14,
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          label,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[700],
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.blue[50],
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: Text(
+                          'Tap for details',
+                          style: TextStyle(
+                            color: Colors.blue[600],
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   SizedBox(height: 8),
                   Text(
