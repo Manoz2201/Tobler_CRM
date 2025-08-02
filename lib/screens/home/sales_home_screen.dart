@@ -2198,7 +2198,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       try {
         adminResponseData = await client
             .from('admin_response')
-            .select('*')
+            .select('status, rate_sqm, total_amount_gst, remark, date, project_id')
             .eq('lead_id', leadId)
             .single();
         debugPrint('✅ Successfully fetched admin response');
@@ -2208,7 +2208,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         adminResponseData = {
           'status': 'Pending',
           'rate_sqm': 0,
+          'total_amount_gst': 0,
           'remark': 'No admin response yet',
+          'date': null,
           'project_id': null,
         };
       }
@@ -2510,7 +2512,10 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         // Sales Person Information Section
         _buildInfoSectionCard('Sales Person Information', [
           _buildInfoRow('Name', _currentUsername ?? 'N/A'),
-          _buildInfoRow('Email', Supabase.instance.client.auth.currentUser?.email ?? 'N/A'),
+          _buildInfoRow(
+            'Email',
+            Supabase.instance.client.auth.currentUser?.email ?? 'N/A',
+          ),
         ]),
         SizedBox(height: 16),
 
@@ -2630,7 +2635,15 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           _buildInfoRow('Status', adminResponseData['status'] ?? 'Pending'),
           _buildInfoRow(
             'Rate (sq/m)',
-            adminResponseData['rate_sqm']?.toString() ?? '0',
+            '₹${adminResponseData['rate_sqm']?.toString() ?? '0'}',
+          ),
+          _buildInfoRow(
+            'Total Amount (GST)',
+            '₹${adminResponseData['total_amount_gst']?.toString() ?? '0'}',
+          ),
+          _buildInfoRow(
+            'Response Date',
+            _formatDate(adminResponseData['date']),
           ),
           _buildInfoRow(
             'Remark',
