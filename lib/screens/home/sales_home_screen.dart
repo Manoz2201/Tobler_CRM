@@ -2198,7 +2198,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       try {
         adminResponseData = await client
             .from('admin_response')
-            .select('status, rate_sqm, total_amount_gst, remark, date, project_id')
+            .select(
+              'status, rate_sqm, total_amount_gst, remark, date, project_id',
+            )
             .eq('lead_id', leadId)
             .single();
         debugPrint('✅ Successfully fetched admin response');
@@ -2505,153 +2507,6 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             'Remark',
             leadsData['remark'] ??
                 '1 Tower of Sales Building and 1 Tower of Rehab building to be considered',
-          ),
-        ]),
-        SizedBox(height: 16),
-
-        // Sales Person Information Section
-        _buildInfoSectionCard('Sales Person Information', [
-          _buildInfoRow('Name', _currentUsername ?? 'N/A'),
-          _buildInfoRow(
-            'Email',
-            Supabase.instance.client.auth.currentUser?.email ?? 'N/A',
-          ),
-        ]),
-        SizedBox(height: 16),
-
-        // Proposal Inputs Section
-        if (proposalInputData.isNotEmpty)
-          _buildInfoSectionCard(
-            'Proposal Inputs',
-            proposalInputData
-                .map(
-                  (input) => _buildInfoRow(
-                    input['input'] ?? 'Area',
-                    input['value']?.toString() ?? '30006',
-                  ),
-                )
-                .toList(),
-          ),
-        if (proposalInputData.isNotEmpty) SizedBox(height: 16),
-
-        // Lead Attachments Section
-        if (leadAttachmentsData.isNotEmpty)
-          _buildInfoSectionCard(
-            'Lead Attachments',
-            leadAttachmentsData
-                .map(
-                  (attachment) => _buildInfoRow(
-                    attachment['file_name'] ?? 'Attachment',
-                    attachment['file_link'] ?? 'No link available',
-                  ),
-                )
-                .toList(),
-          ),
-        if (leadAttachmentsData.isNotEmpty) SizedBox(height: 16),
-
-        // Lead Activity Section
-        if (leadActivityData.isNotEmpty)
-          _buildInfoSectionCard(
-            'Lead Activity',
-            leadActivityData
-                .map(
-                  (activity) => _buildInfoRow(
-                    'Activity',
-                    '${activity['activity_type'] ?? 'Activity'} - ${activity['description'] ?? 'No description'}',
-                  ),
-                )
-                .toList(),
-          ),
-        if (leadActivityData.isNotEmpty) SizedBox(height: 16),
-
-        // Proposal Files Section
-        if (proposalFileData.isNotEmpty)
-          _buildInfoSectionCard(
-            'Proposal Files',
-            proposalFileData
-                .map(
-                  (file) => _buildInfoRow(
-                    file['file_name'] ?? 'Proposal File',
-                    file['file_link'] ?? 'No link available',
-                  ),
-                )
-                .toList(),
-          ),
-        if (proposalFileData.isNotEmpty) SizedBox(height: 16),
-
-        // Proposal Remarks Section
-        if (proposalRemarkData.isNotEmpty)
-          _buildInfoSectionCard(
-            'Proposal Remarks',
-            proposalRemarkData
-                .map(
-                  (remark) =>
-                      _buildInfoRow('Remark', remark['remark'] ?? 'No remark'),
-                )
-                .toList(),
-          ),
-        if (proposalRemarkData.isNotEmpty) SizedBox(height: 16),
-
-        // Main Contact Section
-        if (leadContactsData.isNotEmpty)
-          _buildInfoSectionCard(
-            'Main Contact',
-            leadContactsData
-                .map(
-                  (contact) => [
-                    _buildInfoRow('Name', contact['name'] ?? 'Rohan'),
-                    _buildInfoRow(
-                      'Designation',
-                      contact['designation'] ?? 'Rohan',
-                    ),
-                    _buildInfoRow('Email', contact['email'] ?? 'Rohan'),
-                    _buildInfoRow('Mobile', contact['mobile'] ?? ''),
-                  ],
-                )
-                .expand((list) => list)
-                .toList(),
-          ),
-        if (leadContactsData.isNotEmpty) SizedBox(height: 16),
-
-        // Queries Section
-        if (queriesData.isNotEmpty)
-          _buildInfoSectionCard(
-            'Queries',
-            queriesData
-                .map(
-                  (query) => _buildInfoRow(
-                    'Query',
-                    query['query'] ??
-                        query['description'] ??
-                        'No query details',
-                  ),
-                )
-                .toList(),
-          ),
-        if (queriesData.isNotEmpty) SizedBox(height: 16),
-
-        // Admin Response Section
-        _buildInfoSectionCard('Admin Response', [
-          _buildInfoRow('Status', adminResponseData['status'] ?? 'Pending'),
-          _buildInfoRow(
-            'Rate (sq/m)',
-            '₹${adminResponseData['rate_sqm']?.toString() ?? '0'}',
-          ),
-          _buildInfoRow(
-            'Total Amount (GST)',
-            '₹${adminResponseData['total_amount_gst']?.toString() ?? '0'}',
-          ),
-          _buildInfoRow(
-            'Response Date',
-            _formatDate(adminResponseData['date']),
-          ),
-          _buildInfoRow(
-            'Remark',
-            adminResponseData['remark'] ?? 'No admin response yet',
-          ),
-          _buildInfoRow(
-            'Project ID',
-            adminResponseData['project_id'] ?? 'Tobler-A49B',
           ),
         ]),
         SizedBox(height: 16),
