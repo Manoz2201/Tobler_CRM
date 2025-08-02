@@ -2180,9 +2180,18 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
   }
 
   Future<void> _viewLeadDetails(Map<String, dynamic> lead) async {
-    final leadId = lead['lead_id'].toString();
+    // Check if we have 'id' or 'lead_id' field
+    final leadId = lead['id']?.toString() ?? lead['lead_id']?.toString();
+    
+    if (leadId == null) {
+      debugPrint('❌ No lead ID found in lead data');
+      debugPrint('Available keys: ${lead.keys.toList()}');
+      return;
+    }
 
     debugPrint('Starting _viewLeadDetails for lead_id: $leadId');
+    debugPrint('Full lead data: $lead');
+    debugPrint('Available keys in lead: ${lead.keys.toList()}');
 
     setState(() {
       _isLoading = true;
@@ -2234,10 +2243,10 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         leadContactsData = [];
       }
 
-      // 3. Fetch lead_attachment table data
+      // 3. Fetch lead_attachments table data
       try {
         leadAttachmentsData = await client
-            .from('lead_attachment')
+            .from('lead_attachments')
             .select('*')
             .eq('lead_id', leadId);
         debugPrint(
@@ -2383,6 +2392,15 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       debugPrint(
         '🎉 All data fetched successfully. Showing comprehensive details dialog',
       );
+      debugPrint('📞 Contact data summary:');
+      debugPrint('   - Main contact name: ${leadsData['main_contact_name']}');
+      debugPrint('   - Main contact email: ${leadsData['main_contact_email']}');
+      debugPrint('   - Main contact mobile: ${leadsData['main_contact_mobile']}');
+      debugPrint('   - Main contact designation: ${leadsData['main_contact_designation']}');
+      debugPrint('   - Additional contacts count: ${leadContactsData.length}');
+      if (leadContactsData.isNotEmpty) {
+        debugPrint('   - Additional contacts: ${leadContactsData.map((c) => c['contact_name']).toList()}');
+      }
 
       // Show comprehensive details dialog
       if (mounted) {
@@ -2710,6 +2728,75 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             proposalRemarkData.isNotEmpty ||
             proposalFileData.isNotEmpty)
           SizedBox(height: 16),
+
+        // Contact Information Section
+        _buildInfoSectionCard('Contact Information', [
+            // Main Contact (from leads table)
+            _buildInfoRow(
+              'Main Contact Name',
+              leadsData['main_contact_name'] ?? 'N/A',
+            ),
+            _buildInfoRow(
+              'Main Contact Email',
+              leadsData['main_contact_email'] ?? 'N/A',
+            ),
+            _buildInfoRow(
+              'Main Contact Mobile',
+              leadsData['main_contact_mobile'] ?? 'N/A',
+            ),
+            _buildInfoRow(
+              'Main Contact Designation',
+              leadsData['main_contact_designation'] ?? 'N/A',
+            ),
+            if (leadContactsData.isNotEmpty) ...[
+              SizedBox(height: 8),
+              Divider(color: Colors.grey[400]),
+              SizedBox(height: 8),
+              Text(
+                'Additional Contacts:',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+              ),
+              SizedBox(height: 8),
+              ...leadContactsData.map(
+                (contact) => Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildInfoRow(
+                      'Contact Name',
+                      contact['contact_name'] ?? 'N/A',
+                    ),
+                    _buildInfoRow(
+                      'Designation',
+                      contact['designation'] ?? 'N/A',
+                    ),
+                    _buildInfoRow('Email', contact['email'] ?? 'N/A'),
+                    _buildInfoRow('Mobile', contact['mobile'] ?? 'N/A'),
+                    if (contact != leadContactsData.last) ...[
+                      SizedBox(height: 8),
+                      Divider(color: Colors.grey[300]),
+                      SizedBox(height: 8),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ]),
+        SizedBox(height: 16),
+
+        // Attachments Section
+        if (leadAttachmentsData.isNotEmpty)
+          _buildInfoSectionCard('Attachments', [
+            ...leadAttachmentsData.map(
+              (attachment) => _buildInfoRow(
+                attachment['file_name'] ?? 'File',
+                attachment['file_link'] ?? 'No link available',
+              ),
+            ),
+          ]),
+        if (leadAttachmentsData.isNotEmpty) SizedBox(height: 16),
 
         // Management Response Section
         _buildInfoSectionCard('Management Response', [
@@ -3326,7 +3413,6 @@ class _AddLeadDialogState extends State<AddLeadDialog> {
               'designation': contact['designation']?.text.trim(),
               'email': contact['email']?.text.trim(),
               'mobile': contact['mobile']?.text.trim(),
-              'created_at': DateTime.now().toIso8601String(),
             });
           }
         }
@@ -3338,7 +3424,6 @@ class _AddLeadDialogState extends State<AddLeadDialog> {
               'lead_id': leadId,
               'file_name': attachment['name']?.text.trim(),
               'file_link': attachment['link']?.text.trim(),
-              'created_at': DateTime.now().toIso8601String(),
             });
           }
         }
@@ -3355,7 +3440,6 @@ class _AddLeadDialogState extends State<AddLeadDialog> {
                 'rate': double.tryParse(quote['rate']?.text.trim() ?? '0') ?? 0,
                 'amount':
                     double.tryParse(quote['amount']?.text.trim() ?? '0') ?? 0,
-                'created_at': DateTime.now().toIso8601String(),
               });
             }
           }
@@ -4812,7 +4896,6 @@ class _EditLeadDialogState extends State<EditLeadDialog> {
             'designation': contact['designation']?.text.trim(),
             'email': contact['email']?.text.trim(),
             'mobile': contact['mobile']?.text.trim(),
-            'created_at': DateTime.now().toIso8601String(),
           };
           debugPrint('Inserting contact: $contactData');
           await client.from('lead_contacts').insert(contactData);
@@ -4833,7 +4916,6 @@ class _EditLeadDialogState extends State<EditLeadDialog> {
             'lead_id': widget.leadId,
             'file_name': attachment['name']?.text.trim(),
             'file_link': attachment['link']?.text.trim(),
-            'created_at': DateTime.now().toIso8601String(),
           };
           debugPrint('Inserting attachment: $attachmentData');
           await client.from('lead_attachments').insert(attachmentData);
@@ -4858,7 +4940,6 @@ class _EditLeadDialogState extends State<EditLeadDialog> {
               'rate': double.tryParse(quote['rate']?.text.trim() ?? '0') ?? 0,
               'amount':
                   double.tryParse(quote['amount']?.text.trim() ?? '0') ?? 0,
-              'created_at': DateTime.now().toIso8601String(),
             };
             debugPrint('Inserting quote: $quoteData');
             await client.from('initial_quote').insert(quoteData);
