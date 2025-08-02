@@ -2292,7 +2292,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     );
   }
 
-  Widget _buildLeadDetailsDialog(
+    Widget _buildLeadDetailsDialog(
     Map<String, dynamic> leadsData,
     List<dynamic> leadContactsData,
     List<dynamic> leadAttachmentsData,
@@ -2302,14 +2302,21 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     List<dynamic> proposalRemarkData,
     Map<String, dynamic> adminResponseData,
   ) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: EdgeInsets.all(16),
+      insetPadding: isMobile ? EdgeInsets.zero : EdgeInsets.all(16),
       child: Container(
-        width: MediaQuery.of(context).size.width * 0.95,
-        height: MediaQuery.of(context).size.height * 0.9,
+        width: isMobile 
+            ? MediaQuery.of(context).size.width - 6 // 3px offset from each side
+            : MediaQuery.of(context).size.width * 0.95,
+        height: isMobile 
+            ? MediaQuery.of(context).size.height - 6 // 3px offset from each side
+            : MediaQuery.of(context).size.height * 0.9,
+        margin: isMobile ? EdgeInsets.all(3) : null, // 3px offset for mobile
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -2330,19 +2337,19 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           children: [
             // Modern Header
             _buildModernHeader(leadsData),
-
+            
             // Content Area
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(20),
-                    bottomRight: Radius.circular(20),
+                    bottomLeft: Radius.circular(isMobile ? 16 : 20),
+                    bottomRight: Radius.circular(isMobile ? 16 : 20),
                   ),
                 ),
                 child: SingleChildScrollView(
-                  padding: EdgeInsets.all(24),
+                  padding: EdgeInsets.all(isMobile ? 16 : 24),
                   child: _buildContentGrid(
                     leadsData,
                     leadContactsData,
@@ -2363,12 +2370,14 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
   }
 
   Widget _buildModernHeader(Map<String, dynamic> leadsData) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    
     return Container(
-      padding: EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMobile ? 16 : 24),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
+          topLeft: Radius.circular(isMobile ? 16 : 20),
+          topRight: Radius.circular(isMobile ? 16 : 20),
         ),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -2383,52 +2392,79 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           ),
         ],
       ),
-      child: Row(
-        children: [
-          // Project Icon
-          Container(
-            padding: EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.3),
-                width: 1,
-              ),
-            ),
-            child: Icon(Icons.leaderboard, color: Colors.white, size: 32),
-          ),
-          SizedBox(width: 20),
-
-          // Project Info
-          Expanded(
-            child: Column(
+      child: isMobile 
+          ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  leadsData['project_name'] ?? 'N/A',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  '${leadsData['client_name'] ?? 'N/A'} • ${leadsData['project_location'] ?? 'N/A'}',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.white.withValues(alpha: 0.9),
-                  ),
+                Row(
+                  children: [
+                    // Project Icon
+                    Container(
+                      padding: EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: Icon(Icons.leaderboard, color: Colors.white, size: 24),
+                    ),
+                    SizedBox(width: 12),
+                    
+                    // Project Info
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            leadsData['project_name'] ?? 'N/A',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            '${leadsData['client_name'] ?? 'N/A'} • ${leadsData['project_location'] ?? 'N/A'}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.white.withValues(alpha: 0.9),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    
+                    // Action Buttons
+                    Row(
+                      children: [
+                        _buildHeaderActionButton(
+                          icon: Icons.refresh,
+                          tooltip: 'Refresh',
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            _viewLeadDetails(leadsData);
+                          },
+                        ),
+                        SizedBox(width: 8),
+                        _buildHeaderActionButton(
+                          icon: Icons.close,
+                          tooltip: 'Close',
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
                 SizedBox(height: 12),
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: _getStatusColor(
-                      _getLeadStatus(leadsData),
-                    ).withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(20),
+                    color: _getStatusColor(_getLeadStatus(leadsData)).withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: Colors.white.withValues(alpha: 0.3),
                       width: 1,
@@ -2439,35 +2475,97 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
-                      fontSize: 14,
+                      fontSize: 12,
                     ),
                   ),
                 ),
               ],
-            ),
-          ),
+            )
+          : Row(
+              children: [
+                // Project Icon
+                Container(
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Icon(Icons.leaderboard, color: Colors.white, size: 32),
+                ),
+                SizedBox(width: 20),
 
-          // Action Buttons
-          Row(
-            children: [
-              _buildHeaderActionButton(
-                icon: Icons.refresh,
-                tooltip: 'Refresh',
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  _viewLeadDetails(leadsData);
-                },
-              ),
-              SizedBox(width: 12),
-              _buildHeaderActionButton(
-                icon: Icons.close,
-                tooltip: 'Close',
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ],
-          ),
-        ],
-      ),
+                // Project Info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        leadsData['project_name'] ?? 'N/A',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        '${leadsData['client_name'] ?? 'N/A'} • ${leadsData['project_location'] ?? 'N/A'}',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.white.withValues(alpha: 0.9),
+                        ),
+                      ),
+                      SizedBox(height: 12),
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: _getStatusColor(
+                            _getLeadStatus(leadsData),
+                          ).withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: Text(
+                          _getLeadStatus(leadsData),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Action Buttons
+                Row(
+                  children: [
+                    _buildHeaderActionButton(
+                      icon: Icons.refresh,
+                      tooltip: 'Refresh',
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        _viewLeadDetails(leadsData);
+                      },
+                    ),
+                    SizedBox(width: 12),
+                    _buildHeaderActionButton(
+                      icon: Icons.close,
+                      tooltip: 'Close',
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
+              ],
+            ),
     );
   }
 
@@ -2987,8 +3085,6 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       ),
     );
   }
-
-
 
   Future<void> _openFileLink(String link) async {
     try {
