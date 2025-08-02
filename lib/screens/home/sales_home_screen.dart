@@ -1991,26 +1991,6 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     return Color(LeadUtils.getStatusColor(status));
   }
 
-  void _assignLead(Map<String, dynamic> lead) {
-    // TODO: Implement assign lead functionality
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Assigning lead: ${lead['project_name']}'),
-        backgroundColor: Colors.blue,
-      ),
-    );
-  }
-
-  void _viewLead(Map<String, dynamic> lead) {
-    // TODO: Implement view lead details
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Viewing lead: ${lead['project_name']}'),
-        backgroundColor: Colors.green,
-      ),
-    );
-  }
-
   void _helpLead(Map<String, dynamic> lead) {
     // TODO: Implement help functionality
     ScaffoldMessenger.of(context).showSnackBar(
@@ -2437,45 +2417,46 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
               ),
             ),
             child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header with Project Info
-              _buildGlassmorphicHeader(leadsData),
-              SizedBox(height: 32),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header with Project Info
+                _buildGlassmorphicHeader(leadsData),
+                SizedBox(height: 32),
 
-              // Interactive Grid Layout for Sections
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final isWide = constraints.maxWidth > 800;
-                  return Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                    child: isWide
-                        ? _buildWideLayout(
-                            leadsData,
-                            leadContactsData,
-                            leadAttachmentsData,
-                            leadActivityData,
-                            proposalInputData,
-                            proposalFileData,
-                            proposalRemarkData,
-                            adminResponseData,
-                          )
-                        : _buildMobileLayout(
-                            leadsData,
-                            leadContactsData,
-                            leadAttachmentsData,
-                            leadActivityData,
-                            proposalInputData,
-                            proposalFileData,
-                            proposalRemarkData,
-                            adminResponseData,
-                          ),
-                  );
-                },
-              ),
-            ],
+                // Interactive Grid Layout for Sections
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isWide = constraints.maxWidth > 800;
+                    return Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      child: isWide
+                          ? _buildWideLayout(
+                              leadsData,
+                              leadContactsData,
+                              leadAttachmentsData,
+                              leadActivityData,
+                              proposalInputData,
+                              proposalFileData,
+                              proposalRemarkData,
+                              adminResponseData,
+                            )
+                          : _buildMobileLayout(
+                              leadsData,
+                              leadContactsData,
+                              leadAttachmentsData,
+                              leadActivityData,
+                              proposalInputData,
+                              proposalFileData,
+                              proposalRemarkData,
+                              adminResponseData,
+                            ),
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -3328,126 +3309,6 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildSectionCard(
-    String title,
-    IconData icon,
-    Color color,
-    List<Widget> children,
-  ) {
-    return Card(
-      elevation: 4,
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(icon, color: color, size: 20),
-                ),
-                SizedBox(width: 12),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[800],
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 12),
-            ...children,
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              '$label:',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[700],
-                fontSize: 14,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(color: Colors.grey[800], fontSize: 14),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFileRow(String fileName, String fileLink) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  fileName,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[800],
-                    fontSize: 14,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  fileLink,
-                  style: TextStyle(
-                    color: Colors.blue[600],
-                    fontSize: 12,
-                    decoration: TextDecoration.underline,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Row(
-            children: [
-              IconButton(
-                icon: Icon(Icons.open_in_new, size: 18),
-                onPressed: () => _openFileLink(fileLink),
-                tooltip: 'Open in browser',
-                color: Colors.blue[600],
-              ),
-              IconButton(
-                icon: Icon(Icons.copy, size: 18),
-                onPressed: () => _copyFileLink(fileLink),
-                tooltip: 'Copy link',
-                color: Colors.grey[600],
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }
