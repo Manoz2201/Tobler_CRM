@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 import 'package:crm_app/widgets/profile_page.dart';
 import 'package:crm_app/screens/home/developer_home_screen.dart'
@@ -65,7 +66,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   ];
 
   late final List<Widget> _pages = <Widget>[
-    const Center(child: Text('Admin Dashboard')),
+    AdminDashboardPage(), // Replace the simple text with a proper dashboard page
     LeadTable(),
     UserManagementPage(),
     RoleManagementPage(),
@@ -5642,5 +5643,991 @@ class _LeadTableState extends State<LeadTable> {
   void _onStatItemTap(String label) {
     final filterValue = _getSelectedFilterFromLabel(label);
     _onFilterChanged(filterValue);
+  }
+}
+
+// Admin Dashboard Page with requested elements
+class AdminDashboardPage extends StatefulWidget {
+  const AdminDashboardPage({super.key});
+
+  @override
+  State<AdminDashboardPage> createState() => _AdminDashboardPageState();
+}
+
+class _AdminDashboardPageState extends State<AdminDashboardPage> {
+  bool _isSearchExpanded = false;
+  bool _isMenuExpanded = false;
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey[50],
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              // Header with Dashboard heading, search bar, notification and chat icons
+              _buildHeader(),
+              SizedBox(height: 24),
+              
+              // Dashboard content
+              Expanded(
+                child: _buildDashboardContent(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth <= 600;
+        
+        if (isMobile) {
+          // Mobile layout - only search and three dots
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Dashboard heading with icon
+              Row(
+                children: [
+                  Icon(Icons.dashboard, color: Colors.grey[800], size: 20),
+                  SizedBox(width: 6),
+                  Text(
+                    'Dashboard',
+                    style: TextStyle(
+                      color: Colors.grey[800],
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  // Collapsible search bar in same place
+                  Expanded(
+                    child: AnimatedContainer(
+                      duration: Duration(milliseconds: 300),
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 4,
+                            offset: Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          if (_isSearchExpanded) ...[
+                            Expanded(
+                              child: Padding(
+                                padding: EdgeInsets.only(left: 12),
+                                child: TextField(
+                                  controller: _searchController,
+                                  decoration: InputDecoration(
+                                    hintText: 'Search...',
+                                    border: InputBorder.none,
+                                    hintStyle: TextStyle(color: Colors.grey[400], fontSize: 12),
+                                  ),
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () {
+                                setState(() {
+                                  _isSearchExpanded = false;
+                                  _searchController.clear();
+                                });
+                              },
+                              icon: Icon(Icons.close, color: Colors.grey[600]),
+                              iconSize: 14,
+                              padding: EdgeInsets.zero,
+                            ),
+                          ] else ...[
+                            Expanded(
+                              child: IconButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _isSearchExpanded = true;
+                                  });
+                                },
+                                icon: Icon(Icons.search, color: Colors.grey[600]),
+                                iconSize: 16,
+                                padding: EdgeInsets.zero,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  // Three dots menu button
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 4,
+                          offset: Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                    child: IconButton(
+                      onPressed: () {
+                        setState(() {
+                          _isMenuExpanded = !_isMenuExpanded;
+                        });
+                      },
+                      icon: Icon(Icons.more_vert, color: Colors.grey[600]),
+                      iconSize: 16,
+                      padding: EdgeInsets.zero,
+                    ),
+                  ),
+                ],
+              ),
+              // Expanded menu (if expanded)
+              if (_isMenuExpanded)
+                Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Container(
+                      width: 140,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 8,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildMobileMenuItem(
+                            Icons.attach_money,
+                            'Currency',
+                            () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Currency Settings'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                              setState(() {
+                                _isMenuExpanded = false;
+                              });
+                            },
+                          ),
+                          _buildMobileMenuItem(
+                            Icons.schedule,
+                            'Time Period',
+                            () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Time Period Settings'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                              setState(() {
+                                _isMenuExpanded = false;
+                              });
+                            },
+                          ),
+                          _buildMobileMenuItem(
+                            Icons.notifications,
+                            'Notifications',
+                            () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Notifications'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                              setState(() {
+                                _isMenuExpanded = false;
+                              });
+                            },
+                            hasBadge: true,
+                          ),
+                          _buildMobileMenuItem(
+                            Icons.chat,
+                            'Chat',
+                            () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Chat'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                              setState(() {
+                                _isMenuExpanded = false;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          );
+        } else {
+          // Desktop layout - original design
+          return Row(
+            children: [
+              // Dashboard heading with icon (matching the image)
+              Row(
+                children: [
+                  Icon(Icons.dashboard, color: Colors.grey[800], size: 24),
+                  SizedBox(width: 8),
+                  Text(
+                    'Dashboard',
+                    style: TextStyle(
+                      color: Colors.grey[800],
+                      fontWeight: FontWeight.bold,
+                      fontSize: 24,
+                    ),
+                  ),
+                ],
+              ),
+              
+              Spacer(),
+              
+              // Collapsible search bar on right top corner
+              AnimatedContainer(
+                duration: Duration(milliseconds: 300),
+                width: _isSearchExpanded ? 300 : 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    if (_isSearchExpanded) ...[
+                      Expanded(
+                        child: Padding(
+                          padding: EdgeInsets.only(left: 16),
+                          child: TextField(
+                            controller: _searchController,
+                            decoration: InputDecoration(
+                              hintText: 'Search...',
+                              border: InputBorder.none,
+                              hintStyle: TextStyle(color: Colors.grey[400]),
+                            ),
+                            style: TextStyle(fontSize: 14),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () {
+                          setState(() {
+                            _isSearchExpanded = false;
+                            _searchController.clear();
+                          });
+                        },
+                        icon: Icon(Icons.close, color: Colors.grey[600]),
+                        iconSize: 20,
+                      ),
+                    ] else ...[
+                      Expanded(
+                        child: IconButton(
+                          onPressed: () {
+                            setState(() {
+                              _isSearchExpanded = true;
+                            });
+                          },
+                          icon: Icon(Icons.search, color: Colors.grey[600]),
+                          iconSize: 20,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              
+              SizedBox(width: 16),
+              
+              // Currency icon button
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: IconButton(
+                  onPressed: () {
+                    // Handle currency tap
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Currency Settings'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  icon: Icon(Icons.attach_money, color: Colors.grey[600]),
+                  iconSize: 20,
+                ),
+              ),
+              
+              SizedBox(width: 16),
+              
+              // Time period icon button
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: IconButton(
+                  onPressed: () {
+                    // Handle time period tap
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Time Period Settings'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  icon: Icon(Icons.schedule, color: Colors.grey[600]),
+                  iconSize: 20,
+                ),
+              ),
+              
+              SizedBox(width: 16),
+              
+              // Notification button icon
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Stack(
+                  children: [
+                    Center(
+                      child: IconButton(
+                        onPressed: () {
+                          // Handle notification tap
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Notifications'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                        icon: Icon(Icons.notifications, color: Colors.grey[600]),
+                        iconSize: 20,
+                      ),
+                    ),
+                    // Notification badge
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              SizedBox(width: 16),
+              
+              // Chat button icon
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: IconButton(
+                  onPressed: () {
+                    // Handle chat tap
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Chat'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  icon: Icon(Icons.chat, color: Colors.grey[600]),
+                  iconSize: 20,
+                ),
+              ),
+            ],
+          );
+        }
+      },
+    );
+  }
+
+  Widget _buildDashboardContent() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth > 900;
+        
+        if (isWide) {
+          // Desktop layout - horizontal row
+          return SingleChildScrollView(
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildDashboardCard(
+                        'Qualified Area',
+                        '8,742 m²',
+                        '+12.3%',
+                        Icons.straighten,
+                        Colors.green,
+                      ),
+                    ),
+                    SizedBox(width: 16),
+                    Expanded(
+                      child: _buildDashboardCard(
+                        'Total Revenue',
+                        '\$1,256,890',
+                        '+8.7%',
+                        Icons.attach_money,
+                        Colors.blue,
+                      ),
+                    ),
+                    SizedBox(width: 16),
+                    Expanded(
+                      child: _buildDashboardCard(
+                        'Aluminum Area',
+                        '5,128 m²',
+                        '+5.2%',
+                        Icons.grid_on,
+                        Colors.purple,
+                      ),
+                    ),
+                    SizedBox(width: 16),
+                    Expanded(
+                      child: _buildDashboardCard(
+                        'Qualified Leads',
+                        '432',
+                        '-3.1%',
+                        Icons.people,
+                        Colors.orange,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 24),
+                _buildQualifiedAreaVsRevenueChart(),
+              ],
+            ),
+          );
+        } else {
+          // Mobile and tablet layout - grid
+          int crossAxisCount = constraints.maxWidth > 600 ? 2 : 2; // Always 2 columns for mobile
+          
+          return SingleChildScrollView(
+            child: Column(
+              children: [
+                GridView.count(
+                  crossAxisCount: crossAxisCount,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: 1.1, // Slightly more compact for mobile
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  shrinkWrap: true,
+                  physics: NeverScrollableScrollPhysics(),
+                  children: [
+                    _buildDashboardCard(
+                      'Qualified Area',
+                      '8,742 m²',
+                      '+12.3%',
+                      Icons.straighten,
+                      Colors.green,
+                    ),
+                    _buildDashboardCard(
+                      'Total Revenue',
+                      '\$1,256,890',
+                      '+8.7%',
+                      Icons.attach_money,
+                      Colors.blue,
+                    ),
+                    _buildDashboardCard(
+                      'Aluminum Area',
+                      '5,128 m²',
+                      '+5.2%',
+                      Icons.grid_on,
+                      Colors.purple,
+                    ),
+                    _buildDashboardCard(
+                      'Qualified Leads',
+                      '432',
+                      '-3.1%',
+                      Icons.people,
+                      Colors.orange,
+                    ),
+                  ],
+                ),
+                SizedBox(height: 24),
+                _buildQualifiedAreaVsRevenueChart(),
+              ],
+            ),
+          );
+        }
+      },
+    );
+  }
+
+  Widget _buildDashboardCard(String title, String value, String percentage, IconData icon, Color color) {
+    final isPositive = percentage.startsWith('+');
+    final percentageColor = isPositive ? Colors.green : Colors.red;
+    
+    return InkWell(
+      onTap: () {
+        // Handle filter tap
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Filtered by: $title'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top row: Icon + Title on left, Percentage on right
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Left side: Icon and title
+                Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Icon(icon, color: color, size: 14),
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[700],
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                // Right side: Percentage with arrow
+                Row(
+                  children: [
+                    Icon(
+                      isPositive ? Icons.trending_up : Icons.trending_down,
+                      color: percentageColor,
+                      size: 12,
+                    ),
+                    SizedBox(width: 2),
+                    Text(
+                      percentage,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: percentageColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            SizedBox(height: 12),
+            // Main value - centered
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 8),
+            // Footer: "From previous period" aligned right
+            Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                'From previous period',
+                style: TextStyle(
+                  fontSize: 9,
+                  color: Colors.grey[500],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileMenuItem(IconData icon, String label, VoidCallback onTap, {bool hasBadge = false}) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            Stack(
+              children: [
+                Icon(icon, color: Colors.grey[600], size: 16),
+                if (hasBadge)
+                  Positioned(
+                    top: -2,
+                    right: -2,
+                    child: Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[700],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQualifiedAreaVsRevenueChart() {
+    return Container(
+      height: 300,
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.bar_chart, color: Colors.grey[800], size: 20),
+              SizedBox(width: 8),
+              Text(
+                'Qualified Area vs Revenue',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          Expanded(
+            child: LineChart(
+              LineChartData(
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: true,
+                  horizontalInterval: 1,
+                  verticalInterval: 1,
+                  getDrawingHorizontalLine: (value) {
+                    return FlLine(
+                      color: Colors.grey[300]!,
+                      strokeWidth: 1,
+                    );
+                  },
+                  getDrawingVerticalLine: (value) {
+                    return FlLine(
+                      color: Colors.grey[300]!,
+                      strokeWidth: 1,
+                    );
+                  },
+                ),
+                titlesData: FlTitlesData(
+                  show: true,
+                  rightTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  topTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 30,
+                      interval: 1,
+                      getTitlesWidget: (double value, TitleMeta meta) {
+                        const style = TextStyle(
+                          color: Color(0xff67727d),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        );
+                        Widget text;
+                        switch (value.toInt()) {
+                          case 0:
+                            text = const Text('Jan', style: style);
+                            break;
+                          case 1:
+                            text = const Text('Feb', style: style);
+                            break;
+                          case 2:
+                            text = const Text('Mar', style: style);
+                            break;
+                          case 3:
+                            text = const Text('Apr', style: style);
+                            break;
+                          case 4:
+                            text = const Text('May', style: style);
+                            break;
+                          case 5:
+                            text = const Text('Jun', style: style);
+                            break;
+                          default:
+                            text = const Text('', style: style);
+                            break;
+                        }
+                        return SideTitleWidget(
+                          axisSide: meta.axisSide,
+                          child: text,
+                        );
+                      },
+                    ),
+                  ),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      interval: 1,
+                      getTitlesWidget: (double value, TitleMeta meta) {
+                        const style = TextStyle(
+                          color: Color(0xff67727d),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        );
+                        return Text('${value.toInt()}K', style: style);
+                      },
+                      reservedSize: 42,
+                    ),
+                  ),
+                ),
+                borderData: FlBorderData(
+                  show: true,
+                  border: Border.all(color: const Color(0xff37434d)),
+                ),
+                minX: 0,
+                maxX: 5,
+                minY: 0,
+                maxY: 6,
+                lineBarsData: [
+                  // Qualified Area line
+                  LineChartBarData(
+                    spots: [
+                      const FlSpot(0, 3),
+                      const FlSpot(1, 2),
+                      const FlSpot(2, 5),
+                      const FlSpot(3, 3.1),
+                      const FlSpot(4, 4),
+                      const FlSpot(5, 3),
+                    ],
+                    isCurved: true,
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.green.withValues(alpha: 0.8),
+                        Colors.green.withValues(alpha: 0.3),
+                      ],
+                    ),
+                    barWidth: 3,
+                    isStrokeCapRound: true,
+                    dotData: FlDotData(
+                      show: false,
+                    ),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.green.withValues(alpha: 0.3),
+                          Colors.green.withValues(alpha: 0.1),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Revenue line
+                  LineChartBarData(
+                    spots: [
+                      const FlSpot(0, 1),
+                      const FlSpot(1, 1.5),
+                      const FlSpot(2, 2.5),
+                      const FlSpot(3, 2.2),
+                      const FlSpot(4, 3.5),
+                      const FlSpot(5, 4.2),
+                    ],
+                    isCurved: true,
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.blue.withValues(alpha: 0.8),
+                        Colors.blue.withValues(alpha: 0.3),
+                      ],
+                    ),
+                    barWidth: 3,
+                    isStrokeCapRound: true,
+                    dotData: FlDotData(
+                      show: false,
+                    ),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.blue.withValues(alpha: 0.3),
+                          Colors.blue.withValues(alpha: 0.1),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              SizedBox(width: 8),
+              Text(
+                'Qualified Area',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[700],
+                ),
+              ),
+              SizedBox(width: 24),
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: Colors.blue,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              SizedBox(width: 8),
+              Text(
+                'Revenue',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[700],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
