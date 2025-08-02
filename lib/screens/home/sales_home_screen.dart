@@ -2146,7 +2146,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             .from('proposal_input')
             .select('input, value, user_id')
             .eq('lead_id', leadId);
-        
+
         // Fetch usernames for each proposal input
         for (int i = 0; i < proposalInputData.length; i++) {
           try {
@@ -2155,12 +2155,13 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                 .select('username')
                 .eq('id', proposalInputData[i]['user_id'])
                 .single();
-            proposalInputData[i]['username'] = userData['username'] ?? 'Unknown';
+            proposalInputData[i]['username'] =
+                userData['username'] ?? 'Unknown';
           } catch (e) {
             proposalInputData[i]['username'] = 'Unknown';
           }
         }
-        
+
         debugPrint(
           '✅ Successfully fetched ${proposalInputData.length} proposal inputs with usernames',
         );
@@ -2527,36 +2528,44 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         SizedBox(height: 16),
 
         // Proposal Response Section
-        if (proposalInputData.isNotEmpty || proposalRemarkData.isNotEmpty || proposalFileData.isNotEmpty)
+        if (proposalInputData.isNotEmpty ||
+            proposalRemarkData.isNotEmpty ||
+            proposalFileData.isNotEmpty)
           _buildInfoSectionCard('Proposal Response', [
             // Proposal Inputs
             if (proposalInputData.isNotEmpty) ...[
-              ...proposalInputData.map((input) => _buildInfoRow(
-                input['input'] ?? 'Input',
-                '${input['value']?.toString() ?? 'N/A'} (by ${input['username'] ?? 'Unknown'})',
-              )),
-              if (proposalRemarkData.isNotEmpty || proposalFileData.isNotEmpty) 
+              ...proposalInputData.map(
+                (input) => _buildInfoRow(
+                  input['input'] ?? 'Input',
+                  '${input['value']?.toString() ?? 'N/A'} (by ${input['username'] ?? 'Unknown'})',
+                ),
+              ),
+              if (proposalRemarkData.isNotEmpty || proposalFileData.isNotEmpty)
                 SizedBox(height: 8),
             ],
-            
+
             // Proposal Remarks
             if (proposalRemarkData.isNotEmpty) ...[
-              ...proposalRemarkData.map((remark) => _buildInfoRow(
-                'Remark',
-                remark['remark'] ?? 'No remark',
-              )),
+              ...proposalRemarkData.map(
+                (remark) =>
+                    _buildInfoRow('Remark', remark['remark'] ?? 'No remark'),
+              ),
               if (proposalFileData.isNotEmpty) SizedBox(height: 8),
             ],
-            
+
             // Proposal Files
             if (proposalFileData.isNotEmpty) ...[
-              ...proposalFileData.map((file) => _buildInfoRow(
-                file['filename'] ?? 'File',
-                file['file_link'] ?? 'No link available',
-              )),
+              ...proposalFileData.map(
+                (file) => _buildInfoRow(
+                  file['filename'] ?? 'File',
+                  file['file_link'] ?? 'No link available',
+                ),
+              ),
             ],
           ]),
-        if (proposalInputData.isNotEmpty || proposalRemarkData.isNotEmpty || proposalFileData.isNotEmpty)
+        if (proposalInputData.isNotEmpty ||
+            proposalRemarkData.isNotEmpty ||
+            proposalFileData.isNotEmpty)
           SizedBox(height: 16),
       ],
     );
