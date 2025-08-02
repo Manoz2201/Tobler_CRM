@@ -2066,9 +2066,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     try {
       final client = Supabase.instance.client;
 
-      debugPrint('Fetching data for lead_id: $leadId');
+      debugPrint('Fetching complete data for lead_id: $leadId');
 
-      // Fetch all related data for the specific lead with error handling
+      // Fetch all related data for the specific lead with comprehensive error handling
       Map<String, dynamic> leadsData = {};
       List<dynamic> leadContactsData = [];
       List<dynamic> leadAttachmentsData = [];
@@ -2078,99 +2078,103 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       List<dynamic> proposalRemarkData = [];
       Map<String, dynamic> adminResponseData = {};
 
+      // 1. Fetch leads data
       try {
         leadsData = await client
             .from('leads')
             .select('*')
             .eq('id', leadId)
             .single();
-        debugPrint('Successfully fetched leads data');
+        debugPrint('✅ Successfully fetched leads data: ${leadsData['project_name']}');
       } catch (e) {
-        debugPrint('Error fetching leads data: $e');
+        debugPrint('❌ Error fetching leads data: $e');
         // Use the lead data we already have
         leadsData = lead;
       }
 
+      // 2. Fetch lead_contacts data
       try {
         leadContactsData = await client
             .from('lead_contacts')
             .select('*')
             .eq('lead_id', leadId);
-        debugPrint('Successfully fetched ${leadContactsData.length} contacts');
+        debugPrint('✅ Successfully fetched ${leadContactsData.length} contacts');
       } catch (e) {
-        debugPrint('Error fetching contacts: $e');
+        debugPrint('❌ Error fetching contacts: $e');
+        leadContactsData = [];
       }
 
+      // 3. Fetch lead_attachment data
       try {
         leadAttachmentsData = await client
             .from('lead_attachment')
             .select('*')
             .eq('lead_id', leadId);
-        debugPrint(
-          'Successfully fetched ${leadAttachmentsData.length} attachments',
-        );
+        debugPrint('✅ Successfully fetched ${leadAttachmentsData.length} attachments');
       } catch (e) {
-        debugPrint('Error fetching attachments: $e');
+        debugPrint('❌ Error fetching attachments: $e');
+        leadAttachmentsData = [];
       }
 
+      // 4. Fetch lead_activity data
       try {
         leadActivityData = await client
             .from('lead_activity')
             .select('*')
             .eq('lead_id', leadId)
             .order('created_at', ascending: false);
-        debugPrint(
-          'Successfully fetched ${leadActivityData.length} activities',
-        );
+        debugPrint('✅ Successfully fetched ${leadActivityData.length} activities');
       } catch (e) {
-        debugPrint('Error fetching activities: $e');
+        debugPrint('❌ Error fetching activities: $e');
+        leadActivityData = [];
       }
 
+      // 5. Fetch proposal_input data
       try {
         proposalInputData = await client
             .from('proposal_input')
             .select('*')
             .eq('lead_id', leadId);
-        debugPrint(
-          'Successfully fetched ${proposalInputData.length} proposal inputs',
-        );
+        debugPrint('✅ Successfully fetched ${proposalInputData.length} proposal inputs');
       } catch (e) {
-        debugPrint('Error fetching proposal inputs: $e');
+        debugPrint('❌ Error fetching proposal inputs: $e');
+        proposalInputData = [];
       }
 
+      // 6. Fetch proposal_file data
       try {
         proposalFileData = await client
             .from('proposal_file')
             .select('*')
             .eq('lead_id', leadId);
-        debugPrint(
-          'Successfully fetched ${proposalFileData.length} proposal files',
-        );
+        debugPrint('✅ Successfully fetched ${proposalFileData.length} proposal files');
       } catch (e) {
-        debugPrint('Error fetching proposal files: $e');
+        debugPrint('❌ Error fetching proposal files: $e');
+        proposalFileData = [];
       }
 
+      // 7. Fetch proposal_remark data
       try {
         proposalRemarkData = await client
             .from('proposal_remark')
             .select('*')
             .eq('lead_id', leadId);
-        debugPrint(
-          'Successfully fetched ${proposalRemarkData.length} proposal remarks',
-        );
+        debugPrint('✅ Successfully fetched ${proposalRemarkData.length} proposal remarks');
       } catch (e) {
-        debugPrint('Error fetching proposal remarks: $e');
+        debugPrint('❌ Error fetching proposal remarks: $e');
+        proposalRemarkData = [];
       }
 
+      // 8. Fetch admin_response data
       try {
         adminResponseData = await client
             .from('admin_response')
             .select('*')
             .eq('lead_id', leadId)
             .single();
-        debugPrint('Successfully fetched admin response');
+        debugPrint('✅ Successfully fetched admin response');
       } catch (e) {
-        debugPrint('Error fetching admin response: $e');
+        debugPrint('❌ Error fetching admin response: $e');
         // Create empty admin response data
         adminResponseData = {
           'status': 'Pending',
@@ -2184,7 +2188,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         _isLoading = false;
       });
 
-      debugPrint('Showing comprehensive details dialog');
+      debugPrint('🎉 All data fetched successfully. Showing comprehensive details dialog');
 
       // Show comprehensive details dialog
       if (mounted) {
@@ -2212,7 +2216,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         );
       }
     } catch (e) {
-      debugPrint('Error in _viewLeadDetails: $e');
+      debugPrint('❌ Error in _viewLeadDetails: $e');
       setState(() {
         _isLoading = false;
       });
@@ -2330,7 +2334,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           children: [
             // Header with DEBUG ribbon
             _buildCompleteLeadDetailsHeader(leadsData),
-            
+
             // Content Area with multiple information sections
             Expanded(
               child: Container(
@@ -2381,77 +2385,48 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           ),
         ],
       ),
-      child: Stack(
+      child: Row(
         children: [
-          // Main header content
-          Row(
-            children: [
-              // Blue bar chart icon
-              Icon(
-                Icons.bar_chart,
-                color: Colors.blue[600],
-                size: isMobile ? 24 : 32,
-              ),
-              SizedBox(width: isMobile ? 12 : 16),
-              
-              // Title and subtitle
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Complete Lead Details - ${leadsData['project_name'] ?? 'Rohan'}',
-                      style: TextStyle(
-                        fontSize: isMobile ? 16 : 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey[800],
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Lead ID: ${leadsData['id'] ?? '7b194011-8d1b-4700-8987-f34780ad6425'} | Status: Active',
-                      style: TextStyle(
-                        fontSize: isMobile ? 10 : 12,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              
-              // Close button
-              IconButton(
-                onPressed: () => Navigator.of(context).pop(),
-                icon: Icon(
-                  Icons.close,
-                  color: Colors.grey[600],
-                  size: isMobile ? 20 : 24,
-                ),
-              ),
-            ],
+          // Blue bar chart icon
+          Icon(
+            Icons.bar_chart,
+            color: Colors.blue[600],
+            size: isMobile ? 24 : 32,
           ),
-          
-          // DEBUG ribbon
-          Positioned(
-            top: 0,
-            right: 0,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.red,
-                borderRadius: BorderRadius.only(
-                  topRight: Radius.circular(isMobile ? 16 : 20),
-                  bottomLeft: Radius.circular(8),
+          SizedBox(width: isMobile ? 12 : 16),
+
+          // Title and subtitle
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Complete Lead Details - ${leadsData['project_name'] ?? '7 Mahalaskmi'}',
+                  style: TextStyle(
+                    fontSize: isMobile ? 16 : 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
                 ),
-              ),
-              child: Text(
-                'DEBUG',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: isMobile ? 10 : 12,
-                  fontWeight: FontWeight.bold,
+                SizedBox(height: 4),
+                Text(
+                  'Lead ID: ${leadsData['id'] ?? '85d471f9-0a44-46bc-a223-8ac0af38fefa'} | Status: Active',
+                  style: TextStyle(
+                    fontSize: isMobile ? 10 : 12,
+                    color: Colors.grey[600],
+                  ),
                 ),
-              ),
+              ],
+            ),
+          ),
+
+          // Close button
+          IconButton(
+            onPressed: () => Navigator.of(context).pop(),
+            icon: Icon(
+              Icons.close,
+              color: Colors.grey[600],
+              size: isMobile ? 20 : 24,
             ),
           ),
         ],
@@ -2473,54 +2448,124 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Basic Information Section
-        _buildInfoSectionCard(
-          'Basic Information',
-          [
-            _buildInfoRow('Project Name', leadsData['project_name'] ?? 'Rohan'),
-            _buildInfoRow('Client Name', leadsData['client_name'] ?? 'Rohan'),
-            _buildInfoRow('Project Location', leadsData['project_location'] ?? 'Rohan'),
-            _buildInfoRow('Lead Type', 'Monolithic Formwork'),
-            _buildInfoRow('Created Date', _formatDate(leadsData['created_at'])),
-            _buildInfoRow('Remark', leadsData['remark'] ?? 'Rohan'),
-          ],
-        ),
+        _buildInfoSectionCard('Basic Information', [
+          _buildInfoRow('Project Name', leadsData['project_name'] ?? '7 Mahalaskmi'),
+          _buildInfoRow('Client Name', leadsData['client_name'] ?? 'Runwal Enterprises'),
+          _buildInfoRow('Project Location', leadsData['project_location'] ?? 'Mumbai'),
+          _buildInfoRow('Lead Type', 'Monolithic Formwork'),
+          _buildInfoRow('Created Date', _formatDate(leadsData['created_at'])),
+          _buildInfoRow('Remark', leadsData['remark'] ?? '1 Tower of Sales Building and 1 Tower of Rehab building to be considered'),
+        ]),
         SizedBox(height: 16),
 
         // Sales Person Information Section
-        _buildInfoSectionCard(
-          'Sales Person Information',
-          [
-            _buildInfoRow('Name', 'manik'),
-            _buildInfoRow('Email', 'sales@gmail.com'),
-          ],
-        ),
+        _buildInfoSectionCard('Sales Person Information', [
+          _buildInfoRow('Name', 'manik'),
+          _buildInfoRow('Email', 'sales@gmail.com'),
+        ]),
         SizedBox(height: 16),
 
         // Proposal Inputs Section
         if (proposalInputData.isNotEmpty)
           _buildInfoSectionCard(
             'Proposal Inputs',
-            proposalInputData.map((input) => _buildInfoRow(
-              input['input'] ?? 'Area',
-              input['value']?.toString() ?? '30006',
-            )).toList(),
+            proposalInputData
+                .map(
+                  (input) => _buildInfoRow(
+                    input['input'] ?? 'Area',
+                    input['value']?.toString() ?? '30006',
+                  ),
+                )
+                .toList(),
           ),
         if (proposalInputData.isNotEmpty) SizedBox(height: 16),
+
+        // Lead Attachments Section
+        if (leadAttachmentsData.isNotEmpty)
+          _buildInfoSectionCard(
+            'Lead Attachments',
+            leadAttachmentsData
+                .map(
+                  (attachment) => _buildInfoRow(
+                    'File',
+                    attachment['file_name'] ?? attachment['file_link'] ?? 'Attachment',
+                  ),
+                )
+                .toList(),
+          ),
+        if (leadAttachmentsData.isNotEmpty) SizedBox(height: 16),
+
+        // Lead Activity Section
+        if (leadActivityData.isNotEmpty)
+          _buildInfoSectionCard(
+            'Lead Activity',
+            leadActivityData
+                .map(
+                  (activity) => _buildInfoRow(
+                    'Activity',
+                    '${activity['activity_type'] ?? 'Activity'} - ${activity['description'] ?? 'No description'}',
+                  ),
+                )
+                .toList(),
+          ),
+        if (leadActivityData.isNotEmpty) SizedBox(height: 16),
+
+        // Proposal Files Section
+        if (proposalFileData.isNotEmpty)
+          _buildInfoSectionCard(
+            'Proposal Files',
+            proposalFileData
+                .map(
+                  (file) => _buildInfoRow(
+                    'File',
+                    file['file_name'] ?? file['file_link'] ?? 'Proposal File',
+                  ),
+                )
+                .toList(),
+          ),
+        if (proposalFileData.isNotEmpty) SizedBox(height: 16),
+
+        // Proposal Remarks Section
+        if (proposalRemarkData.isNotEmpty)
+          _buildInfoSectionCard(
+            'Proposal Remarks',
+            proposalRemarkData
+                .map(
+                  (remark) => _buildInfoRow(
+                    'Remark',
+                    remark['remark'] ?? 'No remark',
+                  ),
+                )
+                .toList(),
+          ),
+        if (proposalRemarkData.isNotEmpty) SizedBox(height: 16),
 
         // Main Contact Section
         if (leadContactsData.isNotEmpty)
           _buildInfoSectionCard(
             'Main Contact',
-            leadContactsData.map((contact) => [
-              _buildInfoRow('Name', contact['name'] ?? 'Rohan'),
-              _buildInfoRow('Designation', contact['designation'] ?? 'Rohan'),
-              _buildInfoRow('Email', contact['email'] ?? 'Rohan'),
-              _buildInfoRow('Mobile', contact['mobile'] ?? ''),
-            ]).expand((list) => list).toList(),
+            leadContactsData
+                .map(
+                  (contact) => [
+                    _buildInfoRow('Name', contact['name'] ?? 'Rohan'),
+                    _buildInfoRow('Designation', contact['designation'] ?? 'Rohan'),
+                    _buildInfoRow('Email', contact['email'] ?? 'Rohan'),
+                    _buildInfoRow('Mobile', contact['mobile'] ?? ''),
+                  ],
+                )
+                .expand((list) => list)
+                .toList(),
           ),
         if (leadContactsData.isNotEmpty) SizedBox(height: 16),
 
-        // Additional sections can be added here
+        // Admin Response Section
+        _buildInfoSectionCard('Admin Response', [
+          _buildInfoRow('Status', adminResponseData['status'] ?? 'Pending'),
+          _buildInfoRow('Rate (sq/m)', adminResponseData['rate_sqm']?.toString() ?? '0'),
+          _buildInfoRow('Remark', adminResponseData['remark'] ?? 'No admin response yet'),
+          _buildInfoRow('Project ID', adminResponseData['project_id'] ?? 'Tobler-A49B'),
+        ]),
+        SizedBox(height: 16),
       ],
     );
   }
@@ -2584,10 +2629,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                 Expanded(
                   child: Text(
                     value.isEmpty ? '(empty value)' : value,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[800],
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey[800]),
                   ),
                 ),
                 SizedBox(width: 8),
@@ -2599,11 +2641,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                     color: Colors.grey[300],
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  child: Icon(
-                    Icons.copy,
-                    size: 12,
-                    color: Colors.grey[600],
-                  ),
+                  child: Icon(Icons.copy, size: 12, color: Colors.grey[600]),
                 ),
               ],
             ),
@@ -2612,10 +2650,6 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       ),
     );
   }
-
-
-
-
 
   Widget _buildMobileInteractiveButton({
     required IconData icon,
