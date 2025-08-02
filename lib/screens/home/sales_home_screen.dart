@@ -2174,7 +2174,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       try {
         proposalFileData = await client
             .from('proposal_file')
-            .select('filename, file_link')
+            .select('file_name, file_link')
             .eq('lead_id', leadId);
         debugPrint(
           '✅ Successfully fetched ${proposalFileData.length} proposal files',
@@ -2557,7 +2557,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             if (proposalFileData.isNotEmpty) ...[
               ...proposalFileData.map(
                 (file) => _buildInfoRow(
-                  file['filename'] ?? 'File',
+                  file['file_name'] ?? 'File',
                   file['file_link'] ?? 'No link available',
                 ),
               ),
