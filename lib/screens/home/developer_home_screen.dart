@@ -8,6 +8,15 @@ import 'proposal_engineer_home_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:crm_app/widgets/profile_page.dart';
 import 'package:flutter/services.dart';
+import '../../utils/navigation_utils.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../auth/login_screen.dart';
+import '../../main.dart'
+    show
+        updateUserSessionActiveMCP,
+        updateUserOnlineStatusMCP,
+        updateUserOnlineStatusByEmailMCP,
+        setUserOnlineStatus;
 
 class DeveloperHomeScreen extends StatefulWidget {
   const DeveloperHomeScreen({super.key});
@@ -19,194 +28,202 @@ class DeveloperHomeScreen extends StatefulWidget {
 class _DeveloperHomeScreenState extends State<DeveloperHomeScreen> {
   int _selectedIndex = 0;
   // Restore fields for dockable nav and mobile nav
-  bool _isDockedLeft = true;
-  double _dragOffsetX = 0.0;
+  bool _isCollapsed = false;
   int _drawerExpansion = 0;
   static const int _rowSize = 5;
-
-  final ScrollController _scrollbarController = ScrollController();
+  final Map<int, bool> _hoveredItems = {};
 
   double get _drawerHeight =>
       _drawerExpansion == 0 ? 48 : (_drawerExpansion * 52.0 + 20.0);
 
-  void _onHorizontalDragUpdate(DragUpdateDetails details, double screenWidth) {
-    setState(() {
-      _dragOffsetX += details.delta.dx;
-      _dragOffsetX = _dragOffsetX.clamp(-screenWidth / 2, screenWidth / 2);
-    });
-  }
 
-  void _onHorizontalDragEnd(double screenWidth) {
-    setState(() {
-      if (_dragOffsetX > 0) {
-        _isDockedLeft = false;
-      } else {
-        _isDockedLeft = true;
-      }
-      _dragOffsetX = 0.0;
-    });
-  }
 
   void _onItemTapped(int index) {
+    // Check if logout button was tapped
+    if (index == _navItems.length - 1 && _navItems[index].label == 'Logout') {
+      _logout();
+      return;
+    }
+    
     setState(() {
       _selectedIndex = index;
     });
   }
 
+  Future<void> _logout() async {
+    await setUserOnlineStatus(false);
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    debugPrint('[LOGOUT] Logging out userId: $userId');
+
+    if (userId != null) {
+      await updateUserSessionActiveMCP(userId, false);
+      await updateUserOnlineStatusMCP(userId, false);
+    } else {
+      debugPrint('[LOGOUT] userId is null, cannot update Supabase by id.');
+    }
+
+    // Update is_user_online by email
+    final prefs = await SharedPreferences.getInstance();
+    final email = prefs.getString('user_email');
+    debugPrint('[LOGOUT] Logging out user_email: $email');
+    if (email != null) {
+      await updateUserOnlineStatusByEmailMCP(email, false);
+    }
+
+    await clearLoginSession();
+    await Supabase.instance.client.auth.signOut();
+
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (route) => false,
+      );
+    }
+  }
+
   // Helper to build the nav bar widget for wide screens
   Widget _buildNavBar(double screenHeight, double screenWidth) {
-    return SizedBox(
-      width: 72,
-      height: screenHeight * 0.8,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(32),
-        child: Stack(
-          children: [
-            BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-              child: Container(
-                width: 72,
-                height: screenHeight * 0.8,
-                color: Colors.white.withAlpha((0.15 * 255).round()),
-              ),
-            ),
-            Container(
-              width: 72,
-              height: screenHeight * 0.8,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(32),
-                border: Border.all(
-                  color: Colors.white.withAlpha((0.3 * 255).round()),
-                  width: 1.5,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withAlpha((0.05 * 255).toInt()),
-                    blurRadius: 16,
-                    offset: const Offset(2, 4),
-                  ),
-                ],
-              ),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  // Estimate the total height needed for all icons (icon size + padding)
-                  final iconCount = _navItems.length;
-                  final iconHeight = 32.0; // max icon size
-                  final iconPadding = 12.0; // 6.0 top + 6.0 bottom
-                  final totalIconHeight =
-                      iconCount * (iconHeight + iconPadding);
-                  final availableHeight = constraints.maxHeight;
-                  if (totalIconHeight > availableHeight) {
-                    // Not enough space: make scrollable
-                    return Scrollbar(
-                      thumbVisibility: false,
-                      trackVisibility: false,
-                      controller: _scrollbarController,
-                      child: SingleChildScrollView(
-                        controller: _scrollbarController,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          children: List.generate(_navItems.length, (index) {
-                            final selected = _selectedIndex == index;
-                            double baseSize = screenWidth > 1200
-                                ? 32
-                                : screenWidth > 900
-                                ? 30
-                                : 28;
-                            double scale = selected ? 1.2 : 1.0;
-                            Color iconColor = selected
-                                ? const Color(0xFF1976D2)
-                                : Colors.grey[400]!;
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 6.0,
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(16),
-                                child: BackdropFilter(
-                                  filter: ImageFilter.blur(
-                                    sigmaX: 8,
-                                    sigmaY: 8,
-                                  ),
-                                  child: Container(
-                                    color: Colors.white.withAlpha(
-                                      (0.18 * 255).round(),
-                                    ),
-                                    child: AnimatedScale(
-                                      scale: scale,
-                                      duration: const Duration(
-                                        milliseconds: 300,
-                                      ),
-                                      curve: Curves.easeOutCubic,
-                                      child: IconButton(
-                                        icon: Icon(
-                                          _navItems[index].icon,
-                                          color: iconColor,
-                                          size: baseSize,
-                                        ),
-                                        tooltip: _navItems[index].label,
-                                        onPressed: () => _onItemTapped(index),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          }),
-                        ),
-                      ),
-                    );
-                  } else {
-                    // Enough space: space evenly
-                    return Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: List.generate(_navItems.length, (index) {
-                        final selected = _selectedIndex == index;
-                        double baseSize = screenWidth > 1200
-                            ? 32
-                            : screenWidth > 900
-                            ? 30
-                            : 28;
-                        double scale = selected ? 1.2 : 1.0;
-                        Color iconColor = selected
-                            ? const Color(0xFF1976D2)
-                            : Colors.grey[400]!;
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6.0),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: BackdropFilter(
-                              filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                              child: Container(
-                                color: Colors.white.withAlpha(
-                                  (0.18 * 255).round(),
-                                ),
-                                child: AnimatedScale(
-                                  scale: scale,
-                                  duration: const Duration(milliseconds: 300),
-                                  curve: Curves.easeOutCubic,
-                                  child: IconButton(
-                                    icon: Icon(
-                                      _navItems[index].icon,
-                                      color: iconColor,
-                                      size: baseSize,
-                                    ),
-                                    tooltip: _navItems[index].label,
-                                    onPressed: () => _onItemTapped(index),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      }),
-                    );
-                  }
-                },
-              ),
-            ),
-          ],
+    return Container(
+      width: _isCollapsed ? 80 : 280,
+      height: screenHeight,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          right: BorderSide(
+            color: Colors.grey.shade200,
+            width: 1,
+          ),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: const Offset(2, 0),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Header Section
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: Colors.grey.shade200,
+                  width: 1,
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                // Logo Section - Only show when expanded
+                if (!_isCollapsed)
+                  Expanded(
+                    child: SizedBox(
+                      height: 40,
+                      child: Image.asset(
+                        'assets/Tobler_logo.png',
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+                // Collapse/Expand Button
+                IconButton(
+                  onPressed: () {
+                    setState(() {
+                      _isCollapsed = !_isCollapsed;
+                    });
+                  },
+                  icon: Icon(
+                    _isCollapsed ? Icons.arrow_forward : Icons.arrow_back,
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Navigation Items
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Column(
+                children: _navItems.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final item = entry.value;
+                  final isSelected = _selectedIndex == index;
+                  final isHovered = _hoveredItems[index] ?? false;
+
+                  return MouseRegion(
+                    onEnter: (_) {
+                      setState(() {
+                        _hoveredItems[index] = true;
+                      });
+                    },
+                    onExit: (_) {
+                      setState(() {
+                        _hoveredItems[index] = false;
+                      });
+                    },
+                    child: GestureDetector(
+                      onTap: () => _onItemTapped(index),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        margin: const EdgeInsets.only(bottom: 4),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: _isCollapsed ? 8 : 16,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? const Color(0xFFF3E5F5)
+                              : isHovered
+                              ? const Color(0xFFFAFAFA)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: _isCollapsed
+                            ? Icon(
+                                item.icon,
+                                color: isSelected
+                                    ? const Color(0xFF7B1FA2)
+                                    : const Color(0xFF757575),
+                                size: 24,
+                              )
+                            : Row(
+                                children: [
+                                  Icon(
+                                    item.icon,
+                                    color: isSelected
+                                        ? const Color(0xFF7B1FA2)
+                                        : const Color(0xFF757575),
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      item.label,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: isSelected
+                                            ? FontWeight.w600
+                                            : FontWeight.normal,
+                                        color: isSelected
+                                            ? const Color(0xFF7B1FA2)
+                                            : const Color(0xFF757575),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -224,17 +241,9 @@ class _DeveloperHomeScreenState extends State<DeveloperHomeScreen> {
     ProfilePage(),
   ];
 
-  final List<_NavItem> _navItems = const [
-    _NavItem('Dashboard', Icons.dashboard),
-    _NavItem('User Management', Icons.group),
-    _NavItem('Screen Management', Icons.desktop_windows),
-    _NavItem('Role Management', Icons.security),
-    _NavItem('Feature Configuration', Icons.tune),
-    _NavItem('AI', Icons.auto_awesome),
-    _NavItem('Settings', Icons.settings),
-    _NavItem('Analytics', Icons.bar_chart),
-    _NavItem('Profile', Icons.person),
-  ];
+  List<NavItem> get _navItems {
+    return NavigationUtils.getNavigationItemsForRole('developer');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -245,46 +254,11 @@ class _DeveloperHomeScreenState extends State<DeveloperHomeScreen> {
     return Scaffold(
       // backgroundColor removed to prevent extra sidebar effect
       body: isWide
-          ? Stack(
+          ? Row(
               children: [
-                // Main content with padding to avoid nav bar overlap
-                AnimatedPadding(
-                  duration: const Duration(milliseconds: 400),
-                  curve: Curves.easeOutCubic,
-                  padding: EdgeInsets.only(
-                    left: _isDockedLeft ? 72 : 0,
-                    right: !_isDockedLeft ? 72 : 0,
-                  ),
+                _buildNavBar(screenHeight, screenWidth),
+                Expanded(
                   child: _pages[_selectedIndex],
-                ),
-                // Dockable nav bar, centered vertically
-                TweenAnimationBuilder<double>(
-                  tween: Tween<double>(
-                    begin: _isDockedLeft ? 0.0 : 1.0,
-                    end: _isDockedLeft ? 0.0 : 1.0,
-                  ),
-                  duration: const Duration(milliseconds: 400),
-                  curve: Curves.easeOutCubic,
-                  builder: (context, value, child) {
-                    final barX = value * (screenWidth - 72);
-                    return Positioned(
-                      left: barX + _dragOffsetX,
-                      top: (screenHeight - (screenHeight * 0.8)) / 2,
-                      child: GestureDetector(
-                        onHorizontalDragUpdate: (details) =>
-                            _onHorizontalDragUpdate(details, screenWidth),
-                        onHorizontalDragEnd: (_) =>
-                            _onHorizontalDragEnd(screenWidth),
-                        onDoubleTap: () {
-                          setState(() {
-                            _isDockedLeft = !_isDockedLeft;
-                            _dragOffsetX = 0.0;
-                          });
-                        },
-                        child: _buildNavBar(screenHeight, screenWidth),
-                      ),
-                    );
-                  },
                 ),
               ],
             )
@@ -546,12 +520,7 @@ class _DeveloperHomeScreenState extends State<DeveloperHomeScreen> {
   }
 }
 
-// Top-level helper class for navigation items
-class _NavItem {
-  final String label;
-  final IconData icon;
-  const _NavItem(this.label, this.icon);
-}
+
 
 // Top-level ScreenManagementPage widget
 class ScreenManagementPage extends StatefulWidget {
@@ -667,55 +636,61 @@ class _ScreenManagementPageState extends State<ScreenManagementPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          SizedBox(
-            width: 600,
-            child: GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              mainAxisSpacing: 24,
-              crossAxisSpacing: 24,
-              children: demoUsers
-                  .map(
-                    (user) => GestureDetector(
-                      onTap: () =>
-                          _showFullScreenPreview(user['type'] as String),
-                      child: Card(
-                        elevation: 3,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(24.0),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                user['icon'] as IconData,
-                                size: 48,
-                                color: Colors.deepPurple,
+    return SingleChildScrollView(
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 600,
+                child: GridView.count(
+                  crossAxisCount: 2,
+                  shrinkWrap: true,
+                  physics: NeverScrollableScrollPhysics(),
+                  mainAxisSpacing: 24,
+                  crossAxisSpacing: 24,
+                  children: demoUsers
+                      .map(
+                        (user) => GestureDetector(
+                          onTap: () =>
+                              _showFullScreenPreview(user['type'] as String),
+                          child: Card(
+                            elevation: 3,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(24.0),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    user['icon'] as IconData,
+                                    size: 48,
+                                    color: Colors.deepPurple,
+                                  ),
+                                  SizedBox(height: 16),
+                                  Text(
+                                    user['type'] as String,
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              SizedBox(height: 16),
-                              Text(
-                                user['type'] as String,
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                  )
-                  .toList(),
-            ),
+                      )
+                      .toList(),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -951,14 +926,16 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                         ),
                                       ),
                                       if (user['user_type'] != null)
-                                        Chip(
-                                          label: Text(
-                                            user['user_type'].toString(),
-                                          ),
-                                          backgroundColor:
-                                              Colors.deepPurple[50],
-                                          labelStyle: TextStyle(
-                                            color: Colors.deepPurple,
+                                        Flexible(
+                                          child: Chip(
+                                            label: Text(
+                                              user['user_type'].toString(),
+                                            ),
+                                            backgroundColor:
+                                                Colors.deepPurple[50],
+                                            labelStyle: TextStyle(
+                                              color: Colors.deepPurple,
+                                            ),
                                           ),
                                         ),
                                       if (user['device_type'] != null &&
@@ -969,36 +946,44 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                           padding: const EdgeInsets.only(
                                             left: 6.0,
                                           ),
-                                          child: Chip(
-                                            label: Text(
-                                              user['device_type'].toString(),
-                                            ),
-                                            backgroundColor: Colors.blue[50],
-                                            labelStyle: TextStyle(
-                                              color: Colors.blue[900],
+                                          child: Flexible(
+                                            child: Chip(
+                                              label: Text(
+                                                user['device_type'].toString(),
+                                              ),
+                                              backgroundColor: Colors.blue[50],
+                                              labelStyle: TextStyle(
+                                                color: Colors.blue[900],
+                                              ),
                                             ),
                                           ),
                                         ),
                                     ],
                                   ),
-                                  SizedBox(height: 8),
-                                  Text(
-                                    user['email'] ?? '',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey[700],
+                                  SizedBox(height: 6),
+                                  Flexible(
+                                    child: Text(
+                                      user['email'] ?? '',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey[700],
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
-                                  SizedBox(height: 8),
+                                  SizedBox(height: 6),
                                   if (user['created_at'] != null)
-                                    Text(
-                                      'Created: ${user['created_at']}',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey[500],
+                                    Flexible(
+                                      child: Text(
+                                        'Created: ${user['created_at']}',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[500],
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
-                                  SizedBox(height: 12),
+                                  SizedBox(height: 8),
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.end,
                                     children: [
@@ -1748,14 +1733,16 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                         ),
                                       ),
                                       if (user['user_type'] != null)
-                                        Chip(
-                                          label: Text(
-                                            user['user_type'].toString(),
-                                          ),
-                                          backgroundColor:
-                                              Colors.deepPurple[50],
-                                          labelStyle: TextStyle(
-                                            color: Colors.deepPurple,
+                                        Flexible(
+                                          child: Chip(
+                                            label: Text(
+                                              user['user_type'].toString(),
+                                            ),
+                                            backgroundColor:
+                                                Colors.deepPurple[50],
+                                            labelStyle: TextStyle(
+                                              color: Colors.deepPurple,
+                                            ),
                                           ),
                                         ),
                                       if (user['device_type'] != null &&
@@ -1766,36 +1753,44 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                           padding: const EdgeInsets.only(
                                             left: 6.0,
                                           ),
-                                          child: Chip(
-                                            label: Text(
-                                              user['device_type'].toString(),
-                                            ),
-                                            backgroundColor: Colors.blue[50],
-                                            labelStyle: TextStyle(
-                                              color: Colors.blue[900],
+                                          child: Flexible(
+                                            child: Chip(
+                                              label: Text(
+                                                user['device_type'].toString(),
+                                              ),
+                                              backgroundColor: Colors.blue[50],
+                                              labelStyle: TextStyle(
+                                                color: Colors.blue[900],
+                                              ),
                                             ),
                                           ),
                                         ),
                                     ],
                                   ),
-                                  SizedBox(height: 8),
-                                  Text(
-                                    user['email'] ?? '',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey[700],
+                                  SizedBox(height: 6),
+                                  Flexible(
+                                    child: Text(
+                                      user['email'] ?? '',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey[700],
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
-                                  SizedBox(height: 8),
+                                  SizedBox(height: 6),
                                   if (user['created_at'] != null)
-                                    Text(
-                                      'Created: ${user['created_at']}',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey[500],
+                                    Flexible(
+                                      child: Text(
+                                        'Created: ${user['created_at']}',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[500],
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
-                                  SizedBox(height: 12),
+                                  SizedBox(height: 8),
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.end,
                                     children: [

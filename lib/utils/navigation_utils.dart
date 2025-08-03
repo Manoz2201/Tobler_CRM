@@ -14,6 +14,7 @@ class NavigationUtils {
           NavItem('Analytics', Icons.bar_chart),
           NavItem('Chat', Icons.chat),
           NavItem('Profile', Icons.person),
+          NavItem('Logout', Icons.logout),
         ];
       
       case 'sales':
@@ -25,6 +26,7 @@ class NavigationUtils {
           NavItem('Reports', Icons.analytics),
           NavItem('Settings', Icons.settings),
           NavItem('Profile', Icons.person),
+          NavItem('Logout', Icons.logout),
         ];
       
       case 'developer':
@@ -38,6 +40,7 @@ class NavigationUtils {
           NavItem('Settings', Icons.settings),
           NavItem('Analytics', Icons.bar_chart),
           NavItem('Profile', Icons.person),
+          NavItem('Logout', Icons.logout),
         ];
       
       case 'proposal engineer':
@@ -48,6 +51,7 @@ class NavigationUtils {
           NavItem('Reports', Icons.bar_chart),
           NavItem('Chat', Icons.chat),
           NavItem('Profile', Icons.person),
+          NavItem('Logout', Icons.logout),
         ];
       
       default:
@@ -55,6 +59,7 @@ class NavigationUtils {
         return [
           NavItem('Dashboard', Icons.dashboard),
           NavItem('Profile', Icons.person),
+          NavItem('Logout', Icons.logout),
         ];
     }
   }

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:ui';
 import 'package:crm_app/widgets/profile_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -7,8 +6,24 @@ import '../../utils/lead_utils.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:syncfusion_flutter_charts/charts.dart';
 import 'package:intl/intl.dart';
 import '../../utils/navigation_utils.dart';
+import '../auth/login_screen.dart';
+import '../../main.dart'
+    show
+        updateUserSessionActiveMCP,
+        updateUserOnlineStatusMCP,
+        updateUserOnlineStatusByEmailMCP,
+        setUserOnlineStatus;
+
+// ChartData class for Syncfusion charts
+class ChartData {
+  ChartData(this.x, this.y, this.color);
+  final String x;
+  final double y;
+  final Color color;
+}
 
 class SalesHomeScreen extends StatefulWidget {
   final String currentUserType;
@@ -29,6 +44,7 @@ class SalesHomeScreen extends StatefulWidget {
 class _SalesHomeScreenState extends State<SalesHomeScreen> {
   int _selectedIndex = 0;
   final Map<int, bool> _hoveredItems = {};
+  bool _isCollapsed = false;
 
   List<NavItem> get _navItems {
     // Sales users get Leads Management navigation item
@@ -49,9 +65,46 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
   ];
 
   void _onItemTapped(int index) {
+    // Check if logout button was tapped
+    if (index == _navItems.length - 1 && _navItems[index].label == 'Logout') {
+      _logout();
+      return;
+    }
+    
     setState(() {
       _selectedIndex = index;
     });
+  }
+
+  Future<void> _logout() async {
+    await setUserOnlineStatus(false);
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    debugPrint('[LOGOUT] Logging out userId: $userId');
+
+    if (userId != null) {
+      await updateUserSessionActiveMCP(userId, false);
+      await updateUserOnlineStatusMCP(userId, false);
+    } else {
+      debugPrint('[LOGOUT] userId is null, cannot update Supabase by id.');
+    }
+
+    // Update is_user_online by email
+    final prefs = await SharedPreferences.getInstance();
+    final email = prefs.getString('user_email');
+    debugPrint('[LOGOUT] Logging out user_email: $email');
+    if (email != null) {
+      await updateUserOnlineStatusByEmailMCP(email, false);
+    }
+
+    await clearLoginSession();
+    await Supabase.instance.client.auth.signOut();
+
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (route) => false,
+      );
+    }
   }
 
   @override
@@ -78,40 +131,126 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
   }
 
   Widget _buildNavBar(double screenHeight, double screenWidth) {
-    return SizedBox(
-      width: 72,
-      height: screenHeight * 0.8,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(32),
-        child: Stack(
-          children: [
-            BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-              child: Container(
-                width: 72,
-                height: screenHeight * 0.8,
-                color: Colors.white.withAlpha((0.15 * 255).round()),
-              ),
-            ),
+    return Container(
+      width: _isCollapsed ? 80 : 280,
+      height: screenHeight,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0x1A000000),
+            blurRadius: 10,
+            offset: const Offset(2, 0),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+                      // Header Section with Logo and User Profile
             Container(
-              width: 72,
-              height: screenHeight * 0.8,
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(32),
-                border: Border.all(
-                  color: Colors.white.withAlpha((0.3 * 255).round()),
-                  width: 1.5,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withAlpha((0.05 * 255).toInt()),
-                    blurRadius: 16,
-                    offset: const Offset(2, 4),
+                border: Border(
+                  bottom: BorderSide(
+                    color: const Color(0xFFE0E0E0),
+                    width: 1,
                   ),
-                ],
+                ),
               ),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Logo Section - Only show when expanded
+                  if (!_isCollapsed)
+                    SizedBox(
+                      height: 40,
+                      child: Image.asset(
+                        'assets/Tobler_logo.png',
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                  // User Profile Section (only show when expanded)
+                  if (!_isCollapsed)
+                    Row(
+                      children: [
+                        // User Avatar
+                        Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF3E5F5),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Center(
+                            child: Text(
+                              'U',
+                              style: TextStyle(
+                                color: Color(0xFF7B1FA2),
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // User Info
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Hi,',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black,
+                                ),
+                              ),
+                              Text(
+                                'Sales User',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Color(0xFF757575),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Collapse/Expand Button
+                        IconButton(
+                          onPressed: () {
+                            setState(() {
+                              _isCollapsed = !_isCollapsed;
+                            });
+                          },
+                          icon: Icon(
+                            _isCollapsed ? Icons.arrow_forward : Icons.arrow_back,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  // Collapse/Expand Button (when collapsed)
+                  if (_isCollapsed)
+                    IconButton(
+                      onPressed: () {
+                        setState(() {
+                          _isCollapsed = !_isCollapsed;
+                        });
+                      },
+                      icon: const Icon(
+                        Icons.arrow_forward,
+                        color: Colors.grey,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+                    // Navigation Items
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Column(
                 children: _navItems.asMap().entries.map((entry) {
                   final index = entry.key;
                   final item = entry.value;
@@ -133,29 +272,61 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
                       onTap: () => _onItemTapped(index),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        padding: const EdgeInsets.all(8),
+                        margin: const EdgeInsets.only(bottom: 4),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: _isCollapsed ? 8 : 16,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? Colors.blue.withAlpha((0.2 * 255).round())
+                              ? const Color(0xFFF3E5F5)
                               : isHovered
-                              ? Colors.white.withAlpha((0.1 * 255).round())
+                              ? const Color(0xFFFAFAFA)
                               : Colors.transparent,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Icon(
-                          item.icon,
-                          color: isSelected ? Colors.blue : Colors.grey[600],
-                          size: 24,
-                        ),
+                        child: _isCollapsed
+                            ? Icon(
+                                item.icon,
+                                color: isSelected
+                                    ? const Color(0xFF7B1FA2)
+                                    : const Color(0xFF757575),
+                                size: 24,
+                              )
+                            : Row(
+                                children: [
+                                  Icon(
+                                    item.icon,
+                                    color: isSelected
+                                        ? const Color(0xFF7B1FA2)
+                                        : const Color(0xFF757575),
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      item.label,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: isSelected
+                                            ? FontWeight.w600
+                                            : FontWeight.normal,
+                                        color: isSelected
+                                            ? const Color(0xFF7B1FA2)
+                                            : const Color(0xFF757575),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                       ),
                     ),
                   );
                 }).toList(),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -2046,26 +2217,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
               onPressed: () async {
                 Navigator.of(context).pop();
 
-                // Show loading dialog
-                showDialog(
-                  context: context,
-                  barrierDismissible: false,
-                  builder: (BuildContext context) {
-                    return const AlertDialog(
-                      content: Row(
-                        children: [
-                          CircularProgressIndicator(),
-                          SizedBox(width: 16),
-                          Text('Deleting lead...'),
-                        ],
-                      ),
-                    );
-                  },
-                );
-
                 try {
                   final client = Supabase.instance.client;
-
                   debugPrint('Starting delete operation for lead_id: $leadId');
 
                   // Add timeout protection
@@ -2084,7 +2237,6 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                     debugPrint('✅ Deleted from lead_activity');
                   } catch (e) {
                     debugPrint('⚠️ Error deleting from lead_activity: $e');
-                    // Continue with other deletions even if this fails
                   }
 
                   // 2. Delete from proposal_remark
@@ -2210,21 +2362,22 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                     throw Exception('Failed to delete lead from main table: $e');
                   }
 
-                  // Close loading dialog
+                  // Show success alert
                   if (context.mounted) {
-                    Navigator.of(context).pop();
-                  }
-
-                  // Show success message
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Successfully deleted lead: ${lead['project_name']}',
-                        ),
-                        backgroundColor: Colors.green,
-                        duration: const Duration(seconds: 3),
-                      ),
+                    showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          title: const Text('Success'),
+                          content: const Text('Successfully Deleted'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              child: const Text('OK'),
+                            ),
+                          ],
+                        );
+                      },
                     );
                   }
 
@@ -2233,34 +2386,27 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                     await _fetchLeads().timeout(const Duration(seconds: 15));
                   } catch (e) {
                     debugPrint('⚠️ Error refreshing leads after deletion: $e');
-                    // Don't show error to user since deletion was successful
                   }
                 } catch (e) {
-                  // Close loading dialog
-                  if (context.mounted) {
-                    Navigator.of(context).pop();
-                  }
-
                   debugPrint('❌ Error during delete operation: $e');
 
                   // Show error message
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Error deleting lead: ${e.toString()}'),
-                        backgroundColor: Colors.red,
-                        duration: const Duration(seconds: 5),
-                      ),
+                    showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          title: const Text('Error'),
+                          content: Text('Error deleting lead: ${e.toString()}'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              child: const Text('OK'),
+                            ),
+                          ],
+                        );
+                      },
                     );
-                  }
-                } finally {
-                  // Ensure loading dialog is always dismissed
-                  if (context.mounted) {
-                    try {
-                      Navigator.of(context).pop();
-                    } catch (e) {
-                      debugPrint('⚠️ Error dismissing loading dialog: $e');
-                    }
                   }
                 }
               },
@@ -5805,11 +5951,9 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     'qualifiedLeads': {'value': '0', 'percentage': '+0.0%', 'isPositive': true},
   };
   
-  // Chart data state
-  List<FlSpot> _areaSpots = [];
-  List<FlSpot> _revenueSpots = [];
-  List<String> _monthLabels = [];
-  bool _isLoadingChartData = false;
+      // Chart data state
+    List<BarChartGroupData> _barChartData = [];
+    bool _isLoadingChartData = false;
   
   // Lead status distribution data state
   Map<String, int> _leadStatusDistribution = {
@@ -5930,11 +6074,12 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
       final client = Supabase.instance.client;
       final dateRange = _getDateRange(_selectedTimePeriod);
       
-      // Fetch data from admin_response table filtered by sales_user
+      // Fetch data from admin_response table filtered by sales_user and Won status
       final response = await client
           .from('admin_response')
           .select()
           .eq('sales_user', _currentUsername)
+          .eq('update_lead_status', 'Won')
           .gte('updated_at', dateRange['start']!.toIso8601String())
           .lte('updated_at', dateRange['end']!.toIso8601String());
 
@@ -6008,6 +6153,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
           .from('admin_response')
           .select()
           .eq('sales_user', _currentUsername)
+          .eq('update_lead_status', 'Won')
           .gte('updated_at', previousStartDate.toIso8601String())
           .lte('updated_at', previousEndDate.toIso8601String());
       
@@ -6063,30 +6209,38 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     } catch (e) {
       debugPrint('Error fetching chart data: $e');
       setState(() {
-        _areaSpots = [];
-        _revenueSpots = [];
-        _monthLabels = [];
+        _barChartData = [];
         _isLoadingChartData = false;
       });
     }
   }
 
-  // Process chart data and create spots
+  // Process chart data and create bar chart data with cumulative approach
   Future<void> _processChartData(List<dynamic> data) async {
     if (data.isEmpty) {
       setState(() {
-        _areaSpots = [];
-        _revenueSpots = [];
-        _monthLabels = [];
+        _barChartData = [];
         _isLoadingChartData = false;
       });
       return;
     }
 
+    // Get the date range for the selected time period
+    final dateRange = _getDateRange(_selectedTimePeriod);
+    final startDate = dateRange['start']!;
+    final endDate = dateRange['end']!;
+    
+    // Group data based on time period with cumulative approach
     Map<String, List<Map<String, dynamic>>> groupedData = {};
     
     for (var record in data) {
       final updatedAt = DateTime.parse(record['updated_at']);
+      
+      // Only include data within the selected time period range
+      if (updatedAt.isBefore(startDate) || updatedAt.isAfter(endDate)) {
+        continue;
+      }
+      
       String groupKey;
       
       switch (_selectedTimePeriod.toLowerCase()) {
@@ -6109,11 +6263,11 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
           break;
         case 'two years':
           final quarter = ((updatedAt.month - 1) ~/ 3) + 1;
-          groupKey = 'Q$quarter';
+          groupKey = 'Q$quarter-${updatedAt.year}';
           break;
         case 'three years':
           final semester = updatedAt.month <= 6 ? 1 : 2;
-          groupKey = 'Semester $semester';
+          groupKey = 'S$semester-${updatedAt.year}';
           break;
         case 'five years':
           groupKey = updatedAt.year.toString();
@@ -6129,43 +6283,47 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     }
 
     final labels = _getChartLabels();
-    final spots = <FlSpot>[];
-    final revenueSpots = <FlSpot>[];
+    final barGroups = <BarChartGroupData>[];
     
-    double maxArea = 0;
-    double maxRevenue = 0;
-
     for (int i = 0; i < labels.length; i++) {
       final label = labels[i];
       final groupData = groupedData[label] ?? [];
       
-      double totalArea = 0;
+      int qualifiedLeadCount = groupData.length; // Count of Won leads
       double totalRevenue = 0;
 
       for (var record in groupData) {
-        totalArea += (record['aluminium_area'] ?? 0).toDouble();
         totalRevenue += (record['total_amount_gst'] ?? 0).toDouble();
       }
 
-      maxArea = maxArea < totalArea ? totalArea : maxArea;
-      maxRevenue = maxRevenue < totalRevenue ? totalRevenue : maxRevenue;
+      // Convert revenue to thousands for display
+      final revenueInK = totalRevenue / 1000;
 
-      spots.add(FlSpot(i.toDouble(), totalArea));
-      revenueSpots.add(FlSpot(i.toDouble(), totalRevenue));
+      barGroups.add(
+        BarChartGroupData(
+          x: i,
+          barRods: [
+            // Qualified Lead count bar (Teal color)
+            BarChartRodData(
+              toY: qualifiedLeadCount.toDouble(),
+              color: Colors.teal,
+              width: 20,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            // Revenue bar (Pink color)
+            BarChartRodData(
+              toY: revenueInK,
+              color: Colors.pink,
+              width: 20,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ],
+        ),
+      );
     }
 
-    final normalizedAreaSpots = spots.map((spot) {
-      return FlSpot(spot.x, maxArea > 0 ? (spot.y / maxArea) * 6 : 0);
-    }).toList();
-
-    final normalizedRevenueSpots = revenueSpots.map((spot) {
-      return FlSpot(spot.x, maxRevenue > 0 ? (spot.y / maxRevenue) * 6 : 0);
-    }).toList();
-
     setState(() {
-      _areaSpots = normalizedAreaSpots;
-      _revenueSpots = normalizedRevenueSpots;
-      _monthLabels = labels;
+      _barChartData = barGroups;
       _isLoadingChartData = false;
     });
   }
@@ -6243,23 +6401,70 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
   }
 
   List<String> _getChartLabels() {
+    final now = DateTime.now();
+    
     switch (_selectedTimePeriod.toLowerCase()) {
       case 'week':
         return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       case 'month':
-        return ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
+        // Show only current month's weeks
+        final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+        final totalWeeks = ((daysInMonth - 1) ~/ 7) + 1;
+        
+        final labels = <String>[];
+        for (int week = 1; week <= totalWeeks; week++) {
+          labels.add('Week $week');
+        }
+        return labels;
       case 'quarter':
-        return ['Jan', 'Feb', 'Mar'];
+        // Show only current quarter months
+        final currentMonth = now.month;
+        if (currentMonth >= 1 && currentMonth <= 3) {
+          // Q1 (Jan-Mar)
+          return ['Jan', 'Feb', 'Mar'];
+        } else if (currentMonth >= 4 && currentMonth <= 6) {
+          // Q2 (Apr-Jun)
+          return ['Apr', 'May', 'Jun'];
+        } else if (currentMonth >= 7 && currentMonth <= 9) {
+          // Q3 (Jul-Sep)
+          return ['Jul', 'Aug', 'Sep'];
+        } else {
+          // Q4 (Oct-Dec)
+          return ['Oct', 'Nov', 'Dec'];
+        }
       case 'semester':
-        return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+        // Show only current semester months
+        final currentMonth = now.month;
+        if (currentMonth >= 1 && currentMonth <= 6) {
+          // First semester (Jan-Jun)
+          return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+        } else {
+          // Second semester (Jul-Dec)
+          return ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        }
       case 'annual':
         return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       case 'two years':
-        return ['Q1', 'Q2', 'Q3', 'Q4', 'Q1', 'Q2', 'Q3', 'Q4'];
+        // Show quarters for current year and previous year
+        final labels = <String>[];
+        for (int year = now.year - 1; year <= now.year; year++) {
+          labels.addAll(['Q1-$year', 'Q2-$year', 'Q3-$year', 'Q4-$year']);
+        }
+        return labels;
       case 'three years':
-        return ['Semester 1', 'Semester 2', 'Semester 1', 'Semester 2', 'Semester 1', 'Semester 2'];
+        // Show semesters for current year and previous 2 years
+        final labels = <String>[];
+        for (int year = now.year - 2; year <= now.year; year++) {
+          labels.addAll(['S1-$year', 'S2-$year']);
+        }
+        return labels;
       case 'five years':
-        return ['2024', '2023', '2022', '2021', '2020'];
+        // Show years for current year and previous 4 years
+        final labels = <String>[];
+        for (int year = now.year - 4; year <= now.year; year++) {
+          labels.add(year.toString());
+        }
+        return labels.reversed.toList(); // Show most recent first
       default:
         return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     }
@@ -6277,13 +6482,15 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     return '$symbol${NumberFormat('#,##0').format(convertedAmount)}';
   }
 
-  // Build pie chart sections
-  List<PieChartSectionData> _buildPieChartSections() {
+
+
+  // Build Syncfusion pie chart data
+  List<ChartData> _buildSyncfusionPieChartData() {
     final totalLeads = _leadStatusDistribution.values.fold(0, (sum, count) => sum + count);
-    final sections = <PieChartSectionData>[];
+    final chartData = <ChartData>[];
     
     if (totalLeads == 0) {
-      return sections;
+      return chartData;
     }
 
     final colors = {
@@ -6294,24 +6501,17 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
 
     for (var entry in _leadStatusDistribution.entries) {
       if (entry.value > 0) {
-        final percentage = (entry.value / totalLeads * 100).toStringAsFixed(1);
-        sections.add(
-          PieChartSectionData(
-            color: colors[entry.key]!,
-            value: entry.value.toDouble(),
-            title: '$percentage%',
-            radius: 60,
-            titleStyle: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
+        chartData.add(
+          ChartData(
+            entry.key,
+            entry.value.toDouble(),
+            colors[entry.key]!,
           ),
         );
       }
     }
 
-    return sections;
+    return chartData;
   }
 
   // Refresh data when time period changes
@@ -6551,22 +6751,12 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                   ],
                 );
               } else {
-                // Desktop layout - horizontal
+                // Desktop layout - horizontal with search bar expanding left
                 return Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Lead Performance',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey[800],
-                      ),
-                    ),
-                    // Search bar
-                    Flexible(
+                    // Search bar - expands toward left
+                    Expanded(
                       child: Container(
-                        constraints: BoxConstraints(maxWidth: 300),
                         decoration: BoxDecoration(
                           color: Colors.grey[50],
                           borderRadius: BorderRadius.circular(8),
@@ -6591,6 +6781,16 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                             contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           ),
                         ),
+                      ),
+                    ),
+                    SizedBox(width: 16),
+                    // Title - positioned on the right
+                    Text(
+                      'Lead Performance',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
                       ),
                     ),
                   ],
@@ -6721,7 +6921,9 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth < 600) {
+        // For Windows screens, always use the desktop table layout
+        // Mobile layout only for very small screens
+        if (constraints.maxWidth < 400) {
           // Mobile layout - cards
           return ListView.builder(
             shrinkWrap: true,
@@ -6777,46 +6979,40 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
             },
           );
         } else {
-          // Desktop layout - table
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              columns: [
-                DataColumn(label: Text('Project ID')),
-                DataColumn(label: Text('Project Name')),
-                DataColumn(label: Text('Area (m²)')),
-                DataColumn(label: Text('Revenue (₹)')),
-                DataColumn(label: Text('Status')),
-                DataColumn(label: Text('Closed Date')),
+          // Desktop layout - table with evenly distributed columns and vertical lines
+          return Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey[300]!),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Column(
+              children: [
+                // Header row
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    border: Border(bottom: BorderSide(color: Colors.grey[300]!)),
+                  ),
+                  child: Row(
+                    children: [
+                      _buildTableHeaderCell('PROJECT ID', 1),
+                      _buildTableHeaderCell('PROJECT NAME', 2),
+                      _buildTableHeaderCell('CLIENT NAME', 2),
+                      _buildTableHeaderCell('LOCATION', 1),
+                      _buildTableHeaderCell('ALUMINIUM AREA', 1),
+                      _buildTableHeaderCell('RC WEIGHT', 1),
+                      _buildTableHeaderCell('RATE/SQM', 1),
+                      _buildTableHeaderCell('TOTAL AMOUNT', 1),
+                      _buildTableHeaderCell('SALES USER', 1),
+                      _buildTableHeaderCell('STATUS', 1),
+                      _buildTableHeaderCell('REMARK', 1),
+                      _buildTableHeaderCell('CLOSED DATE', 1),
+                    ],
+                  ),
+                ),
+                          // Data rows
+          ...filteredData.map((lead) => _buildTableDataRow(lead)),
               ],
-              rows: filteredData.map((lead) {
-                return DataRow(
-                  cells: [
-                    DataCell(Text(lead['project_id']?.toString() ?? 'N/A')),
-                    DataCell(Text(lead['project_name']?.toString() ?? 'N/A')),
-                    DataCell(Text(lead['aluminium_area']?.toString() ?? '0')),
-                    DataCell(Text('₹${lead['total_amount_gst']?.toString() ?? '0'}')),
-                    DataCell(
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: _getStatusColor(lead['update_lead_status']).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          lead['update_lead_status']?.toString() ?? 'N/A',
-                          style: TextStyle(
-                            color: _getStatusColor(lead['update_lead_status']),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                    DataCell(Text(_formatDate(lead['updated_at']))),
-                  ],
-                );
-              }).toList(),
             ),
           );
         }
@@ -6874,6 +7070,105 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     } catch (e) {
       return 'N/A';
     }
+  }
+
+  // Build table header cell
+  Widget _buildTableHeaderCell(String text, int flex) {
+    return Expanded(
+      flex: flex,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+        decoration: BoxDecoration(
+          border: Border(right: BorderSide(color: Colors.grey[300]!)),
+        ),
+        child: SizedBox(
+          width: double.infinity,
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+            textAlign: TextAlign.center,
+            overflow: TextOverflow.visible,
+            softWrap: true,
+            maxLines: null, // Allow unlimited lines
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Build table data row
+  Widget _buildTableDataRow(Map<String, dynamic> lead) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
+      ),
+      child: Row(
+        children: [
+          _buildTableDataCell(lead['project_id']?.toString() ?? 'N/A', 1),
+          _buildTableDataCell(lead['project_name']?.toString() ?? 'N/A', 2),
+          _buildTableDataCell(lead['client_name']?.toString() ?? 'N/A', 2),
+          _buildTableDataCell(lead['location']?.toString() ?? 'N/A', 1),
+          _buildTableDataCell('${lead['aluminium_area']?.toString() ?? '0'} m²', 1),
+          _buildTableDataCell(lead['rc_weight']?.toString() ?? 'N/A', 1),
+          _buildTableDataCell('₹${lead['rate_per_sqm']?.toString() ?? '0'}', 1),
+          _buildTableDataCell('₹${lead['total_amount_gst']?.toString() ?? '0'}', 1),
+          _buildTableDataCell(lead['sales_user']?.toString() ?? 'N/A', 1),
+          _buildTableDataCell(
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: _getStatusColor(lead['update_lead_status']).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                lead['update_lead_status']?.toString() ?? 'N/A',
+                style: TextStyle(
+                  color: _getStatusColor(lead['update_lead_status']),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            1,
+          ),
+          _buildTableDataCell(lead['remark']?.toString() ?? 'N/A', 1),
+          _buildTableDataCell(_formatDate(lead['updated_at']), 1),
+        ],
+      ),
+    );
+  }
+
+  // Build table data cell
+  Widget _buildTableDataCell(dynamic content, int flex) {
+    return Expanded(
+      flex: flex,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        decoration: BoxDecoration(
+          border: Border(right: BorderSide(color: Colors.grey[300]!)),
+        ),
+        child: content is Widget
+            ? content
+            : SizedBox(
+                width: double.infinity,
+                child: Text(
+                  content.toString(),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey[700],
+                  ),
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.visible,
+                  softWrap: true,
+                  maxLines: null, // Allow unlimited lines
+                ),
+              ),
+      ),
+    );
   }
 
   // Build time period filter
@@ -7651,7 +7946,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
               Icon(Icons.bar_chart, color: Colors.grey[800], size: 20),
               SizedBox(width: 8),
               Text(
-                'Qualified Area vs Revenue',
+                'Qualified Lead vs Revenue',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -7679,7 +7974,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                       ],
                     ),
                   )
-                : _areaSpots.isEmpty && _revenueSpots.isEmpty
+                : _barChartData.isEmpty
                     ? Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -7709,25 +8004,40 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                           ],
                         ),
                       )
-                    : LineChart(
-                        LineChartData(
-                          gridData: FlGridData(
-                            show: true,
-                            drawVerticalLine: true,
-                            horizontalInterval: 1,
-                            verticalInterval: 1,
-                            getDrawingHorizontalLine: (value) {
-                              return FlLine(
-                                color: Colors.grey[300]!,
-                                strokeWidth: 1,
-                              );
-                            },
-                            getDrawingVerticalLine: (value) {
-                              return FlLine(
-                                color: Colors.grey[300]!,
-                                strokeWidth: 1,
-                              );
-                            },
+                    : BarChart(
+                        BarChartData(
+                          alignment: BarChartAlignment.spaceAround,
+                          maxY: _getMaxYValue(),
+                          minY: 0,
+                          barTouchData: BarTouchData(
+                            enabled: true,
+                            touchTooltipData: BarTouchTooltipData(
+                              getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                                final labels = _getChartLabels();
+                                final label = group.x.toInt() < labels.length ? labels[group.x.toInt()] : '';
+                                final value = rod.toY.toStringAsFixed(1);
+                                final seriesName = rodIndex == 0 ? 'Qualified Leads' : 'Revenue (K)';
+                                
+                                return BarTooltipItem(
+                                  '$label\n',
+                                  const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                  children: <TextSpan>[
+                                    TextSpan(
+                                      text: '$seriesName: $value',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
                           ),
                           titlesData: FlTitlesData(
                             show: true,
@@ -7740,105 +8050,56 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                             bottomTitles: AxisTitles(
                               sideTitles: SideTitles(
                                 showTitles: true,
-                                reservedSize: 30,
-                                interval: 1,
+                                reservedSize: 40,
                                 getTitlesWidget: (double value, TitleMeta meta) {
                                   const style = TextStyle(
-                                    color: Color(0xff67727d),
+                                    color: Color(0xff7589a2),
                                     fontWeight: FontWeight.bold,
                                     fontSize: 12,
                                   );
-                                  if (value.toInt() < _monthLabels.length) {
-                                    return SideTitleWidget(
-                                      axisSide: meta.axisSide,
-                                      child: Text(_monthLabels[value.toInt()], style: style),
-                                    );
+                                  final labels = _getChartLabels();
+                                  if (value.toInt() < labels.length) {
+                                    final label = labels[value.toInt()];
+                                    // Truncate long labels to prevent overflow
+                                    final displayLabel = label.length > 8 ? '${label.substring(0, 8)}...' : label;
+                                    return Text(displayLabel, style: style);
                                   }
-                                  return SideTitleWidget(
-                                    axisSide: meta.axisSide,
-                                    child: const Text('', style: style),
-                                  );
+                                  return const Text('', style: style);
                                 },
                               ),
                             ),
                             leftTitles: AxisTitles(
                               sideTitles: SideTitles(
                                 showTitles: true,
-                                interval: 1,
+                                interval: _getYAxisInterval(),
                                 getTitlesWidget: (double value, TitleMeta meta) {
                                   const style = TextStyle(
                                     color: Color(0xff67727d),
                                     fontWeight: FontWeight.bold,
-                                    fontSize: 12,
+                                    fontSize: 10,
                                   );
-                                  return Text('${value.toInt()}K', style: style);
+                                  return Text(_formatYAxisLabel(value), style: style);
                                 },
-                                reservedSize: 42,
+                                reservedSize: 50,
                               ),
                             ),
+                          ),
+                          gridData: FlGridData(
+                            show: true,
+                            horizontalInterval: _getGridInterval(),
+                            getDrawingHorizontalLine: (value) {
+                              return FlLine(
+                                color: Colors.grey[300]!,
+                                strokeWidth: 1,
+                                dashArray: [5, 5],
+                              );
+                            },
                           ),
                           borderData: FlBorderData(
                             show: true,
-                            border: Border.all(color: const Color(0xff37434d)),
+                            border: Border.all(color: Colors.grey[300]!, width: 1),
                           ),
-                          minX: 0,
-                          maxX: (_monthLabels.length - 1).toDouble(),
-                          minY: 0,
-                          maxY: 6,
-                          lineBarsData: [
-                            LineChartBarData(
-                              spots: _areaSpots,
-                              isCurved: true,
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.purple.withValues(alpha: 0.8),
-                                  Colors.purple.withValues(alpha: 0.3),
-                                ],
-                              ),
-                              barWidth: 3,
-                              isStrokeCapRound: true,
-                              dotData: FlDotData(
-                                show: true,
-                                getDotPainter: (spot, percent, barData, index) {
-                                  return FlDotCirclePainter(
-                                    radius: 4,
-                                    color: Colors.purple,
-                                    strokeWidth: 2,
-                                    strokeColor: Colors.white,
-                                  );
-                                },
-                              ),
-                              belowBarData: BarAreaData(
-                                show: false,
-                              ),
-                            ),
-                            LineChartBarData(
-                              spots: _revenueSpots,
-                              isCurved: true,
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.green.withValues(alpha: 0.8),
-                                  Colors.green.withValues(alpha: 0.3),
-                                ],
-                              ),
-                              barWidth: 3,
-                              isStrokeCapRound: true,
-                              dotData: FlDotData(
-                                show: true,
-                                getDotPainter: (spot, percent, barData, index) {
-                                  return FlDotCirclePainter(
-                                    radius: 4,
-                                    color: Colors.green,
-                                    strokeWidth: 2,
-                                    strokeColor: Colors.white,
-                                  );
-                                },
-                              ),
-                              belowBarData: BarAreaData(
-                                show: false,
-                              ),
-                            ),
-                          ],
+                          barGroups: _buildBarGroups(),
                         ),
                       ),
           ),
@@ -7850,13 +8111,13 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                 width: 12,
                 height: 12,
                 decoration: BoxDecoration(
-                  color: Colors.purple,
+                  color: Colors.teal,
                   shape: BoxShape.circle,
                 ),
               ),
               SizedBox(width: 8),
               Text(
-                'Qualified Area',
+                'Qualified Leads',
                 style: TextStyle(
                   fontSize: 12,
                   color: Colors.grey[700],
@@ -7867,13 +8128,13 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                 width: 12,
                 height: 12,
                 decoration: BoxDecoration(
-                  color: Colors.green,
+                  color: Colors.pink,
                   shape: BoxShape.circle,
                 ),
               ),
               SizedBox(width: 8),
               Text(
-                'Revenue',
+                'Revenue (K)',
                 style: TextStyle(
                   fontSize: 12,
                   color: Colors.grey[700],
@@ -7884,6 +8145,53 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
         ],
       ),
     );
+  }
+
+  // Helper method to get max Y value for bar chart
+  double _getMaxYValue() {
+    if (_barChartData.isEmpty) return 10.0;
+    
+    double maxValue = 0.0;
+    for (var group in _barChartData) {
+      for (var bar in group.barRods) {
+        if (bar.toY > maxValue) {
+          maxValue = bar.toY;
+        }
+      }
+    }
+    return (maxValue * 1.4).clamp(10.0, double.infinity); // Add 40% padding
+  }
+
+  // Helper method to get grid interval based on max value
+  double _getGridInterval() {
+    final maxY = _getMaxYValue();
+    // Divide maxY by 6 to get 6 grid lines
+    return (maxY / 6).ceil().toDouble();
+  }
+
+  // Helper method to get Y-axis interval
+  double _getYAxisInterval() {
+    final maxY = _getMaxYValue();
+    // Divide maxY by 6 to get 6 Y-axis labels
+    return (maxY / 6).ceil().toDouble();
+  }
+
+  // Helper method to format Y-axis labels
+  String _formatYAxisLabel(double value) {
+    if (value >= 1000000000) {
+      return '${(value / 1000000000).toStringAsFixed(1)}B';
+    } else if (value >= 1000000) {
+      return '${(value / 1000000).toStringAsFixed(1)}M';
+    } else if (value >= 1000) {
+      return '${(value / 1000).toStringAsFixed(0)}K';
+    } else {
+      return value.toStringAsFixed(0);
+    }
+  }
+
+  // Build bar groups for the chart
+  List<BarChartGroupData> _buildBarGroups() {
+    return _barChartData;
   }
 
   Widget _buildLeadStatusDistributionChart() {
@@ -7967,54 +8275,103 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                           ],
                         ),
                       )
-                    : Padding(
-                        padding: EdgeInsets.only(top: 20),
-                        child: PieChart(
-                          PieChartData(
-                            sectionsSpace: 2,
-                            centerSpaceRadius: 40,
-                            sections: _buildPieChartSections(),
+                    : Row(
+                        children: [
+                          // Left side legend with percentage and count
+                          Expanded(
+                            flex: 1,
+                            child: _buildLegendWithPercentage(),
                           ),
-                        ),
+                          SizedBox(width: 16),
+                          // Right side pie chart
+                          Expanded(
+                            flex: 2,
+                            child: SizedBox(
+                              height: 200.0,
+                              child: SfCircularChart(
+                                legend: Legend(isVisible: false),
+                                series: <CircularSeries>[
+                                  PieSeries<ChartData, String>(
+                                    dataSource: _buildSyncfusionPieChartData(),
+                                    pointColorMapper: (ChartData data, _) => data.color,
+                                    xValueMapper: (ChartData data, _) => data.x,
+                                    yValueMapper: (ChartData data, _) => data.y,
+                                    dataLabelSettings: DataLabelSettings(
+                                      isVisible: false,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-          ),
-          SizedBox(height: 16),
-          Column(
-            children: [
-              _buildLegendItem('Won Leads', Colors.green),
-              SizedBox(height: 8),
-              _buildLegendItem('Lost Leads', Colors.red),
-              SizedBox(height: 8),
-              _buildLegendItem('In Loop', Colors.orange),
-            ],
-          ),
+                    ),
         ],
       ),
     );
   }
 
-  Widget _buildLegendItem(String label, Color color) {
-    return Row(
+  Widget _buildLegendWithPercentage() {
+    final totalLeads = _leadStatusDistribution.values.fold(0, (sum, count) => sum + count);
+    final colors = {
+      'Won': Colors.green,
+      'Lost': Colors.red,
+      'Loop': Colors.orange,
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
-        ),
-        SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[700],
+        ..._leadStatusDistribution.entries.map((entry) {
+          if (entry.value == 0) return SizedBox.shrink();
+          
+          final percentage = totalLeads > 0 ? (entry.value / totalLeads * 100).toStringAsFixed(1) : '0.0';
+          final color = colors[entry.key] ?? Colors.grey;
+          
+          return Padding(
+            padding: EdgeInsets.only(bottom: 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        entry.key,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        '$entry.value leads ($percentage%)',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ),
-        ),
+          );
+        }),
       ],
     );
   }
+
 }
+

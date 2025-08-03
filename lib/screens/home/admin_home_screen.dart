@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:ui';
 
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -8,6 +7,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:syncfusion_flutter_charts/charts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:crm_app/widgets/profile_page.dart';
 import 'package:crm_app/screens/home/developer_home_screen.dart'
@@ -15,6 +16,21 @@ import 'package:crm_app/screens/home/developer_home_screen.dart'
 import 'package:intl/intl.dart';
 import '../settings/currency_settings_screen.dart';
 import '../../utils/navigation_utils.dart';
+import '../auth/login_screen.dart';
+import '../../main.dart'
+    show
+        updateUserSessionActiveMCP,
+        updateUserOnlineStatusMCP,
+        updateUserOnlineStatusByEmailMCP,
+        setUserOnlineStatus;
+
+// ChartData class for Syncfusion charts
+class ChartData {
+  ChartData(this.x, this.y, this.color);
+  final String x;
+  final double y;
+  final Color color;
+}
 
 // Helper function to copy text to clipboard
 Future<void> copyToClipboard(BuildContext context, String text) async {
@@ -49,11 +65,8 @@ class AdminHomeScreen extends StatefulWidget {
 
 class _AdminHomeScreenState extends State<AdminHomeScreen> {
   int _selectedIndex = 0;
-  bool _isDockedLeft = true;
-  double _dragOffsetX = 0.0;
+  bool _isCollapsed = false;
   final Map<int, bool> _hoveredItems = {};
-
-  final ScrollController _scrollbarController = ScrollController();
 
   List<NavItem> get _navItems {
     // Admin users get all navigation items including Leads Management
@@ -72,28 +85,49 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     ProfilePage(),
   ];
 
-  void _onHorizontalDragUpdate(DragUpdateDetails details, double screenWidth) {
-    setState(() {
-      _dragOffsetX += details.delta.dx;
-      _dragOffsetX = _dragOffsetX.clamp(-screenWidth / 2, screenWidth / 2);
-    });
-  }
 
-  void _onHorizontalDragEnd(double screenWidth) {
-    setState(() {
-      if (_dragOffsetX > 0) {
-        _isDockedLeft = false;
-      } else {
-        _isDockedLeft = true;
-      }
-      _dragOffsetX = 0.0;
-    });
-  }
 
   void _onItemTapped(int index) {
+    // Check if logout button was tapped
+    if (index == _navItems.length - 1 && _navItems[index].label == 'Logout') {
+      _logout();
+      return;
+    }
+    
     setState(() {
       _selectedIndex = index;
     });
+  }
+
+  Future<void> _logout() async {
+    await setUserOnlineStatus(false);
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    debugPrint('[LOGOUT] Logging out userId: $userId');
+
+    if (userId != null) {
+      await updateUserSessionActiveMCP(userId, false);
+      await updateUserOnlineStatusMCP(userId, false);
+    } else {
+      debugPrint('[LOGOUT] userId is null, cannot update Supabase by id.');
+    }
+
+    // Update is_user_online by email
+    final prefs = await SharedPreferences.getInstance();
+    final email = prefs.getString('user_email');
+    debugPrint('[LOGOUT] Logging out user_email: $email');
+    if (email != null) {
+      await updateUserOnlineStatusByEmailMCP(email, false);
+    }
+
+    await clearLoginSession();
+    await Supabase.instance.client.auth.signOut();
+
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (route) => false,
+      );
+    }
   }
 
   Widget _buildMobileNavigationBar() {
@@ -204,163 +238,150 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   }
 
   Widget _buildNavBar(double screenHeight, double screenWidth) {
-    return SizedBox(
-      width: 72,
-      height: screenHeight * 0.8,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(32),
-        child: Stack(
-          children: [
-            BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-              child: Container(
-                width: 72,
-                height: screenHeight * 0.8,
-                color: Color.fromARGB((0.15 * 255).round(), 255, 255, 255),
-              ),
-            ),
-            Container(
-              width: 72,
-              height: screenHeight * 0.8,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(32),
-                border: Border.all(
-                  color: Color.fromARGB((0.3 * 255).round(), 255, 255, 255),
-                  width: 1.5,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Color.fromARGB((0.05 * 255).toInt(), 0, 0, 0),
-                    blurRadius: 16,
-                    offset: const Offset(2, 4),
-                  ),
-                ],
-              ),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final iconCount = _navItems.length;
-                  final iconHeight = 32.0;
-                  final iconPadding = 12.0;
-                  final totalIconHeight =
-                      iconCount * (iconHeight + iconPadding);
-                  final availableHeight = constraints.maxHeight;
-                  if (totalIconHeight > availableHeight) {
-                    return Scrollbar(
-                      thumbVisibility: false,
-                      trackVisibility: false,
-                      controller: _scrollbarController,
-                      child: SingleChildScrollView(
-                        controller: _scrollbarController,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          children: List.generate(_navItems.length, (index) {
-                            final selected = _selectedIndex == index;
-                            double baseSize = screenWidth > 1200
-                                ? 32
-                                : screenWidth > 900
-                                ? 30
-                                : 28;
-                            double scale = selected ? 1.2 : 1.0;
-                            Color iconColor = selected
-                                ? const Color(0xFF1976D2)
-                                : Colors.grey[400]!;
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 6.0,
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(16),
-                                child: BackdropFilter(
-                                  filter: ImageFilter.blur(
-                                    sigmaX: 8,
-                                    sigmaY: 8,
-                                  ),
-                                  child: Container(
-                                    color: Color.fromARGB(
-                                      (0.18 * 255).round(),
-                                      255,
-                                      255,
-                                      255,
-                                    ),
-                                    child: AnimatedScale(
-                                      scale: scale,
-                                      duration: const Duration(
-                                        milliseconds: 300,
-                                      ),
-                                      curve: Curves.easeOutCubic,
-                                      child: IconButton(
-                                        icon: Icon(
-                                          _navItems[index].icon,
-                                          color: iconColor,
-                                          size: baseSize,
-                                        ),
-                                        tooltip: _navItems[index].label,
-                                        onPressed: () => _onItemTapped(index),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          }),
-                        ),
-                      ),
-                    );
-                  } else {
-                    return Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: List.generate(_navItems.length, (index) {
-                        final selected = _selectedIndex == index;
-                        double baseSize = screenWidth > 1200
-                            ? 32
-                            : screenWidth > 900
-                            ? 30
-                            : 28;
-                        double scale = selected ? 1.2 : 1.0;
-                        Color iconColor = selected
-                            ? const Color(0xFF1976D2)
-                            : Colors.grey[400]!;
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6.0),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: BackdropFilter(
-                              filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                              child: Container(
-                                color: Color.fromARGB(
-                                  (0.18 * 255).round(),
-                                  255,
-                                  255,
-                                  255,
-                                ),
-                                child: AnimatedScale(
-                                  scale: scale,
-                                  duration: const Duration(milliseconds: 300),
-                                  curve: Curves.easeOutCubic,
-                                  child: IconButton(
-                                    icon: Icon(
-                                      _navItems[index].icon,
-                                      color: iconColor,
-                                      size: baseSize,
-                                    ),
-                                    tooltip: _navItems[index].label,
-                                    onPressed: () => _onItemTapped(index),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      }),
-                    );
-                  }
-                },
-              ),
-            ),
-          ],
+    return Container(
+      width: _isCollapsed ? 80 : 280,
+      height: screenHeight,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          right: BorderSide(
+            color: Colors.grey.shade200,
+            width: 1,
+          ),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: const Offset(2, 0),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Header Section
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: Colors.grey.shade200,
+                  width: 1,
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                // Logo Section - Only show when expanded
+                if (!_isCollapsed)
+                  Expanded(
+                    child: SizedBox(
+                      height: 40,
+                      child: Image.asset(
+                        'assets/Tobler_logo.png',
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+                // Collapse/Expand Button
+                IconButton(
+                  onPressed: () {
+                    setState(() {
+                      _isCollapsed = !_isCollapsed;
+                    });
+                  },
+                  icon: Icon(
+                    _isCollapsed ? Icons.arrow_forward : Icons.arrow_back,
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Navigation Items
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Column(
+                children: _navItems.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final item = entry.value;
+                  final isSelected = _selectedIndex == index;
+                  final isHovered = _hoveredItems[index] ?? false;
+
+                  return MouseRegion(
+                    onEnter: (_) {
+                      setState(() {
+                        _hoveredItems[index] = true;
+                      });
+                    },
+                    onExit: (_) {
+                      setState(() {
+                        _hoveredItems[index] = false;
+                      });
+                    },
+                    child: GestureDetector(
+                      onTap: () => _onItemTapped(index),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        margin: const EdgeInsets.only(bottom: 4),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: _isCollapsed ? 8 : 16,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? const Color(0xFFF3E5F5)
+                              : isHovered
+                              ? const Color(0xFFFAFAFA)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: _isCollapsed
+                            ? Icon(
+                                item.icon,
+                                color: isSelected
+                                    ? const Color(0xFF7B1FA2)
+                                    : const Color(0xFF757575),
+                                size: 24,
+                              )
+                            : Row(
+                                children: [
+                                  Icon(
+                                    item.icon,
+                                    color: isSelected
+                                        ? const Color(0xFF7B1FA2)
+                                        : const Color(0xFF757575),
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      item.label,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: isSelected
+                                            ? FontWeight.w600
+                                            : FontWeight.normal,
+                                        color: isSelected
+                                            ? const Color(0xFF7B1FA2)
+                                            : const Color(0xFF757575),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ],
       ),
     );
+
   }
 
   @override
@@ -373,39 +394,11 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         if (isWide) {
           // Web/tablet/desktop layout with sidebar
           return Scaffold(
-            body: Stack(
+            body: Row(
               children: [
-                AnimatedPadding(
-                  duration: const Duration(milliseconds: 400),
-                  curve: Curves.easeOutCubic,
-                  padding: EdgeInsets.only(
-                    left: _isDockedLeft ? 72 : 0,
-                    right:
-                        0, // Remove right padding to prevent overlap with Actions column
-                  ),
+                _buildNavBar(screenHeight, screenWidth),
+                Expanded(
                   child: _pages[_selectedIndex],
-                ),
-                TweenAnimationBuilder<double>(
-                  tween: Tween<double>(
-                    begin: _isDockedLeft ? 0.0 : 1.0,
-                    end: _isDockedLeft ? 0.0 : 1.0,
-                  ),
-                  duration: const Duration(milliseconds: 400),
-                  curve: Curves.easeOutCubic,
-                  builder: (context, value, child) {
-                    final barX = value * (screenWidth - 72);
-                    return Positioned(
-                      left: barX + _dragOffsetX,
-                      top: screenHeight * 0.1,
-                      child: GestureDetector(
-                        onHorizontalDragUpdate: (details) =>
-                            _onHorizontalDragUpdate(details, screenWidth),
-                        onHorizontalDragEnd: (_) =>
-                            _onHorizontalDragEnd(screenWidth),
-                        child: _buildNavBar(screenHeight, screenWidth),
-                      ),
-                    );
-                  },
                 ),
               ],
             ),
@@ -5672,11 +5665,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   bool _isLoadingLeadData = false;
   final TextEditingController _leadSearchController = TextEditingController();
   
-  // Chart data state
-  List<FlSpot> _areaSpots = [];
-  List<FlSpot> _revenueSpots = [];
-  List<String> _monthLabels = [];
-  bool _isLoadingChartData = false;
+      // Chart data state
+    List<BarChartGroupData> _barChartData = [];
+    bool _isLoadingChartData = false;
   
   // Lead status distribution data state
   Map<String, int> _leadStatusDistribution = {
@@ -5777,10 +5768,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       final client = Supabase.instance.client;
       final dateRange = _getDateRange(_selectedTimePeriod);
       
-      // Fetch data from admin_response table for all records (not just Won)
+      // Fetch data from admin_response table for Won leads only
       final response = await client
           .from('admin_response')
           .select()
+          .eq('update_lead_status', 'Won')
           .gte('updated_at', dateRange['start']!.toIso8601String())
           .lte('updated_at', dateRange['end']!.toIso8601String());
 
@@ -5857,10 +5849,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       final previousStartDate = currentDateRange['start']!.subtract(duration);
       final previousEndDate = currentDateRange['start']!;
       
-      // Fetch previous period data
+      // Fetch previous period data for Won leads only
       final previousResponse = await client
           .from('admin_response')
           .select()
+          .eq('update_lead_status', 'Won')
           .gte('updated_at', previousStartDate.toIso8601String())
           .lte('updated_at', previousEndDate.toIso8601String());
       
@@ -6036,9 +6029,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       debugPrint('Error fetching chart data: $e');
       // Set default empty data on error
       setState(() {
-        _areaSpots = [];
-        _revenueSpots = [];
-        _monthLabels = [];
+        _barChartData = [];
         _isLoadingChartData = false;
       });
     }
@@ -6048,60 +6039,60 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   Future<void> _processChartData(List<dynamic> data) async {
     if (data.isEmpty) {
       setState(() {
-        _areaSpots = [];
-        _revenueSpots = [];
-        _monthLabels = [];
+        _barChartData = [];
         _isLoadingChartData = false;
       });
       return;
     }
 
-    // Group data based on time period
+    // Get the date range for the selected time period
+    final dateRange = _getDateRange(_selectedTimePeriod);
+    final startDate = dateRange['start']!;
+    final endDate = dateRange['end']!;
+    
+    // Group data based on time period with cumulative approach
     Map<String, List<Map<String, dynamic>>> groupedData = {};
     
     for (var record in data) {
       final updatedAt = DateTime.parse(record['updated_at']);
+      
+      // Only include data within the selected time period range
+      if (updatedAt.isBefore(startDate) || updatedAt.isAfter(endDate)) {
+        continue;
+      }
+      
       String groupKey;
       
       switch (_selectedTimePeriod.toLowerCase()) {
         case 'week':
-          // Group by day of week
           final dayOfWeek = updatedAt.weekday;
           groupKey = _getDayOfWeekName(dayOfWeek);
           break;
         case 'month':
-          // Group by week
           final weekOfMonth = ((updatedAt.day - 1) ~/ 7) + 1;
           groupKey = 'Week $weekOfMonth';
           break;
         case 'quarter':
-          // Group by month
           groupKey = _getMonthName(updatedAt.month);
           break;
         case 'semester':
-          // Group by month
           groupKey = _getMonthName(updatedAt.month);
           break;
         case 'annual':
-          // Group by month
           groupKey = _getMonthName(updatedAt.month);
           break;
         case 'two years':
-          // Group by quarter
           final quarter = ((updatedAt.month - 1) ~/ 3) + 1;
-          groupKey = 'Q$quarter';
+          groupKey = 'Q$quarter-${updatedAt.year}';
           break;
         case 'three years':
-          // Group by semester
           final semester = updatedAt.month <= 6 ? 1 : 2;
-          groupKey = 'Semester $semester';
+          groupKey = 'S$semester-${updatedAt.year}';
           break;
         case 'five years':
-          // Group by year
           groupKey = updatedAt.year.toString();
           break;
         default:
-          // Default to month grouping
           groupKey = _getMonthName(updatedAt.month);
       }
       
@@ -6111,49 +6102,48 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       groupedData[groupKey]!.add(record);
     }
 
-    // Create labels based on time period
     final labels = _getChartLabels();
+    final barGroups = <BarChartGroupData>[];
     
-    // Sort data according to labels
-    final spots = <FlSpot>[];
-    final revenueSpots = <FlSpot>[];
-    
-    double maxArea = 0;
-    double maxRevenue = 0;
-
-    // Calculate totals for each group
     for (int i = 0; i < labels.length; i++) {
       final label = labels[i];
       final groupData = groupedData[label] ?? [];
       
-      double totalArea = 0;
+      int qualifiedLeadCount = groupData.length; // Count of Won leads
       double totalRevenue = 0;
 
       for (var record in groupData) {
-        totalArea += (record['aluminium_area'] ?? 0).toDouble();
         totalRevenue += (record['total_amount_gst'] ?? 0).toDouble();
       }
 
-      maxArea = maxArea < totalArea ? totalArea : maxArea;
-      maxRevenue = maxRevenue < totalRevenue ? totalRevenue : maxRevenue;
+      // Convert revenue to thousands for display
+      final revenueInK = totalRevenue / 1000;
 
-      spots.add(FlSpot(i.toDouble(), totalArea));
-      revenueSpots.add(FlSpot(i.toDouble(), totalRevenue));
+      barGroups.add(
+        BarChartGroupData(
+          x: i,
+          barRods: [
+            // Qualified Lead count bar (Teal color)
+            BarChartRodData(
+              toY: qualifiedLeadCount.toDouble(),
+              color: Colors.teal,
+              width: 20,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            // Revenue bar (Pink color)
+            BarChartRodData(
+              toY: revenueInK,
+              color: Colors.pink,
+              width: 20,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ],
+        ),
+      );
     }
 
-    // Normalize data for chart display (0-6 scale)
-    final normalizedAreaSpots = spots.map((spot) {
-      return FlSpot(spot.x, maxArea > 0 ? (spot.y / maxArea) * 6 : 0);
-    }).toList();
-
-    final normalizedRevenueSpots = revenueSpots.map((spot) {
-      return FlSpot(spot.x, maxRevenue > 0 ? (spot.y / maxRevenue) * 6 : 0);
-    }).toList();
-
     setState(() {
-      _areaSpots = normalizedAreaSpots;
-      _revenueSpots = normalizedRevenueSpots;
-      _monthLabels = labels;
+      _barChartData = barGroups;
       _isLoadingChartData = false;
     });
   }
@@ -6177,23 +6167,70 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   // Helper method to get chart labels based on time period
   List<String> _getChartLabels() {
+    final now = DateTime.now();
+    
     switch (_selectedTimePeriod.toLowerCase()) {
       case 'week':
         return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       case 'month':
-        return ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
+        // Show only current month's weeks
+        final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+        final totalWeeks = ((daysInMonth - 1) ~/ 7) + 1;
+        
+        final labels = <String>[];
+        for (int week = 1; week <= totalWeeks; week++) {
+          labels.add('Week $week');
+        }
+        return labels;
       case 'quarter':
-        return ['Jan', 'Feb', 'Mar'];
+        // Show only current quarter months
+        final currentMonth = now.month;
+        if (currentMonth >= 1 && currentMonth <= 3) {
+          // Q1 (Jan-Mar)
+          return ['Jan', 'Feb', 'Mar'];
+        } else if (currentMonth >= 4 && currentMonth <= 6) {
+          // Q2 (Apr-Jun)
+          return ['Apr', 'May', 'Jun'];
+        } else if (currentMonth >= 7 && currentMonth <= 9) {
+          // Q3 (Jul-Sep)
+          return ['Jul', 'Aug', 'Sep'];
+        } else {
+          // Q4 (Oct-Dec)
+          return ['Oct', 'Nov', 'Dec'];
+        }
       case 'semester':
-        return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+        // Show only current semester months
+        final currentMonth = now.month;
+        if (currentMonth >= 1 && currentMonth <= 6) {
+          // First semester (Jan-Jun)
+          return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+        } else {
+          // Second semester (Jul-Dec)
+          return ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        }
       case 'annual':
         return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       case 'two years':
-        return ['Q1', 'Q2', 'Q3', 'Q4', 'Q1', 'Q2', 'Q3', 'Q4'];
+        // Show quarters for current year and previous year
+        final labels = <String>[];
+        for (int year = now.year - 1; year <= now.year; year++) {
+          labels.addAll(['Q1-$year', 'Q2-$year', 'Q3-$year', 'Q4-$year']);
+        }
+        return labels;
       case 'three years':
-        return ['Semester 1', 'Semester 2', 'Semester 1', 'Semester 2', 'Semester 1', 'Semester 2'];
+        // Show semesters for current year and previous 2 years
+        final labels = <String>[];
+        for (int year = now.year - 2; year <= now.year; year++) {
+          labels.addAll(['S1-$year', 'S2-$year']);
+        }
+        return labels;
       case 'five years':
-        return ['2024', '2023', '2022', '2021', '2020'];
+        // Show years for current year and previous 4 years
+        final labels = <String>[];
+        for (int year = now.year - 4; year <= now.year; year++) {
+          labels.add(year.toString());
+        }
+        return labels.reversed.toList(); // Show most recent first
       default:
         return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     }
@@ -6255,13 +6292,15 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     });
   }
 
-  // Build pie chart sections based on lead status distribution
-  List<PieChartSectionData> _buildPieChartSections() {
+
+
+  // Build Syncfusion pie chart data
+  List<ChartData> _buildSyncfusionPieChartData() {
     final totalLeads = _leadStatusDistribution.values.fold(0, (sum, count) => sum + count);
-    final sections = <PieChartSectionData>[];
+    final chartData = <ChartData>[];
     
     if (totalLeads == 0) {
-      return sections;
+      return chartData;
     }
 
     final colors = {
@@ -6272,24 +6311,17 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
     for (var entry in _leadStatusDistribution.entries) {
       if (entry.value > 0) {
-        final percentage = (entry.value / totalLeads * 100).toStringAsFixed(1);
-        sections.add(
-          PieChartSectionData(
-            color: colors[entry.key]!,
-            value: entry.value.toDouble(),
-            title: '$percentage%',
-            radius: 60,
-            titleStyle: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
+        chartData.add(
+          ChartData(
+            entry.key,
+            entry.value.toDouble(),
+            colors[entry.key]!,
           ),
         );
       }
     }
 
-    return sections;
+    return chartData;
   }
 
   @override
@@ -6541,215 +6573,223 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 ],
               ),
               
-              Spacer(),
+              Expanded(child: SizedBox()), // Flexible space
               
-              // Collapsible search bar on right top corner
-              AnimatedContainer(
-                duration: Duration(milliseconds: 300),
-                width: _isSearchExpanded ? 300 : 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 8,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
+              // Right side actions - wrap in Flexible to prevent overflow
+              Flexible(
                 child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (_isSearchExpanded) ...[
-                      Expanded(
-                        child: Padding(
-                          padding: EdgeInsets.only(left: 16),
-                          child: TextField(
-                            controller: _searchController,
-                            decoration: InputDecoration(
-                              hintText: 'Search...',
-                              border: InputBorder.none,
-                              hintStyle: TextStyle(color: Colors.grey[400]),
-                            ),
-                            style: TextStyle(fontSize: 14),
+                    // Collapsible search bar on right top corner
+                    AnimatedContainer(
+                      duration: Duration(milliseconds: 300),
+                      width: _isSearchExpanded ? 300 : 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 8,
+                            offset: Offset(0, 2),
                           ),
-                        ),
+                        ],
                       ),
-                      IconButton(
-                        onPressed: () {
-                          setState(() {
-                            _isSearchExpanded = false;
-                            _searchController.clear();
-                          });
-                        },
-                        icon: Icon(Icons.close, color: Colors.grey[600]),
-                        iconSize: 20,
+                      child: Row(
+                        children: [
+                          if (_isSearchExpanded) ...[
+                            Expanded(
+                              child: Padding(
+                                padding: EdgeInsets.only(left: 16),
+                                child: TextField(
+                                  controller: _searchController,
+                                  decoration: InputDecoration(
+                                    hintText: 'Search...',
+                                    border: InputBorder.none,
+                                    hintStyle: TextStyle(color: Colors.grey[400]),
+                                  ),
+                                  style: TextStyle(fontSize: 14),
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () {
+                                setState(() {
+                                  _isSearchExpanded = false;
+                                  _searchController.clear();
+                                });
+                              },
+                              icon: Icon(Icons.close, color: Colors.grey[600]),
+                              iconSize: 20,
+                            ),
+                          ] else ...[
+                            Expanded(
+                              child: IconButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _isSearchExpanded = true;
+                                  });
+                                },
+                                icon: Icon(Icons.search, color: Colors.grey[600]),
+                                iconSize: 20,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                    ] else ...[
-                      Expanded(
-                        child: IconButton(
-                          onPressed: () {
-                            setState(() {
-                              _isSearchExpanded = true;
-                            });
-                          },
-                          icon: Icon(Icons.search, color: Colors.grey[600]),
-                          iconSize: 20,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              
-              SizedBox(width: 16),
-              
-              // Currency icon button
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 8,
-                      offset: Offset(0, 2),
                     ),
-                  ],
-                ),
-                child: IconButton(
-                  onPressed: () {
-                    // Navigate to currency settings screen
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => CurrencySettingsScreen(
-                          currentCurrency: _selectedCurrency,
-                          onCurrencyChanged: _onCurrencyChanged,
-                        ),
+                    
+                    SizedBox(width: 12),
+                    
+                    // Currency icon button
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 8,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
                       ),
-                    );
-                  },
-                  icon: Icon(Icons.attach_money, color: Colors.grey[600]),
-                  iconSize: 20,
-                ),
-              ),
-              
-              SizedBox(width: 16),
-              
-              // Time period icon button
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 8,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: IconButton(
-                  onPressed: () {
-                    // Handle time period tap
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Time Period Settings'),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  },
-                  icon: Icon(Icons.schedule, color: Colors.grey[600]),
-                  iconSize: 20,
-                ),
-              ),
-              
-              SizedBox(width: 16),
-              
-              // Notification button icon
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 8,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Stack(
-                  children: [
-                    Center(
                       child: IconButton(
                         onPressed: () {
-                          // Handle notification tap
+                          // Navigate to currency settings screen
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => CurrencySettingsScreen(
+                                currentCurrency: _selectedCurrency,
+                                onCurrencyChanged: _onCurrencyChanged,
+                              ),
+                            ),
+                          );
+                        },
+                        icon: Icon(Icons.attach_money, color: Colors.grey[600]),
+                        iconSize: 20,
+                      ),
+                    ),
+                    
+                    SizedBox(width: 12),
+                    
+                    // Time period icon button
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 8,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: IconButton(
+                        onPressed: () {
+                          // Handle time period tap
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('Notifications'),
+                              content: Text('Time Period Settings'),
                               duration: Duration(seconds: 2),
                             ),
                           );
                         },
-                        icon: Icon(Icons.notifications, color: Colors.grey[600]),
+                        icon: Icon(Icons.schedule, color: Colors.grey[600]),
                         iconSize: 20,
                       ),
                     ),
-                    // Notification badge
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                        ),
+                    
+                    SizedBox(width: 12),
+                    
+                    // Notification button icon
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 8,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Stack(
+                        children: [
+                          Center(
+                            child: IconButton(
+                              onPressed: () {
+                                // Handle notification tap
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Notifications'),
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                              },
+                              icon: Icon(Icons.notifications, color: Colors.grey[600]),
+                              iconSize: 20,
+                            ),
+                          ),
+                          // Notification badge
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    
+                    SizedBox(width: 12),
+                    
+                    // Chat button icon
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 8,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: IconButton(
+                        onPressed: () {
+                          // Handle chat tap
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Chat'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                        icon: Icon(Icons.chat, color: Colors.grey[600]),
+                        iconSize: 20,
                       ),
                     ),
                   ],
-                ),
-              ),
-              
-              SizedBox(width: 16),
-              
-              // Chat button icon
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 8,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: IconButton(
-                  onPressed: () {
-                    // Handle chat tap
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Chat'),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  },
-                  icon: Icon(Icons.chat, color: Colors.grey[600]),
-                  iconSize: 20,
                 ),
               ),
             ],
@@ -6997,53 +7037,100 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                            ],
                          ),
                        )
-                     : Padding(
-                         padding: EdgeInsets.only(top: 20),
-                         child: PieChart(
-                           PieChartData(
-                             sectionsSpace: 2,
-                             centerSpaceRadius: 40,
-                             sections: _buildPieChartSections(),
+                     : Row(
+                         children: [
+                           // Left side legend with percentage and count
+                           Expanded(
+                             flex: 1,
+                             child: _buildLegendWithPercentage(),
                            ),
-                         ),
+                           SizedBox(width: 16),
+                           // Right side pie chart
+                           Expanded(
+                             flex: 2,
+                             child: SizedBox(
+                               height: 200.0,
+                               child: SfCircularChart(
+                                 legend: Legend(isVisible: false),
+                                 series: <CircularSeries>[
+                                   PieSeries<ChartData, String>(
+                                     dataSource: _buildSyncfusionPieChartData(),
+                                     pointColorMapper: (ChartData data, _) => data.color,
+                                     xValueMapper: (ChartData data, _) => data.x,
+                                     yValueMapper: (ChartData data, _) => data.y,
+                                     dataLabelSettings: DataLabelSettings(
+                                       isVisible: false,
+                                     ),
+                                   ),
+                                 ],
+                               ),
+                             ),
+                           ),
+                         ],
                        ),
-           ),
-           SizedBox(height: 16),
-           Column(
-             children: [
-               _buildLegendItem('Won Leads', Colors.green),
-               SizedBox(height: 8),
-               _buildLegendItem('Lost Leads', Colors.red),
-               SizedBox(height: 8),
-               _buildLegendItem('In Loop', Colors.orange),
-             ],
-           ),
+                     ),
          ],
        ),
      );
    }
 
-   Widget _buildLegendItem(String label, Color color) {
-     return Row(
+   Widget _buildLegendWithPercentage() {
+     final totalLeads = _leadStatusDistribution.values.fold(0, (sum, count) => sum + count);
+     final colors = {
+       'Won': Colors.green,
+       'Lost': Colors.red,
+       'Loop': Colors.orange,
+     };
+
+     return Column(
+       crossAxisAlignment: CrossAxisAlignment.start,
        children: [
-         Container(
-           width: 12,
-           height: 12,
-           decoration: BoxDecoration(
-             color: color,
-             shape: BoxShape.circle,
-           ),
-         ),
-         SizedBox(width: 8),
-         Expanded(
-           child: Text(
-             label,
-             style: TextStyle(
-               fontSize: 12,
-               color: Colors.grey[700],
+         ..._leadStatusDistribution.entries.map((entry) {
+           if (entry.value == 0) return SizedBox.shrink();
+           
+           final percentage = totalLeads > 0 ? (entry.value / totalLeads * 100).toStringAsFixed(1) : '0.0';
+           final color = colors[entry.key] ?? Colors.grey;
+           
+           return Padding(
+             padding: EdgeInsets.only(bottom: 12),
+             child: Row(
+               children: [
+                 Container(
+                   width: 12,
+                   height: 12,
+                   decoration: BoxDecoration(
+                     color: color,
+                     shape: BoxShape.circle,
+                   ),
+                 ),
+                 SizedBox(width: 8),
+                 Expanded(
+                   child: Column(
+                     crossAxisAlignment: CrossAxisAlignment.start,
+                     children: [
+                       Text(
+                         entry.key,
+                         style: TextStyle(
+                           fontSize: 14,
+                           fontWeight: FontWeight.w600,
+                           color: Colors.grey[800],
+                         ),
+                       ),
+                       SizedBox(height: 2),
+                       Text(
+                         '$entry.value leads ($percentage%)',
+                         style: TextStyle(
+                           fontSize: 12,
+                           color: Colors.grey[600],
+                         ),
+                       ),
+                     ],
+                   ),
+                 ),
+               ],
              ),
-           ),
-         ),
+           );
+         }),
        ],
      );
    }
@@ -7469,7 +7556,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               Icon(Icons.bar_chart, color: Colors.grey[800], size: 20),
               SizedBox(width: 8),
               Text(
-                'Qualified Area vs Revenue',
+                'Qualified Lead vs Revenue',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -7497,7 +7584,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                       ],
                     ),
                   )
-                : _areaSpots.isEmpty && _revenueSpots.isEmpty
+                : _barChartData.isEmpty
                     ? Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -7527,140 +7614,104 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                           ],
                         ),
                       )
-                    : LineChart(
-              LineChartData(
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: true,
-                  horizontalInterval: 1,
-                  verticalInterval: 1,
-                  getDrawingHorizontalLine: (value) {
-                    return FlLine(
-                      color: Colors.grey[300]!,
-                      strokeWidth: 1,
-                    );
-                  },
-                  getDrawingVerticalLine: (value) {
-                    return FlLine(
-                      color: Colors.grey[300]!,
-                      strokeWidth: 1,
-                    );
-                  },
-                ),
-                titlesData: FlTitlesData(
-                  show: true,
-                  rightTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  topTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 30,
-                      interval: 1,
-                      getTitlesWidget: (double value, TitleMeta meta) {
-                        const style = TextStyle(
-                          color: Color(0xff67727d),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        );
-                        if (value.toInt() < _monthLabels.length) {
-                          return SideTitleWidget(
-                            axisSide: meta.axisSide,
-                            child: Text(_monthLabels[value.toInt()], style: style),
-                          );
-                        }
-                        return SideTitleWidget(
-                          axisSide: meta.axisSide,
-                          child: const Text('', style: style),
-                        );
-                      },
-                    ),
-                  ),
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      interval: 1,
-                      getTitlesWidget: (double value, TitleMeta meta) {
-                        const style = TextStyle(
-                          color: Color(0xff67727d),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        );
-                        return Text('${value.toInt()}K', style: style);
-                      },
-                      reservedSize: 42,
-                    ),
-                  ),
-                ),
-                borderData: FlBorderData(
-                  show: true,
-                  border: Border.all(color: const Color(0xff37434d)),
-                ),
-                minX: 0,
-                maxX: (_monthLabels.length - 1).toDouble(),
-                minY: 0,
-                maxY: 6,
-                lineBarsData: [
-                  // Qualified Area line (Purple)
-                  LineChartBarData(
-                    spots: _areaSpots,
-                    isCurved: true,
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.purple.withValues(alpha: 0.8),
-                        Colors.purple.withValues(alpha: 0.3),
-                      ],
-                    ),
-                    barWidth: 3,
-                    isStrokeCapRound: true,
-                    dotData: FlDotData(
-                      show: true,
-                      getDotPainter: (spot, percent, barData, index) {
-                        return FlDotCirclePainter(
-                          radius: 4,
-                          color: Colors.purple,
-                          strokeWidth: 2,
-                          strokeColor: Colors.white,
-                        );
-                      },
-                    ),
-                    belowBarData: BarAreaData(
-                      show: false,
-                    ),
-                  ),
-                  // Revenue line (Green)
-                  LineChartBarData(
-                    spots: _revenueSpots,
-                    isCurved: true,
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.green.withValues(alpha: 0.8),
-                        Colors.green.withValues(alpha: 0.3),
-                      ],
-                    ),
-                    barWidth: 3,
-                    isStrokeCapRound: true,
-                    dotData: FlDotData(
-                      show: true,
-                      getDotPainter: (spot, percent, barData, index) {
-                        return FlDotCirclePainter(
-                          radius: 4,
-                          color: Colors.green,
-                          strokeWidth: 2,
-                          strokeColor: Colors.white,
-                        );
-                      },
-                    ),
-                    belowBarData: BarAreaData(
-                      show: false,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+                    : BarChart(
+                        BarChartData(
+                          alignment: BarChartAlignment.spaceAround,
+                          maxY: _getMaxYValue(),
+                          minY: 0,
+                          barTouchData: BarTouchData(
+                            enabled: true,
+                            touchTooltipData: BarTouchTooltipData(
+                              getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                                final labels = _getChartLabels();
+                                final label = group.x.toInt() < labels.length ? labels[group.x.toInt()] : '';
+                                final value = rod.toY.toStringAsFixed(1);
+                                final seriesName = rodIndex == 0 ? 'Qualified Leads' : 'Revenue (K)';
+                                
+                                return BarTooltipItem(
+                                  '$label\n',
+                                  const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                  children: <TextSpan>[
+                                    TextSpan(
+                                      text: '$seriesName: $value',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ),
+                          titlesData: FlTitlesData(
+                            show: true,
+                            rightTitles: AxisTitles(
+                              sideTitles: SideTitles(showTitles: false),
+                            ),
+                            topTitles: AxisTitles(
+                              sideTitles: SideTitles(showTitles: false),
+                            ),
+                            bottomTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: 40,
+                                getTitlesWidget: (double value, TitleMeta meta) {
+                                  const style = TextStyle(
+                                    color: Color(0xff7589a2),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  );
+                                  final labels = _getChartLabels();
+                                  if (value.toInt() < labels.length) {
+                                    final label = labels[value.toInt()];
+                                    // Truncate long labels to prevent overflow
+                                    final displayLabel = label.length > 8 ? '${label.substring(0, 8)}...' : label;
+                                    return Text(displayLabel, style: style);
+                                  }
+                                  return const Text('', style: style);
+                                },
+                              ),
+                            ),
+                            leftTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                interval: _getYAxisInterval(),
+                                getTitlesWidget: (double value, TitleMeta meta) {
+                                  const style = TextStyle(
+                                    color: Color(0xff67727d),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 10,
+                                  );
+                                  return Text(_formatYAxisLabel(value), style: style);
+                                },
+                                reservedSize: 50,
+                              ),
+                            ),
+                          ),
+                          gridData: FlGridData(
+                            show: true,
+                            horizontalInterval: _getGridInterval(),
+                            getDrawingHorizontalLine: (value) {
+                              return FlLine(
+                                color: Colors.grey[300]!,
+                                strokeWidth: 1,
+                                dashArray: [5, 5],
+                              );
+                            },
+                          ),
+                          borderData: FlBorderData(
+                            show: true,
+                            border: Border.all(color: Colors.grey[300]!, width: 1),
+                          ),
+                          barGroups: _buildBarGroups(),
+                        ),
+                      ),
           ),
           SizedBox(height: 16),
           Row(
@@ -7670,13 +7721,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 width: 12,
                 height: 12,
                 decoration: BoxDecoration(
-                  color: Colors.purple,
+                  color: Colors.teal,
                   shape: BoxShape.circle,
                 ),
               ),
               SizedBox(width: 8),
               Text(
-                'Qualified Area',
+                'Qualified Leads',
                 style: TextStyle(
                   fontSize: 12,
                   color: Colors.grey[700],
@@ -7687,13 +7738,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 width: 12,
                 height: 12,
                 decoration: BoxDecoration(
-                  color: Colors.green,
+                  color: Colors.pink,
                   shape: BoxShape.circle,
                 ),
               ),
               SizedBox(width: 8),
               Text(
-                'Total Revenue',
+                'Revenue (K)',
                 style: TextStyle(
                   fontSize: 12,
                   color: Colors.grey[700],
@@ -7704,6 +7755,53 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         ],
       ),
     );
+  }
+
+  // Helper method to get max Y value for bar chart
+  double _getMaxYValue() {
+    if (_barChartData.isEmpty) return 10.0;
+    
+    double maxValue = 0.0;
+    for (var group in _barChartData) {
+      for (var bar in group.barRods) {
+        if (bar.toY > maxValue) {
+          maxValue = bar.toY;
+        }
+      }
+    }
+    return (maxValue * 1.4).clamp(10.0, double.infinity); // Add 40% padding
+  }
+
+  // Helper method to get grid interval based on max value
+  double _getGridInterval() {
+    final maxY = _getMaxYValue();
+    // Divide maxY by 6 to get 6 grid lines
+    return (maxY / 6).ceil().toDouble();
+  }
+
+  // Helper method to get Y-axis interval
+  double _getYAxisInterval() {
+    final maxY = _getMaxYValue();
+    // Divide maxY by 6 to get 6 Y-axis labels
+    return (maxY / 6).ceil().toDouble();
+  }
+
+  // Helper method to format Y-axis labels
+  String _formatYAxisLabel(double value) {
+    if (value >= 1000000000) {
+      return '${(value / 1000000000).toStringAsFixed(1)}B';
+    } else if (value >= 1000000) {
+      return '${(value / 1000000).toStringAsFixed(1)}M';
+    } else if (value >= 1000) {
+      return '${(value / 1000).toStringAsFixed(0)}K';
+    } else {
+      return value.toStringAsFixed(0);
+    }
+  }
+
+  // Build bar groups for the chart
+  List<BarChartGroupData> _buildBarGroups() {
+    return _barChartData;
   }
 
   Widget _buildLeadPerformanceTable() {
@@ -7772,22 +7870,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   ],
                 );
               } else {
-                // Desktop layout - horizontal
+                // Desktop layout - horizontal with search bar expanding left
                 return Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Lead Performance',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey[800],
-                      ),
-                    ),
-                    // Search bar
-                    Flexible(
+                    // Search bar - expands toward left
+                    Expanded(
                       child: Container(
-                        constraints: BoxConstraints(maxWidth: 300),
                         decoration: BoxDecoration(
                           color: Colors.grey[50],
                           borderRadius: BorderRadius.circular(8),
@@ -7812,6 +7900,16 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                             contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           ),
                         ),
+                      ),
+                    ),
+                    SizedBox(width: 16),
+                    // Title - positioned on the right
+                    Text(
+                      'Lead Performance',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
                       ),
                     ),
                   ],
@@ -7933,8 +8031,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isMobile = constraints.maxWidth < 768;
-        final isTablet = constraints.maxWidth >= 768 && constraints.maxWidth < 1200;
+        // For Windows screens, always use the desktop table layout
+        // Mobile layout only for very small screens
+        final isMobile = constraints.maxWidth < 400;
+        final isTablet = constraints.maxWidth >= 400 && constraints.maxWidth < 800;
         
         if (isMobile) {
           return _buildMobileLeadTable();
@@ -8135,206 +8235,45 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 
   Widget _buildDesktopLeadTable() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columnSpacing: 16,
-        headingTextStyle: TextStyle(
-          fontWeight: FontWeight.bold,
-          color: Colors.grey[800],
-          fontSize: 12,
-        ),
-        dataTextStyle: TextStyle(
-          fontSize: 12,
-          color: Colors.grey[700],
-        ),
-        columns: [
-          DataColumn(label: SizedBox(width: 90, child: Text('PROJECT ID'))),
-          DataColumn(label: SizedBox(width: 110, child: Text('PROJECT NAME'))),
-          DataColumn(label: SizedBox(width: 100, child: Text('CLIENT NAME'))),
-          DataColumn(label: SizedBox(width: 80, child: Text('LOCATION'))),
-          DataColumn(label: SizedBox(width: 90, child: Text('ALUMINIUM AREA'))),
-          DataColumn(label: SizedBox(width: 80, child: Text('RC WEIGHT'))),
-          DataColumn(label: SizedBox(width: 80, child: Text('RATE/SQM'))),
-          DataColumn(label: SizedBox(width: 100, child: Text('TOTAL AMOUNT'))),
-          DataColumn(label: SizedBox(width: 110, child: Text('SALES USER'))),
-          DataColumn(label: SizedBox(width: 70, child: Text('STATUS'))),
-          DataColumn(label: SizedBox(width: 80, child: Text('REMARK'))),
-          DataColumn(label: SizedBox(width: 110, child: Text('CLOSED DATE'))),
+    // Desktop layout - table with evenly distributed columns and vertical lines
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey[300]!),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        children: [
+          // Header row
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              border: Border(bottom: BorderSide(color: Colors.grey[300]!)),
+            ),
+            child: Row(
+              children: [
+                _buildTableHeaderCell('PROJECT ID', 1),
+                _buildTableHeaderCell('PROJECT NAME', 2),
+                _buildTableHeaderCell('CLIENT NAME', 2),
+                _buildTableHeaderCell('LOCATION', 1),
+                _buildTableHeaderCell('ALUMINIUM AREA', 1),
+                _buildTableHeaderCell('RC WEIGHT', 1),
+                _buildTableHeaderCell('RATE/SQM', 1),
+                _buildTableHeaderCell('TOTAL AMOUNT', 1),
+                _buildTableHeaderCell('SALES USER', 1),
+                _buildTableHeaderCell('STATUS', 1),
+                _buildTableHeaderCell('REMARK', 1),
+                _buildTableHeaderCell('CLOSED DATE', 1),
+              ],
+            ),
+          ),
+          // Data rows
+          ..._filteredLeadData.map((lead) => _buildTableDataRow(lead)),
         ],
-        rows: _filteredLeadData.map((lead) => _buildLeadRowFromData(lead)).toList(),
       ),
     );
   }
 
-  DataRow _buildLeadRowFromData(Map<String, dynamic> lead) {
-    final projectId = lead['project_id'] ?? 'N/A';
-    final projectName = lead['project_name'] ?? 'N/A';
-    final clientName = lead['client_name'] ?? 'N/A';
-    final location = lead['location'] ?? 'N/A';
-    final aluminiumArea = lead['aluminium_area'] != null 
-        ? '${lead['aluminium_area'].toString()} m²'
-        : 'N/A';
-    final rcWeight = lead['rc_weight'] != null 
-        ? '${lead['rc_weight'].toString()} kg'
-        : 'N/A';
-    final rateSqm = lead['rate_sqm'] != null 
-        ? '₹${lead['rate_sqm'].toString()}'
-        : 'N/A';
-    final totalAmount = lead['total_amount_gst'] != null 
-        ? '₹${lead['total_amount_gst'].toString()}'
-        : 'N/A';
-    final salesUser = lead['sales_user'] ?? 'N/A';
-    final status = lead['update_lead_status'] ?? 'N/A';
-    final remark = lead['lead_status_remark'] ?? 'N/A';
-    final closedDate = lead['updated_at'] != null 
-        ? DateTime.parse(lead['updated_at']).toLocal().toString().split('.')[0]
-        : 'N/A';
 
-    return DataRow(
-      cells: [
-        DataCell(
-          Container(
-            width: 90,
-            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              projectId,
-              style: TextStyle(
-                fontSize: 9,
-                fontWeight: FontWeight.w500,
-                color: Colors.grey[700],
-                fontFamily: 'monospace',
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ),
-        DataCell(
-          Container(
-            width: 110,
-            padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.blue[50],
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              projectName,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: Colors.blue[700],
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ),
-        DataCell(Text(clientName)),
-        DataCell(Text(location)),
-        DataCell(
-          Container(
-            width: 90,
-            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-            decoration: BoxDecoration(
-              color: Colors.green[50],
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              aluminiumArea,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: Colors.green[700],
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ),
-        DataCell(Text(rcWeight)),
-        DataCell(
-          Container(
-            width: 80,
-            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-            decoration: BoxDecoration(
-              color: Colors.orange[50],
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              rateSqm,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: Colors.orange[700],
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ),
-        DataCell(
-          Container(
-            width: 100,
-            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-            decoration: BoxDecoration(
-              color: Colors.purple[50],
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              totalAmount,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: Colors.purple[700],
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ),
-        DataCell(
-          Container(
-            width: 110,
-            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-            decoration: BoxDecoration(
-              color: Colors.indigo[50],
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              salesUser,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: Colors.indigo[700],
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ),
-        DataCell(
-          Container(
-            width: 70,
-            padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-            decoration: BoxDecoration(
-              color: _getStatusColor(status).withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              status,
-              style: TextStyle(
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-                color: _getStatusColor(status),
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ),
-        DataCell(Text(remark)),
-        DataCell(Text(closedDate)),
-      ],
-    );
-  }
 
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
@@ -8490,5 +8429,117 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       },
     );
   }
+
+  // Build table header cell
+  Widget _buildTableHeaderCell(String text, int flex) {
+    return Expanded(
+      flex: flex,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+        decoration: BoxDecoration(
+          border: Border(right: BorderSide(color: Colors.grey[300]!)),
+        ),
+        child: SizedBox(
+          width: double.infinity,
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+            textAlign: TextAlign.center,
+            overflow: TextOverflow.visible,
+            softWrap: true,
+            maxLines: null, // Allow unlimited lines
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Build table data row
+  Widget _buildTableDataRow(Map<String, dynamic> lead) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
+      ),
+      child: Row(
+        children: [
+          _buildTableDataCell(lead['project_id']?.toString() ?? 'N/A', 1),
+          _buildTableDataCell(lead['project_name']?.toString() ?? 'N/A', 2),
+          _buildTableDataCell(lead['client_name']?.toString() ?? 'N/A', 2),
+          _buildTableDataCell(lead['location']?.toString() ?? 'N/A', 1),
+          _buildTableDataCell('${lead['aluminium_area']?.toString() ?? '0'} m²', 1),
+          _buildTableDataCell(lead['rc_weight']?.toString() ?? 'N/A', 1),
+          _buildTableDataCell('₹${lead['rate_sqm']?.toString() ?? '0'}', 1),
+          _buildTableDataCell('₹${lead['total_amount_gst']?.toString() ?? '0'}', 1),
+          _buildTableDataCell(lead['sales_user']?.toString() ?? 'N/A', 1),
+          _buildTableDataCell(
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: _getStatusColor(lead['update_lead_status']).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                lead['update_lead_status']?.toString() ?? 'N/A',
+                style: TextStyle(
+                  color: _getStatusColor(lead['update_lead_status']),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            1,
+          ),
+          _buildTableDataCell(lead['lead_status_remark']?.toString() ?? 'N/A', 1),
+          _buildTableDataCell(_formatDate(lead['updated_at']), 1),
+        ],
+      ),
+    );
+  }
+
+  // Build table data cell
+  Widget _buildTableDataCell(dynamic content, int flex) {
+    return Expanded(
+      flex: flex,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        decoration: BoxDecoration(
+          border: Border(right: BorderSide(color: Colors.grey[300]!)),
+        ),
+        child: content is Widget
+            ? content
+            : SizedBox(
+                width: double.infinity,
+                child: Text(
+                  content.toString(),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey[700],
+                  ),
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.visible,
+                  softWrap: true,
+                  maxLines: null, // Allow unlimited lines
+                ),
+              ),
+      ),
+    );
+  }
+
+  // Format date
+  String _formatDate(dynamic date) {
+    if (date == null) return 'N/A';
+    try {
+      final dateTime = DateTime.parse(date.toString());
+      return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+    } catch (e) {
+      return 'N/A';
+    }
+  }
+
+
 
 }
