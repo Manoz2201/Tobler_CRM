@@ -12,7 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:crm_app/widgets/profile_page.dart';
 import 'package:crm_app/screens/home/developer_home_screen.dart'
-    show UserManagementPage, RoleManagementPage;
+    show UserManagementPage;
 import 'package:intl/intl.dart';
 import '../settings/currency_settings_screen.dart';
 import '../../utils/navigation_utils.dart';
@@ -74,15 +74,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   }
 
   late final List<Widget> _pages = <Widget>[
-    AdminDashboardPage(), // Replace the simple text with a proper dashboard page
-    LeadTable(),
-    UserManagementPage(),
-    RoleManagementPage(),
-    const Center(child: Text('Search')),
-    AdminSettingsPage(),
-    const Center(child: Text('Analytics')),
-    const Center(child: Text('Chat')),
-    ProfilePage(),
+    AdminDashboardPage(), // Dashboard
+    LeadTable(), // Leads Management
+    UserManagementPage(), // User Management
+    AdminSettingsPage(), // Settings
+    ProfilePage(), // Profile
+    // Logout is handled separately in _onItemTapped
   ];
 
 
@@ -132,104 +129,43 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
   Widget _buildMobileNavigationBar() {
     return Container(
-      height: 55,
-      margin: EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey[300]!, width: 1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 4,
-            offset: Offset(0, -1),
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
           ),
         ],
       ),
       child: SafeArea(
-        top: false,
         child: SizedBox(
-          height: 55,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              // Calculate item width to show exactly 5 items
-              final itemWidth = constraints.maxWidth / 5;
+          height: 60,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: _navItems.asMap().entries.map((entry) {
+                final index = entry.key;
+                final item = entry.value;
+                final isSelected = _selectedIndex == index;
 
-              return SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: _navItems.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final item = entry.value;
-                    final isSelected = _selectedIndex == index;
-                    return _buildMobileNavItem(
-                      item,
-                      index,
-                      isSelected,
-                      itemWidth,
-                    );
-                  }).toList(),
-                ),
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMobileNavItem(
-    NavItem item,
-    int index,
-    bool isSelected,
-    double width,
-  ) {
-    final isHovered = _hoveredItems[index] ?? false;
-
-    return Container(
-      width: width,
-      padding: EdgeInsets.symmetric(horizontal: 1, vertical: 1),
-      child: MouseRegion(
-        onEnter: (_) => setState(() => _hoveredItems[index] = true),
-        onExit: (_) => setState(() => _hoveredItems[index] = false),
-        child: InkWell(
-          onTap: () => _onItemTapped(index),
-          borderRadius: BorderRadius.circular(6),
-          child: Container(
-            padding: EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              color: isSelected ? Colors.blue[50] : Colors.transparent,
-              borderRadius: BorderRadius.circular(6),
-              border: isSelected
-                  ? Border.all(color: Colors.blue[300]!, width: 1)
-                  : null,
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  item.icon,
-                  color: isSelected ? Colors.blue[600] : Colors.grey[600],
-                  size: 18,
-                ),
-                if (isHovered || isSelected) ...[
-                  Flexible(
-                    child: Text(
-                      item.label,
-                      style: TextStyle(
-                        fontSize: 7,
-                        color: isSelected ? Colors.blue[600] : Colors.grey[600],
-                        fontWeight: isSelected
-                            ? FontWeight.w600
-                            : FontWeight.normal,
+                return GestureDetector(
+                  onTap: () => _onItemTapped(index),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        item.icon,
+                        color: isSelected ? Colors.blue : Colors.grey[600],
+                        size: 26,
                       ),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    ],
                   ),
-                ],
-              ],
+                );
+              }).toList(),
             ),
           ),
         ),

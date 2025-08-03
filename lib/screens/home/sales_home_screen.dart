@@ -212,6 +212,8 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
                                   fontSize: 14,
                                   color: Color(0xFF757575),
                                 ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
                               ),
                             ],
                           ),
@@ -315,6 +317,8 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
                                             ? const Color(0xFF7B1FA2)
                                             : const Color(0xFF757575),
                                       ),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
                                     ),
                                   ),
                                 ],
@@ -344,40 +348,33 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
         ],
       ),
       child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: _navItems.asMap().entries.map((entry) {
-              final index = entry.key;
-              final item = entry.value;
-              final isSelected = _selectedIndex == index;
+        child: SizedBox(
+          height: 60,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: _navItems.asMap().entries.map((entry) {
+                final index = entry.key;
+                final item = entry.value;
+                final isSelected = _selectedIndex == index;
 
-              return GestureDetector(
-                onTap: () => _onItemTapped(index),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      item.icon,
-                      color: isSelected ? Colors.blue : Colors.grey[600],
-                      size: 24,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      item.label,
-                      style: TextStyle(
+                return GestureDetector(
+                  onTap: () => _onItemTapped(index),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        item.icon,
                         color: isSelected ? Colors.blue : Colors.grey[600],
-                        fontSize: 12,
-                        fontWeight: isSelected
-                            ? FontWeight.bold
-                            : FontWeight.normal,
+                        size: 26,
                       ),
-                    ),
-                  ],
-                ),
-              );
-            }).toList(),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
           ),
         ),
       ),
@@ -1963,6 +1960,13 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                           ),
                           SizedBox(width: 4),
                           _buildInteractiveIconButton(
+                            icon: Icons.flag,
+                            onPressed: () => _initializeStatus(lead),
+                            tooltip: 'Initialize Status',
+                            leadId: leadId,
+                          ),
+                          SizedBox(width: 4),
+                          _buildInteractiveIconButton(
                             icon: Icons.delete,
                             onPressed: () => _deleteLead(lead),
                             tooltip: 'Delete Lead',
@@ -2153,6 +2157,13 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                           ),
                           SizedBox(width: 8),
                           _buildMobileInteractiveButton(
+                            icon: Icons.flag,
+                            onPressed: () => _initializeStatus(lead),
+                            tooltip: 'Initialize Status',
+                            leadId: leadId,
+                          ),
+                          SizedBox(width: 8),
+                          _buildMobileInteractiveButton(
                             icon: Icons.delete,
                             onPressed: () => _deleteLead(lead),
                             tooltip: 'Delete',
@@ -2190,6 +2201,25 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           currentUserId: _currentUserId,
           leadId: lead['lead_id'].toString(),
           onLeadUpdated: () {
+            _fetchLeads(); // Refresh the leads list
+          },
+        );
+      },
+    );
+  }
+
+  void _initializeStatus(Map<String, dynamic> lead) {
+    debugPrint('Initialize status called with data: $lead');
+    debugPrint('Lead ID: ${lead['lead_id']}');
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return InitializeStatusDialog(
+          leadId: lead['lead_id'].toString(),
+          projectName: lead['project_name'] ?? 'N/A',
+          onStatusUpdated: () {
             _fetchLeads(); // Refresh the leads list
           },
         );
@@ -6590,34 +6620,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     });
   }
 
-  // Build mobile time period filter
-  Widget _buildMobileTimePeriodFilter() {
-    final timePeriods = ['Week', 'Month', 'Quarter', 'Semester', 'Annual', 'Two Years', 'Three Years', 'Five Years'];
-    
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[300]!),
-      ),
-      child: DropdownButton<String>(
-        value: _selectedTimePeriod,
-        onChanged: (String? newValue) {
-          if (newValue != null) {
-            _onTimePeriodChanged(newValue);
-          }
-        },
-        items: timePeriods.map<DropdownMenuItem<String>>((String value) {
-          return DropdownMenuItem<String>(
-            value: value,
-            child: Text(value),
-          );
-        }).toList(),
-        underline: SizedBox(),
-      ),
-    );
-  }
+
 
   // Show currency dialog
   void _showCurrencyDialog() {
@@ -7227,68 +7230,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
             }).toList(),
           ),
         ),
-        SizedBox(height: 12),
-        // Action Buttons Row
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Exporting data...'),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: Text(
-                    'Export',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Opening more filters...'),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  },
-                  style: OutlinedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: Text(
-                    'More Filters',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+
       ],
     );
   }
@@ -7462,9 +7404,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                   ),
                 ],
               ),
-              SizedBox(height: 16),
-              // Mobile time period filter
-              _buildMobileTimePeriodFilter(),
+
             ],
           );
         } else {
@@ -8320,58 +8260,421 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
       'Loop': Colors.orange,
     };
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ..._leadStatusDistribution.entries.map((entry) {
-          if (entry.value == 0) return SizedBox.shrink();
-          
-          final percentage = totalLeads > 0 ? (entry.value / totalLeads * 100).toStringAsFixed(1) : '0.0';
-          final color = colors[entry.key] ?? Colors.grey;
-          
-          return Padding(
-            padding: EdgeInsets.only(bottom: 12),
-            child: Row(
-              children: [
-                Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ..._leadStatusDistribution.entries.map((entry) {
+            if (entry.value == 0) return SizedBox.shrink();
+            
+            final percentage = totalLeads > 0 ? (entry.value / totalLeads * 100).toStringAsFixed(1) : '0.0';
+            final color = colors[entry.key] ?? Colors.grey;
+            
+            return Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                    ),
                   ),
-                ),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        entry.key,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey[800],
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          entry.key,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[800],
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        '$entry.value leads ($percentage%)',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
+                        SizedBox(height: 2),
+                        Text(
+                          '$entry.value leads ($percentage%)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-          );
-        }),
-      ],
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
     );
   }
 
 }
 
+class InitializeStatusDialog extends StatefulWidget {
+  final String leadId;
+  final String projectName;
+  final VoidCallback onStatusUpdated;
+
+  const InitializeStatusDialog({
+    super.key,
+    required this.leadId,
+    required this.projectName,
+    required this.onStatusUpdated,
+  });
+
+  @override
+  State<InitializeStatusDialog> createState() => _InitializeStatusDialogState();
+}
+
+class _InitializeStatusDialogState extends State<InitializeStatusDialog> {
+  String? _selectedStatus;
+  final TextEditingController _remarkController = TextEditingController();
+  bool _isSubmitting = false;
+
+  @override
+  void dispose() {
+    _remarkController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Row(
+        children: [
+          Icon(Icons.flag, color: Colors.blue),
+          SizedBox(width: 8),
+          Text('Initialize Status'),
+        ],
+      ),
+      content: SizedBox(
+        width: 400,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Project: ${widget.projectName}',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Select Status:',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[700],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatusButton('Won', Colors.green.shade600, Icons.check_circle),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildStatusButton('Lose', Colors.red.shade600, Icons.cancel),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildStatusButton('Loop', Colors.orange.shade600, Icons.refresh),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Remark:',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[700],
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _remarkController,
+              maxLines: 3,
+              decoration: InputDecoration(
+                hintText: 'Enter your remark here...',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.blue, width: 2),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton.icon(
+          onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
+          icon: Icon(Icons.cancel, color: Colors.red.shade600, size: 20),
+          label: Text(
+            'Cancel',
+            style: TextStyle(
+              color: Colors.red.shade600,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          style: TextButton.styleFrom(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+        ElevatedButton.icon(
+          onPressed: _isSubmitting || _selectedStatus == null ? null : _submitStatus,
+          icon: _isSubmitting
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : Icon(Icons.check_circle, color: Colors.white, size: 20),
+          label: Text(
+            'Submit',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.green.shade600,
+            foregroundColor: Colors.white,
+            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            elevation: 2,
+            shadowColor: Colors.green.shade600.withValues(alpha: 0.3),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatusButton(String status, Color color, IconData icon) {
+    final isSelected = _selectedStatus == status;
+    
+    return _StatusButton(
+      status: status,
+      color: color,
+      icon: icon,
+      isSelected: isSelected,
+      onTap: () {
+        setState(() {
+          _selectedStatus = status;
+        });
+      },
+    );
+  }
+
+  Future<void> _submitStatus() async {
+    if (_selectedStatus == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please select a status'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      final client = Supabase.instance.client;
+      
+      // Get current user info
+      final currentUser = client.auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User not authenticated');
+      }
+
+      // Get current username from users table
+      final userResponse = await client
+          .from('users')
+          .select('username')
+          .eq('id', currentUser.id)
+          .single();
+      
+      final username = userResponse['username'] as String;
+
+      // Insert or update the admin_response table
+      await client
+          .from('admin_response')
+          .upsert({
+            'lead_id': widget.leadId,
+            'sales_user': username,
+            'update_lead_status': _selectedStatus,
+            'update_lead_remark': _remarkController.text.trim(),
+            'updated_at': DateTime.now().toIso8601String(),
+          });
+
+      debugPrint('✅ Status updated successfully: $_selectedStatus');
+      debugPrint('✅ Remark: ${_remarkController.text.trim()}');
+
+      if (mounted) {
+        Navigator.of(context).pop();
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Status updated successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        widget.onStatusUpdated();
+      }
+    } catch (e) {
+      debugPrint('❌ Error updating status: $e');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating status: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        _isSubmitting = false;
+      });
+    }
+  }
+}
+
+class _StatusButton extends StatefulWidget {
+  final String status;
+  final Color color;
+  final IconData icon;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _StatusButton({
+    required this.status,
+    required this.color,
+    required this.icon,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  State<_StatusButton> createState() => _StatusButtonState();
+}
+
+class _StatusButtonState extends State<_StatusButton> {
+  bool isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) {
+        setState(() {
+          isHovered = true;
+        });
+      },
+      onExit: (_) {
+        setState(() {
+          isHovered = false;
+        });
+      },
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          padding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+          decoration: BoxDecoration(
+            color: widget.isSelected 
+                ? widget.color.withValues(alpha: 0.2)
+                : isHovered 
+                    ? widget.color.withValues(alpha: 0.1)
+                    : Colors.white,
+            border: Border.all(
+              color: widget.isSelected 
+                  ? widget.color 
+                  : isHovered 
+                      ? widget.color.withValues(alpha: 0.7)
+                      : Colors.grey[300]!,
+              width: widget.isSelected ? 2.5 : isHovered ? 1.5 : 1,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: isHovered || widget.isSelected
+                ? [
+                    BoxShadow(
+                      color: widget.color.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: Offset(0, 3),
+                      spreadRadius: 1,
+                    ),
+                  ]
+                : [
+                    BoxShadow(
+                      color: Colors.grey.withValues(alpha: 0.1),
+                      blurRadius: 2,
+                      offset: Offset(0, 1),
+                    ),
+                  ],
+          ),
+          child: Column(
+            children: [
+              Icon(
+                widget.icon,
+                color: widget.isSelected 
+                    ? widget.color 
+                    : isHovered 
+                        ? widget.color.withValues(alpha: 0.9)
+                        : widget.color.withValues(alpha: 0.7),
+                size: 28,
+              ),
+              SizedBox(height: 6),
+              Text(
+                widget.status,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: widget.isSelected || isHovered 
+                      ? FontWeight.w700 
+                      : FontWeight.w600,
+                  color: widget.isSelected 
+                      ? widget.color 
+                      : isHovered 
+                          ? widget.color.withValues(alpha: 0.9)
+                          : widget.color.withValues(alpha: 0.8),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

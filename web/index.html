@@ -33,6 +33,93 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
-  <script src="flutter_bootstrap.js" async></script>
+  <!-- This script installs service_worker.js to provide PWA functionality to
+       application. For more information, see:
+       https://developers.google.com/web/fundamentals/primers/service-workers -->
+  <script>
+    var serviceWorkerVersion = '{{flutter_service_worker_version}}';
+    var scriptLoaded = false;
+    function loadMainDartJs() {
+      if (scriptLoaded) {
+        return;
+      }
+      scriptLoaded = true;
+      var scriptTag = document.createElement('script');
+      scriptTag.src = 'main.dart.js';
+      scriptTag.type = 'application/javascript';
+      document.body.appendChild(scriptTag);
+    }
+
+    if ('serviceWorker' in navigator) {
+      // Service workers are supported. Use them.
+      window.addEventListener('load', function () {
+        // Wait for registration to finish before dropping the <script> tag.
+        // Otherwise, the browser will load the script multiple times,
+        // potentially different versions.
+        var serviceWorkerUrl = 'flutter_service_worker.js?v=' + serviceWorkerVersion;
+        navigator.serviceWorker.register(serviceWorkerUrl)
+          .then((reg) => {
+            function waitForActivation(serviceWorker) {
+              serviceWorker.addEventListener('statechange', () => {
+                if (serviceWorker.state == 'installed' && navigator.serviceWorker.controller) {
+                  console.log('Installed new service worker.');
+                }
+                if (serviceWorker.state == 'activated') {
+                  console.log('Activated service worker.');
+                  // Only reload the page if this is the first service worker.
+                  if (!reg.active && (reg.installing || reg.waiting)) {
+                    window.location.reload();
+                  }
+                }
+              });
+            }
+            if (reg.installing) {
+              console.log('Service worker installing');
+              waitForActivation(reg.installing);
+            } else if (reg.waiting) {
+              console.log('Service worker waiting');
+              waitForActivation(reg.waiting);
+            } else if (reg.active) {
+              console.log('Service worker active');
+            }
+          });
+
+        // If service worker doesn't succeed in a reasonable amount of time,
+        // fallback to plain <script> tag.
+        setTimeout(() => {
+          if (!scriptLoaded) {
+            console.warn(
+              'Failed to load app from service worker. Falling back to plain <script> tag.',
+            );
+            loadMainDartJs();
+          }
+        }, 4000);
+      });
+
+      // Check for app updates
+      window.addEventListener('load', function () {
+        var serviceWorkerUrl = 'flutter_service_worker.js?v=' + serviceWorkerVersion;
+        navigator.serviceWorker.register(serviceWorkerUrl)
+          .then((reg) => {
+            reg.addEventListener('updatefound', () => {
+              var serviceWorker = reg.installing;
+              if (!serviceWorker) return;
+              serviceWorker.addEventListener('statechange', () => {
+                if (serviceWorker.state == 'installed') {
+                  console.log('New app update ready.');
+                  // At this point, the old content will have been purged and the fresh
+                  // content will have been added to the cache. It's the perfect time to
+                  // display a "New content is available; please refresh." message in your
+                  // web app.
+                }
+              });
+            });
+          });
+      });
+    } else {
+      // Service workers not supported. Just drop the <script> tag.
+      loadMainDartJs();
+    }
+  </script>
 </body>
 </html>
