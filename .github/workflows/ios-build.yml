@@ -48,12 +48,19 @@ jobs:
       run: |
         sudo xcode-select --switch /Applications/Xcode.app
         sudo xcodebuild -license accept
-        sudo gem install cocoapods
+        sudo gem install cocoapods -v 1.12.1
     
     - name: Setup iOS project
       run: |
         cd ios
         pod install --repo-update
+        cd ..
+    
+    - name: Disable code signing
+      run: |
+        cd ios
+        sed -i '' 's/CODE_SIGNING_REQUIRED = YES/CODE_SIGNING_REQUIRED = NO/' Runner.xcodeproj/project.pbxproj
+        sed -i '' 's/CODE_SIGNING_ALLOWED = YES/CODE_SIGNING_ALLOWED = NO/' Runner.xcodeproj/project.pbxproj
         cd ..
     
     - name: Build iOS
