@@ -782,11 +782,19 @@ class _UserManagementPageState extends State<UserManagementPage> {
 
   Future<void> fetchUsers() async {
     setState(() => isLoading = true);
-    final data = await UserManagementService.fetchUsers();
-    setState(() {
-      users = data;
-      isLoading = false;
-    });
+    try {
+      final data = await UserManagementService.fetchUsers();
+      setState(() {
+        users = data;
+        isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Error fetching users: $e');
+      setState(() {
+        users = [];
+        isLoading = false;
+      });
+    }
   }
 
   List<Map<String, dynamic>> get filteredUsers {

@@ -1,16 +1,21 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/foundation.dart';
 
 class UserManagementService {
   static final client = Supabase.instance.client;
 
   static Future<List<Map<String, dynamic>>> fetchUsers() async {
     try {
+      debugPrint('🔄 UserManagementService: Fetching users from users table...');
+      // Use the correct table name - users
       final data = await client
-          .from('user_management')
+          .from('users')
           .select('*')
           .order('created_at', ascending: false);
+      debugPrint('✅ UserManagementService: Successfully fetched ${data.length} users');
       return List<Map<String, dynamic>>.from(data);
     } catch (e) {
+      debugPrint('❌ UserManagementService: Error fetching users: $e');
       return [];
     }
   }
@@ -24,7 +29,7 @@ class UserManagementService {
     required String description,
   }) async {
     try {
-      await client.from('user_management').insert({
+      await client.from('users').insert({
         'user_name': userName,
         'user_type': userType,
         'status': status,
@@ -39,7 +44,7 @@ class UserManagementService {
 
   static Future<void> addUserRaw(Map<String, dynamic> user) async {
     try {
-      await client.from('user_management').insert(user);
+      await client.from('users').insert(user);
     } catch (e) {
       throw Exception('Failed to duplicate user');
     }
@@ -56,7 +61,7 @@ class UserManagementService {
   }) async {
     try {
       await client
-          .from('user_management')
+          .from('users')
           .update({
             'user_name': userName,
             'user_type': userType,
@@ -73,7 +78,7 @@ class UserManagementService {
 
   static Future<void> deleteUser(String id) async {
     try {
-      await client.from('user_management').delete().eq('id', id);
+      await client.from('users').delete().eq('id', id);
     } catch (e) {
       throw Exception('Failed to delete user');
     }
@@ -82,7 +87,7 @@ class UserManagementService {
   static Future<Map<String, dynamic>?> fetchUserById(String id) async {
     try {
       final data = await client
-          .from('user_management')
+          .from('users')
           .select('*')
           .eq('id', id)
           .single();
@@ -107,7 +112,7 @@ class UserManagementService {
       
       // Only update if there are fields to update
       if (cleanData.isNotEmpty) {
-        await client.from('user_management').update(cleanData).eq('id', id);
+        await client.from('users').update(cleanData).eq('id', id);
       }
     } catch (e) {
       throw Exception('Failed to update user: $e');

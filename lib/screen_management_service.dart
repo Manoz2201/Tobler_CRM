@@ -12,7 +12,7 @@ class ScreenManagementService {
 
   static Future<List<Map<String, dynamic>>> fetchScreens() async {
     final response = await client
-        .from('user_management')
+        .from('users')
         .select()
         .order('created_at', ascending: false);
     return List<Map<String, dynamic>>.from(response);
@@ -26,7 +26,7 @@ class ScreenManagementService {
     String? screenType,
     String? description,
   }) async {
-    await client.from('user_management').insert({
+    await client.from('users').insert({
       'user_name': userName,
       'user_type': userType,
       'status': status,
@@ -46,7 +46,7 @@ class ScreenManagementService {
     String? description,
   }) async {
     await client
-        .from('user_management')
+        .from('users')
         .update({
           'user_name': userName,
           'user_type': userType,
@@ -59,6 +59,6 @@ class ScreenManagementService {
   }
 
   static Future<void> deleteScreen(String id) async {
-    await client.from('user_management').delete().eq('id', id);
+    await client.from('users').delete().eq('id', id);
   }
 }

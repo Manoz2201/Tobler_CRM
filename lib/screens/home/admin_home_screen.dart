@@ -1400,364 +1400,154 @@ class _AdminLeadsPageState extends State<_AdminLeadsPage> {
               ),
             ],
           );
-        } else {
-          // Mobile: stack/list view with expandable card
-          if (_expandedIndex != null) {
-            final lead = leads[_expandedIndex!];
-            return SafeArea(
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  } else {
+            // Mobile: stack/list view with expandable card
+            if (_expandedIndex != null) {
+              final lead = leads[_expandedIndex!];
+              return SafeArea(
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: Icon(Icons.arrow_back),
+                              onPressed: _collapseCard,
+                              tooltip: 'Back to Leads',
+                            ),
+                            Text(
+                              'Lead Details',
+                              style: Theme.of(context).textTheme.headlineSmall,
+                            ),
+                          ],
+                        ),
+                        Card(
+                          elevation: 3,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(20.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  lead['lead_type'] ?? '-',
+                                  style: TextStyle(
+                                    color: Colors.green[700],
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                SizedBox(height: 6),
+                                Text(
+                                  lead['client_name'] ?? '-',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                SizedBox(height: 4),
+                                Text('Project: ${lead['project_name'] ?? '-'}'),
+                                Text(
+                                  'Location: ${lead['project_location'] ?? '-'}',
+                                ),
+                                Text(
+                                  'Main Contact: ${lead['main_contact_name'] ?? '-'}',
+                                ),
+                                SizedBox(height: 12),
+                                Text('Remark: ${lead['remark'] ?? '-'}'),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }
+            // Show all cards
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: Icon(Icons.arrow_back),
-                            onPressed: _collapseCard,
-                            tooltip: 'Back to Leads',
-                          ),
-                          Text(
-                            'Lead Details',
-                            style: Theme.of(context).textTheme.headlineSmall,
-                          ),
-                        ],
-                      ),
-                      Card(
-                        elevation: 3,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(20.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                lead['lead_type'] ?? '-',
-                                style: TextStyle(
-                                  color: Colors.green[700],
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              SizedBox(height: 6),
-                              Text(
-                                lead['client_name'] ?? '-',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              SizedBox(height: 4),
-                              Text('Project: ${lead['project_name'] ?? '-'}'),
-                              Text(
-                                'Location: ${lead['project_location'] ?? '-'}',
-                              ),
-                              Text(
-                                'Main Contact: ${lead['main_contact_name'] ?? '-'}',
-                              ),
-                              SizedBox(height: 12),
-                              Text('Remark: ${lead['remark'] ?? '-'}'),
-                            ],
-                          ),
+                      Text(
+                        'Leads',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                      SizedBox(height: 16),
-                      Card(
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(20.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Activity Timeline',
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                              Divider(),
-                              if (_isActivityLoading)
-                                Center(child: CircularProgressIndicator()),
-                              if (_activityError != null)
-                                Text(
-                                  _activityError!,
-                                  style: TextStyle(color: Colors.red),
-                                ),
-                              if (!_isActivityLoading &&
-                                  _activityError == null &&
-                                  _activityTimeline.isEmpty)
-                                Text('No activity yet.'),
-                              if (!_isActivityLoading &&
-                                  _activityError == null &&
-                                  _activityTimeline.isNotEmpty)
-                                ..._activityTimeline.map(
-                                  (a) => Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 8,
-                                    ),
-                                    child: Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          '${a['activity_date']} ${a['activity_time']}',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        SizedBox(width: 12),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                a['activity'] ?? '-',
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                              if ((a['changes_made'] ?? '')
-                                                  .toString()
-                                                  .isNotEmpty)
-                                                Text(
-                                                  'Changes: ${a['changes_made']}',
-                                                ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
+                      IconButton(
+                        icon: Icon(Icons.refresh),
+                        tooltip: 'Refresh',
+                        onPressed: _fetchLeads,
                       ),
-                      SizedBox(height: 16),
-                      // Main Contacts Section
-                      if (_mainContacts.isNotEmpty)
-                        Card(
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(20.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Main Contacts',
-                                  style: Theme.of(
-                                    context,
-                                  ).textTheme.titleMedium,
-                                ),
-                                Divider(),
-                                if (_isContactsLoading)
-                                  Center(child: CircularProgressIndicator()),
-                                if (_contactsError != null)
-                                  Text(
-                                    _contactsError!,
-                                    style: TextStyle(color: Colors.red),
-                                  ),
-                                if (!_isContactsLoading &&
-                                    _contactsError == null)
-                                  ..._mainContacts.map(
-                                    (contact) => Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 8,
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            '${contact['name'] ?? 'N/A'} (${contact['designation'] ?? 'N/A'})',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                            ),
-                                          ),
-                                          SizedBox(height: 4),
-                                          Text(
-                                            'Email: ${contact['email'] ?? 'N/A'}',
-                                            style: TextStyle(fontSize: 14),
-                                          ),
-                                          Text(
-                                            'Phone: ${contact['phone'] ?? 'N/A'}',
-                                            style: TextStyle(fontSize: 14),
-                                          ),
-                                          if (contact['company'] != null)
-                                            Text(
-                                              'Company: ${contact['company']}',
-                                              style: TextStyle(fontSize: 14),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      // Lead Contacts Section
-                      if (_leadContacts.isNotEmpty)
-                        Card(
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(20.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Contacts',
-                                  style: Theme.of(
-                                    context,
-                                  ).textTheme.titleMedium,
-                                ),
-                                Divider(),
-                                if (_isContactsLoading)
-                                  Center(child: CircularProgressIndicator()),
-                                if (_contactsError != null)
-                                  Text(
-                                    _contactsError!,
-                                    style: TextStyle(color: Colors.red),
-                                  ),
-                                if (!_isContactsLoading &&
-                                    _contactsError == null)
-                                  ..._leadContacts.map(
-                                    (contact) => Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 8,
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            '${contact['name'] ?? 'N/A'} (${contact['role'] ?? 'N/A'})',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                            ),
-                                          ),
-                                          SizedBox(height: 4),
-                                          Text(
-                                            'Email: ${contact['email'] ?? 'N/A'}',
-                                            style: TextStyle(fontSize: 14),
-                                          ),
-                                          Text(
-                                            'Phone: ${contact['phone'] ?? 'N/A'}',
-                                            style: TextStyle(fontSize: 14),
-                                          ),
-                                          if (contact['notes'] != null)
-                                            Text(
-                                              'Notes: ${contact['notes']}',
-                                              style: TextStyle(fontSize: 14),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
                     ],
                   ),
                 ),
-              ),
-            );
-          }
-          // Show all cards
-          return Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Leads',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.refresh),
-                      tooltip: 'Refresh',
-                      onPressed: _fetchLeads,
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(24),
-                  itemCount: leads.length,
-                  itemBuilder: (context, index) {
-                    final lead = leads[index];
-                    return GestureDetector(
-                      onTap: () => _expandCard(index),
-                      child: Card(
-                        margin: const EdgeInsets.symmetric(vertical: 12),
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(20.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                lead['lead_type'] ?? '-',
-                                style: TextStyle(
-                                  color: Colors.green[700],
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(24),
+                    itemCount: leads.length,
+                    itemBuilder: (context, index) {
+                      final lead = leads[index];
+                      return GestureDetector(
+                        onTap: () => _expandCard(index),
+                        child: Card(
+                          margin: const EdgeInsets.symmetric(vertical: 12),
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(20.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  lead['lead_type'] ?? '-',
+                                  style: TextStyle(
+                                    color: Colors.green[700],
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
                                 ),
-                              ),
-                              SizedBox(height: 6),
-                              Text(
-                                lead['client_name'] ?? '-',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
+                                SizedBox(height: 6),
+                                Text(
+                                  lead['client_name'] ?? '-',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
-                              ),
-                              SizedBox(height: 4),
-                              Text('Project: ${lead['project_name'] ?? '-'}'),
-                              Text(
-                                'Location: ${lead['project_location'] ?? '-'}',
-                              ),
-                              Text(
-                                'Main Contact: ${lead['main_contact_name'] ?? '-'}',
-                              ),
-                            ],
+                                SizedBox(height: 4),
+                                Text('Project: ${lead['project_name'] ?? '-'}'),
+                                Text(
+                                  'Location: ${lead['project_location'] ?? '-'}',
+                                ),
+                                Text(
+                                  'Main Contact: ${lead['main_contact_name'] ?? '-'}',
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
-              ),
-            ],
-          );
-        }
+              ],
+            );
+          }
       },
     );
   }
@@ -2100,6 +1890,7 @@ class _LeadTableState extends State<LeadTable> {
 
     try {
       final client = Supabase.instance.client;
+      debugPrint('🔄 Starting to fetch leads data...');
 
       // Fetch leads data
       final leadsResult = await client
@@ -2108,19 +1899,24 @@ class _LeadTableState extends State<LeadTable> {
             'id, created_at, project_name, client_name, project_location, lead_generated_by',
           )
           .order('created_at', ascending: false);
+      
+      debugPrint('✅ Fetched ${leadsResult.length} leads from leads table');
 
       // Fetch users data for sales person names
       final usersResult = await client.from('users').select('id, username');
+      debugPrint('✅ Fetched ${usersResult.length} users from users table');
 
       // Fetch proposal_input data for Area and MS Weight
       final proposalInputResult = await client
           .from('proposal_input')
           .select('lead_id, input, value');
+      debugPrint('✅ Fetched ${proposalInputResult.length} proposal inputs from proposal_input table');
 
       // Fetch admin_response data for Rate sq/m and approval status
       final adminResponseResult = await client
           .from('admin_response')
           .select('lead_id, rate_sqm, status, remark');
+      debugPrint('✅ Fetched ${adminResponseResult.length} admin responses from admin_response table');
 
       // Create maps for quick lookup
       final Map<String, String> userMap = {};
@@ -2198,12 +1994,23 @@ class _LeadTableState extends State<LeadTable> {
         _totalAmounts[leadId] = totalAmount;
       }
 
+      debugPrint('✅ Processed ${joinedLeads.length} joined leads');
+      debugPrint('📊 Lead status breakdown:');
+      for (final lead in joinedLeads.take(5)) {
+        final status = _getLeadStatus(lead);
+        debugPrint('  - Lead ${lead['lead_id']}: ${lead['project_name']} -> Status: $status');
+      }
+      
       setState(() {
         _leads = joinedLeads;
         _filteredLeads = joinedLeads;
         _isLoading = false;
       });
+      
+      final stats = _calculateStats();
+      debugPrint('📈 Calculated stats: Total=${stats['total']}, New=${stats['new']}, Progress=${stats['proposalProgress']}, Waiting=${stats['waiting']}, Approved=${stats['approved']}');
     } catch (e) {
+      debugPrint('❌ Error fetching leads: $e');
       setState(() {
         _isLoading = false;
       });
