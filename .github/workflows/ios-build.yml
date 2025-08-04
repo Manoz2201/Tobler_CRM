@@ -48,6 +48,13 @@ jobs:
       run: |
         sudo xcode-select --switch /Applications/Xcode.app
         sudo xcodebuild -license accept
+        sudo gem install cocoapods
+    
+    - name: Setup iOS project
+      run: |
+        cd ios
+        pod install --repo-update
+        cd ..
     
     - name: Build iOS
       run: |
@@ -74,6 +81,11 @@ jobs:
     
     - name: Install dependencies
       run: flutter pub get
+    
+    - name: Setup macOS
+      run: |
+        sudo xcode-select --switch /Applications/Xcode.app
+        sudo xcodebuild -license accept
     
     - name: Build macOS
       run: flutter build macos --release
