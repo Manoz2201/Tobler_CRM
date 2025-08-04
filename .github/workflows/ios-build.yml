@@ -7,8 +7,8 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  build-all:
+    runs-on: macos-latest
     steps:
     - uses: actions/checkout@v4
     
@@ -26,23 +26,6 @@ jobs:
     
     - name: Analyze project source
       run: flutter analyze
-    
-    - name: Build APK
-      run: flutter build apk --release
-
-  build-ios:
-    runs-on: macos-latest
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Flutter
-      uses: subosito/flutter-action@v2
-      with:
-        flutter-version: '3.32.8'
-        channel: 'stable'
-    
-    - name: Install dependencies
-      run: flutter pub get
     
     - name: Setup iOS
       run: |
@@ -64,9 +47,10 @@ jobs:
         cd ..
     
     - name: Build iOS
-      run: |
-        flutter build ios --release --no-codesign
-        flutter build ios --release --no-codesign --flavor development
+      run: flutter build ios --release --no-codesign
+    
+    - name: Build macOS
+      run: flutter build macos --release
     
     - name: Upload iOS build artifacts
       uses: actions/upload-artifact@v4
@@ -74,28 +58,6 @@ jobs:
         name: ios-build
         path: build/ios/iphoneos/
         retention-days: 7
-
-  build-macos:
-    runs-on: macos-latest
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Flutter
-      uses: subosito/flutter-action@v2
-      with:
-        flutter-version: '3.32.8'
-        channel: 'stable'
-    
-    - name: Install dependencies
-      run: flutter pub get
-    
-    - name: Setup macOS
-      run: |
-        sudo xcode-select --switch /Applications/Xcode.app
-        sudo xcodebuild -license accept
-    
-    - name: Build macOS
-      run: flutter build macos --release
     
     - name: Upload macOS build artifacts
       uses: actions/upload-artifact@v4
