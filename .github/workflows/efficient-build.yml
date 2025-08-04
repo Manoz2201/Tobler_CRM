@@ -1,0 +1,84 @@
+name: Efficient Flutter Builds (Free Minutes)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # Priority 1: Web build (Ubuntu - cheapest)
+  build-web:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.32.8'
+        channel: 'stable'
+    
+    - name: Install dependencies
+      run: flutter pub get
+    
+    - name: Run tests
+      run: flutter test
+    
+    - name: Analyze project source
+      run: flutter analyze
+    
+    - name: Build Web
+      run: flutter build web --release
+    
+    - name: Upload Web build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: web-build
+        path: build/web/
+        retention-days: 7
+
+  # Priority 2: iOS build (macOS - most expensive, but essential)
+  build-ios:
+    runs-on: macos-latest
+    if: github.event_name == 'push' # Only run on push, not PR
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.32.8'
+        channel: 'stable'
+    
+    - name: Install dependencies
+      run: flutter pub get
+    
+    - name: Setup iOS
+      run: |
+        sudo xcode-select --switch /Applications/Xcode.app
+        sudo xcodebuild -license accept
+        sudo gem install cocoapods -v 1.12.1
+    
+    - name: Setup iOS project
+      run: |
+        cd ios
+        pod install --repo-update
+        cd ..
+    
+    - name: Disable code signing
+      run: |
+        cd ios
+        sed -i '' 's/CODE_SIGNING_REQUIRED = YES/CODE_SIGNING_REQUIRED = NO/' Runner.xcodeproj/project.pbxproj
+        sed -i '' 's/CODE_SIGNING_ALLOWED = YES/CODE_SIGNING_ALLOWED = NO/' Runner.xcodeproj/project.pbxproj
+        cd ..
+    
+    - name: Build iOS
+      run: flutter build ios --release --no-codesign
+    
+    - name: Upload iOS build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ios-build
+        path: build/ios/iphoneos/
+        retention-days: 7 

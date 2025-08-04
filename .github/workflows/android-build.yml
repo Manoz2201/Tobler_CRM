@@ -2,9 +2,12 @@ name: Build Flutter App for Android
 
 on:
   push:
-    branches: [ main, develop ]
-  pull_request:
     branches: [ main ]
+    paths:
+      - 'lib/**'
+      - 'android/**'
+      - 'pubspec.yaml'
+  workflow_dispatch: # Manual trigger
 
 jobs:
   build-android:
