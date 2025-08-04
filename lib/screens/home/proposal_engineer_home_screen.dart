@@ -90,7 +90,7 @@ class _ProposalHomeScreenState extends State<ProposalHomeScreen> {
   }
 
   late final List<Widget> _pages = <Widget>[
-    const Center(child: Text('Proposal Engineer Dashboard')),
+    ProposalDashboardScreen(currentUserId: widget.currentUserId),
     ProposalScreen(currentUserId: widget.currentUserId),
     const Center(child: Text('Clients List')),
     const Center(child: Text('Reports')),
@@ -442,15 +442,44 @@ class _ProposalScreenState extends State<ProposalScreen> {
     {'title': 'Proposal C', 'client': 'Client Z', 'status': 'Approved'},
   ];
 
-  Future<void> _logScreenManagementEvent(String event) async {
-    debugPrint('Screen Management Event: $event');
-    // Log to Supabase for developer monitoring
-    await Supabase.instance.client.from('screen_management_events').insert({
-      'user_type': 'Proposal Engineer',
-      'event': event,
-      'timestamp': DateTime.now().toIso8601String(),
-    });
+  List<Map<String, dynamic>> _inquiries = [];
+  List<Map<String, dynamic>> _submittedInquiries = [];
+  String? _selectedStatusFilter;
+  final Map<String, bool> _hoveredRows = {};
+  bool _isLoading = false;
+  String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
   }
+
+  Future<void> _loadData() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final inquiries = await _fetchLeadsWithoutProposals();
+      final submittedInquiries = await _fetchLeadsWithProposals();
+      
+      setState(() {
+        _inquiries = inquiries;
+        _submittedInquiries = submittedInquiries;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      debugPrint('Error loading data: $e');
+    }
+  }
+
+
+
+
 
   Future<List<Map<String, dynamic>>> _fetchLeadsWithoutProposals() async {
     final client = Supabase.instance.client;
@@ -531,6 +560,8 @@ class _ProposalScreenState extends State<ProposalScreen> {
     return List<Map<String, dynamic>>.from(leadsWithUsernames);
   }
 
+
+
   Future<List<Map<String, dynamic>>> _fetchSubmittedProposals(
     String leadId,
   ) async {
@@ -570,452 +601,722 @@ class _ProposalScreenState extends State<ProposalScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Proposals'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.analytics),
-              tooltip: 'Log screen management event',
-              onPressed: () => _logScreenManagementEvent('Viewed proposals'),
-            ),
-          ],
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(48),
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white.withAlpha((0.18 * 255).round()),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: TabBar(
-                indicator: BoxDecoration(
-                  color: const Color(
-                    0xFF1976D2,
-                  ).withAlpha((0.6 * 255).round()), // 40% translucent
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                indicatorSize: TabBarIndicatorSize.tab,
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.blueGrey[700],
-                labelStyle: const TextStyle(
+    return Scaffold(
+      body: _buildInquiriesContent(context),
+    );
+  }
+
+  Widget _buildInquiriesContent(BuildContext context) {
+    final isWide = MediaQuery.of(context).size.width > 700;
+    
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+
+
+    if (isWide) {
+      // Desktop/Tablet layout
+      return Column(
+        children: [
+          // Header with stats and refresh
+          _buildHeader(context, 'Inquiries', _filteredData.length),
+          // Stats cards
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: _buildStatsCards(),
+          ),
+          // Table
+          Expanded(
+            child: _buildTable(context, _filteredData),
+          ),
+        ],
+      );
+    } else {
+      // Mobile layout
+      return Column(
+        children: [
+          // Mobile header
+          _buildMobileHeader(context, 'Inquiries', _filteredData.length),
+          // Mobile stats
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: _buildMobileStatsCards(),
+          ),
+          // Mobile list
+          Expanded(
+            child: _buildMobileList(context, _filteredData),
+          ),
+        ],
+      );
+    }
+  }
+
+  Widget _buildHeader(BuildContext context, String title, int count) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.assignment, size: 24, color: Colors.blue[700]),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  fontSize: 16,
+                    color: Colors.grey[800],
+                  ),
                 ),
-                unselectedLabelStyle: const TextStyle(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 16,
+                Text(
+                  '$count inquiries',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
                 ),
-                overlayColor: WidgetStateProperty.all(
-                  Colors.transparent,
-                ), // remove hover effect
-                tabs: const [
-                  Tab(text: 'Inquiries'),
-                  Tab(text: 'Submitted Inquiries'),
                 ],
               ),
             ),
+          // Search Bar
+          Expanded(
+            child: Container(
+              height: 40,
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: TextField(
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value.toLowerCase();
+                  });
+                },
+                decoration: InputDecoration(
+                  hintText: 'Search inquiries...',
+                  hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
+                  prefixIcon: Icon(Icons.search, color: Colors.grey[600], size: 20),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+                style: const TextStyle(fontSize: 14),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          ElevatedButton.icon(
+            onPressed: _loadData,
+            icon: const Icon(Icons.refresh, size: 18),
+            label: const Text('Refresh'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue[600],
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileHeader(BuildContext context, String title, int count) {
+    return Container(
+            padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+              Icon(Icons.assignment, size: 24, color: Colors.blue[700]),
+              const SizedBox(width: 8),
+                          Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: _loadData,
+                icon: const Icon(Icons.refresh, size: 16),
+                label: const Text('Refresh'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue[600],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Mobile Search Bar
+          Container(
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: TextField(
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value.toLowerCase();
+                });
+              },
+              decoration: InputDecoration(
+                hintText: 'Search inquiries...',
+                hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
+                prefixIcon: Icon(Icons.search, color: Colors.grey[600], size: 20),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              style: const TextStyle(fontSize: 14),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '$count inquiries',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Mobile stats cards
+          _buildMobileStatsCards(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsCards() {
+    final totalInquiries = _inquiries.length + _submittedInquiries.length;
+    final pendingInquiries = _inquiries.length;
+    final submittedInquiries = _getSubmittedCount();
+
+    return Row(
+      children: [
+        Expanded(
+          child: _buildStatCard(
+            'Total Inquiries',
+            totalInquiries.toString(),
+            Icons.assignment,
+            Colors.blue,
+            null,
+            onTap: () => _onStatusFilterChanged(null), // Show all
           ),
         ),
-        body: TabBarView(
-          children: [
-            // Inquiries Tab
-            _buildInquiriesTab(context),
-            // Submitted Inquiries Tab
-            _buildSubmittedInquiriesTab(context),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildStatCard(
+            'Pending',
+            pendingInquiries.toString(),
+            Icons.pending,
+            Colors.orange,
+            'Pending',
+            onTap: () => _onStatusFilterChanged('Pending'),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildStatCard(
+            'Submitted',
+            submittedInquiries.toString(),
+            Icons.check_circle,
+            Colors.green,
+            'Submitted',
+            onTap: () => _onStatusFilterChanged('Submitted'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  int _getSubmittedCount() {
+    // Return the count of submitted inquiries
+    return _submittedInquiries.length;
+  }
+
+  Widget _buildStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+    String? statusFilter,
+    {VoidCallback? onTap}
+  ) {
+    final isSelected = _selectedStatusFilter == statusFilter;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withValues(alpha: 0.1) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: isSelected ? Border.all(color: color, width: 2) : null,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: color, size: 24),
+                ),
+                const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                      Text(
+                        value,
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: isSelected ? color : Colors.grey[800],
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: isSelected ? color : Colors.grey[600],
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildInquiriesTab(BuildContext context) {
-    final isWide = MediaQuery.of(context).size.width > 700;
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: _fetchLeadsWithoutProposals(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return Text(
-            'Error loading inquiries',
-            style: TextStyle(color: Colors.red),
-          );
-        }
-        final inquiries = snapshot.data ?? [];
-        if (inquiries.isEmpty) {
-          return Text(
-            'No pending inquiries.',
-            style: TextStyle(color: Colors.grey),
-          );
-        }
-        if (isWide) {
-          // Grid for web/tablet
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                childAspectRatio: 2.2,
+  Widget _buildMobileStatsCards() {
+    final totalInquiries = _inquiries.length;
+    final pendingInquiries = _inquiries.length;
+    final submittedInquiries = _getSubmittedCount();
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _buildMobileStatCard(
+                'Total',
+                totalInquiries.toString(),
+                Icons.assignment,
+                Colors.blue,
               ),
-              itemCount: inquiries.length,
-              itemBuilder: (context, idx) {
-                final lead = inquiries[idx];
-                final date = lead['created_at'] != null
-                    ? DateFormat(
-                        'dd-MM-yyyy',
-                      ).format(DateTime.parse(lead['created_at']))
-                    : '-';
-                return glassCard(
-                  child: Stack(
-                    children: [
-                      Row(
-                        children: [
-                          // Left column
-                          Expanded(
-                            flex: 3,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          _labelValue(
-                                            'Client Name',
-                                            lead['client_name'],
-                                          ),
-                                          _labelValue(
-                                            'Project name',
-                                            lead['project_name'],
-                                          ),
-                                          _labelValue(
-                                            'Project Location',
-                                            lead['project_location'],
-                                          ),
-                                          Row(
-                                            children: [
-                                              const Text(
-                                                'Date',
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Text(
-                                                date,
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.blue,
-                                                  fontSize: 16,
-                                                ),
-                                              ),
-                                              const Spacer(),
-                                              Text(
-                                                'Added by: ${lead['username'] ?? 'Unknown User'}',
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 14,
-                                                  color: Colors.blue,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _buildMobileStatCard(
+                'Pending',
+                pendingInquiries.toString(),
+                Icons.pending,
+                Colors.orange,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _buildMobileStatCard(
+                'Submitted',
+                submittedInquiries.toString(),
+                Icons.check_circle,
+                Colors.green,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 12),
-                                const Divider(),
-                                const SizedBox(height: 4),
-                                const Text(
-                                  'REMARK',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 20),
                                 const SizedBox(height: 4),
                                 Text(
-                                  lead['remark'] ??
-                                      'Take your project from prototype to production with these essential integrations and features.',
-                                  style: const TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                                // Add space for buttons to prevent overlap
-                                const SizedBox(height: 60),
-                              ],
-                            ),
-                          ),
-                          // Remove the vertical divider and right column (Main Contact only)
-                          // The contact information section has been removed
-                        ],
-                      ),
-                      Positioned(
-                        bottom: 8,
-                        right: 8,
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+          ),
+                                Text(
+            title,
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTable(BuildContext context, List<Map<String, dynamic>> data) {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Results count
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
+              ),
+            ),
                         child: Row(
-                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            SizedBox(
-                              width: 40,
-                              height: 40,
-                              child: IconButton(
-                                onPressed: () {
-                                  _showAlertsDialog(context, lead);
-                                },
-                                icon: const Icon(
-                                  Icons.notifications,
-                                  color: Colors.red,
-                                ),
-                                tooltip: 'Alert',
-                                padding: EdgeInsets.zero,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            SizedBox(
-                              width: 40,
-                              height: 40,
-                              child: IconButton(
-                                onPressed: () {
-                                  showDialog(
-                                    context: context,
-                                    builder: (context) =>
-                                        QueryDialog(lead: lead),
-                                  );
-                                },
-                                icon: const Icon(
-                                  Icons.chat,
-                                  color: Colors.orange,
-                                ),
-                                tooltip: 'Query',
-                                padding: EdgeInsets.zero,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            ElevatedButton(
-                              onPressed: () {
-                                showDialog(
-                                  context: context,
-                                  builder: (context) => ProposalResponseDialog(
-                                    lead: lead,
-                                    currentUserId: widget.currentUserId,
-                                  ),
-                                );
-                              },
-                              child: const Text('Propose'),
-                            ),
-                          ],
+                Expanded(
+                  child: Text(
+                    '${data.length} inquiries',
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Table Header
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              border: Border(top: BorderSide(color: Colors.grey[200]!)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: const Text(
+                      'Client/Date',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                      softWrap: true,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: const Text(
+                      'Project',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                      softWrap: true,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 1,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: const Text(
+                      'Location',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                      softWrap: true,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 1,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: const Text(
+                      'Added By',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                      softWrap: true,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: const Text(
+                      'Actions',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                      softWrap: true,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
                         ),
                       ),
                     ],
                   ),
-                );
+          ),
+          // Table Body
+          Expanded(
+            child: ListView.builder(
+              itemCount: data.length,
+              itemBuilder: (context, index) {
+                final inquiry = data[index];
+                return _buildTableRow(inquiry, index);
               },
             ),
-          );
-        } else {
-          // Stack/list for mobile
-          return ListView(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-            children: inquiries.map((lead) {
-              final date = lead['created_at'] != null
-                  ? DateFormat(
-                      'dd-MM-yyyy',
-                    ).format(DateTime.parse(lead['created_at']))
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTableRow(Map<String, dynamic> inquiry, int index) {
+    final inquiryId = inquiry['id'].toString();
+    final date = inquiry['created_at'] != null
+        ? DateFormat('dd-MM-yyyy').format(DateTime.parse(inquiry['created_at']))
                   : '-';
-              return SizedBox(
-                width: double.infinity,
-                child: glassCard(
-                  child: Stack(
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          color: (index % 2 == 0 ? Colors.white : Colors.grey[50]),
+          border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => _viewInquiryDetails(inquiry),
+            onHover: (isHovered) {
+              setState(() {
+                _hoveredRows[inquiryId] = isHovered;
+              });
+            },
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              child: Row(
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
+                  // Client/Date
                               Expanded(
+                    flex: 2,
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    _labelValue(
-                                      'Client Name',
-                                      lead['client_name'],
-                                    ),
-                                    _labelValue(
-                                      'Project name',
-                                      lead['project_name'],
-                                    ),
-                                    _labelValue(
-                                      'Project Location',
-                                      lead['project_location'],
-                                    ),
-                                    Row(
-                                      children: [
-                                        const Text(
-                                          'Date',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
                                         Text(
-                                          date,
+                          inquiry['client_name'] ?? 'N/A',
                                           style: const TextStyle(
                                             fontWeight: FontWeight.bold,
-                                            color: Colors.blue,
-                                            fontSize: 16,
+                            fontSize: 14,
                                           ),
+                          overflow: TextOverflow.ellipsis,
                                         ),
-                                        const Spacer(),
+                        const SizedBox(height: 4),
                                         Text(
-                                          'Added by: ${lead['username'] ?? 'Unknown User'}',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 14,
-                                            color: Colors.blue,
+                          date,
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
                                           ),
                                         ),
                                       ],
                                     ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          const Divider(),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'REMARK',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            lead['remark'] ??
-                                'Take your project from prototype to production with these essential integrations and features.',
-                            style: const TextStyle(
-                              color: Colors.grey,
-                              fontSize: 14,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          // Add space for buttons to prevent overlap
-                          const SizedBox(height: 60),
-                        ],
-                      ),
-                      Positioned(
-                        bottom: 8,
-                        right: 8,
+                  ),
+                  // Project
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      inquiry['project_name'] ?? 'N/A',
+                      style: const TextStyle(fontSize: 14),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  // Location
+                  Expanded(
+                    flex: 1,
+                    child: Text(
+                      inquiry['project_location'] ?? 'N/A',
+                      style: const TextStyle(fontSize: 14),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  // Added By
+                  Expanded(
+                    flex: 1,
+                    child: Text(
+                      inquiry['username'] ?? 'Unknown',
+                      style: const TextStyle(fontSize: 14),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  // Actions
+                  Expanded(
+                    flex: 2,
                         child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            SizedBox(
-                              width: 40,
-                              height: 40,
-                              child: IconButton(
-                                onPressed: () {
-                                  _showAlertsDialog(context, lead);
-                                },
-                                icon: const Icon(
-                                  Icons.notifications,
-                                  color: Colors.red,
-                                ),
+                        IconButton(
+                          onPressed: () => _showAlertsDialog(context, inquiry),
+                          icon: const Icon(Icons.notifications, color: Colors.red),
                                 tooltip: 'Alert',
-                                padding: EdgeInsets.zero,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            SizedBox(
-                              width: 40,
-                              height: 40,
-                              child: IconButton(
+                        ),
+                        IconButton(
                                 onPressed: () {
                                   showDialog(
                                     context: context,
-                                    builder: (context) =>
-                                        QueryDialog(lead: lead),
+                              builder: (context) => QueryDialog(lead: inquiry),
                                   );
                                 },
-                                icon: const Icon(
-                                  Icons.chat,
-                                  color: Colors.orange,
-                                ),
+                          icon: const Icon(Icons.chat, color: Colors.orange),
                                 tooltip: 'Query',
-                                padding: EdgeInsets.zero,
-                              ),
+                        ),
+                        // Show different action based on whether inquiry is submitted or pending
+                        if (_isSubmittedInquiry(inquiry))
+                          ElevatedButton(
+                            onPressed: () => _viewSubmittedProposal(context, inquiry),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green[600],
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             ),
-                            const SizedBox(width: 8),
+                            child: const Text('View'),
+                          )
+                        else
                             ElevatedButton(
                               onPressed: () {
                                 showDialog(
                                   context: context,
                                   builder: (context) => ProposalResponseDialog(
-                                    lead: lead,
+                                  lead: inquiry,
                                     currentUserId: widget.currentUserId,
                                   ),
                                 );
                               },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue[600],
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            ),
                               child: const Text('Propose'),
                             ),
                           ],
                         ),
                       ),
                     ],
-                  ),
-                ),
-              );
-            }).toList(),
-          );
-        }
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileList(BuildContext context, List<Map<String, dynamic>> data) {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: data.length,
+      itemBuilder: (context, index) {
+        final inquiry = data[index];
+        return _buildMobileCard(inquiry, index);
       },
     );
   }
 
-  Widget _buildSubmittedInquiriesTab(BuildContext context) {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: _fetchLeadsWithProposals(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return Text(
-            'Error loading submitted inquiries',
-            style: TextStyle(color: Colors.red),
-          );
-        }
-        final submittedInquiries = snapshot.data ?? [];
-        if (submittedInquiries.isEmpty) {
-          return Text(
-            'No submitted inquiries.',
-            style: TextStyle(color: Colors.grey),
-          );
-        }
-        return ListView.builder(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-          shrinkWrap: true,
-          itemCount: submittedInquiries.length,
-          itemBuilder: (context, idx) {
-            final lead = submittedInquiries[idx];
-            final date = lead['created_at'] != null
-                ? DateFormat(
-                    'dd-MM-yyyy',
-                  ).format(DateTime.parse(lead['created_at']))
+  Widget _buildMobileCard(Map<String, dynamic> inquiry, int index) {
+    final date = inquiry['created_at'] != null
+        ? DateFormat('dd-MM-yyyy').format(DateTime.parse(inquiry['created_at']))
                 : '-';
-            return glassCard(
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1025,367 +1326,247 @@ class _ProposalScreenState extends State<ProposalScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _labelValue('Client Name', lead['client_name']),
-                            _labelValue('Project name', lead['project_name']),
-                            _labelValue(
-                              'Project Location',
-                              lead['project_location'],
-                            ),
-                            Row(
-                              children: [
-                                const Text(
-                                  'Date',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                                const SizedBox(width: 8),
                                 Text(
-                                  date,
+                        inquiry['client_name'] ?? 'N/A',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.blue,
                                     fontSize: 16,
                                   ),
                                 ),
-                              ],
+                      const SizedBox(height: 4),
+                      Text(
+                        inquiry['project_name'] ?? 'N/A',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 14,
+                        ),
                             ),
                           ],
                         ),
                       ),
-                      // Contact info
                       Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          const Text(
-                            'CONTACT',
+                    Text(
+                      date,
                             style: TextStyle(
+                        color: Colors.blue[600],
                               fontWeight: FontWeight.bold,
-                              color: Colors.grey,
+                        fontSize: 12,
                             ),
                           ),
-                          const SizedBox(height: 8),
+                    const SizedBox(height: 4),
                           Text(
-                            lead['main_contact_name'] ?? '',
-                            style: const TextStyle(fontWeight: FontWeight.w500),
-                          ),
-                          if ((lead['main_contact_email'] ?? '').isNotEmpty)
-                            Text(
-                              lead['main_contact_email'] ?? '',
-                              style: const TextStyle(fontSize: 13),
-                            ),
-                          if ((lead['main_contact_mobile'] ?? '').isNotEmpty)
-                            Text(
-                              lead['main_contact_mobile'] ?? '',
-                              style: const TextStyle(fontSize: 13),
+                      inquiry['username'] ?? 'Unknown',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 12,
+                      ),
                             ),
                         ],
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  const Divider(),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Submitted Proposal Responses',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      FutureBuilder<List<Map<String, dynamic>>>(
-                        future: _fetchSubmittedProposals(lead['id']),
-                        builder: (context, proposalsSnapshot) {
-                          if (proposalsSnapshot.connectionState ==
-                              ConnectionState.waiting) {
-                            return const SizedBox(
-                              width: 80,
-                              height: 16,
-                            ); // placeholder
-                          }
-                          final proposals = proposalsSnapshot.data ?? [];
-                          if (proposals.isEmpty ||
-                              proposals.first['user_id'] == null) {
-                            return const SizedBox();
-                          }
-                          return FutureBuilder<Map<String, dynamic>?>(
-                            future: _fetchUserInfo(
-                              proposals.first['user_id']?.toString(),
-                            ),
-                            builder: (context, userSnapshot) {
-                              if (userSnapshot.connectionState ==
-                                  ConnectionState.waiting) {
-                                return const SizedBox(
-                                  width: 80,
-                                  height: 16,
-                                ); // placeholder
-                              }
-                              final user = userSnapshot.data;
-                              if (user == null) return const SizedBox();
-                              return Text(
-                                '${user['username'] ?? ''} (${user['employee_code'] ?? ''})',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.blueGrey,
-                                  fontSize: 14,
-                                ),
-                              );
-                            },
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  FutureBuilder<List<Map<String, dynamic>>>(
-                    future: _fetchSubmittedProposals(lead['id']),
-                    builder: (context, proposalsSnapshot) {
-                      if (proposalsSnapshot.connectionState ==
-                          ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      final proposals = proposalsSnapshot.data ?? [];
-                      if (proposals.isEmpty) {
-                        return const Text('No proposal responses.');
-                      }
-                      // Group by type
-                      final files = proposals
-                          .where((p) => p['type'] == 'file')
-                          .toList();
-                      final inputs = proposals
-                          .where((p) => p['type'] == 'input')
-                          .toList();
-                      final remarks = proposals
-                          .where((p) => p['type'] == 'remark')
-                          .toList();
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (files.isNotEmpty) ...[
-                            const Text(
-                              'Files:',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            ...files.map(
-                              (file) => Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 2.0,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        'Name: ${file['file_name']}',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ),
-                                    if ((file['file_link'] ?? '').isNotEmpty)
-                                      Expanded(
-                                        child: Text(
-                                          'Link: ${file['file_link']}',
-                                          style: const TextStyle(
-                                            color: Colors.blue,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                          ],
-                          if (inputs.isNotEmpty) ...[
-                            const Text(
-                              'Inputs:',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            ...inputs.map(
-                              (input) => Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 2.0,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        'Input: ${input['input']}',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: Text(
-                                        'Value: ${input['value']} ${input['unit']}',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                          ],
-                          if (remarks.isNotEmpty) ...[
-                            const Text(
-                              'Remarks:',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            ...remarks.map(
-                              (remark) => Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 2.0,
-                                ),
-                                child: Text(
-                                  '${remark['remark']}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  const Divider(),
-                  const Text(
-                    'Activity Log',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  FutureBuilder<List<Map<String, dynamic>>>(
-                    future: fetchLeadActivity(lead['id']),
-                    builder: (context, activitySnapshot) {
-                      if (activitySnapshot.connectionState ==
-                          ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      final activities = activitySnapshot.data ?? [];
-                      if (activities.isEmpty) {
-                        return const Text(
-                          'No activity yet.',
-                          style: TextStyle(color: Colors.grey),
-                        );
-                      }
-                      return Column(
-                        children: activities.map((activity) {
-                          return FutureBuilder<Map<String, dynamic>?>(
-                            future: _fetchUserInfo(
-                              activity['user_id']?.toString(),
-                            ),
-                            builder: (context, userSnapshot) {
-                              final user = userSnapshot.data;
-                              final userStr = user != null
-                                  ? '${user['username'] ?? 'Unknown'} (${user['employee_code'] ?? 'N/A'})'
-                                  : 'Unknown User';
-                              final activityType =
-                                  activity['activity_type'] ?? '';
-                              final timestamp = activity['created_at'] != null
-                                  ? DateFormat('yyyy-MM-dd HH:mm').format(
-                                      DateTime.parse(activity['created_at']),
-                                    )
-                                  : '';
-                              final changes = activity['changes_made'];
-                              String changesSummary = '';
-                              if (changes is Map ||
-                                  changes is List ||
-                                  (changes is String &&
-                                      changes.startsWith('{'))) {
-                                final parsed = changes is String
-                                    ? jsonDecode(changes)
-                                    : changes;
-                                if (parsed is Map) {
-                                  if (parsed['files'] != null &&
-                                      (parsed['files'] as List).isNotEmpty) {
-                                    changesSummary +=
-                                        'Files: ${(parsed['files'] as List).map((f) => f['file_name']).join(', ')}\n';
-                                  }
-                                  if (parsed['inputs'] != null &&
-                                      (parsed['inputs'] as List).isNotEmpty) {
-                                    changesSummary +=
-                                        'Inputs: ${(parsed['inputs'] as List).map((i) => i['input']).join(', ')}\n';
-                                  }
-                                  if (parsed['remark'] != null &&
-                                      (parsed['remark'] as String).isNotEmpty) {
-                                    changesSummary +=
-                                        'Remark: ${parsed['remark']}';
-                                  }
-                                }
-                              } else if (changes is String) {
-                                changesSummary = changes;
-                              }
-                              return ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                title: Text(
-                                  '$userStr • $activityType',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      timestamp,
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                    if (changesSummary.isNotEmpty)
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          top: 2.0,
-                                        ),
-                                        child: Text(
-                                          changesSummary.trim(),
-                                          style: const TextStyle(fontSize: 13),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              );
-                            },
-                          );
-                        }).toList(),
-                      );
-                    },
-                  ),
-                ],
+            Text(
+              inquiry['project_location'] ?? 'N/A',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 14,
               ),
-            );
-          },
-        );
-      },
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                IconButton(
+                  onPressed: () => _showAlertsDialog(context, inquiry),
+                  icon: const Icon(Icons.notifications, color: Colors.red),
+                  tooltip: 'Alert',
+                ),
+                IconButton(
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => QueryDialog(lead: inquiry),
+                    );
+                  },
+                  icon: const Icon(Icons.chat, color: Colors.orange),
+                  tooltip: 'Query',
+                ),
+                                    Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => _viewSubmittedProposal(context, inquiry),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green[600],
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text('View'),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+          ],
+        ),
+      ),
     );
   }
-}
 
-
-
-// Helper for label-value pairs
-Widget _labelValue(String label, String? value) {
-  return Padding(
-    padding: const EdgeInsets.only(bottom: 2.0),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('$label: ', style: const TextStyle(fontWeight: FontWeight.bold)),
-        Expanded(
-          child: Text(
-            value ?? '-',
-            style: const TextStyle(fontWeight: FontWeight.w400),
-            softWrap: true,
-            overflow: TextOverflow.visible,
-          ),
+  void _viewInquiryDetails(Map<String, dynamic> inquiry) {
+    // Implement inquiry details view
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Inquiry Details'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+            Text('Client: ${inquiry['client_name']}'),
+            Text('Project: ${inquiry['project_name']}'),
+            Text('Location: ${inquiry['project_location']}'),
+            Text('Added by: ${inquiry['username']}'),
+            if (inquiry['remark'] != null) Text('Remark: ${inquiry['remark']}'),
+          ],
         ),
-      ],
-    ),
-  );
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+
+  // Helper function to fetch lead activity
+  Future<List<Map<String, dynamic>>> fetchLeadActivity(String leadId) async {
+    final client = Supabase.instance.client;
+    try {
+      final activities = await client
+          .from('lead_activity')
+          .select('*')
+          .eq('lead_id', leadId)
+          .order('created_at', ascending: false);
+      
+      return List<Map<String, dynamic>>.from(activities);
+    } catch (e) {
+      debugPrint('Error fetching lead activity: $e');
+      return [];
+    }
+  }
+
+  // Helper function to log lead activity
+  Future<void> logLeadActivity({
+    required String leadId,
+    required String userId,
+    required String activityType,
+    required Map<String, dynamic> changesMade,
+  }) async {
+    final client = Supabase.instance.client;
+    try {
+      await client.from('lead_activity').insert({
+        'lead_id': leadId,
+        'user_id': userId,
+        'activity_type': activityType,
+        'changes_made': jsonEncode(changesMade),
+        'created_at': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      debugPrint('Error logging lead activity: $e');
+    }
+  }
+
+  void _onStatusFilterChanged(String? status) {
+    setState(() {
+      _selectedStatusFilter = status;
+    });
+  }
+
+  List<Map<String, dynamic>> get _filteredData {
+    List<Map<String, dynamic>> baseData;
+    
+    if (_selectedStatusFilter == null) {
+      // Show all data (pending + submitted)
+      baseData = [..._inquiries, ..._submittedInquiries];
+    } else if (_selectedStatusFilter == 'Pending') {
+      // Show only pending inquiries
+      baseData = _inquiries;
+    } else if (_selectedStatusFilter == 'Submitted') {
+      // Show only submitted inquiries
+      baseData = _submittedInquiries;
+    } else {
+      baseData = [];
+    }
+
+    // Apply search filter if query is not empty
+    if (_searchQuery.isNotEmpty) {
+      baseData = baseData.where((inquiry) {
+        // Search in all relevant fields
+        final clientName = inquiry['client_name']?.toString().toLowerCase() ?? '';
+        final projectName = inquiry['project_name']?.toString().toLowerCase() ?? '';
+        final projectLocation = inquiry['project_location']?.toString().toLowerCase() ?? '';
+        final username = inquiry['username']?.toString().toLowerCase() ?? '';
+        final remark = inquiry['remark']?.toString().toLowerCase() ?? '';
+        final mainContactName = inquiry['main_contact_name']?.toString().toLowerCase() ?? '';
+        final mainContactEmail = inquiry['main_contact_email']?.toString().toLowerCase() ?? '';
+        final mainContactMobile = inquiry['main_contact_mobile']?.toString().toLowerCase() ?? '';
+        
+        return clientName.contains(_searchQuery) ||
+               projectName.contains(_searchQuery) ||
+               projectLocation.contains(_searchQuery) ||
+               username.contains(_searchQuery) ||
+               remark.contains(_searchQuery) ||
+               mainContactName.contains(_searchQuery) ||
+               mainContactEmail.contains(_searchQuery) ||
+               mainContactMobile.contains(_searchQuery);
+      }).toList();
+    }
+
+    return baseData;
+  }
+
+  bool _isSubmittedInquiry(Map<String, dynamic> inquiry) {
+    // Check if this inquiry is in the submitted list
+    return _submittedInquiries.any((submitted) => submitted['id'] == inquiry['id']);
+  }
+
+  Future<void> _viewSubmittedProposal(BuildContext context, Map<String, dynamic> inquiry) async {
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      // Fetch submitted proposal data as per PROPOSAL_FUNCTION_FLOW.md
+      final proposalData = await _fetchSubmittedProposals(inquiry['id'].toString());
+      
+      // Close loading dialog
+      Navigator.of(context).pop();
+
+      // Show proposal details dialog
+      showDialog(
+        context: context,
+        builder: (context) => SubmittedProposalDialog(
+          inquiry: inquiry,
+          proposalData: proposalData,
+        ),
+      );
+    } catch (e) {
+      // Close loading dialog
+      Navigator.of(context).pop();
+      
+      // Show error
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading proposal: $e')),
+      );
+    }
+  }
 }
 
 class ProposalResponseDialog extends StatefulWidget {
@@ -1677,21 +1858,94 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
   Widget build(BuildContext context) {
     final lead = widget.lead;
     return Dialog(
-      insetPadding: const EdgeInsets.all(12),
+      insetPadding: const EdgeInsets.all(16),
+      child: Container(
+        width: MediaQuery.of(context).size.width > 1200 ? 1000 : 
+               MediaQuery.of(context).size.width > 800 ? 800 : 
+               MediaQuery.of(context).size.width - 32,
+        height: MediaQuery.of(context).size.height * 0.9,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue[100],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.description, color: Colors.blue[700], size: 24),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Submit Proposal',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[800],
+                          ),
+                        ),
+                        Text(
+                          '${lead['client_name']} - ${lead['project_name']}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: Icon(Icons.close, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            ),
+            // Content
+            Expanded(
       child: LayoutBuilder(
         builder: (context, constraints) {
           final isWide = constraints.maxWidth > 700;
-          return Container(
-            width: isWide ? 900 : double.infinity,
-            height: MediaQuery.of(context).size.height * 0.9,
-            padding: const EdgeInsets.all(16),
-            child: isWide
+                  return isWide
                 ? Row(
                     children: [
                       // Left: Lead info
                       Expanded(
                         flex: 2,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  border: Border(
+                                    right: BorderSide(color: Colors.grey[200]!),
+                                  ),
+                                ),
                         child: SingleChildScrollView(
+                                  padding: const EdgeInsets.all(24),
                           child: _ProposalLeadInfoSection(
                             lead: lead,
                             otherContacts: otherContacts,
@@ -1699,12 +1953,12 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
                           ),
                         ),
                       ),
-                      VerticalDivider(),
+                            ),
                       // Right: Proposal Response
                       Expanded(
                         flex: 3,
-                        child: Padding(
-                          padding: const EdgeInsets.only(left: 24.0),
+                              child: SingleChildScrollView(
+                                padding: const EdgeInsets.all(24),
                           child: _ProposalResponseForm(
                             files: files,
                             inputs: inputs,
@@ -1721,6 +1975,7 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
                     ],
                   )
                 : SingleChildScrollView(
+                          padding: const EdgeInsets.all(24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1729,7 +1984,9 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
                           otherContacts: otherContacts,
                           attachments: attachments,
                         ),
-                        const Divider(height: 32),
+                              const SizedBox(height: 24),
+                              const Divider(),
+                              const SizedBox(height: 24),
                         _ProposalResponseForm(
                           files: files,
                           inputs: inputs,
@@ -1742,10 +1999,13 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
                           onSave: _saveProposal,
                         ),
                       ],
-                    ),
                   ),
           );
         },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1794,108 +2054,205 @@ class _ProposalLeadInfoSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Column(
+    return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _labelValue('Client Name', lead['client_name']),
-          _labelValue('Project name', lead['project_name']),
-          _labelValue('Project Location', lead['project_location']),
-          Row(
+        // Header
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.green[100],
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Icon(Icons.info, color: Colors.green[700], size: 20),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Lead Information',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        
+        // Lead Details Card
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.grey[50],
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey[200]!),
+          ),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Date', style: TextStyle(fontWeight: FontWeight.bold)),
+              _buildInfoRow('Client Name', lead['client_name'] ?? 'N/A'),
+              const SizedBox(height: 12),
+              _buildInfoRow('Project Name', lead['project_name'] ?? 'N/A'),
+              const SizedBox(height: 12),
+              _buildInfoRow('Project Location', lead['project_location'] ?? 'N/A'),
+              const SizedBox(height: 12),
+              _buildInfoRow('Date', lead['created_at'] != null
+                  ? DateFormat('dd-MM-yyyy').format(DateTime.parse(lead['created_at']))
+                  : 'N/A'),
+              const SizedBox(height: 12),
+              _buildInfoRow('Added By', lead['username'] ?? 'Unknown User'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        
+        // Remarks Section
+        if (lead['remark'] != null && lead['remark'].toString().isNotEmpty) ...[
+          _buildSectionHeader('Remarks', Icons.comment),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.orange[50],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.orange[200]!),
+            ),
+            child: Text(
+              lead['remark'],
+              style: TextStyle(
+                color: Colors.grey[700],
+                fontSize: 14,
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
+        
+        // Attachments Section
+        if (attachments.isNotEmpty) ...[
+          _buildSectionHeader('Lead Attachments', Icons.attach_file),
+          const SizedBox(height: 12),
+          ...attachments.map((attachment) => _buildAttachmentCard(attachment)),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 120,
+          child: Text(
+            '$label:',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[700],
+              fontSize: 14,
+            ),
+          ),
+        ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  lead['created_at'] != null
-                      ? DateFormat(
-                          'dd-MM-yyyy',
-                        ).format(DateTime.parse(lead['created_at']))
-                      : '-',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue,
-                    fontSize: 16,
-                  ),
-                  softWrap: true,
-                  overflow: TextOverflow.visible,
+            value,
+            style: TextStyle(
+              color: Colors.grey[800],
+              fontSize: 14,
+            ),
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 12),
-          const Divider(),
-          const Text('REMARK', style: TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 4),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.blue[600], size: 18),
+        const SizedBox(width: 8),
           Text(
-            lead['remark'] ?? '-',
-            style: const TextStyle(color: Colors.grey, fontSize: 14),
-            softWrap: true,
-            overflow: TextOverflow.visible,
+          title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey[800],
           ),
-          const SizedBox(height: 12),
-          const Divider(),
-          const Text(
-            'Lead Attachments',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          ...attachments.map(
-            (a) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2.0),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAttachmentCard(Map<String, dynamic> attachment) {
+    return Builder(
+      builder: (context) => Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey[200]!),
+        ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    a['file_name'] ?? '',
-                    style: const TextStyle(fontWeight: FontWeight.w500),
-                    softWrap: true,
-                    overflow: TextOverflow.visible,
+            Row(
+              children: [
+                Icon(Icons.description, color: Colors.blue[600], size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    attachment['file_name'] ?? 'Unnamed File',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[800],
+                      fontSize: 14,
+                    ),
                   ),
-                  if ((a['file_link'] ?? '').isNotEmpty)
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                ),
+              ],
+            ),
+            if ((attachment['file_link'] ?? '').isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Row(
                       children: [
                         Expanded(
                           child: InkWell(
                             onTap: () async {
-                              final url = a['file_link'] ?? '';
+                        final url = attachment['file_link'] ?? '';
                               if (url.isNotEmpty) {
                                 try {
                                   await launchUrl(Uri.parse(url));
                                 } catch (e) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: Text(
-                                        'Could not open link: $url',
-                                      ),
+                                content: Text('Could not open link: $url'),
                                     ),
                                   );
                                 }
                               }
                             },
                             child: Text(
-                              a['file_link'] ?? '',
-                              style: const TextStyle(
-                                color: Colors.blue,
+                        attachment['file_link'] ?? '',
+                        style: TextStyle(
+                          color: Colors.blue[600],
                                 decoration: TextDecoration.underline,
+                          fontSize: 12,
                               ),
-                              softWrap: true,
-                              overflow: TextOverflow.visible,
                             ),
                           ),
                         ),
-                        SizedBox(width: 8),
                         IconButton(
-                          icon: Icon(Icons.copy, size: 16),
+                    icon: Icon(Icons.copy, size: 16, color: Colors.grey[600]),
                           onPressed: () {
                             Clipboard.setData(
-                              ClipboardData(text: a['file_link'] ?? ''),
+                        ClipboardData(text: attachment['file_link'] ?? ''),
                             );
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Link copied to clipboard'),
-                              ),
+                        const SnackBar(content: Text('Link copied to clipboard')),
                             );
                           },
                           tooltip: 'Copy link',
@@ -1903,10 +2260,8 @@ class _ProposalLeadInfoSection extends StatelessWidget {
                       ],
                     ),
                 ],
-              ),
-            ),
-          ),
         ],
+        ),
       ),
     );
   }
@@ -1974,250 +2329,434 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        // Header
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.blue[100],
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Icon(Icons.edit_note, color: Colors.blue[700], size: 20),
+            ),
+            const SizedBox(width: 12),
+            Text(
           'Proposal Response',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 12),
-        SingleChildScrollView(
+        const SizedBox(height: 24),
+        
+        // Files Section
+        _buildSectionHeader('Files & Documents', Icons.attach_file),
+        const SizedBox(height: 16),
+        _buildFilesSection(),
+        const SizedBox(height: 24),
+        
+        // Inputs Section
+        _buildSectionHeader('Technical Specifications', Icons.settings),
+        const SizedBox(height: 16),
+        _buildInputsSection(),
+        const SizedBox(height: 24),
+        
+        // Calculations Section
+        _buildCalculationsSection(),
+        const SizedBox(height: 24),
+        
+        // Remarks Section
+        _buildSectionHeader('General Remarks', Icons.comment),
+        const SizedBox(height: 16),
+        _buildRemarksSection(),
+        const SizedBox(height: 32),
+        
+        // Action Buttons
+        _buildActionButtons(),
+      ],
+    );
+  }
+
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.blue[600], size: 20),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey[800],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilesSection() {
+    return Column(
+      children: [
+        ...List.generate(
+          widget.files.length,
+          (i) => Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey[200]!),
+            ),
           child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  const Text('File Name'),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      children: List.generate(
-                        widget.files.length,
-                        (i) => Row(
+                    Text(
+                      'File ${i + 1}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                    const Spacer(),
+                    if (widget.files.length > 1)
+                      IconButton(
+                        onPressed: () => widget.onRemoveFile(i),
+                        icon: Icon(Icons.remove_circle, color: Colors.red[400], size: 20),
+                        tooltip: 'Remove file',
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
                           children: [
-                            SizedBox(
-                              width: 100,
+                    Expanded(
                               child: TextField(
                                 controller: widget.files[i]['fileName'],
-                                decoration: const InputDecoration(
-                                  isDense: true,
-                                  border: OutlineInputBorder(),
-                                  hintText: 'Enter file name',
-                                  helperText: 'e.g., Proposal.pdf, Quote.docx',
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            SizedBox(
-                              width: 100,
-                              child: TextField(
-                                controller: widget.files[i]['fileLink'],
-                                decoration: const InputDecoration(
-                                  isDense: true,
-                                  border: OutlineInputBorder(),
-                                  hintText: 'Enter file link/URL',
-                                  helperText:
-                                      'e.g., https://drive.google.com/...',
-                                ),
-                              ),
-                            ),
-                            SizedBox(
-                              width: 48,
-                              height: 48,
-                              child: IconButton(
-                                icon: const Icon(
-                                  Icons.add_box,
-                                  color: Colors.orange,
-                                ),
-                                onPressed: widget.onAddFile,
-                                padding: EdgeInsets.zero,
-                              ),
-                            ),
-                            if (widget.files.length > 1)
-                              SizedBox(
-                                width: 48,
-                                height: 48,
-                                child: IconButton(
-                                  icon: const Icon(
-                                    Icons.remove_circle,
-                                    color: Colors.red,
-                                  ),
-                                  onPressed: () => widget.onRemoveFile(i),
-                                  padding: EdgeInsets.zero,
-                                ),
-                              ),
-                          ],
+                        decoration: InputDecoration(
+                          labelText: 'File Name',
+                          hintText: 'e.g., Proposal.pdf, Quote.docx',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         ),
                       ),
                     ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                              child: TextField(
+                                controller: widget.files[i]['fileLink'],
+                        decoration: InputDecoration(
+                          labelText: 'File Link/URL',
+                          hintText: 'https://drive.google.com/...',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: widget.onAddFile,
+            icon: Icon(Icons.add, color: Colors.blue[600]),
+            label: Text(
+              'Add Another File',
+              style: TextStyle(color: Colors.blue[600]),
+            ),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ),
+                          ],
+    );
+  }
+
+  Widget _buildInputsSection() {
+    return Column(
+      children: [
+        ...List.generate(
+          widget.inputs.length,
+          (i) => Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey[200]!),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'Input ${i + 1}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                    const Spacer(),
+                    if (widget.inputs.length > 1)
+                      IconButton(
+                        onPressed: () => widget.onRemoveInput(i),
+                        icon: Icon(Icons.remove_circle, color: Colors.red[400], size: 20),
+                        tooltip: 'Remove input',
                   ),
                 ],
-              ),
-              const SizedBox(height: 12),
-              const Text('Remark'),
-              TextField(
-                controller: widget.remarkController,
-                minLines: 2,
-                maxLines: 4,
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  hintText: 'Enter your proposal remarks or additional notes',
-                  helperText:
-                      'Provide any additional information about the proposal',
-                ),
               ),
               const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
-                    child: Column(
-                      children: List.generate(
-                        widget.inputs.length,
-                        (i) => Row(
-                          children: [
-                            Expanded(
-                              child: DropdownButtonFormField<String>(
-                                value:
-                                    widget
-                                            .inputs[i]['input']
-                                            ?.text
-                                            .isNotEmpty ==
-                                        true
-                                    ? widget.inputs[i]['input']?.text
-                                    : null,
-                                decoration: const InputDecoration(
-                                  isDense: true,
-                                  border: OutlineInputBorder(),
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
-                                  ),
-                                ),
-                                hint: const Text('Select Input'),
-                                items: const [
-                                  DropdownMenuItem(
-                                    value: 'Area',
-                                    child: Text('Area'),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: 'MS Wt.',
-                                    child: Text('MS Wt.'),
-                                  ),
-                                ],
-                                onChanged: (String? newValue) {
-                                  if (newValue != null &&
-                                      widget.inputs[i]['input'] != null) {
-                                    widget.inputs[i]['input']!.text = newValue;
-                                  }
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            SizedBox(
-                              width: 100,
-                              child: TextField(
-                                controller: widget.inputs[i]['remark'],
-                                decoration: const InputDecoration(
-                                  isDense: true,
-                                  border: OutlineInputBorder(),
-                                  hintText: 'Enter remark or note',
-                                  helperText: 'Optional additional information',
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            SizedBox(
-                              width: 100,
-                              child: TextField(
-                                controller: widget.inputs[i]['value'],
-                                decoration: const InputDecoration(
-                                  isDense: true,
-                                  border: OutlineInputBorder(),
-                                  hintText: 'Enter value (e.g., 100, 50.5)',
-                                  helperText: 'Numeric value required',
-                                ),
-                                onChanged: (value) {
-                                  setState(() {
-                                    // Trigger rebuild to update totals
-                                  });
-                                },
-                              ),
-                            ),
-                            SizedBox(
-                              width: 48,
-                              height: 48,
-                              child: IconButton(
-                                icon: const Icon(
-                                  Icons.add_box,
-                                  color: Colors.orange,
-                                ),
-                                onPressed: widget.onAddInput,
-                                padding: EdgeInsets.zero,
-                              ),
-                            ),
-                            if (widget.inputs.length > 1)
-                              SizedBox(
-                                width: 48,
-                                height: 48,
-                                child: IconButton(
-                                  icon: const Icon(
-                                    Icons.remove_circle,
-                                    color: Colors.red,
-                                  ),
-                                  onPressed: () => widget.onRemoveInput(i),
-                                  padding: EdgeInsets.zero,
-                                ),
-                              ),
-                          ],
+                      child: TextField(
+                        controller: widget.inputs[i]['input'],
+                        decoration: InputDecoration(
+                          labelText: 'Input Type',
+                          hintText: 'e.g., Area, MS Wt., Length',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         ),
                       ),
+                    ),
+                    const SizedBox(width: 12),
+                            Expanded(
+                      child: TextField(
+                        controller: widget.inputs[i]['value'],
+                        decoration: InputDecoration(
+                          labelText: 'Value',
+                          hintText: 'Enter numeric value',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                                controller: widget.inputs[i]['remark'],
+                  decoration: InputDecoration(
+                    labelText: 'Remark (Optional)',
+                    hintText: 'Additional notes for this input',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: widget.onAddInput,
+            icon: Icon(Icons.add, color: Colors.blue[600]),
+            label: Text(
+              'Add Another Input',
+              style: TextStyle(color: Colors.blue[600]),
+            ),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ),
+                          ],
+    );
+  }
+
+  Widget _buildCalculationsSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.blue[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.calculate, color: Colors.blue[700], size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Calculations',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.blue[700],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildCalculationCard(
+                  'Total Area',
+                  _calculateAreaTotal(),
+                  'sq.m',
+                  Colors.green,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildCalculationCard(
+                  'Avg MS Weight',
+                  _calculateMSWeightAverage(),
+                  'kg',
+                  Colors.orange,
                     ),
                   ),
                 ],
               ),
             ],
           ),
-        ),
-        const SizedBox(height: 16),
-        // Summary totals row
-        Container(
+    );
+  }
+
+  Widget _buildCalculationCard(String title, String value, String unit, Color color) {
+    return Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.grey.withValues(alpha: 0.1),
+        color: Colors.white,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Area total
               Text(
-                'Area = ${_calculateAreaTotal()}',
-                style: const TextStyle(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: Colors.blue,
+                  color: color,
                 ),
               ),
-              // MS Wt. total
+              const SizedBox(width: 4),
               Text(
-                'MS Wt. Avg = ${_calculateMSWeightAverage()}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: Colors.green,
+                unit,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
                 ),
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRemarksSection() {
+    return TextField(
+      controller: widget.remarkController,
+      maxLines: 4,
+      decoration: InputDecoration(
+        labelText: 'General Remarks',
+        hintText: 'Enter any additional remarks or notes for this proposal...',
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
         ),
-        const SizedBox(height: 16),
-        Align(
-          alignment: Alignment.bottomRight,
-          child: SizedBox(
-            width: double.infinity,
+        contentPadding: const EdgeInsets.all(12),
+      ),
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            onPressed: widget.isLoading ? null : () => Navigator.of(context).pop(),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
             child: ElevatedButton(
               onPressed: widget.isLoading ? null : widget.onSave,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue[600],
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
               child: widget.isLoading
-                  ? const CircularProgressIndicator()
-                  : const Text('Submit Proposal'),
+                ? Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text('Submitting...'),
+                    ],
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.send, size: 18),
+                      const SizedBox(width: 8),
+                      const Text('Submit Proposal'),
+                    ],
             ),
           ),
         ),
@@ -2264,30 +2803,7 @@ Widget glassCard({
   );
 }
 
-// Add this helper method to fetch user info by user_id
-Future<Map<String, dynamic>?> _fetchUserInfo(String? userId) async {
-  if (userId == null || userId.isEmpty) {
-    return null;
-  }
 
-  final client = Supabase.instance.client;
-  try {
-    var user = await client
-        .from('users')
-        .select('username, employee_code')
-        .eq('id', userId)
-        .maybeSingle();
-    user ??= await client
-        .from('dev_user')
-        .select('username, employee_code')
-        .eq('id', userId)
-        .maybeSingle();
-    return user;
-  } catch (e) {
-    debugPrint('Error fetching user info: $e');
-    return null;
-  }
-}
 
 // Query Dialog Widget
 class QueryDialog extends StatefulWidget {
@@ -2607,3 +3123,1431 @@ class _AlertsDialogState extends State<AlertsDialog> {
     );
   }
 }
+
+
+
+class SubmittedProposalDialog extends StatelessWidget {
+  final Map<String, dynamic> inquiry;
+  final List<Map<String, dynamic>> proposalData;
+
+  const SubmittedProposalDialog({
+    super.key,
+    required this.inquiry,
+    required this.proposalData,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      insetPadding: const EdgeInsets.all(16),
+      child: Container(
+        width: double.maxFinite,
+        height: MediaQuery.of(context).size.height * 0.8,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.green[50],
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  topRight: Radius.circular(12),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green[600], size: 24),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Submitted Proposal',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green[700],
+                          ),
+                        ),
+                        Text(
+                          '${inquiry['client_name']} - ${inquiry['project_name']}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.green[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+            // Content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Lead Information
+                    _buildSection('Lead Information', Icons.info),
+                    _buildInfoRow('Client', inquiry['client_name'] ?? 'N/A'),
+                    _buildInfoRow('Project', inquiry['project_name'] ?? 'N/A'),
+                    _buildInfoRow('Location', inquiry['project_location'] ?? 'N/A'),
+                    _buildInfoRow('Added By', inquiry['username'] ?? 'N/A'),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // Proposal Files
+                    _buildSection('Proposal Files', Icons.attach_file),
+                    ...proposalData
+                        .where((item) => item['type'] == 'file')
+                        .map((file) => _buildFileItem(file)),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // Proposal Inputs
+                    _buildSection('Proposal Inputs', Icons.input),
+                    ...proposalData
+                        .where((item) => item['type'] == 'input')
+                        .map((input) => _buildInputItem(input)),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // Proposal Remarks
+                    _buildSection('Proposal Remarks', Icons.comment),
+                    ...proposalData
+                        .where((item) => item['type'] == 'remark')
+                        .map((remark) => _buildRemarkItem(remark)),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSection(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.blue[600], size: 20),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey[800],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              '$label:',
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                color: Colors.grey[600],
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                color: Colors.grey[800],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFileItem(Map<String, dynamic> file) {
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'File: ${file['file_name'] ?? 'N/A'}',
+            style: const TextStyle(fontWeight: FontWeight.w500),
+          ),
+          if (file['file_link'] != null && file['file_link'].toString().isNotEmpty)
+            Text(
+              'Link: ${file['file_link']}',
+              style: TextStyle(
+                color: Colors.blue[600],
+                decoration: TextDecoration.underline,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInputItem(Map<String, dynamic> input) {
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Input: ${input['input'] ?? 'N/A'}',
+            style: const TextStyle(fontWeight: FontWeight.w500),
+          ),
+          Text('Value: ${input['value'] ?? 'N/A'}'),
+          if (input['remark'] != null && input['remark'].toString().isNotEmpty)
+            Text('Remark: ${input['remark']}'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRemarkItem(Map<String, dynamic> remark) {
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Text(
+        remark['remark'] ?? 'No remark',
+        style: const TextStyle(fontStyle: FontStyle.italic),
+      ),
+    );
+  }
+}
+
+// Dashboard Analytics Methods
+Future<Map<String, dynamic>> _fetchDashboardAnalytics() async {
+  final client = Supabase.instance.client;
+  
+  try {
+    // 1. Fetch all leads for the current user
+    final allLeads = await client
+        .from('leads')
+        .select('id, created_at, client_name, project_name, project_location')
+        .eq('lead_type', 'Monolithic Formwork')
+        .order('created_at', ascending: false);
+
+    // 2. Fetch proposal data
+    final proposalFiles = await client
+        .from('proposal_file')
+        .select('lead_id, created_at');
+
+
+
+    final adminResponses = await client
+        .from('admin_response')
+        .select('lead_id, aluminium_area, ms_weight, rate_sqm, status, created_at');
+
+    // 3. Calculate analytics
+    final totalLeads = allLeads.length;
+    final leadsWithProposals = proposalFiles.map((f) => f['lead_id']).toSet().length;
+    final conversionRate = totalLeads > 0 ? (leadsWithProposals / totalLeads * 100) : 0.0;
+
+    // 4. Calculate financial metrics
+    double totalAluminiumArea = 0.0;
+    double totalRevenue = 0.0;
+    int approvedProposals = 0;
+
+    for (final response in adminResponses) {
+      final area = response['aluminium_area'] ?? 0.0;
+      final rate = response['rate_sqm'] ?? 0.0;
+      final status = response['status']?.toString().toLowerCase() ?? '';
+
+      totalAluminiumArea += area;
+      totalRevenue += area * rate * 1.18; // Including GST
+      
+      if (status == 'approved') {
+        approvedProposals++;
+      }
+    }
+
+    // 5. Calculate monthly trends
+    final monthlyData = <String, int>{};
+    
+    for (final lead in allLeads) {
+      final createdAt = DateTime.tryParse(lead['created_at'] ?? '');
+      if (createdAt != null) {
+        final monthKey = '${createdAt.year}-${createdAt.month.toString().padLeft(2, '0')}';
+        monthlyData[monthKey] = (monthlyData[monthKey] ?? 0) + 1;
+      }
+    }
+
+    // 6. Calculate top clients
+    final clientCounts = <String, int>{};
+    for (final lead in allLeads) {
+      final clientName = lead['client_name'] ?? 'Unknown';
+      clientCounts[clientName] = (clientCounts[clientName] ?? 0) + 1;
+    }
+
+    final topClients = clientCounts.entries
+        .toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+
+    return {
+      'totalLeads': totalLeads,
+      'leadsWithProposals': leadsWithProposals,
+      'conversionRate': conversionRate,
+      'totalAluminiumArea': totalAluminiumArea,
+      'totalRevenue': totalRevenue,
+      'approvedProposals': approvedProposals,
+      'monthlyData': monthlyData,
+      'topClients': topClients.take(5).toList(),
+      'recentActivity': allLeads.take(10).toList(),
+    };
+  } catch (e) {
+    debugPrint('Error fetching dashboard analytics: $e');
+    return {
+      'totalLeads': 0,
+      'leadsWithProposals': 0,
+      'conversionRate': 0.0,
+      'totalAluminiumArea': 0.0,
+      'totalRevenue': 0.0,
+      'approvedProposals': 0,
+      'monthlyData': {},
+      'topClients': [],
+      'recentActivity': [],
+    };
+  }
+}
+
+
+
+Widget _buildDashboardHeader() {
+  return Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.05),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    ),
+    child: Row(
+      children: [
+        Icon(Icons.analytics, color: Colors.blue[600], size: 28),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Proposal Engineer Dashboard',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+              ),
+              Text(
+                'Comprehensive insights into your proposal performance',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ),
+                 
+      ],
+    ),
+  );
+}
+
+Widget _buildKeyMetricsCards(Map<String, dynamic> analytics) {
+  return Row(
+    children: [
+      Expanded(
+        child: _buildMetricCard(
+          'Total Leads',
+          analytics['totalLeads'].toString(),
+          Icons.assignment,
+          Colors.blue,
+          'All inquiries',
+        ),
+      ),
+      const SizedBox(width: 16),
+      Expanded(
+        child: _buildMetricCard(
+          'Proposals',
+          analytics['leadsWithProposals'].toString(),
+          Icons.description,
+          Colors.green,
+          'Submitted proposals',
+        ),
+      ),
+      const SizedBox(width: 16),
+      Expanded(
+        child: _buildMetricCard(
+          'Conversion Rate',
+          '${analytics['conversionRate'].toStringAsFixed(1)}%',
+          Icons.trending_up,
+          Colors.orange,
+          'Success rate',
+        ),
+      ),
+      const SizedBox(width: 16),
+      Expanded(
+        child: _buildMetricCard(
+          'Total Revenue',
+          '₹${(analytics['totalRevenue'] ?? 0).toStringAsFixed(0)}',
+          Icons.attach_money,
+          Colors.purple,
+          'Estimated value',
+        ),
+      ),
+    ],
+  );
+}
+
+Widget _buildMetricCard(String title, String value, IconData icon, Color color, String subtitle) {
+  return Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.05),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[500],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildMonthlyTrendsChart(Map<String, dynamic> analytics) {
+  final monthlyData = analytics['monthlyData'] as Map<String, int>? ?? {};
+  final sortedMonths = monthlyData.keys.toList()..sort();
+  
+  return Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.05),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.trending_up, color: Colors.blue[600], size: 20),
+            const SizedBox(width: 8),
+            Text(
+              'Monthly Trends',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        if (sortedMonths.isNotEmpty)
+          SizedBox(
+            height: 200,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: sortedMonths.map((month) {
+                final count = monthlyData[month] ?? 0;
+                final maxCount = monthlyData.values.isNotEmpty 
+                    ? monthlyData.values.reduce((a, b) => a > b ? a : b) 
+                    : 1;
+                final height = maxCount > 0 ? (count / maxCount) : 0.0;
+                
+                return Expanded(
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.blue[600],
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: FractionallySizedBox(
+                            heightFactor: height,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.blue[600],
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        month.substring(5), // Show only month
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      Text(
+                        count.toString(),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          )
+        else
+          Center(
+            child: Text(
+              'No data available',
+              style: TextStyle(color: Colors.grey[500]),
+            ),
+          ),
+      ],
+    ),
+  );
+}
+
+Widget _buildTopClientsChart(Map<String, dynamic> analytics) {
+  final topClients = analytics['topClients'] as List<MapEntry<String, int>>? ?? [];
+  
+  return Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.05),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.people, color: Colors.green[600], size: 20),
+            const SizedBox(width: 8),
+            Text(
+              'Top Clients',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        if (topClients.isNotEmpty)
+          ...topClients.map((client) {
+            final percentage = topClients.isNotEmpty 
+                ? (client.value / topClients.first.value * 100) 
+                : 0.0;
+            
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          client.key,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.grey[800],
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Text(
+                        '${client.value}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  LinearProgressIndicator(
+                    value: percentage / 100,
+                    backgroundColor: Colors.grey[200],
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.green[600]!),
+                  ),
+                ],
+              ),
+            );
+          }).toList()
+        else
+          Center(
+            child: Text(
+              'No client data',
+              style: TextStyle(color: Colors.grey[500]),
+            ),
+          ),
+      ],
+    ),
+  );
+}
+
+Widget _buildRecentActivity(Map<String, dynamic> analytics) {
+  final recentActivity = analytics['recentActivity'] as List<dynamic>? ?? [];
+  
+  return Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.05),
+          blurRadius: 10,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.schedule, color: Colors.purple[600], size: 20),
+            const SizedBox(width: 8),
+            Text(
+              'Recent Activity',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        if (recentActivity.isNotEmpty)
+          ...recentActivity.take(5).map((activity) {
+            final date = DateTime.tryParse(activity['created_at'] ?? '');
+            final formattedDate = date != null 
+                ? DateFormat('MMM dd, yyyy').format(date)
+                : 'Unknown date';
+            
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: Colors.blue[600],
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          activity['client_name'] ?? 'Unknown Client',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.grey[800],
+                          ),
+                        ),
+                        Text(
+                          activity['project_name'] ?? 'Unknown Project',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    formattedDate,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[500],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList()
+        else
+          Center(
+            child: Text(
+              'No recent activity',
+              style: TextStyle(color: Colors.grey[500]),
+            ),
+          ),
+      ],
+    ),
+  );
+}
+
+class ProposalDashboardScreen extends StatefulWidget {
+  final String? currentUserId;
+  const ProposalDashboardScreen({super.key, this.currentUserId});
+
+  @override
+  State<ProposalDashboardScreen> createState() => _ProposalDashboardScreenState();
+}
+
+class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Load dashboard data
+      await Future.delayed(const Duration(milliseconds: 500)); // Simulate loading
+    } catch (e) {
+      debugPrint('Error loading dashboard data: $e');
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _fetchDashboardAnalytics(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error, color: Colors.red[600], size: 48),
+                const SizedBox(height: 16),
+                Text(
+                  'Error loading dashboard',
+                  style: TextStyle(color: Colors.red[600]),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final analytics = snapshot.data ?? {};
+        
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Dashboard Header
+              _buildDashboardHeader(),
+              const SizedBox(height: 24),
+              
+              // Key Metrics Cards
+              _buildKeyMetricsCards(analytics),
+              const SizedBox(height: 24),
+              
+              // Charts Row
+              Row(
+                children: [
+                  // Monthly Trends Chart
+                  Expanded(
+                    flex: 2,
+                    child: _buildMonthlyTrendsChart(analytics),
+                  ),
+                  const SizedBox(width: 16),
+                  // Top Clients Chart
+                  Expanded(
+                    flex: 1,
+                    child: _buildTopClientsChart(analytics),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              
+              // Recent Activity
+              _buildRecentActivity(analytics),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Dashboard Analytics Methods
+  Future<Map<String, dynamic>> _fetchDashboardAnalytics() async {
+    final client = Supabase.instance.client;
+    
+    try {
+      // 1. Fetch all leads for the current user
+      final allLeads = await client
+          .from('leads')
+          .select('id, created_at, client_name, project_name, project_location')
+          .eq('lead_type', 'Monolithic Formwork')
+          .order('created_at', ascending: false);
+
+      // 2. Fetch proposal data
+      final proposalFiles = await client
+          .from('proposal_file')
+          .select('lead_id, created_at');
+
+
+
+      final adminResponses = await client
+          .from('admin_response')
+          .select('lead_id, aluminium_area, ms_weight, rate_sqm, status, created_at');
+
+      // 3. Calculate analytics
+      final totalLeads = allLeads.length;
+      final leadsWithProposals = proposalFiles.map((f) => f['lead_id']).toSet().length;
+      final conversionRate = totalLeads > 0 ? (leadsWithProposals / totalLeads * 100) : 0.0;
+
+      // 4. Calculate financial metrics
+      double totalAluminiumArea = 0.0;
+      double totalRevenue = 0.0;
+      int approvedProposals = 0;
+
+      for (final response in adminResponses) {
+        final area = response['aluminium_area'] ?? 0.0;
+        final rate = response['rate_sqm'] ?? 0.0;
+        final status = response['status']?.toString().toLowerCase() ?? '';
+
+        totalAluminiumArea += area;
+        totalRevenue += area * rate * 1.18; // Including GST
+        
+        if (status == 'approved') {
+          approvedProposals++;
+        }
+      }
+
+      // 5. Calculate monthly trends
+      final monthlyData = <String, int>{};
+      
+      for (final lead in allLeads) {
+        final createdAt = DateTime.tryParse(lead['created_at'] ?? '');
+        if (createdAt != null) {
+          final monthKey = '${createdAt.year}-${createdAt.month.toString().padLeft(2, '0')}';
+          monthlyData[monthKey] = (monthlyData[monthKey] ?? 0) + 1;
+        }
+      }
+
+      // 6. Calculate top clients
+      final clientCounts = <String, int>{};
+      for (final lead in allLeads) {
+        final clientName = lead['client_name'] ?? 'Unknown';
+        clientCounts[clientName] = (clientCounts[clientName] ?? 0) + 1;
+      }
+
+      final topClients = clientCounts.entries
+          .toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+
+      return {
+        'totalLeads': totalLeads,
+        'leadsWithProposals': leadsWithProposals,
+        'conversionRate': conversionRate,
+        'totalAluminiumArea': totalAluminiumArea,
+        'totalRevenue': totalRevenue,
+        'approvedProposals': approvedProposals,
+        'monthlyData': monthlyData,
+        'topClients': topClients.take(5).toList(),
+        'recentActivity': allLeads.take(10).toList(),
+      };
+    } catch (e) {
+      debugPrint('Error fetching dashboard analytics: $e');
+      return {
+        'totalLeads': 0,
+        'leadsWithProposals': 0,
+        'conversionRate': 0.0,
+        'totalAluminiumArea': 0.0,
+        'totalRevenue': 0.0,
+        'approvedProposals': 0,
+        'monthlyData': {},
+        'topClients': [],
+        'recentActivity': [],
+      };
+    }
+  }
+
+  Widget _buildDashboardHeader() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.analytics, color: Colors.blue[600], size: 28),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Proposal Engineer Dashboard',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                ),
+                Text(
+                  'Comprehensive insights into your proposal performance',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildKeyMetricsCards(Map<String, dynamic> analytics) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildMetricCard(
+            'Total Leads',
+            analytics['totalLeads'].toString(),
+            Icons.assignment,
+            Colors.blue,
+            'All inquiries',
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildMetricCard(
+            'Proposals',
+            analytics['leadsWithProposals'].toString(),
+            Icons.description,
+            Colors.green,
+            'Submitted proposals',
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildMetricCard(
+            'Conversion Rate',
+            '${analytics['conversionRate'].toStringAsFixed(1)}%',
+            Icons.trending_up,
+            Colors.orange,
+            'Success rate',
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildMetricCard(
+            'Total Revenue',
+            '₹${(analytics['totalRevenue'] ?? 0).toStringAsFixed(0)}',
+            Icons.attach_money,
+            Colors.purple,
+            'Estimated value',
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMetricCard(String title, String value, IconData icon, Color color, String subtitle) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMonthlyTrendsChart(Map<String, dynamic> analytics) {
+    final monthlyData = analytics['monthlyData'] as Map<String, int>? ?? {};
+    final sortedMonths = monthlyData.keys.toList()..sort();
+    
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.trending_up, color: Colors.blue[600], size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Monthly Trends',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          if (sortedMonths.isNotEmpty)
+            SizedBox(
+              height: 200,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: sortedMonths.map((month) {
+                  final count = monthlyData[month] ?? 0;
+                  final maxCount = monthlyData.values.isNotEmpty 
+                      ? monthlyData.values.reduce((a, b) => a > b ? a : b) 
+                      : 1;
+                  final height = maxCount > 0 ? (count / maxCount) : 0.0;
+                  
+                  return Expanded(
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.blue[600],
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: FractionallySizedBox(
+                              heightFactor: height,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.blue[600],
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          month.substring(5), // Show only month
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        Text(
+                          count.toString(),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[800],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            )
+          else
+            Center(
+              child: Text(
+                'No data available',
+                style: TextStyle(color: Colors.grey[500]),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopClientsChart(Map<String, dynamic> analytics) {
+    final topClients = analytics['topClients'] as List<MapEntry<String, int>>? ?? [];
+    
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.people, color: Colors.green[600], size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Top Clients',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          if (topClients.isNotEmpty)
+            ...topClients.map((client) {
+              final percentage = topClients.isNotEmpty 
+                  ? (client.value / topClients.first.value * 100) 
+                  : 0.0;
+              
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            client.key,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey[800],
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Text(
+                          '${client.value}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    LinearProgressIndicator(
+                      value: percentage / 100,
+                      backgroundColor: Colors.grey[200],
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.green[600]!),
+                    ),
+                  ],
+                ),
+              );
+            }).toList()
+          else
+            Center(
+              child: Text(
+                'No client data',
+                style: TextStyle(color: Colors.grey[500]),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecentActivity(Map<String, dynamic> analytics) {
+    final recentActivity = analytics['recentActivity'] as List<dynamic>? ?? [];
+    
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.schedule, color: Colors.purple[600], size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Recent Activity',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          if (recentActivity.isNotEmpty)
+            ...recentActivity.take(5).map((activity) {
+              final date = DateTime.tryParse(activity['created_at'] ?? '');
+              final formattedDate = date != null 
+                  ? DateFormat('MMM dd, yyyy').format(date)
+                  : 'Unknown date';
+              
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: Colors.blue[600],
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            activity['client_name'] ?? 'Unknown Client',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey[800],
+                            ),
+                          ),
+                          Text(
+                            activity['project_name'] ?? 'Unknown Project',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      formattedDate,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList()
+          else
+            Center(
+              child: Text(
+                'No recent activity',
+                style: TextStyle(color: Colors.grey[500]),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+
