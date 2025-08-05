@@ -1265,6 +1265,10 @@ class _ProposalScreenState extends State<ProposalScreen> {
                                   builder: (context) => ProposalResponseDialog(
                                   lead: inquiry,
                                     currentUserId: widget.currentUserId,
+                                    onProposalSubmitted: () {
+                                      // Refresh the proposal data after submission
+                                      _loadData();
+                                    },
                                   ),
                                 );
                               },
@@ -1557,6 +1561,10 @@ class _ProposalScreenState extends State<ProposalScreen> {
           inquiry: inquiry,
           proposalData: proposalData,
           currentUserId: widget.currentUserId,
+          onProposalSubmitted: () {
+            // Refresh the proposal data after submission
+            _loadData();
+          },
         ),
       );
     } catch (e) {
@@ -1574,10 +1582,13 @@ class _ProposalScreenState extends State<ProposalScreen> {
 class ProposalResponseDialog extends StatefulWidget {
   final Map<String, dynamic> lead;
   final String? currentUserId;
+  final VoidCallback? onProposalSubmitted;
+  
   const ProposalResponseDialog({
     super.key,
     required this.lead,
     this.currentUserId,
+    this.onProposalSubmitted,
   });
 
   @override
@@ -1758,20 +1769,20 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
         if (fileName.isNotEmpty || fileLink.isNotEmpty) {
           try {
             debugPrint('[PROPOSAL] Inserting file: $fileName');
-            await client.from('proposal_file').insert({
-              'lead_id': leadId,
-              'file_name': fileName,
-              'file_link': fileLink,
-              'user_id': currentUserId,
+          await client.from('proposal_file').insert({
+            'lead_id': leadId,
+            'file_name': fileName,
+            'file_link': fileLink,
+            'user_id': currentUserId,
               'created_at': DateTime.now().toIso8601String(),
               'updated_at': DateTime.now().toIso8601String(),
-            });
+          });
             debugPrint('[PROPOSAL] Successfully inserted file: $fileName');
           } catch (e) {
             debugPrint('[PROPOSAL] Error inserting file $fileName: $e');
             throw Exception('Failed to insert file: $fileName - $e');
-          }
         }
+      }
       }
       
       // Save inputs
@@ -1786,23 +1797,23 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
         if (inputType.isNotEmpty) {
           try {
             debugPrint('[PROPOSAL] Inserting input: $inputType = $inputValue');
-            await client.from('proposal_input').insert({
-              'lead_id': leadId,
+          await client.from('proposal_input').insert({
+            'lead_id': leadId,
               'input': inputType,
               'value': inputValue,
-              'remark': input['remark']!.text.trim(),
-              'user_id': currentUserId,
+            'remark': input['remark']!.text.trim(),
+            'user_id': currentUserId,
               'created_at': DateTime.now().toIso8601String(),
               'updated_at': DateTime.now().toIso8601String(),
-            });
+          });
             debugPrint('[PROPOSAL] Successfully inserted input: $inputType');
           } catch (e) {
             debugPrint('[PROPOSAL] Error inserting input $inputType: $e');
             throw Exception('Failed to insert input: $inputType - $e');
-          }
+        }
         } else {
           debugPrint('[PROPOSAL] Skipping empty input at index $i');
-        }
+      }
       }
       
       // Save remark
@@ -1810,13 +1821,13 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
       if (remarkText.isNotEmpty) {
         try {
           debugPrint('[PROPOSAL] Inserting remark: $remarkText');
-          await client.from('proposal_remark').insert({
-            'lead_id': leadId,
+        await client.from('proposal_remark').insert({
+          'lead_id': leadId,
             'remark': remarkText,
-            'user_id': currentUserId,
+          'user_id': currentUserId,
             'created_at': DateTime.now().toIso8601String(),
             'updated_at': DateTime.now().toIso8601String(),
-          });
+        });
           debugPrint('[PROPOSAL] Successfully inserted remark');
         } catch (e) {
           debugPrint('[PROPOSAL] Error inserting remark: $e');
@@ -1898,18 +1909,18 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
       debugPrint('[PROPOSAL] - Proposal User: $proposalUserName');
       
       try {
-        await client.from('admin_response').insert({
-          'lead_id': leadId,
+      await client.from('admin_response').insert({
+        'lead_id': leadId,
           'project_name': leadDetails['project_name'],
           'client_name': leadDetails['client_name'],
           'location': leadDetails['project_location'],
-          'aluminium_area': aluminiumArea,
-          'ms_weight': msWeight,
+        'aluminium_area': aluminiumArea,
+        'ms_weight': msWeight,
           'remark': remarkController.text.trim(),
           'project_id': projectId,
           'sales_user': salesUserName,
           'proposal_user': proposalUserName,
-          'created_at': DateTime.now().toIso8601String(),
+        'created_at': DateTime.now().toIso8601String(),
           'updated_at': DateTime.now().toIso8601String(),
         });
         
@@ -1920,14 +1931,26 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
       }
 
       debugPrint('[PROPOSAL] All database operations completed successfully!');
-      
+
       setState(() {
         _isLoading = false;
       });
       Navigator.pop(context);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Proposal submitted successfully!')));
+      
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Proposal submitted successfully!'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      
+      // Auto-refresh the parent screen to show updated data
+      if (context.mounted) {
+        // Trigger refresh of the main proposal screen
+        widget.onProposalSubmitted?.call();
+      }
       await logLeadActivity(
         leadId: leadId,
         userId: currentUserId,
@@ -2845,12 +2868,12 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
                   _calculateMSWeightAverage(),
                   'kg',
                   Colors.orange,
-                ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
-      ),
     );
   }
 
@@ -2863,16 +2886,16 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
     }
 
     return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(8),
         border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
+          ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
+            children: [
+              Text(
             title,
             style: TextStyle(
               fontSize: 12,
@@ -3369,12 +3392,14 @@ class SubmittedProposalDialog extends StatelessWidget {
   final Map<String, dynamic> inquiry;
   final List<Map<String, dynamic>> proposalData;
   final String? currentUserId;
+  final VoidCallback? onProposalSubmitted;
 
   const SubmittedProposalDialog({
     super.key,
     required this.inquiry,
     required this.proposalData,
     this.currentUserId,
+    this.onProposalSubmitted,
   });
 
   @override
@@ -3626,6 +3651,7 @@ class SubmittedProposalDialog extends StatelessWidget {
         lead: inquiry,
         currentUserId: currentUserId,
         existingProposalData: proposalData,
+        onProposalSubmitted: onProposalSubmitted,
       ),
     );
   }
@@ -3635,12 +3661,14 @@ class UpdateProposalDialog extends StatefulWidget {
   final Map<String, dynamic> lead;
   final String? currentUserId;
   final List<Map<String, dynamic>> existingProposalData;
+  final VoidCallback? onProposalSubmitted;
 
   const UpdateProposalDialog({
     super.key,
     required this.lead,
     this.currentUserId,
     required this.existingProposalData,
+    this.onProposalSubmitted,
   });
 
   @override
@@ -3807,9 +3835,21 @@ class _UpdateProposalDialogState extends State<UpdateProposalDialog> {
       });
       
       Navigator.pop(context);
+      
+      // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Proposal updated successfully!')),
+        const SnackBar(
+          content: Text('Proposal updated successfully!'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
       );
+      
+      // Auto-refresh the parent screen to show updated data
+      if (context.mounted) {
+        // Trigger refresh of the main proposal screen
+        widget.onProposalSubmitted?.call();
+      }
     } catch (e) {
       setState(() {
         _isLoading = false;

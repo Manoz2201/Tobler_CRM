@@ -8391,7 +8391,7 @@ class _InitializeStatusDialogState extends State<InitializeStatusDialog> {
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: _buildStatusButton('Lose', Colors.red.shade600, Icons.cancel),
+                  child: _buildStatusButton('Lost', Colors.red.shade600, Icons.cancel),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -8512,33 +8512,93 @@ class _InitializeStatusDialogState extends State<InitializeStatusDialog> {
     try {
       final client = Supabase.instance.client;
       
-      // Get current user info
-      final currentUser = client.auth.currentUser;
-      if (currentUser == null) {
-        throw Exception('User not authenticated');
+      // Step 1: Get cached user data
+      final prefs = await SharedPreferences.getInstance();
+      final cachedUserId = prefs.getString('user_id');
+      final cachedSessionId = prefs.getString('session_id');
+      final cachedSessionActive = prefs.getBool('session_active');
+      final cachedUserType = prefs.getString('user_type');
+
+      debugPrint('[CACHE] Cached user_id: $cachedUserId');
+      debugPrint('[CACHE] Cached session_id: $cachedSessionId');
+      debugPrint('[CACHE] Cached session_active: $cachedSessionActive');
+      debugPrint('[CACHE] Cached user_type: $cachedUserType');
+
+      // Step 2: Validate cache data
+      if (cachedUserId == null ||
+          cachedSessionId == null ||
+          cachedSessionActive != true) {
+        throw Exception('User not authenticated - invalid cache data');
       }
 
-      // Get current username from users table
+      // Step 3: Get current username from users table using cached user_id
       final userResponse = await client
           .from('users')
           .select('username')
-          .eq('id', currentUser.id)
+          .eq('id', cachedUserId)
           .single();
       
-      final username = userResponse['username'] as String;
+      final currentUsername = userResponse['username'] as String;
+      debugPrint('[AUTH] Current username: $currentUsername (ID: $cachedUserId)');
 
-      // Insert or update the admin_response table
+      // Step 4: Get the existing admin_response data to verify authentication and check if record exists
+      final leadResponse = await client
+          .from('admin_response')
+          .select('sales_user, id, lead_id')
+          .eq('lead_id', widget.leadId)
+          .maybeSingle();
+      
+      debugPrint('[AUTH] Checking existing record for lead_id: ${widget.leadId}');
+      
+      if (leadResponse != null) {
+        final salesUser = leadResponse['sales_user'] as String?;
+        final recordId = leadResponse['id'] as String?;
+        debugPrint('[AUTH] Sales user from lead: $salesUser');
+        debugPrint('[AUTH] Record ID: $recordId');
+        
+        // Step 5: Verify that the current user matches the sales user
+        if (salesUser != null && salesUser == currentUsername) {
+          debugPrint('[AUTH] ✅ User authenticated successfully');
+        } else {
+          throw Exception('User not authorized to update this lead status. Expected: $salesUser, Current: $currentUsername');
+        }
+      } else {
+        throw Exception('No existing admin_response record found for lead_id: ${widget.leadId}. Please ensure the lead has been processed first.');
+      }
+
+      // Step 6: Map status values according to requirements
+      String mappedStatus;
+      switch (_selectedStatus) {
+        case 'Loop':
+          mappedStatus = 'Negotiation';
+          break;
+        case 'Lost':
+          mappedStatus = 'Closed';
+          break;
+        case 'Won':
+          mappedStatus = 'Completed';
+          break;
+        default:
+          mappedStatus = _selectedStatus!;
+      }
+
+      // Step 7: Update the existing admin_response row
+      debugPrint('[UPDATE] Updating existing record for lead_id: ${widget.leadId}');
+      
       await client
           .from('admin_response')
-          .upsert({
-            'lead_id': widget.leadId,
-            'sales_user': username,
+          .update({
             'update_lead_status': _selectedStatus,
-            'update_lead_remark': _remarkController.text.trim(),
+            'status': mappedStatus,
+            'lead_status_remark': _remarkController.text.trim(),
             'updated_at': DateTime.now().toIso8601String(),
-          });
+          })
+          .eq('lead_id', widget.leadId);
+
+      debugPrint('[UPDATE] ✅ Successfully updated existing record');
 
       debugPrint('✅ Status updated successfully: $_selectedStatus');
+      debugPrint('✅ Mapped status: $mappedStatus');
       debugPrint('✅ Remark: ${_remarkController.text.trim()}');
 
       if (mounted) {

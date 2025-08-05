@@ -16,6 +16,7 @@ import 'package:crm_app/screens/home/developer_home_screen.dart'
 import 'package:intl/intl.dart';
 import '../settings/currency_settings_screen.dart';
 import '../../utils/navigation_utils.dart';
+import '../../utils/timezone_utils.dart';
 import '../auth/login_screen.dart';
 import '../../main.dart'
     show
@@ -5643,10 +5644,27 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   @override
   void initState() {
     super.initState();
-    _fetchDashboardData();
-    _fetchLeadPerformanceData();
-    _fetchChartData();
-    _fetchLeadStatusDistributionData();
+    _initializeTimezoneAndData();
+  }
+
+  /// Initialize timezone and fetch data
+  Future<void> _initializeTimezoneAndData() async {
+    try {
+      // Initialize timezone utilities
+      await TimezoneUtils.initialize();
+      
+      // Fetch data after timezone initialization
+      _fetchDashboardData();
+      _fetchLeadPerformanceData();
+      _fetchChartData();
+      _fetchLeadStatusDistributionData();
+    } catch (e) {
+      // Fallback to fetching data without timezone
+      _fetchDashboardData();
+      _fetchLeadPerformanceData();
+      _fetchChartData();
+      _fetchLeadStatusDistributionData();
+    }
   }
 
   @override
@@ -5660,35 +5678,44 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   Map<String, DateTime> _getDateRange(String timePeriod) {
     final now = DateTime.now();
     DateTime startDate;
-    DateTime endDate = now;
+    DateTime endDate;
     
     switch (timePeriod.toLowerCase()) {
       case 'week':
         startDate = now.subtract(Duration(days: 7));
+        endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
         break;
       case 'month':
         startDate = DateTime(now.year, now.month - 1, now.day);
+        endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
         break;
       case 'quarter':
         startDate = DateTime(now.year, now.month - 3, now.day);
+        endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
         break;
       case 'semester':
         startDate = DateTime(now.year, now.month - 6, now.day);
+        endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
         break;
       case 'annual':
         startDate = DateTime(now.year - 1, now.month, now.day);
+        endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
         break;
       case 'two years':
         startDate = DateTime(now.year - 2, now.month, now.day);
+        endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
         break;
       case 'three years':
         startDate = DateTime(now.year - 3, now.month, now.day);
+        endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
         break;
       case 'five years':
         startDate = DateTime(now.year - 5, now.month, now.day);
+        endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
         break;
       default:
         startDate = DateTime(now.year, now.month - 3, now.day); // Default to quarter
+        endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
     }
     
     return {'start': startDate, 'end': endDate};
@@ -5962,7 +5989,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       await _processChartData(response);
       
     } catch (e) {
-      debugPrint('Error fetching chart data: $e');
       // Set default empty data on error
       setState(() {
         _barChartData = [];
@@ -5992,8 +6018,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     for (var record in data) {
       final updatedAt = DateTime.parse(record['updated_at']);
       
+      // Convert UTC datetime to local timezone for proper comparison
+      final localUpdatedAt = TimezoneUtils.convertToLocal(updatedAt);
+      
       // Only include data within the selected time period range
-      if (updatedAt.isBefore(startDate) || updatedAt.isAfter(endDate)) {
+      if (localUpdatedAt.isBefore(startDate) || localUpdatedAt.isAfter(endDate)) {
         continue;
       }
       
@@ -6032,6 +6061,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           groupKey = _getMonthName(updatedAt.month);
       }
       
+      debugPrint('🏷️ [CHART] Group key: $groupKey');
+      
       if (!groupedData.containsKey(groupKey)) {
         groupedData[groupKey] = [];
       }
@@ -6040,6 +6071,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
     final labels = _getChartLabels();
     final barGroups = <BarChartGroupData>[];
+    
+    debugPrint('📊 [CHART] Chart labels: $labels');
+    debugPrint('📊 [CHART] Grouped data keys: ${groupedData.keys.toList()}');
     
     for (int i = 0; i < labels.length; i++) {
       final label = labels[i];
@@ -6054,6 +6088,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
       // Convert revenue to thousands for display
       final revenueInK = totalRevenue / 1000;
+      
+      debugPrint('📊 [CHART] Label "$label": $qualifiedLeadCount leads, ₹${totalRevenue.toStringAsFixed(0)} (${revenueInK.toStringAsFixed(1)}K)');
 
       barGroups.add(
         BarChartGroupData(
@@ -6078,6 +6114,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       );
     }
 
+    debugPrint('✅ [CHART] Final bar groups: ${barGroups.length}');
     setState(() {
       _barChartData = barGroups;
       _isLoadingChartData = false;

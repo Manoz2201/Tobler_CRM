@@ -20,21 +20,16 @@ Future<void> saveSessionToCache(
   await prefs.setBool('session_active', sessionActive);
   await prefs.setString('user_id', userId);
   await prefs.setString('user_type', userType);
-  debugPrint(
-    '[CACHE] Saved session_id: $sessionId, session_active: $sessionActive, user_id: $userId, user_type: $userType',
-  );
 }
 
 Future<void> setUserOnlineStatus(bool isOnline) async {
   final prefs = await SharedPreferences.getInstance();
   await prefs.setBool('is_user_online', isOnline);
-  debugPrint('[CACHE] Set is_user_online: $isOnline');
 }
 
 Future<bool> getUserOnlineStatus() async {
   final prefs = await SharedPreferences.getInstance();
   final status = prefs.getBool('is_user_online') ?? false;
-  debugPrint('[CACHE] Read is_user_online: $status');
   return status;
 }
 
@@ -44,9 +39,6 @@ Future<Map<String, dynamic>?> getSessionFromCache() async {
   final sessionActive = prefs.getBool('session_active');
   final userId = prefs.getString('user_id');
   final userType = prefs.getString('user_type');
-  debugPrint(
-    '[CACHE] Read session_id: $sessionId, session_active: $sessionActive, user_id: $userId, user_type: $userType',
-  );
   if (sessionId != null &&
       sessionActive != null &&
       userId != null &&
@@ -74,9 +66,6 @@ Future<bool> validateSessionWithSupabase(
   if (user != null &&
       user['session_id'] == sessionId &&
       user['session_active'] == true) {
-    debugPrint(
-      '[CACHE] Supabase users table session valid for user_id: $userId',
-    );
     return true;
   }
   final devUser = await client
@@ -87,35 +76,25 @@ Future<bool> validateSessionWithSupabase(
   if (devUser != null &&
       devUser['session_id'] == sessionId &&
       devUser['session_active'] == true) {
-    debugPrint(
-      '[CACHE] Supabase dev_user table session valid for user_id: $userId',
-    );
     return true;
   }
-  debugPrint('[CACHE] No valid session found in Supabase for user_id: $userId');
   return false;
 }
 
 Future<void> updateUserSessionActiveMCP(String userId, bool isActive) async {
   final client = Supabase.instance.client;
-  final resp = await client
+  await client
       .from('users')
       .update({'session_active': isActive})
       .eq('id', userId);
-  debugPrint(
-    '[MCP] Updated users table session_active=$isActive for user_id=$userId, response: $resp',
-  );
 }
 
 Future<void> updateUserOnlineStatusMCP(String userId, bool isOnline) async {
   final client = Supabase.instance.client;
-  final resp = await client
+  await client
       .from('users')
       .update({'is_user_online': isOnline})
       .eq('id', userId);
-  debugPrint(
-    '[MCP] Updated users table is_user_online=$isOnline for user_id=$userId, response: $resp',
-  );
 }
 
 Future<void> updateUserOnlineStatusByEmailMCP(
