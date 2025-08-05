@@ -1763,6 +1763,8 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
               'file_name': fileName,
               'file_link': fileLink,
               'user_id': currentUserId,
+              'created_at': DateTime.now().toIso8601String(),
+              'updated_at': DateTime.now().toIso8601String(),
             });
             debugPrint('[PROPOSAL] Successfully inserted file: $fileName');
           } catch (e) {
@@ -1790,6 +1792,8 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
               'value': inputValue,
               'remark': input['remark']!.text.trim(),
               'user_id': currentUserId,
+              'created_at': DateTime.now().toIso8601String(),
+              'updated_at': DateTime.now().toIso8601String(),
             });
             debugPrint('[PROPOSAL] Successfully inserted input: $inputType');
           } catch (e) {
@@ -1810,6 +1814,8 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
             'lead_id': leadId,
             'remark': remarkText,
             'user_id': currentUserId,
+            'created_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toIso8601String(),
           });
           debugPrint('[PROPOSAL] Successfully inserted remark');
         } catch (e) {
@@ -3761,6 +3767,8 @@ class _UpdateProposalDialogState extends State<UpdateProposalDialog> {
             'file_name': fileName,
             'file_link': fileLink,
             'user_id': widget.currentUserId,
+            'created_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toIso8601String(),
           });
         }
       }
@@ -3774,6 +3782,8 @@ class _UpdateProposalDialogState extends State<UpdateProposalDialog> {
             'value': input['value']!.text.trim(),
             'remark': input['remark']!.text.trim(),
             'user_id': widget.currentUserId,
+            'created_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toIso8601String(),
           });
         }
       }
@@ -3784,6 +3794,8 @@ class _UpdateProposalDialogState extends State<UpdateProposalDialog> {
           'lead_id': leadId,
           'remark': remarkController.text.trim(),
           'user_id': widget.currentUserId,
+          'created_at': DateTime.now().toIso8601String(),
+          'updated_at': DateTime.now().toIso8601String(),
         });
       }
 
