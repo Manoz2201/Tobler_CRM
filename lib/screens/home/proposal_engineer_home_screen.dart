@@ -1,6 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
 import 'dart:ui';
+import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert'; // Added for jsonEncode
@@ -1555,6 +1556,7 @@ class _ProposalScreenState extends State<ProposalScreen> {
         builder: (context) => SubmittedProposalDialog(
           inquiry: inquiry,
           proposalData: proposalData,
+          currentUserId: widget.currentUserId,
         ),
       );
     } catch (e) {
@@ -1741,54 +1743,100 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
     final leadId = widget.lead['id'];
 
     try {
+      debugPrint('[PROPOSAL] Starting proposal submission for lead: $leadId');
+      debugPrint('[PROPOSAL] Files count: ${files.length}');
+      debugPrint('[PROPOSAL] Inputs count: ${inputs.length}');
+      debugPrint('[PROPOSAL] Remark: "${remarkController.text.trim()}"');
+      debugPrint('[PROPOSAL] Current user ID: $currentUserId');
+      
       // Save files
+      debugPrint('[PROPOSAL] Saving ${files.length} files...');
       for (final file in files) {
         final fileName = file['fileName']!.text.trim();
         final fileLink = file['fileLink']!.text.trim();
 
         if (fileName.isNotEmpty || fileLink.isNotEmpty) {
-          await client.from('proposal_file').insert({
-            'lead_id': leadId,
-            'file_name': fileName,
-            'file_link': fileLink,
-            'user_id': currentUserId,
-          });
+          try {
+            debugPrint('[PROPOSAL] Inserting file: $fileName');
+            await client.from('proposal_file').insert({
+              'lead_id': leadId,
+              'file_name': fileName,
+              'file_link': fileLink,
+              'user_id': currentUserId,
+            });
+            debugPrint('[PROPOSAL] Successfully inserted file: $fileName');
+          } catch (e) {
+            debugPrint('[PROPOSAL] Error inserting file $fileName: $e');
+            throw Exception('Failed to insert file: $fileName - $e');
+          }
         }
       }
+      
       // Save inputs
-      for (final input in inputs) {
-        if (input['input']!.text.trim().isNotEmpty) {
-          await client.from('proposal_input').insert({
-            'lead_id': leadId,
-            'input': input['input']!.text.trim(),
-            'value': input['value']!.text.trim(),
-            'remark': input['remark']!.text.trim(),
-            'user_id': currentUserId,
-          });
+      debugPrint('[PROPOSAL] Saving ${inputs.length} inputs...');
+      for (int i = 0; i < inputs.length; i++) {
+        final input = inputs[i];
+        final inputType = input['input']!.text.trim();
+        final inputValue = input['value']!.text.trim();
+        
+        debugPrint('[PROPOSAL] Input $i: Type="$inputType", Value="$inputValue"');
+        
+        if (inputType.isNotEmpty) {
+          try {
+            debugPrint('[PROPOSAL] Inserting input: $inputType = $inputValue');
+            await client.from('proposal_input').insert({
+              'lead_id': leadId,
+              'input': inputType,
+              'value': inputValue,
+              'remark': input['remark']!.text.trim(),
+              'user_id': currentUserId,
+            });
+            debugPrint('[PROPOSAL] Successfully inserted input: $inputType');
+          } catch (e) {
+            debugPrint('[PROPOSAL] Error inserting input $inputType: $e');
+            throw Exception('Failed to insert input: $inputType - $e');
+          }
+        } else {
+          debugPrint('[PROPOSAL] Skipping empty input at index $i');
         }
       }
+      
       // Save remark
-      if (remarkController.text.trim().isNotEmpty) {
-        await client.from('proposal_remark').insert({
-          'lead_id': leadId,
-          'remark': remarkController.text.trim(),
-          'user_id': currentUserId,
-        });
+      final remarkText = remarkController.text.trim();
+      if (remarkText.isNotEmpty) {
+        try {
+          debugPrint('[PROPOSAL] Inserting remark: $remarkText');
+          await client.from('proposal_remark').insert({
+            'lead_id': leadId,
+            'remark': remarkText,
+            'user_id': currentUserId,
+          });
+          debugPrint('[PROPOSAL] Successfully inserted remark');
+        } catch (e) {
+          debugPrint('[PROPOSAL] Error inserting remark: $e');
+          throw Exception('Failed to insert remark - $e');
+        }
       }
 
-      // Calculate sum of Area values and average of MS Wt. values
+      // Calculate sum of Area values and average of MS Wt. values using enhanced logic
       double aluminiumArea = 0.0;
       double msWeightTotal = 0.0;
       int msWeightCount = 0;
 
       for (final input in inputs) {
         if (input['input']!.text.trim().isNotEmpty) {
-          final inputType = input['input']!.text.trim();
+          final inputType = input['input']!.text.trim().toLowerCase();
           final value = double.tryParse(input['value']!.text.trim()) ?? 0.0;
 
-          if (inputType == 'Area') {
+          // Check for area-related inputs (Alu, Area, Aluminium)
+          if (inputType.contains('alu') || 
+              inputType.contains('area') || 
+              inputType.contains('aluminium')) {
             aluminiumArea += value;
-          } else if (inputType == 'MS Wt.') {
+          }
+          
+          // Check for MS weight inputs (MS, ms)
+          if (inputType.contains('ms') || inputType == 'ms') {
             msWeightTotal += value;
             msWeightCount++;
           }
@@ -1797,21 +1845,83 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
 
       double msWeight = msWeightCount > 0 ? msWeightTotal / msWeightCount : 0.0;
 
-      // Insert into admin_response table
-      await client.from('admin_response').insert({
-        'lead_id': leadId,
-        'aluminium_area': aluminiumArea,
-        'ms_weight': msWeight,
-        'created_at': DateTime.now().toIso8601String(),
-      });
+      // Get lead details for admin_response
+      final leadDetails = await client
+          .from('leads')
+          .select('project_name, client_name, project_location, lead_generated_by')
+          .eq('id', leadId)
+          .single();
 
+      // leadDetails cannot be null since we used .single()
+      // The query will throw an exception if no record is found
+
+      // Get sales user name
+      String salesUserName = '';
+      if (leadDetails['lead_generated_by'] != null) {
+        final salesUser = await client
+            .from('users')
+            .select('username')
+            .eq('id', leadDetails['lead_generated_by'])
+            .maybeSingle();
+        salesUserName = salesUser?['username'] ?? '';
+      }
+
+      // Get proposal user name
+      String proposalUserName = '';
+      // currentUserId cannot be null at this point since we validated it earlier
+      final proposalUser = await client
+          .from('users')
+          .select('username')
+          .eq('id', currentUserId)
+          .maybeSingle();
+      proposalUserName = proposalUser?['username'] ?? '';
+
+      // Generate project_id using lead_id
+      final leadIdShort = leadId.substring(0, 4).toUpperCase();
+      final projectId = 'Tobler-$leadIdShort';
+
+      // Insert into admin_response table with all required fields
+      // This creates a comprehensive record linking the proposal to the lead
+      debugPrint('[PROPOSAL] Inserting admin_response with:');
+      debugPrint('[PROPOSAL] - Project: ${leadDetails['project_name']}');
+      debugPrint('[PROPOSAL] - Client: ${leadDetails['client_name']}');
+      debugPrint('[PROPOSAL] - Aluminium Area: $aluminiumArea');
+      debugPrint('[PROPOSAL] - MS Weight: $msWeight');
+      debugPrint('[PROPOSAL] - Project ID: $projectId');
+      debugPrint('[PROPOSAL] - Sales User: $salesUserName');
+      debugPrint('[PROPOSAL] - Proposal User: $proposalUserName');
+      
+      try {
+        await client.from('admin_response').insert({
+          'lead_id': leadId,
+          'project_name': leadDetails['project_name'],
+          'client_name': leadDetails['client_name'],
+          'location': leadDetails['project_location'],
+          'aluminium_area': aluminiumArea,
+          'ms_weight': msWeight,
+          'remark': remarkController.text.trim(),
+          'project_id': projectId,
+          'sales_user': salesUserName,
+          'proposal_user': proposalUserName,
+          'created_at': DateTime.now().toIso8601String(),
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+        
+        debugPrint('[PROPOSAL] Successfully inserted admin_response');
+      } catch (e) {
+        debugPrint('[PROPOSAL] Error inserting admin_response: $e');
+        throw Exception('Failed to insert admin_response - $e');
+      }
+
+      debugPrint('[PROPOSAL] All database operations completed successfully!');
+      
       setState(() {
         _isLoading = false;
       });
       Navigator.pop(context);
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Proposal submitted!')));
+      ).showSnackBar(const SnackBar(content: Text('Proposal submitted successfully!')));
       await logLeadActivity(
         leadId: leadId,
         userId: currentUserId,
@@ -1836,10 +1946,21 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
                 (input) => {
                   'input': input['input']!.text.trim(),
                   'value': input['value']!.text.trim(),
-                  'unit': input['unit']!.text.trim(),
+                  'remark': input['remark']!.text.trim(),
                 },
               )
               .toList(),
+          'admin_response': {
+            'project_name': leadDetails['project_name'],
+            'client_name': leadDetails['client_name'],
+            'location': leadDetails['project_location'],
+            'aluminium_area': aluminiumArea,
+            'ms_weight': msWeight,
+            'remark': remarkController.text.trim(),
+            'project_id': projectId,
+            'sales_user': salesUserName,
+            'proposal_user': proposalUserName,
+          },
           'remark': remarkController.text.trim(),
         },
       );
@@ -2296,32 +2417,98 @@ class _ProposalResponseForm extends StatefulWidget {
 }
 
 class _ProposalResponseFormState extends State<_ProposalResponseForm> {
-  // Calculate total Area values
+  Timer? _debounceTimer;
+  // Real-time calculation for Total Area (Alu, Area, Aluminium)
   String _calculateAreaTotal() {
     double total = 0.0;
     for (final input in widget.inputs) {
-      if (input['input']?.text == 'Area' &&
-          input['value']?.text.isNotEmpty == true) {
-        final value = double.tryParse(input['value']!.text) ?? 0.0;
+      final inputType = input['input']?.text.trim().toLowerCase() ?? '';
+      final valueText = input['value']?.text.trim() ?? '';
+      
+      // Check if input type contains any of the specified keywords
+      if ((inputType.contains('alu') || 
+           inputType.contains('area') || 
+           inputType.contains('aluminium')) &&
+          valueText.isNotEmpty) {
+        final value = double.tryParse(valueText) ?? 0.0;
         total += value;
       }
     }
     return total.toStringAsFixed(2);
   }
 
-  // Calculate average MS Wt. values
+  // Real-time calculation for Average MS Weight (MS, ms)
   String _calculateMSWeightAverage() {
     double total = 0.0;
     int count = 0;
     for (final input in widget.inputs) {
-      if (input['input']?.text == 'MS Wt.' &&
-          input['value']?.text.isNotEmpty == true) {
-        final value = double.tryParse(input['value']!.text) ?? 0.0;
+      final inputType = input['input']?.text.trim().toLowerCase() ?? '';
+      final valueText = input['value']?.text.trim() ?? '';
+      
+      // Check if input type contains MS keywords
+      if ((inputType.contains('ms') || inputType == 'ms') &&
+          valueText.isNotEmpty) {
+        final value = double.tryParse(valueText) ?? 0.0;
         total += value;
         count++;
       }
     }
     return count > 0 ? (total / count).toStringAsFixed(2) : '0.00';
+  }
+
+  // Helper method to trigger real-time updates with debounce
+  void _updateCalculations() {
+    // Cancel previous timer
+    _debounceTimer?.cancel();
+    
+    // Set new timer for debounced update
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        setState(() {
+          // This will trigger rebuild and recalculate values
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    super.dispose();
+  }
+
+  // Helper method to get area inputs being used
+  List<String> _getAreaInputs() {
+    List<String> areaInputs = [];
+    for (int i = 0; i < widget.inputs.length; i++) {
+      final input = widget.inputs[i];
+      final inputType = input['input']?.text.trim().toLowerCase() ?? '';
+      final valueText = input['value']?.text.trim() ?? '';
+      
+      if ((inputType.contains('alu') || 
+           inputType.contains('area') || 
+           inputType.contains('aluminium')) &&
+          valueText.isNotEmpty) {
+        areaInputs.add('Input ${i + 1}: ${input['input']?.text} = ${input['value']?.text}');
+      }
+    }
+    return areaInputs;
+  }
+
+  // Helper method to get MS weight inputs being used
+  List<String> _getMSWeightInputs() {
+    List<String> msInputs = [];
+    for (int i = 0; i < widget.inputs.length; i++) {
+      final input = widget.inputs[i];
+      final inputType = input['input']?.text.trim().toLowerCase() ?? '';
+      final valueText = input['value']?.text.trim() ?? '';
+      
+      if ((inputType.contains('ms') || inputType == 'ms') &&
+          valueText.isNotEmpty) {
+        msInputs.add('Input ${i + 1}: ${input['input']?.text} = ${input['value']?.text}');
+      }
+    }
+    return msInputs;
   }
 
   @override
@@ -2531,12 +2718,16 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
                         controller: widget.inputs[i]['input'],
                         decoration: InputDecoration(
                           labelText: 'Input Type',
-                          hintText: 'e.g., Area, MS Wt., Length',
+                          hintText: 'e.g., Alu, Area, Aluminium, MS',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         ),
+                        onChanged: (value) {
+                          // Trigger real-time calculation update
+                          _updateCalculations();
+                        },
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -2551,6 +2742,11 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
                           ),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         ),
+                        keyboardType: TextInputType.number,
+                        onChanged: (value) {
+                          // Trigger real-time calculation update
+                          _updateCalculations();
+                        },
                       ),
                     ),
                   ],
@@ -2608,7 +2804,7 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
               Icon(Icons.calculate, color: Colors.blue[700], size: 20),
               const SizedBox(width: 8),
               Text(
-                'Calculations',
+                'Real-time Calculations',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -2616,6 +2812,14 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Auto-calculates from inputs containing "Alu", "Area", "Aluminium" for Total Area and "MS" for Average Weight',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+            ),
           ),
           const SizedBox(height: 12),
           Row(
@@ -2635,27 +2839,34 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
                   _calculateMSWeightAverage(),
                   'kg',
                   Colors.orange,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ],
           ),
+        ],
+      ),
     );
   }
 
   Widget _buildCalculationCard(String title, String value, String unit, Color color) {
+    List<String> inputsUsed = [];
+    if (title == 'Total Area') {
+      inputsUsed = _getAreaInputs();
+    } else if (title == 'Avg MS Weight') {
+      inputsUsed = _getMSWeightInputs();
+    }
+
     return Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
         color: Colors.white,
-            borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: color.withValues(alpha: 0.3)),
-          ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
+        children: [
+          Text(
             title,
             style: TextStyle(
               fontSize: 12,
@@ -2684,6 +2895,28 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
               ),
             ],
           ),
+          if (inputsUsed.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'From:',
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey[500],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 2),
+            ...inputsUsed.map((input) => Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: Text(
+                '• $input',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.grey[600],
+                ),
+              ),
+            )),
+          ],
         ],
       ),
     );
@@ -3129,11 +3362,13 @@ class _AlertsDialogState extends State<AlertsDialog> {
 class SubmittedProposalDialog extends StatelessWidget {
   final Map<String, dynamic> inquiry;
   final List<Map<String, dynamic>> proposalData;
+  final String? currentUserId;
 
   const SubmittedProposalDialog({
     super.key,
     required this.inquiry,
     required this.proposalData,
+    this.currentUserId,
   });
 
   @override
@@ -3229,6 +3464,26 @@ class SubmittedProposalDialog extends StatelessWidget {
                     ...proposalData
                         .where((item) => item['type'] == 'remark')
                         .map((remark) => _buildRemarkItem(remark)),
+                    
+                    const SizedBox(height: 32),
+                    
+                    // Action Buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _updateProposal(context),
+                            icon: const Icon(Icons.edit),
+                            label: const Text('Update Proposal'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange[600],
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -3353,17 +3608,356 @@ class SubmittedProposalDialog extends StatelessWidget {
       ),
     );
   }
+
+  void _updateProposal(BuildContext context) {
+    // Close current dialog
+    Navigator.of(context).pop();
+    
+    // Show update proposal dialog with pre-filled data
+    showDialog(
+      context: context,
+      builder: (context) => UpdateProposalDialog(
+        lead: inquiry,
+        currentUserId: currentUserId,
+        existingProposalData: proposalData,
+      ),
+    );
+  }
 }
 
+class UpdateProposalDialog extends StatefulWidget {
+  final Map<String, dynamic> lead;
+  final String? currentUserId;
+  final List<Map<String, dynamic>> existingProposalData;
 
+  const UpdateProposalDialog({
+    super.key,
+    required this.lead,
+    this.currentUserId,
+    required this.existingProposalData,
+  });
 
+  @override
+  State<UpdateProposalDialog> createState() => _UpdateProposalDialogState();
+}
 
+class _UpdateProposalDialogState extends State<UpdateProposalDialog> {
+  bool _isLoading = false;
+  List<Map<String, TextEditingController>> files = [];
+  List<Map<String, TextEditingController>> inputs = [];
+  TextEditingController remarkController = TextEditingController();
 
+  @override
+  void initState() {
+    super.initState();
+    _populateFormWithExistingData();
+  }
 
+  void _populateFormWithExistingData() {
+    // Populate files
+    final existingFiles = widget.existingProposalData
+        .where((item) => item['type'] == 'file')
+        .toList();
+    
+    for (final file in existingFiles) {
+      files.add({
+        'fileName': TextEditingController(text: file['file_name'] ?? ''),
+        'fileLink': TextEditingController(text: file['file_link'] ?? ''),
+      });
+    }
 
+    // Populate inputs
+    final existingInputs = widget.existingProposalData
+        .where((item) => item['type'] == 'input')
+        .toList();
+    
+    for (final input in existingInputs) {
+      inputs.add({
+        'input': TextEditingController(text: input['input'] ?? ''),
+        'value': TextEditingController(text: input['value'] ?? ''),
+        'remark': TextEditingController(text: input['remark'] ?? ''),
+      });
+    }
 
+    // Populate remark
+    final existingRemarks = widget.existingProposalData
+        .where((item) => item['type'] == 'remark')
+        .toList();
+    
+    if (existingRemarks.isNotEmpty) {
+      remarkController.text = existingRemarks.first['remark'] ?? '';
+    }
 
+    // Ensure at least one file and input field
+    if (files.isEmpty) {
+      files.add({
+        'fileName': TextEditingController(),
+        'fileLink': TextEditingController(),
+      });
+    }
+    
+    if (inputs.isEmpty) {
+      inputs.add({
+        'input': TextEditingController(),
+        'value': TextEditingController(),
+        'remark': TextEditingController(),
+      });
+    }
+  }
 
+  void _addFile() {
+    setState(() {
+      files.add({
+        'fileName': TextEditingController(),
+        'fileLink': TextEditingController(),
+      });
+    });
+  }
+
+  void _removeFile(int index) {
+    setState(() {
+      files.removeAt(index);
+    });
+  }
+
+  void _addInput() {
+    setState(() {
+      inputs.add({
+        'input': TextEditingController(),
+        'value': TextEditingController(),
+        'remark': TextEditingController(),
+      });
+    });
+  }
+
+  void _removeInput(int index) {
+    setState(() {
+      inputs.removeAt(index);
+    });
+  }
+
+  Future<void> _updateProposal() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final client = Supabase.instance.client;
+      final leadId = widget.lead['id'];
+
+      // Delete existing proposal data
+      await client.from('proposal_file').delete().eq('lead_id', leadId);
+      await client.from('proposal_input').delete().eq('lead_id', leadId);
+      await client.from('proposal_remark').delete().eq('lead_id', leadId);
+
+      // Save updated files
+      for (final file in files) {
+        final fileName = file['fileName']!.text.trim();
+        final fileLink = file['fileLink']!.text.trim();
+
+        if (fileName.isNotEmpty || fileLink.isNotEmpty) {
+          await client.from('proposal_file').insert({
+            'lead_id': leadId,
+            'file_name': fileName,
+            'file_link': fileLink,
+            'user_id': widget.currentUserId,
+          });
+        }
+      }
+
+      // Save updated inputs
+      for (final input in inputs) {
+        if (input['input']!.text.trim().isNotEmpty) {
+          await client.from('proposal_input').insert({
+            'lead_id': leadId,
+            'input': input['input']!.text.trim(),
+            'value': input['value']!.text.trim(),
+            'remark': input['remark']!.text.trim(),
+            'user_id': widget.currentUserId,
+          });
+        }
+      }
+
+      // Save updated remark
+      if (remarkController.text.trim().isNotEmpty) {
+        await client.from('proposal_remark').insert({
+          'lead_id': leadId,
+          'remark': remarkController.text.trim(),
+          'user_id': widget.currentUserId,
+        });
+      }
+
+      // Update admin_response with new calculations
+      await _updateAdminResponse();
+
+      setState(() {
+        _isLoading = false;
+      });
+      
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Proposal updated successfully!')),
+      );
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error updating proposal: $e')),
+      );
+    }
+  }
+
+  Future<void> _updateAdminResponse() async {
+    final client = Supabase.instance.client;
+    final leadId = widget.lead['id'];
+
+    // Calculate new values
+    double aluminiumArea = 0.0;
+    double msWeightTotal = 0.0;
+    int msWeightCount = 0;
+
+    for (final input in inputs) {
+      if (input['input']!.text.trim().isNotEmpty) {
+        final inputType = input['input']!.text.trim().toLowerCase();
+        final value = double.tryParse(input['value']!.text.trim()) ?? 0.0;
+
+        if (inputType.contains('alu') || 
+            inputType.contains('area') || 
+            inputType.contains('aluminium')) {
+          aluminiumArea += value;
+        }
+        
+        if (inputType.contains('ms') || inputType == 'ms') {
+          msWeightTotal += value;
+          msWeightCount++;
+        }
+      }
+    }
+
+    double msWeight = msWeightCount > 0 ? msWeightTotal / msWeightCount : 0.0;
+
+    // Update admin_response
+    await client.from('admin_response')
+        .update({
+          'aluminium_area': aluminiumArea,
+          'ms_weight': msWeight,
+          'remark': remarkController.text.trim(),
+          'updated_at': DateTime.now().toIso8601String(),
+        })
+        .eq('lead_id', leadId);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      insetPadding: const EdgeInsets.all(16),
+      child: Container(
+        width: MediaQuery.of(context).size.width > 1200 ? 1000 : 
+               MediaQuery.of(context).size.width > 800 ? 800 : 
+               MediaQuery.of(context).size.width - 32,
+        height: MediaQuery.of(context).size.height * 0.9,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.orange[50],
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange[100],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.edit, color: Colors.orange[700], size: 24),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Update Proposal',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[800],
+                          ),
+                        ),
+                        Text(
+                          '${widget.lead['client_name']} - ${widget.lead['project_name']}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: Icon(Icons.close, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            ),
+            // Content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: _ProposalResponseForm(
+                  files: files,
+                  inputs: inputs,
+                  remarkController: remarkController,
+                  isLoading: _isLoading,
+                  onAddFile: _addFile,
+                  onRemoveFile: _removeFile,
+                  onAddInput: _addInput,
+                  onRemoveInput: _removeInput,
+                  onSave: _updateProposal,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    for (final file in files) {
+      file['fileName']?.dispose();
+      file['fileLink']?.dispose();
+    }
+    for (final input in inputs) {
+      input['input']?.dispose();
+      input['value']?.dispose();
+      input['remark']?.dispose();
+    }
+    remarkController.dispose();
+    super.dispose();
+  }
+}
 
 class ProposalDashboardScreen extends StatefulWidget {
   final String? currentUserId;
