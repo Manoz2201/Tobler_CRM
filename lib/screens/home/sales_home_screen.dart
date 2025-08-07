@@ -70,7 +70,7 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
       _logout();
       return;
     }
-    
+
     setState(() {
       _selectedIndex = index;
     });
@@ -146,109 +146,103 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
       ),
       child: Column(
         children: [
-                      // Header Section with Logo and User Profile
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(
-                    color: const Color(0xFFE0E0E0),
-                    width: 1,
-                  ),
-                ),
+          // Header Section with Logo and User Profile
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: const Color(0xFFE0E0E0), width: 1),
               ),
-              child: Column(
-                children: [
-                  // Logo Section - Only show when expanded
-                  if (!_isCollapsed)
-                    SizedBox(
-                      height: 40,
-                      child: Image.asset(
-                        'assets/Tobler_logo.png',
-                        fit: BoxFit.contain,
-                      ),
+            ),
+            child: Column(
+              children: [
+                // Logo Section - Only show when expanded
+                if (!_isCollapsed)
+                  SizedBox(
+                    height: 40,
+                    child: Image.asset(
+                      'assets/Tobler_logo.png',
+                      fit: BoxFit.contain,
                     ),
-                  const SizedBox(height: 16),
-                  // User Profile Section (only show when expanded)
-                  if (!_isCollapsed)
-                    Row(
-                      children: [
-                        // User Avatar
-                        Container(
-                          width: 50,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF3E5F5),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Center(
-                            child: Text(
-                              'U',
-                              style: TextStyle(
-                                color: Color(0xFF7B1FA2),
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
+                  ),
+                const SizedBox(height: 16),
+                // User Profile Section (only show when expanded)
+                if (!_isCollapsed)
+                  Row(
+                    children: [
+                      // User Avatar
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF3E5F5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Center(
+                          child: Text(
+                            'U',
+                            style: TextStyle(
+                              color: Color(0xFF7B1FA2),
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        // User Info
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Hi,',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black,
-                                ),
-                              ),
-                              Text(
-                                'Sales User',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: Color(0xFF757575),
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1,
-                              ),
-                            ],
-                          ),
-                        ),
-                        // Collapse/Expand Button
-                        IconButton(
-                          onPressed: () {
-                            setState(() {
-                              _isCollapsed = !_isCollapsed;
-                            });
-                          },
-                          icon: Icon(
-                            _isCollapsed ? Icons.arrow_forward : Icons.arrow_back,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
-                    ),
-                  // Collapse/Expand Button (when collapsed)
-                  if (_isCollapsed)
-                    IconButton(
-                      onPressed: () {
-                        setState(() {
-                          _isCollapsed = !_isCollapsed;
-                        });
-                      },
-                      icon: const Icon(
-                        Icons.arrow_forward,
-                        color: Colors.grey,
                       ),
-                    ),
-                ],
-              ),
+                      const SizedBox(width: 12),
+                      // User Info
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Hi,',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
+                              ),
+                            ),
+                            Text(
+                              'Sales User',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Color(0xFF757575),
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Collapse/Expand Button
+                      IconButton(
+                        onPressed: () {
+                          setState(() {
+                            _isCollapsed = !_isCollapsed;
+                          });
+                        },
+                        icon: Icon(
+                          _isCollapsed ? Icons.arrow_forward : Icons.arrow_back,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                // Collapse/Expand Button (when collapsed)
+                if (_isCollapsed)
+                  IconButton(
+                    onPressed: () {
+                      setState(() {
+                        _isCollapsed = !_isCollapsed;
+                      });
+                    },
+                    icon: const Icon(Icons.arrow_forward, color: Colors.grey),
+                  ),
+              ],
             ),
-                    // Navigation Items
+          ),
+          // Navigation Items
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -1527,7 +1521,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                     child: Text(
                       'Client/Date',
                       style: TextStyle(fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
+                      textAlign: TextAlign.left,
                       softWrap: true,
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
@@ -1716,7 +1710,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                         vertical: 12,
                       ),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             lead['client_name'] ?? 'N/A',
@@ -1730,7 +1724,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                             softWrap: true,
                             overflow: TextOverflow.ellipsis,
                             maxLines: 1,
-                            textAlign: TextAlign.center,
+                            textAlign: TextAlign.left,
                           ),
                           Text(
                             _formatDate(lead['date']),
@@ -1743,7 +1737,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                             softWrap: true,
                             overflow: TextOverflow.ellipsis,
                             maxLines: 1,
-                            textAlign: TextAlign.center,
+                            textAlign: TextAlign.left,
                           ),
                         ],
                       ),
@@ -2253,7 +2247,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
 
                   // Add timeout protection
                   final timeoutDuration = const Duration(seconds: 30);
-                  
+
                   // Delete from all related tables in the correct order
                   // (child tables first, then parent table)
 
@@ -2372,24 +2366,28 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                         .delete()
                         .eq('id', leadId)
                         .timeout(timeoutDuration);
-                    
+
                     debugPrint('✅ Deleted from leads: $deleteResult');
-                    
+
                     // Verify the lead was actually deleted
                     final verifyResult = await client
                         .from('leads')
                         .select('id')
                         .eq('id', leadId)
                         .maybeSingle();
-                    
+
                     if (verifyResult != null) {
-                      throw Exception('Lead still exists after deletion attempt');
+                      throw Exception(
+                        'Lead still exists after deletion attempt',
+                      );
                     }
-                    
+
                     debugPrint('✅ Lead deletion verified successfully');
                   } catch (e) {
                     debugPrint('❌ Error deleting from leads: $e');
-                    throw Exception('Failed to delete lead from main table: $e');
+                    throw Exception(
+                      'Failed to delete lead from main table: $e',
+                    );
                   }
 
                   // Show success alert
@@ -2451,7 +2449,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
   Future<void> _viewLeadDetails(Map<String, dynamic> lead) async {
     // Check if we have 'id' or 'lead_id' field
     final leadId = lead['id']?.toString() ?? lead['lead_id']?.toString();
-    
+
     if (leadId == null) {
       debugPrint('❌ No lead ID found in lead data');
       debugPrint('Available keys: ${lead.keys.toList()}');
@@ -2664,11 +2662,17 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       debugPrint('📞 Contact data summary:');
       debugPrint('   - Main contact name: ${leadsData['main_contact_name']}');
       debugPrint('   - Main contact email: ${leadsData['main_contact_email']}');
-      debugPrint('   - Main contact mobile: ${leadsData['main_contact_mobile']}');
-      debugPrint('   - Main contact designation: ${leadsData['main_contact_designation']}');
+      debugPrint(
+        '   - Main contact mobile: ${leadsData['main_contact_mobile']}',
+      );
+      debugPrint(
+        '   - Main contact designation: ${leadsData['main_contact_designation']}',
+      );
       debugPrint('   - Additional contacts count: ${leadContactsData.length}');
       if (leadContactsData.isNotEmpty) {
-        debugPrint('   - Additional contacts: ${leadContactsData.map((c) => c['contact_name']).toList()}');
+        debugPrint(
+          '   - Additional contacts: ${leadContactsData.map((c) => c['contact_name']).toList()}',
+        );
       }
 
       // Show comprehensive details dialog
@@ -3000,59 +3004,56 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
 
         // Contact Information Section
         _buildInfoSectionCard('Contact Information', [
-            // Main Contact (from leads table)
-            _buildInfoRow(
-              'Main Contact Name',
-              leadsData['main_contact_name'] ?? 'N/A',
-            ),
-            _buildInfoRow(
-              'Main Contact Email',
-              leadsData['main_contact_email'] ?? 'N/A',
-            ),
-            _buildInfoRow(
-              'Main Contact Mobile',
-              leadsData['main_contact_mobile'] ?? 'N/A',
-            ),
-            _buildInfoRow(
-              'Main Contact Designation',
-              leadsData['main_contact_designation'] ?? 'N/A',
-            ),
-            if (leadContactsData.isNotEmpty) ...[
-              SizedBox(height: 8),
-              Divider(color: Colors.grey[400]),
-              SizedBox(height: 8),
-              Text(
-                'Additional Contacts:',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[800],
-                ),
+          // Main Contact (from leads table)
+          _buildInfoRow(
+            'Main Contact Name',
+            leadsData['main_contact_name'] ?? 'N/A',
+          ),
+          _buildInfoRow(
+            'Main Contact Email',
+            leadsData['main_contact_email'] ?? 'N/A',
+          ),
+          _buildInfoRow(
+            'Main Contact Mobile',
+            leadsData['main_contact_mobile'] ?? 'N/A',
+          ),
+          _buildInfoRow(
+            'Main Contact Designation',
+            leadsData['main_contact_designation'] ?? 'N/A',
+          ),
+          if (leadContactsData.isNotEmpty) ...[
+            SizedBox(height: 8),
+            Divider(color: Colors.grey[400]),
+            SizedBox(height: 8),
+            Text(
+              'Additional Contacts:',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
               ),
-              SizedBox(height: 8),
-              ...leadContactsData.map(
-                (contact) => Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildInfoRow(
-                      'Contact Name',
-                      contact['contact_name'] ?? 'N/A',
-                    ),
-                    _buildInfoRow(
-                      'Designation',
-                      contact['designation'] ?? 'N/A',
-                    ),
-                    _buildInfoRow('Email', contact['email'] ?? 'N/A'),
-                    _buildInfoRow('Mobile', contact['mobile'] ?? 'N/A'),
-                    if (contact != leadContactsData.last) ...[
-                      SizedBox(height: 8),
-                      Divider(color: Colors.grey[300]),
-                      SizedBox(height: 8),
-                    ],
+            ),
+            SizedBox(height: 8),
+            ...leadContactsData.map(
+              (contact) => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildInfoRow(
+                    'Contact Name',
+                    contact['contact_name'] ?? 'N/A',
+                  ),
+                  _buildInfoRow('Designation', contact['designation'] ?? 'N/A'),
+                  _buildInfoRow('Email', contact['email'] ?? 'N/A'),
+                  _buildInfoRow('Mobile', contact['mobile'] ?? 'N/A'),
+                  if (contact != leadContactsData.last) ...[
+                    SizedBox(height: 8),
+                    Divider(color: Colors.grey[300]),
+                    SizedBox(height: 8),
                   ],
-                ),
+                ],
               ),
-            ],
-          ]),
+            ),
+          ],
+        ]),
         SizedBox(height: 16),
 
         // Attachments Section
@@ -5973,33 +5974,33 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
   String _selectedCurrency = 'INR';
   String _currentUsername = '';
   bool _isLoading = false;
-  
+
   // Dashboard data state
   Map<String, dynamic> _dashboardData = {
     'totalRevenue': {'value': '₹0', 'percentage': '+0.0%', 'isPositive': true},
-    'aluminiumArea': {'value': '0 m²', 'percentage': '+0.0%', 'isPositive': true},
+    'aluminiumArea': {
+      'value': '0 m²',
+      'percentage': '+0.0%',
+      'isPositive': true,
+    },
     'qualifiedLeads': {'value': '0', 'percentage': '+0.0%', 'isPositive': true},
   };
-  
-      // Chart data state
-    List<BarChartGroupData> _barChartData = [];
-    bool _isLoadingChartData = false;
-  
+
+  // Chart data state
+  List<BarChartGroupData> _barChartData = [];
+  bool _isLoadingChartData = false;
+
   // Lead status distribution data state
-  Map<String, int> _leadStatusDistribution = {
-    'Won': 0,
-    'Lost': 0,
-    'Loop': 0,
-  };
+  Map<String, int> _leadStatusDistribution = {'Won': 0, 'Lost': 0, 'Loop': 0};
   bool _isLoadingLeadStatusData = false;
-  
+
   // Lead Performance state
   String _activeLeadTab = 'Won';
   List<Map<String, dynamic>> _leadPerformanceData = [];
   List<Map<String, dynamic>> _filteredLeadData = [];
   bool _isLoadingLeadData = false;
   final TextEditingController _leadSearchController = TextEditingController();
-  
+
   // Currency conversion rates
   final Map<String, double> _currencyRates = {
     'INR': 1.0,
@@ -6008,7 +6009,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     'CHF': 0.010,
     'GBP': 0.009,
   };
-  
+
   final Map<String, String> _currencySymbols = {
     'INR': '₹',
     'USD': '\$',
@@ -6039,11 +6040,11 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
           .select('username')
           .eq('id', widget.currentUserId)
           .single();
-      
+
       setState(() {
         _currentUsername = response['username'] ?? '';
       });
-      
+
       // Fetch dashboard data after getting username
       _fetchDashboardData();
       _fetchChartData();
@@ -6059,7 +6060,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     final now = DateTime.now();
     DateTime startDate;
     DateTime endDate = now;
-    
+
     switch (timePeriod.toLowerCase()) {
       case 'week':
         startDate = now.subtract(Duration(days: 7));
@@ -6088,14 +6089,14 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
       default:
         startDate = DateTime(now.year, now.month - 3, now.day);
     }
-    
+
     return {'start': startDate, 'end': endDate};
   }
 
   // Fetch dashboard data from Supabase
   Future<void> _fetchDashboardData() async {
     if (_currentUsername.isEmpty) return;
-    
+
     setState(() {
       _isLoading = true;
     });
@@ -6103,7 +6104,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     try {
       final client = Supabase.instance.client;
       final dateRange = _getDateRange(_selectedTimePeriod);
-      
+
       // Fetch data from admin_response table filtered by sales_user and Won status
       final response = await client
           .from('admin_response')
@@ -6114,7 +6115,6 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
           .lte('updated_at', dateRange['end']!.toIso8601String());
 
       await _calculateDashboardMetrics(response);
-      
     } catch (e) {
       debugPrint('Error fetching dashboard data: $e');
     } finally {
@@ -6132,37 +6132,53 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
 
     for (var record in data) {
       if (record['total_amount_gst'] != null) {
-        totalRevenue += (record['total_amount_gst'] is num) ? record['total_amount_gst'].toDouble() : 0;
+        totalRevenue += (record['total_amount_gst'] is num)
+            ? record['total_amount_gst'].toDouble()
+            : 0;
       }
-      
+
       if (record['aluminium_area'] != null) {
-        totalAluminiumArea += (record['aluminium_area'] is num) ? record['aluminium_area'].toDouble() : 0;
+        totalAluminiumArea += (record['aluminium_area'] is num)
+            ? record['aluminium_area'].toDouble()
+            : 0;
       }
-      
+
       qualifiedLeadsCount++;
     }
 
     final previousPeriodData = await _getPreviousPeriodData();
-    
-    final revenuePercentage = _calculatePercentage(totalRevenue, previousPeriodData['revenue'] ?? 0);
-    final aluminiumAreaPercentage = _calculatePercentage(totalAluminiumArea, previousPeriodData['aluminiumArea'] ?? 0);
-    final leadsPercentage = _calculatePercentage(qualifiedLeadsCount.toDouble(), previousPeriodData['leads'] ?? 0);
+
+    final revenuePercentage = _calculatePercentage(
+      totalRevenue,
+      previousPeriodData['revenue'] ?? 0,
+    );
+    final aluminiumAreaPercentage = _calculatePercentage(
+      totalAluminiumArea,
+      previousPeriodData['aluminiumArea'] ?? 0,
+    );
+    final leadsPercentage = _calculatePercentage(
+      qualifiedLeadsCount.toDouble(),
+      previousPeriodData['leads'] ?? 0,
+    );
 
     setState(() {
       _dashboardData = {
         'totalRevenue': {
           'value': _formatCurrency(totalRevenue, _selectedCurrency),
-          'percentage': '${revenuePercentage >= 0 ? '+' : ''}${revenuePercentage.toStringAsFixed(1)}%',
+          'percentage':
+              '${revenuePercentage >= 0 ? '+' : ''}${revenuePercentage.toStringAsFixed(1)}%',
           'isPositive': revenuePercentage >= 0,
         },
         'aluminiumArea': {
           'value': '${totalAluminiumArea.toStringAsFixed(0)} m²',
-          'percentage': '${aluminiumAreaPercentage >= 0 ? '+' : ''}${aluminiumAreaPercentage.toStringAsFixed(1)}%',
+          'percentage':
+              '${aluminiumAreaPercentage >= 0 ? '+' : ''}${aluminiumAreaPercentage.toStringAsFixed(1)}%',
           'isPositive': aluminiumAreaPercentage >= 0,
         },
         'qualifiedLeads': {
           'value': qualifiedLeadsCount.toString(),
-          'percentage': '${leadsPercentage >= 0 ? '+' : ''}${leadsPercentage.toStringAsFixed(1)}%',
+          'percentage':
+              '${leadsPercentage >= 0 ? '+' : ''}${leadsPercentage.toStringAsFixed(1)}%',
           'isPositive': leadsPercentage >= 0,
         },
       };
@@ -6174,11 +6190,13 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     try {
       final client = Supabase.instance.client;
       final currentDateRange = _getDateRange(_selectedTimePeriod);
-      
-      final duration = currentDateRange['end']!.difference(currentDateRange['start']!);
+
+      final duration = currentDateRange['end']!.difference(
+        currentDateRange['start']!,
+      );
       final previousStartDate = currentDateRange['start']!.subtract(duration);
       final previousEndDate = currentDateRange['start']!;
-      
+
       final previousResponse = await client
           .from('admin_response')
           .select()
@@ -6186,21 +6204,25 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
           .eq('update_lead_status', 'Won')
           .gte('updated_at', previousStartDate.toIso8601String())
           .lte('updated_at', previousEndDate.toIso8601String());
-      
+
       double previousRevenue = 0;
       double previousAluminiumArea = 0;
       int previousLeadsCount = 0;
-      
+
       for (var record in previousResponse) {
         if (record['total_amount_gst'] != null) {
-          previousRevenue += (record['total_amount_gst'] is num) ? record['total_amount_gst'].toDouble() : 0;
+          previousRevenue += (record['total_amount_gst'] is num)
+              ? record['total_amount_gst'].toDouble()
+              : 0;
         }
         if (record['aluminium_area'] != null) {
-          previousAluminiumArea += (record['aluminium_area'] is num) ? record['aluminium_area'].toDouble() : 0;
+          previousAluminiumArea += (record['aluminium_area'] is num)
+              ? record['aluminium_area'].toDouble()
+              : 0;
         }
         previousLeadsCount++;
       }
-      
+
       return {
         'revenue': previousRevenue,
         'aluminiumArea': previousAluminiumArea,
@@ -6215,7 +6237,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
   // Fetch chart data from admin_response table
   Future<void> _fetchChartData() async {
     if (_currentUsername.isEmpty) return;
-    
+
     setState(() {
       _isLoadingChartData = true;
     });
@@ -6223,7 +6245,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     try {
       final client = Supabase.instance.client;
       final dateRange = _getDateRange(_selectedTimePeriod);
-      
+
       final response = await client
           .from('admin_response')
           .select('aluminium_area, total_amount_gst, updated_at')
@@ -6235,7 +6257,6 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
           .timeout(const Duration(seconds: 10));
 
       await _processChartData(response);
-      
     } catch (e) {
       debugPrint('Error fetching chart data: $e');
       setState(() {
@@ -6259,20 +6280,20 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     final dateRange = _getDateRange(_selectedTimePeriod);
     final startDate = dateRange['start']!;
     final endDate = dateRange['end']!;
-    
+
     // Group data based on time period with cumulative approach
     Map<String, List<Map<String, dynamic>>> groupedData = {};
-    
+
     for (var record in data) {
       final updatedAt = DateTime.parse(record['updated_at']);
-      
+
       // Only include data within the selected time period range
       if (updatedAt.isBefore(startDate) || updatedAt.isAfter(endDate)) {
         continue;
       }
-      
+
       String groupKey;
-      
+
       switch (_selectedTimePeriod.toLowerCase()) {
         case 'week':
           final dayOfWeek = updatedAt.weekday;
@@ -6305,7 +6326,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
         default:
           groupKey = _getMonthName(updatedAt.month);
       }
-      
+
       if (!groupedData.containsKey(groupKey)) {
         groupedData[groupKey] = [];
       }
@@ -6314,11 +6335,11 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
 
     final labels = _getChartLabels();
     final barGroups = <BarChartGroupData>[];
-    
+
     for (int i = 0; i < labels.length; i++) {
       final label = labels[i];
       final groupData = groupedData[label] ?? [];
-      
+
       int qualifiedLeadCount = groupData.length; // Count of Won leads
       double totalRevenue = 0;
 
@@ -6361,7 +6382,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
   // Fetch lead status distribution data
   Future<void> _fetchLeadStatusDistributionData() async {
     if (_currentUsername.isEmpty) return;
-    
+
     setState(() {
       _isLoadingLeadStatusData = true;
     });
@@ -6369,7 +6390,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     try {
       final client = Supabase.instance.client;
       final dateRange = _getDateRange(_selectedTimePeriod);
-      
+
       final response = await client
           .from('admin_response')
           .select('update_lead_status')
@@ -6379,15 +6400,10 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
           .timeout(const Duration(seconds: 10));
 
       await _processLeadStatusDistributionData(response);
-      
     } catch (e) {
       debugPrint('Error fetching lead status distribution data: $e');
       setState(() {
-        _leadStatusDistribution = {
-          'Won': 0,
-          'Lost': 0,
-          'Loop': 0,
-        };
+        _leadStatusDistribution = {'Won': 0, 'Lost': 0, 'Loop': 0};
         _isLoadingLeadStatusData = false;
       });
     }
@@ -6395,11 +6411,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
 
   // Process lead status distribution data
   Future<void> _processLeadStatusDistributionData(List<dynamic> data) async {
-    Map<String, int> statusCounts = {
-      'Won': 0,
-      'Lost': 0,
-      'Loop': 0,
-    };
+    Map<String, int> statusCounts = {'Won': 0, 'Lost': 0, 'Loop': 0};
 
     for (var record in data) {
       final status = record['update_lead_status'];
@@ -6417,22 +6429,30 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
   // Helper methods
   String _getMonthName(int month) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return months[month - 1];
   }
 
   String _getDayOfWeekName(int dayOfWeek) {
-    const days = [
-      'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'
-    ];
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     return days[dayOfWeek - 1];
   }
 
   List<String> _getChartLabels() {
     final now = DateTime.now();
-    
+
     switch (_selectedTimePeriod.toLowerCase()) {
       case 'week':
         return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -6440,7 +6460,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
         // Show only current month's weeks
         final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
         final totalWeeks = ((daysInMonth - 1) ~/ 7) + 1;
-        
+
         final labels = <String>[];
         for (int week = 1; week <= totalWeeks; week++) {
           labels.add('Week $week');
@@ -6473,7 +6493,20 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
           return ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         }
       case 'annual':
-        return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return [
+          'Jan',
+          'Feb',
+          'Mar',
+          'Apr',
+          'May',
+          'Jun',
+          'Jul',
+          'Aug',
+          'Sep',
+          'Oct',
+          'Nov',
+          'Dec',
+        ];
       case 'two years':
         // Show quarters for current year and previous year
         final labels = <String>[];
@@ -6496,7 +6529,20 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
         }
         return labels.reversed.toList(); // Show most recent first
       default:
-        return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return [
+          'Jan',
+          'Feb',
+          'Mar',
+          'Apr',
+          'May',
+          'Jun',
+          'Jul',
+          'Aug',
+          'Sep',
+          'Oct',
+          'Nov',
+          'Dec',
+        ];
     }
   }
 
@@ -6512,13 +6558,14 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     return '$symbol${NumberFormat('#,##0').format(convertedAmount)}';
   }
 
-
-
   // Build Syncfusion pie chart data
   List<ChartData> _buildSyncfusionPieChartData() {
-    final totalLeads = _leadStatusDistribution.values.fold(0, (sum, count) => sum + count);
+    final totalLeads = _leadStatusDistribution.values.fold(
+      0,
+      (sum, count) => sum + count,
+    );
     final chartData = <ChartData>[];
-    
+
     if (totalLeads == 0) {
       return chartData;
     }
@@ -6532,11 +6579,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     for (var entry in _leadStatusDistribution.entries) {
       if (entry.value > 0) {
         chartData.add(
-          ChartData(
-            entry.key,
-            entry.value.toDouble(),
-            colors[entry.key]!,
-          ),
+          ChartData(entry.key, entry.value.toDouble(), colors[entry.key]!),
         );
       }
     }
@@ -6558,15 +6601,15 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
   // Fetch lead performance data from admin_response table
   Future<void> _fetchLeadPerformanceData() async {
     if (_currentUsername.isEmpty) return;
-    
+
     setState(() {
       _isLoadingLeadData = true;
     });
-    
+
     try {
       final client = Supabase.instance.client;
       final dateRange = _getDateRange(_selectedTimePeriod);
-      
+
       final response = await client
           .from('admin_response')
           .select('''
@@ -6582,7 +6625,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
           .gte('updated_at', dateRange['start']!.toIso8601String())
           .lte('updated_at', dateRange['end']!.toIso8601String())
           .order('updated_at', ascending: false);
-      
+
       setState(() {
         _leadPerformanceData = List<Map<String, dynamic>>.from(response);
         _filteredLeadData = List<Map<String, dynamic>>.from(response);
@@ -6600,32 +6643,46 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
   void _filterLeadData(String query) {
     if (query.isEmpty) {
       setState(() {
-        _filteredLeadData = List<Map<String, dynamic>>.from(_leadPerformanceData);
+        _filteredLeadData = List<Map<String, dynamic>>.from(
+          _leadPerformanceData,
+        );
       });
       return;
     }
-    
+
     final filtered = _leadPerformanceData.where((lead) {
       final searchQuery = query.toLowerCase();
-      return lead['project_name']?.toString().toLowerCase().contains(searchQuery) == true ||
-             lead['project_id']?.toString().toLowerCase().contains(searchQuery) == true ||
-             lead['update_lead_status']?.toString().toLowerCase().contains(searchQuery) == true ||
-             lead['aluminium_area']?.toString().toLowerCase().contains(searchQuery) == true ||
-             lead['total_amount_gst']?.toString().toLowerCase().contains(searchQuery) == true ||
-             lead['updated_at']?.toString().toLowerCase().contains(searchQuery) == true;
+      return lead['project_name']?.toString().toLowerCase().contains(
+                searchQuery,
+              ) ==
+              true ||
+          lead['project_id']?.toString().toLowerCase().contains(searchQuery) ==
+              true ||
+          lead['update_lead_status']?.toString().toLowerCase().contains(
+                searchQuery,
+              ) ==
+              true ||
+          lead['aluminium_area']?.toString().toLowerCase().contains(
+                searchQuery,
+              ) ==
+              true ||
+          lead['total_amount_gst']?.toString().toLowerCase().contains(
+                searchQuery,
+              ) ==
+              true ||
+          lead['updated_at']?.toString().toLowerCase().contains(searchQuery) ==
+              true;
     }).toList();
-    
+
     setState(() {
       _filteredLeadData = filtered;
     });
   }
 
-
-
   // Show currency dialog
   void _showCurrencyDialog() {
     final currencies = ['INR', 'USD', 'EUR', 'CHF', 'GBP'];
-    
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -6636,7 +6693,9 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
             children: currencies.map((currency) {
               return ListTile(
                 title: Text(currency),
-                trailing: _selectedCurrency == currency ? Icon(Icons.check, color: Colors.green) : null,
+                trailing: _selectedCurrency == currency
+                    ? Icon(Icons.check, color: Colors.green)
+                    : null,
                 onTap: () {
                   setState(() {
                     _selectedCurrency = currency;
@@ -6654,8 +6713,17 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
 
   // Show time period dialog
   void _showTimePeriodDialog() {
-    final timePeriods = ['Week', 'Month', 'Quarter', 'Semester', 'Annual', 'Two Years', 'Three Years', 'Five Years'];
-    
+    final timePeriods = [
+      'Week',
+      'Month',
+      'Quarter',
+      'Semester',
+      'Annual',
+      'Two Years',
+      'Three Years',
+      'Five Years',
+    ];
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -6666,7 +6734,9 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
             children: timePeriods.map((period) {
               return ListTile(
                 title: Text(period),
-                trailing: _selectedTimePeriod == period ? Icon(Icons.check, color: Colors.green) : null,
+                trailing: _selectedTimePeriod == period
+                    ? Icon(Icons.check, color: Colors.green)
+                    : null,
                 onTap: () {
                   _onTimePeriodChanged(period);
                   Navigator.of(context).pop();
@@ -6736,10 +6806,16 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                         onChanged: _filterLeadData,
                         decoration: InputDecoration(
                           hintText: 'Search leads...',
-                          prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
+                          prefixIcon: Icon(
+                            Icons.search,
+                            color: Colors.grey[600],
+                          ),
                           suffixIcon: _leadSearchController.text.isNotEmpty
                               ? IconButton(
-                                  icon: Icon(Icons.clear, color: Colors.grey[600]),
+                                  icon: Icon(
+                                    Icons.clear,
+                                    color: Colors.grey[600],
+                                  ),
                                   onPressed: () {
                                     _leadSearchController.clear();
                                     _filterLeadData('');
@@ -6747,7 +6823,10 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                                 )
                               : null,
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                         ),
                       ),
                     ),
@@ -6770,10 +6849,16 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                           onChanged: _filterLeadData,
                           decoration: InputDecoration(
                             hintText: 'Search leads...',
-                            prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
+                            prefixIcon: Icon(
+                              Icons.search,
+                              color: Colors.grey[600],
+                            ),
                             suffixIcon: _leadSearchController.text.isNotEmpty
                                 ? IconButton(
-                                    icon: Icon(Icons.clear, color: Colors.grey[600]),
+                                    icon: Icon(
+                                      Icons.clear,
+                                      color: Colors.grey[600],
+                                    ),
                                     onPressed: () {
                                       _leadSearchController.clear();
                                       _filterLeadData('');
@@ -6781,7 +6866,10 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                                   )
                                 : null,
                             border: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
                           ),
                         ),
                       ),
@@ -6802,11 +6890,11 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
             },
           ),
           SizedBox(height: 16),
-          
+
           // Tabs
           _buildLeadTabs(),
           SizedBox(height: 16),
-          
+
           // Table
           _buildLeadTable(),
         ],
@@ -6817,11 +6905,23 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
   // Build lead tabs
   Widget _buildLeadTabs() {
     final tabs = [
-      {'key': 'Won', 'label': 'Won Leads', 'count': _getLeadCountByStatus('Won')},
-      {'key': 'Lost', 'label': 'Lost Leads', 'count': _getLeadCountByStatus('Lost')},
-      {'key': 'Loop', 'label': 'In Loop', 'count': _getLeadCountByStatus('Loop')},
+      {
+        'key': 'Won',
+        'label': 'Won Leads',
+        'count': _getLeadCountByStatus('Won'),
+      },
+      {
+        'key': 'Lost',
+        'label': 'Lost Leads',
+        'count': _getLeadCountByStatus('Lost'),
+      },
+      {
+        'key': 'Loop',
+        'label': 'In Loop',
+        'count': _getLeadCountByStatus('Loop'),
+      },
     ];
-    
+
     return Row(
       children: tabs.map((tab) {
         final isActive = _activeLeadTab == tab['key'];
@@ -6872,13 +6972,17 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
 
   // Get lead count by status
   int _getLeadCountByStatus(String status) {
-    return _filteredLeadData.where((lead) => lead['update_lead_status'] == status).length;
+    return _filteredLeadData
+        .where((lead) => lead['update_lead_status'] == status)
+        .length;
   }
 
   // Build lead table
   Widget _buildLeadTable() {
-    final filteredData = _filteredLeadData.where((lead) => lead['update_lead_status'] == _activeLeadTab).toList();
-    
+    final filteredData = _filteredLeadData
+        .where((lead) => lead['update_lead_status'] == _activeLeadTab)
+        .toList();
+
     if (_isLoadingLeadData) {
       return Center(
         child: Column(
@@ -6888,26 +6992,19 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
             SizedBox(height: 16),
             Text(
               'Loading lead data...',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 14,
-              ),
+              style: TextStyle(color: Colors.grey[600], fontSize: 14),
             ),
           ],
         ),
       );
     }
-    
+
     if (filteredData.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.assignment_outlined,
-              size: 48,
-              color: Colors.grey[400],
-            ),
+            Icon(Icons.assignment_outlined, size: 48, color: Colors.grey[400]),
             SizedBox(height: 16),
             Text(
               'No $_activeLeadTab leads found',
@@ -6921,7 +7018,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
         ),
       );
     }
-    
+
     return LayoutBuilder(
       builder: (context, constraints) {
         // For Windows screens, always use the desktop table layout
@@ -6954,15 +7051,22 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                             ),
                           ),
                           Container(
-                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
-                              color: _getStatusColor(lead['update_lead_status']).withValues(alpha: 0.1),
+                              color: _getStatusColor(
+                                lead['update_lead_status'],
+                              ).withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
                               lead['update_lead_status']?.toString() ?? 'N/A',
                               style: TextStyle(
-                                color: _getStatusColor(lead['update_lead_status']),
+                                color: _getStatusColor(
+                                  lead['update_lead_status'],
+                                ),
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -6971,10 +7075,22 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                         ],
                       ),
                       SizedBox(height: 8),
-                      _buildLeadInfoRow('Project ID', lead['project_id']?.toString() ?? 'N/A'),
-                      _buildLeadInfoRow('Area', '${lead['aluminium_area']?.toString() ?? '0'} m²'),
-                      _buildLeadInfoRow('Revenue', '₹${lead['total_amount_gst']?.toString() ?? '0'}'),
-                      _buildLeadInfoRow('Closed Date', _formatDate(lead['updated_at'])),
+                      _buildLeadInfoRow(
+                        'Project ID',
+                        lead['project_id']?.toString() ?? 'N/A',
+                      ),
+                      _buildLeadInfoRow(
+                        'Area',
+                        '${lead['aluminium_area']?.toString() ?? '0'} m²',
+                      ),
+                      _buildLeadInfoRow(
+                        'Revenue',
+                        '₹${lead['total_amount_gst']?.toString() ?? '0'}',
+                      ),
+                      _buildLeadInfoRow(
+                        'Closed Date',
+                        _formatDate(lead['updated_at']),
+                      ),
                     ],
                   ),
                 ),
@@ -6994,7 +7110,9 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.grey[50],
-                    border: Border(bottom: BorderSide(color: Colors.grey[300]!)),
+                    border: Border(
+                      bottom: BorderSide(color: Colors.grey[300]!),
+                    ),
                   ),
                   child: Row(
                     children: [
@@ -7013,8 +7131,8 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                     ],
                   ),
                 ),
-                          // Data rows
-          ...filteredData.map((lead) => _buildTableDataRow(lead)),
+                // Data rows
+                ...filteredData.map((lead) => _buildTableDataRow(lead)),
               ],
             ),
           );
@@ -7031,18 +7149,12 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
         children: [
           Text(
             '$label: ',
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 12,
-            ),
+            style: TextStyle(color: Colors.grey[600], fontSize: 12),
           ),
           Expanded(
             child: Text(
               value,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
             ),
           ),
         ],
@@ -7115,16 +7227,24 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
           _buildTableDataCell(lead['project_name']?.toString() ?? 'N/A', 2),
           _buildTableDataCell(lead['client_name']?.toString() ?? 'N/A', 2),
           _buildTableDataCell(lead['location']?.toString() ?? 'N/A', 1),
-          _buildTableDataCell('${lead['aluminium_area']?.toString() ?? '0'} m²', 1),
+          _buildTableDataCell(
+            '${lead['aluminium_area']?.toString() ?? '0'} m²',
+            1,
+          ),
           _buildTableDataCell(lead['rc_weight']?.toString() ?? 'N/A', 1),
           _buildTableDataCell('₹${lead['rate_per_sqm']?.toString() ?? '0'}', 1),
-          _buildTableDataCell('₹${lead['total_amount_gst']?.toString() ?? '0'}', 1),
+          _buildTableDataCell(
+            '₹${lead['total_amount_gst']?.toString() ?? '0'}',
+            1,
+          ),
           _buildTableDataCell(lead['sales_user']?.toString() ?? 'N/A', 1),
           _buildTableDataCell(
             Container(
               padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: _getStatusColor(lead['update_lead_status']).withValues(alpha: 0.1),
+                color: _getStatusColor(
+                  lead['update_lead_status'],
+                ).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
@@ -7160,10 +7280,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                 width: double.infinity,
                 child: Text(
                   content.toString(),
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey[700],
-                  ),
+                  style: TextStyle(fontSize: 11, color: Colors.grey[700]),
                   textAlign: TextAlign.center,
                   overflow: TextOverflow.visible,
                   softWrap: true,
@@ -7176,8 +7293,17 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
 
   // Build time period filter
   Widget _buildTimePeriodFilter() {
-    final timePeriods = ['Week', 'Month', 'Quarter', 'Semester', 'Annual', 'Two Years', 'Three Years', 'Five Years'];
-    
+    final timePeriods = [
+      'Week',
+      'Month',
+      'Quarter',
+      'Semester',
+      'Annual',
+      'Two Years',
+      'Three Years',
+      'Five Years',
+    ];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -7230,7 +7356,6 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
             }).toList(),
           ),
         ),
-
       ],
     );
   }
@@ -7247,15 +7372,13 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
               // Header
               _buildHeader(),
               SizedBox(height: 24),
-              
+
               // Time Period Filter
               _buildTimePeriodFilter(),
               SizedBox(height: 24),
-              
+
               // Dashboard content
-              Expanded(
-                child: _buildDashboardContent(),
-              ),
+              Expanded(child: _buildDashboardContent()),
             ],
           ),
         ),
@@ -7267,7 +7390,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth <= 600;
-        
+
         if (isMobile) {
           // Mobile layout - only search and three dots
           return Column(
@@ -7314,7 +7437,10 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                                   decoration: InputDecoration(
                                     hintText: 'Search...',
                                     border: InputBorder.none,
-                                    hintStyle: TextStyle(color: Colors.grey[400], fontSize: 12),
+                                    hintStyle: TextStyle(
+                                      color: Colors.grey[400],
+                                      fontSize: 12,
+                                    ),
                                   ),
                                   style: TextStyle(fontSize: 12),
                                 ),
@@ -7339,7 +7465,10 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                                     _isSearchExpanded = true;
                                   });
                                 },
-                                icon: Icon(Icons.search, color: Colors.grey[600]),
+                                icon: Icon(
+                                  Icons.search,
+                                  color: Colors.grey[600],
+                                ),
                                 iconSize: 16,
                                 padding: EdgeInsets.zero,
                               ),
@@ -7366,7 +7495,11 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                       ],
                     ),
                     child: PopupMenuButton<String>(
-                      icon: Icon(Icons.more_vert, color: Colors.grey[600], size: 18),
+                      icon: Icon(
+                        Icons.more_vert,
+                        color: Colors.grey[600],
+                        size: 18,
+                      ),
                       iconSize: 18,
                       padding: EdgeInsets.zero,
                       onSelected: (value) {
@@ -7383,7 +7516,11 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                           value: 'settings',
                           child: Row(
                             children: [
-                              Icon(Icons.settings, color: Colors.grey[600], size: 16),
+                              Icon(
+                                Icons.settings,
+                                color: Colors.grey[600],
+                                size: 16,
+                              ),
                               SizedBox(width: 8),
                               Text('Settings', style: TextStyle(fontSize: 12)),
                             ],
@@ -7393,7 +7530,11 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                           value: 'help',
                           child: Row(
                             children: [
-                              Icon(Icons.help, color: Colors.grey[600], size: 16),
+                              Icon(
+                                Icons.help,
+                                color: Colors.grey[600],
+                                size: 16,
+                              ),
                               SizedBox(width: 8),
                               Text('Help', style: TextStyle(fontSize: 12)),
                             ],
@@ -7404,7 +7545,6 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                   ),
                 ],
               ),
-
             ],
           );
         } else {
@@ -7426,9 +7566,9 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                   ),
                 ],
               ),
-              
+
               Spacer(),
-              
+
               // Search bar
               AnimatedContainer(
                 duration: Duration(milliseconds: 300),
@@ -7487,9 +7627,9 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                   ],
                 ),
               ),
-              
+
               SizedBox(width: 16),
-              
+
               // Currency icon button
               Container(
                 width: 48,
@@ -7514,9 +7654,9 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                   iconSize: 20,
                 ),
               ),
-              
+
               SizedBox(width: 16),
-              
+
               // Time period icon button
               Container(
                 width: 48,
@@ -7541,9 +7681,9 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                   iconSize: 20,
                 ),
               ),
-              
+
               SizedBox(width: 16),
-              
+
               // Notification button icon
               Container(
                 width: 48,
@@ -7590,9 +7730,9 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                   ],
                 ),
               ),
-              
+
               SizedBox(width: 16),
-              
+
               // Chat button icon
               Container(
                 width: 48,
@@ -7646,8 +7786,6 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     );
   }
 
-
-
   Widget _buildDashboardContent() {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -7656,66 +7794,62 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
           return SingleChildScrollView(
             child: Column(
               children: [
-                _isLoading 
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                _isLoading
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(),
+                            SizedBox(height: 16),
+                            Text(
+                              'Loading dashboard data...',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : Row(
                         children: [
-                          CircularProgressIndicator(),
-                          SizedBox(height: 16),
-                          Text(
-                            'Loading dashboard data...',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 14,
+                          Expanded(
+                            child: _buildDashboardCard(
+                              'Total Revenue',
+                              _dashboardData['totalRevenue']['value'],
+                              _dashboardData['totalRevenue']['percentage'],
+                              Icons.attach_money,
+                              Colors.blue,
+                            ),
+                          ),
+                          SizedBox(width: 16),
+                          Expanded(
+                            child: _buildDashboardCard(
+                              'Aluminum Area',
+                              _dashboardData['aluminiumArea']['value'],
+                              _dashboardData['aluminiumArea']['percentage'],
+                              Icons.grid_on,
+                              Colors.purple,
+                            ),
+                          ),
+                          SizedBox(width: 16),
+                          Expanded(
+                            child: _buildDashboardCard(
+                              'Qualified Leads',
+                              _dashboardData['qualifiedLeads']['value'],
+                              _dashboardData['qualifiedLeads']['percentage'],
+                              Icons.people,
+                              Colors.orange,
                             ),
                           ),
                         ],
                       ),
-                    )
-                  : Row(
-                      children: [
-                        Expanded(
-                          child: _buildDashboardCard(
-                            'Total Revenue',
-                            _dashboardData['totalRevenue']['value'],
-                            _dashboardData['totalRevenue']['percentage'],
-                            Icons.attach_money,
-                            Colors.blue,
-                          ),
-                        ),
-                        SizedBox(width: 16),
-                        Expanded(
-                          child: _buildDashboardCard(
-                            'Aluminum Area',
-                            _dashboardData['aluminiumArea']['value'],
-                            _dashboardData['aluminiumArea']['percentage'],
-                            Icons.grid_on,
-                            Colors.purple,
-                          ),
-                        ),
-                        SizedBox(width: 16),
-                        Expanded(
-                          child: _buildDashboardCard(
-                            'Qualified Leads',
-                            _dashboardData['qualifiedLeads']['value'],
-                            _dashboardData['qualifiedLeads']['percentage'],
-                            Icons.people,
-                            Colors.orange,
-                          ),
-                        ),
-                      ],
-                    ),
                 SizedBox(height: 24),
                 Row(
                   children: [
-                    Expanded(
-                      child: _buildQualifiedAreaVsRevenueChart(),
-                    ),
+                    Expanded(child: _buildQualifiedAreaVsRevenueChart()),
                     SizedBox(width: 16),
-                    Expanded(
-                      child: _buildLeadStatusDistributionChart(),
-                    ),
+                    Expanded(child: _buildLeadStatusDistributionChart()),
                   ],
                 ),
                 SizedBox(height: 24),
@@ -7728,58 +7862,58 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
           return SingleChildScrollView(
             child: Column(
               children: [
-                _isLoading 
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CircularProgressIndicator(),
-                          SizedBox(height: 16),
-                          Text(
-                            'Loading dashboard data...',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : Column(
-                      children: [
-                        Row(
+                _isLoading
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Expanded(
-                              child: _buildDashboardCard(
-                                'Qualified Leads',
-                                _dashboardData['qualifiedLeads']['value'],
-                                _dashboardData['qualifiedLeads']['percentage'],
-                                Icons.people,
-                                Colors.orange,
-                              ),
-                            ),
-                            SizedBox(width: 12),
-                            Expanded(
-                              child: _buildDashboardCard(
-                                'Aluminum Area',
-                                _dashboardData['aluminiumArea']['value'],
-                                _dashboardData['aluminiumArea']['percentage'],
-                                Icons.grid_on,
-                                Colors.purple,
+                            CircularProgressIndicator(),
+                            SizedBox(height: 16),
+                            Text(
+                              'Loading dashboard data...',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 14,
                               ),
                             ),
                           ],
                         ),
-                        SizedBox(height: 12),
-                        _buildDashboardCard(
-                          'Total Revenue',
-                          _dashboardData['totalRevenue']['value'],
-                          _dashboardData['totalRevenue']['percentage'],
-                          Icons.attach_money,
-                          Colors.blue,
-                        ),
-                      ],
-                    ),
+                      )
+                    : Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildDashboardCard(
+                                  'Qualified Leads',
+                                  _dashboardData['qualifiedLeads']['value'],
+                                  _dashboardData['qualifiedLeads']['percentage'],
+                                  Icons.people,
+                                  Colors.orange,
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                              Expanded(
+                                child: _buildDashboardCard(
+                                  'Aluminum Area',
+                                  _dashboardData['aluminiumArea']['value'],
+                                  _dashboardData['aluminiumArea']['percentage'],
+                                  Icons.grid_on,
+                                  Colors.purple,
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 12),
+                          _buildDashboardCard(
+                            'Total Revenue',
+                            _dashboardData['totalRevenue']['value'],
+                            _dashboardData['totalRevenue']['percentage'],
+                            Icons.attach_money,
+                            Colors.blue,
+                          ),
+                        ],
+                      ),
                 SizedBox(height: 24),
                 _buildQualifiedAreaVsRevenueChart(),
                 SizedBox(height: 16),
@@ -7792,7 +7926,13 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     );
   }
 
-  Widget _buildDashboardCard(String title, String value, String percentage, IconData icon, Color color) {
+  Widget _buildDashboardCard(
+    String title,
+    String value,
+    String percentage,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -7823,7 +7963,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _getIsPositive(title) 
+                  color: _getIsPositive(title)
                       ? Colors.green.withValues(alpha: 0.1)
                       : Colors.red.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
@@ -7831,9 +7971,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                 child: Text(
                   percentage,
                   style: TextStyle(
-                    color: _getIsPositive(title) 
-                        ? Colors.green
-                        : Colors.red,
+                    color: _getIsPositive(title) ? Colors.green : Colors.red,
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
                   ),
@@ -7851,13 +7989,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
             ),
           ),
           SizedBox(height: 4),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
-          ),
+          Text(title, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
         ],
       ),
     );
@@ -7915,133 +8047,142 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                     ),
                   )
                 : _barChartData.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.bar_chart_outlined,
-                              size: 48,
-                              color: Colors.grey[400],
-                            ),
-                            SizedBox(height: 16),
-                            Text(
-                              'No chart data available',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              'No won leads found for the selected period',
-                              style: TextStyle(
-                                color: Colors.grey[500],
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.bar_chart_outlined,
+                          size: 48,
+                          color: Colors.grey[400],
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'No chart data available',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'No won leads found for the selected period',
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : BarChart(
+                    BarChartData(
+                      alignment: BarChartAlignment.spaceAround,
+                      maxY: _getMaxYValue(),
+                      minY: 0,
+                      barTouchData: BarTouchData(
+                        enabled: true,
+                        touchTooltipData: BarTouchTooltipData(
+                          getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                            final labels = _getChartLabels();
+                            final label = group.x.toInt() < labels.length
+                                ? labels[group.x.toInt()]
+                                : '';
+                            final value = rod.toY.toStringAsFixed(1);
+                            final seriesName = rodIndex == 0
+                                ? 'Qualified Leads'
+                                : 'Revenue (K)';
+
+                            return BarTooltipItem(
+                              '$label\n',
+                              const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
                                 fontSize: 14,
                               ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : BarChart(
-                        BarChartData(
-                          alignment: BarChartAlignment.spaceAround,
-                          maxY: _getMaxYValue(),
-                          minY: 0,
-                          barTouchData: BarTouchData(
-                            enabled: true,
-                            touchTooltipData: BarTouchTooltipData(
-                              getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                                final labels = _getChartLabels();
-                                final label = group.x.toInt() < labels.length ? labels[group.x.toInt()] : '';
-                                final value = rod.toY.toStringAsFixed(1);
-                                final seriesName = rodIndex == 0 ? 'Qualified Leads' : 'Revenue (K)';
-                                
-                                return BarTooltipItem(
-                                  '$label\n',
-                                  const TextStyle(
+                              children: <TextSpan>[
+                                TextSpan(
+                                  text: '$seriesName: $value',
+                                  style: const TextStyle(
                                     color: Colors.white,
-                                    fontWeight: FontWeight.bold,
                                     fontSize: 14,
+                                    fontWeight: FontWeight.w500,
                                   ),
-                                  children: <TextSpan>[
-                                    TextSpan(
-                                      text: '$seriesName: $value',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              },
-                            ),
-                          ),
-                          titlesData: FlTitlesData(
-                            show: true,
-                            rightTitles: AxisTitles(
-                              sideTitles: SideTitles(showTitles: false),
-                            ),
-                            topTitles: AxisTitles(
-                              sideTitles: SideTitles(showTitles: false),
-                            ),
-                            bottomTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                reservedSize: 40,
-                                getTitlesWidget: (double value, TitleMeta meta) {
-                                  const style = TextStyle(
-                                    color: Color(0xff7589a2),
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                  );
-                                  final labels = _getChartLabels();
-                                  if (value.toInt() < labels.length) {
-                                    final label = labels[value.toInt()];
-                                    // Truncate long labels to prevent overflow
-                                    final displayLabel = label.length > 8 ? '${label.substring(0, 8)}...' : label;
-                                    return Text(displayLabel, style: style);
-                                  }
-                                  return const Text('', style: style);
-                                },
-                              ),
-                            ),
-                            leftTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                interval: _getYAxisInterval(),
-                                getTitlesWidget: (double value, TitleMeta meta) {
-                                  const style = TextStyle(
-                                    color: Color(0xff67727d),
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 10,
-                                  );
-                                  return Text(_formatYAxisLabel(value), style: style);
-                                },
-                                reservedSize: 50,
-                              ),
-                            ),
-                          ),
-                          gridData: FlGridData(
-                            show: true,
-                            horizontalInterval: _getGridInterval(),
-                            getDrawingHorizontalLine: (value) {
-                              return FlLine(
-                                color: Colors.grey[300]!,
-                                strokeWidth: 1,
-                                dashArray: [5, 5],
-                              );
-                            },
-                          ),
-                          borderData: FlBorderData(
-                            show: true,
-                            border: Border.all(color: Colors.grey[300]!, width: 1),
-                          ),
-                          barGroups: _buildBarGroups(),
+                                ),
+                              ],
+                            );
+                          },
                         ),
                       ),
+                      titlesData: FlTitlesData(
+                        show: true,
+                        rightTitles: AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        topTitles: AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 40,
+                            getTitlesWidget: (double value, TitleMeta meta) {
+                              const style = TextStyle(
+                                color: Color(0xff7589a2),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              );
+                              final labels = _getChartLabels();
+                              if (value.toInt() < labels.length) {
+                                final label = labels[value.toInt()];
+                                // Truncate long labels to prevent overflow
+                                final displayLabel = label.length > 8
+                                    ? '${label.substring(0, 8)}...'
+                                    : label;
+                                return Text(displayLabel, style: style);
+                              }
+                              return const Text('', style: style);
+                            },
+                          ),
+                        ),
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            interval: _getYAxisInterval(),
+                            getTitlesWidget: (double value, TitleMeta meta) {
+                              const style = TextStyle(
+                                color: Color(0xff67727d),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 10,
+                              );
+                              return Text(
+                                _formatYAxisLabel(value),
+                                style: style,
+                              );
+                            },
+                            reservedSize: 50,
+                          ),
+                        ),
+                      ),
+                      gridData: FlGridData(
+                        show: true,
+                        horizontalInterval: _getGridInterval(),
+                        getDrawingHorizontalLine: (value) {
+                          return FlLine(
+                            color: Colors.grey[300]!,
+                            strokeWidth: 1,
+                            dashArray: [5, 5],
+                          );
+                        },
+                      ),
+                      borderData: FlBorderData(
+                        show: true,
+                        border: Border.all(color: Colors.grey[300]!, width: 1),
+                      ),
+                      barGroups: _buildBarGroups(),
+                    ),
+                  ),
           ),
           SizedBox(height: 16),
           Row(
@@ -8058,10 +8199,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
               SizedBox(width: 8),
               Text(
                 'Qualified Leads',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[700],
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[700]),
               ),
               SizedBox(width: 24),
               Container(
@@ -8075,10 +8213,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
               SizedBox(width: 8),
               Text(
                 'Revenue (K)',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[700],
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[700]),
               ),
             ],
           ),
@@ -8090,7 +8225,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
   // Helper method to get max Y value for bar chart
   double _getMaxYValue() {
     if (_barChartData.isEmpty) return 10.0;
-    
+
     double maxValue = 0.0;
     for (var group in _barChartData) {
       for (var bar in group.barRods) {
@@ -8186,74 +8321,75 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                     ),
                   )
                 : _leadStatusDistribution.values.every((count) => count == 0)
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.pie_chart,
-                              size: 48,
-                              color: Colors.grey[400],
-                            ),
-                            SizedBox(height: 16),
-                            Text(
-                              'No data available',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              'No leads found for the selected period',
-                              style: TextStyle(
-                                color: Colors.grey[500],
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.pie_chart,
+                          size: 48,
+                          color: Colors.grey[400],
                         ),
-                      )
-                    : Row(
-                        children: [
-                          // Left side legend with percentage and count
-                          Expanded(
-                            flex: 1,
-                            child: _buildLegendWithPercentage(),
+                        SizedBox(height: 16),
+                        Text(
+                          'No data available',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
                           ),
-                          SizedBox(width: 16),
-                          // Right side pie chart
-                          Expanded(
-                            flex: 2,
-                            child: SizedBox(
-                              height: 200.0,
-                              child: SfCircularChart(
-                                legend: Legend(isVisible: false),
-                                series: <CircularSeries>[
-                                  PieSeries<ChartData, String>(
-                                    dataSource: _buildSyncfusionPieChartData(),
-                                    pointColorMapper: (ChartData data, _) => data.color,
-                                    xValueMapper: (ChartData data, _) => data.x,
-                                    yValueMapper: (ChartData data, _) => data.y,
-                                    dataLabelSettings: DataLabelSettings(
-                                      isVisible: false,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'No leads found for the selected period',
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 14,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
+                  )
+                : Row(
+                    children: [
+                      // Left side legend with percentage and count
+                      Expanded(flex: 1, child: _buildLegendWithPercentage()),
+                      SizedBox(width: 16),
+                      // Right side pie chart
+                      Expanded(
+                        flex: 2,
+                        child: SizedBox(
+                          height: 200.0,
+                          child: SfCircularChart(
+                            legend: Legend(isVisible: false),
+                            series: <CircularSeries>[
+                              PieSeries<ChartData, String>(
+                                dataSource: _buildSyncfusionPieChartData(),
+                                pointColorMapper: (ChartData data, _) =>
+                                    data.color,
+                                xValueMapper: (ChartData data, _) => data.x,
+                                yValueMapper: (ChartData data, _) => data.y,
+                                dataLabelSettings: DataLabelSettings(
+                                  isVisible: false,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildLegendWithPercentage() {
-    final totalLeads = _leadStatusDistribution.values.fold(0, (sum, count) => sum + count);
+    final totalLeads = _leadStatusDistribution.values.fold(
+      0,
+      (sum, count) => sum + count,
+    );
     final colors = {
       'Won': Colors.green,
       'Lost': Colors.red,
@@ -8267,10 +8403,12 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
         children: [
           ..._leadStatusDistribution.entries.map((entry) {
             if (entry.value == 0) return SizedBox.shrink();
-            
-            final percentage = totalLeads > 0 ? (entry.value / totalLeads * 100).toStringAsFixed(1) : '0.0';
+
+            final percentage = totalLeads > 0
+                ? (entry.value / totalLeads * 100).toStringAsFixed(1)
+                : '0.0';
             final color = colors[entry.key] ?? Colors.grey;
-            
+
             return Padding(
               padding: EdgeInsets.only(bottom: 8),
               child: Row(
@@ -8320,7 +8458,6 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
       ),
     );
   }
-
 }
 
 class InitializeStatusDialog extends StatefulWidget {
@@ -8387,15 +8524,27 @@ class _InitializeStatusDialogState extends State<InitializeStatusDialog> {
             Row(
               children: [
                 Expanded(
-                  child: _buildStatusButton('Won', Colors.green.shade600, Icons.check_circle),
+                  child: _buildStatusButton(
+                    'Won',
+                    Colors.green.shade600,
+                    Icons.check_circle,
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: _buildStatusButton('Lost', Colors.red.shade600, Icons.cancel),
+                  child: _buildStatusButton(
+                    'Lost',
+                    Colors.red.shade600,
+                    Icons.cancel,
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: _buildStatusButton('Loop', Colors.orange.shade600, Icons.refresh),
+                  child: _buildStatusButton(
+                    'Loop',
+                    Colors.orange.shade600,
+                    Icons.refresh,
+                  ),
                 ),
               ],
             ),
@@ -8445,7 +8594,9 @@ class _InitializeStatusDialogState extends State<InitializeStatusDialog> {
           ),
         ),
         ElevatedButton.icon(
-          onPressed: _isSubmitting || _selectedStatus == null ? null : _submitStatus,
+          onPressed: _isSubmitting || _selectedStatus == null
+              ? null
+              : _submitStatus,
           icon: _isSubmitting
               ? const SizedBox(
                   width: 16,
@@ -8458,10 +8609,7 @@ class _InitializeStatusDialogState extends State<InitializeStatusDialog> {
               : Icon(Icons.check_circle, color: Colors.white, size: 20),
           label: Text(
             'Submit',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-            ),
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
           ),
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.green.shade600,
@@ -8480,7 +8628,7 @@ class _InitializeStatusDialogState extends State<InitializeStatusDialog> {
 
   Widget _buildStatusButton(String status, Color color, IconData icon) {
     final isSelected = _selectedStatus == status;
-    
+
     return _StatusButton(
       status: status,
       color: color,
@@ -8511,7 +8659,7 @@ class _InitializeStatusDialogState extends State<InitializeStatusDialog> {
 
     try {
       final client = Supabase.instance.client;
-      
+
       // Step 1: Get cached user data
       final prefs = await SharedPreferences.getInstance();
       final cachedUserId = prefs.getString('user_id');
@@ -8537,9 +8685,11 @@ class _InitializeStatusDialogState extends State<InitializeStatusDialog> {
           .select('username')
           .eq('id', cachedUserId)
           .single();
-      
+
       final currentUsername = userResponse['username'] as String;
-      debugPrint('[AUTH] Current username: $currentUsername (ID: $cachedUserId)');
+      debugPrint(
+        '[AUTH] Current username: $currentUsername (ID: $cachedUserId)',
+      );
 
       // Step 4: Get the existing admin_response data to verify authentication and check if record exists
       final leadResponse = await client
@@ -8547,23 +8697,29 @@ class _InitializeStatusDialogState extends State<InitializeStatusDialog> {
           .select('sales_user, id, lead_id')
           .eq('lead_id', widget.leadId)
           .maybeSingle();
-      
-      debugPrint('[AUTH] Checking existing record for lead_id: ${widget.leadId}');
-      
+
+      debugPrint(
+        '[AUTH] Checking existing record for lead_id: ${widget.leadId}',
+      );
+
       if (leadResponse != null) {
         final salesUser = leadResponse['sales_user'] as String?;
         final recordId = leadResponse['id'] as String?;
         debugPrint('[AUTH] Sales user from lead: $salesUser');
         debugPrint('[AUTH] Record ID: $recordId');
-        
+
         // Step 5: Verify that the current user matches the sales user
         if (salesUser != null && salesUser == currentUsername) {
           debugPrint('[AUTH] ✅ User authenticated successfully');
         } else {
-          throw Exception('User not authorized to update this lead status. Expected: $salesUser, Current: $currentUsername');
+          throw Exception(
+            'User not authorized to update this lead status. Expected: $salesUser, Current: $currentUsername',
+          );
         }
       } else {
-        throw Exception('No existing admin_response record found for lead_id: ${widget.leadId}. Please ensure the lead has been processed first.');
+        throw Exception(
+          'No existing admin_response record found for lead_id: ${widget.leadId}. Please ensure the lead has been processed first.',
+        );
       }
 
       // Step 6: Map status values according to requirements
@@ -8583,8 +8739,10 @@ class _InitializeStatusDialogState extends State<InitializeStatusDialog> {
       }
 
       // Step 7: Update the existing admin_response row
-      debugPrint('[UPDATE] Updating existing record for lead_id: ${widget.leadId}');
-      
+      debugPrint(
+        '[UPDATE] Updating existing record for lead_id: ${widget.leadId}',
+      );
+
       await client
           .from('admin_response')
           .update({
@@ -8603,7 +8761,7 @@ class _InitializeStatusDialogState extends State<InitializeStatusDialog> {
 
       if (mounted) {
         Navigator.of(context).pop();
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Status updated successfully!'),
@@ -8615,7 +8773,7 @@ class _InitializeStatusDialogState extends State<InitializeStatusDialog> {
       }
     } catch (e) {
       debugPrint('❌ Error updating status: $e');
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -8674,18 +8832,22 @@ class _StatusButtonState extends State<_StatusButton> {
           curve: Curves.easeInOut,
           padding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
           decoration: BoxDecoration(
-            color: widget.isSelected 
+            color: widget.isSelected
                 ? widget.color.withValues(alpha: 0.2)
-                : isHovered 
-                    ? widget.color.withValues(alpha: 0.1)
-                    : Colors.white,
+                : isHovered
+                ? widget.color.withValues(alpha: 0.1)
+                : Colors.white,
             border: Border.all(
-              color: widget.isSelected 
-                  ? widget.color 
-                  : isHovered 
-                      ? widget.color.withValues(alpha: 0.7)
-                      : Colors.grey[300]!,
-              width: widget.isSelected ? 2.5 : isHovered ? 1.5 : 1,
+              color: widget.isSelected
+                  ? widget.color
+                  : isHovered
+                  ? widget.color.withValues(alpha: 0.7)
+                  : Colors.grey[300]!,
+              width: widget.isSelected
+                  ? 2.5
+                  : isHovered
+                  ? 1.5
+                  : 1,
             ),
             borderRadius: BorderRadius.circular(12),
             boxShadow: isHovered || widget.isSelected
@@ -8709,11 +8871,11 @@ class _StatusButtonState extends State<_StatusButton> {
             children: [
               Icon(
                 widget.icon,
-                color: widget.isSelected 
-                    ? widget.color 
-                    : isHovered 
-                        ? widget.color.withValues(alpha: 0.9)
-                        : widget.color.withValues(alpha: 0.7),
+                color: widget.isSelected
+                    ? widget.color
+                    : isHovered
+                    ? widget.color.withValues(alpha: 0.9)
+                    : widget.color.withValues(alpha: 0.7),
                 size: 28,
               ),
               SizedBox(height: 6),
@@ -8721,14 +8883,14 @@ class _StatusButtonState extends State<_StatusButton> {
                 widget.status,
                 style: TextStyle(
                   fontSize: 13,
-                  fontWeight: widget.isSelected || isHovered 
-                      ? FontWeight.w700 
+                  fontWeight: widget.isSelected || isHovered
+                      ? FontWeight.w700
                       : FontWeight.w600,
-                  color: widget.isSelected 
-                      ? widget.color 
-                      : isHovered 
-                          ? widget.color.withValues(alpha: 0.9)
-                          : widget.color.withValues(alpha: 0.8),
+                  color: widget.isSelected
+                      ? widget.color
+                      : isHovered
+                      ? widget.color.withValues(alpha: 0.9)
+                      : widget.color.withValues(alpha: 0.8),
                 ),
               ),
             ],

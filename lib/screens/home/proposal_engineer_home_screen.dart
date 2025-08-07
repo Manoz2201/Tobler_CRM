@@ -589,53 +589,149 @@ class _ProposalScreenState extends State<ProposalScreen> {
   }
 
   Widget _buildInquiriesContent(BuildContext context) {
-    final isWide = MediaQuery.of(context).size.width > 700;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = constraints.maxWidth;
 
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
+        // Responsive breakpoints
+        final isMobile = screenWidth < 600;
+        final isTablet = screenWidth >= 600 && screenWidth < 1200;
+        final isDesktop = screenWidth >= 1200;
 
-    if (isWide) {
-      // Desktop/Tablet layout
-      return Column(
-        children: [
-          // Header with stats and refresh
-          _buildHeader(context, 'Inquiries', _filteredData.length),
-          // Stats cards
-          Padding(padding: const EdgeInsets.all(16), child: _buildStatsCards()),
-          // Table
-          Expanded(child: _buildTable(context, _filteredData)),
-        ],
-      );
-    } else {
-      // Mobile layout
-      return Column(
-        children: [
-          // Mobile header
-          _buildMobileHeader(context, 'Inquiries', _filteredData.length),
-          // Mobile stats
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: _buildMobileStatsCards(),
-          ),
-          // Mobile list
-          Expanded(child: _buildMobileList(context, _filteredData)),
-        ],
-      );
-    }
+        if (_isLoading) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (isDesktop) {
+          // Desktop Layout - Full table with stats
+          return Column(
+            children: [
+              // Header with stats and refresh
+              _buildResponsiveHeader(
+                context,
+                'Inquiries',
+                _filteredData.length,
+                isMobile,
+                isTablet,
+                isDesktop,
+              ),
+              // Stats cards
+              Padding(
+                padding: EdgeInsets.all(isTablet ? 12 : 16),
+                child: _buildResponsiveStatsCards(
+                  isMobile,
+                  isTablet,
+                  isDesktop,
+                ),
+              ),
+              // Table
+              Expanded(
+                child: _buildResponsiveTable(
+                  context,
+                  _filteredData,
+                  isMobile,
+                  isTablet,
+                  isDesktop,
+                ),
+              ),
+            ],
+          );
+        } else if (isTablet) {
+          // Tablet Layout - Compact table with stats
+          return Column(
+            children: [
+              // Header with stats and refresh
+              _buildResponsiveHeader(
+                context,
+                'Inquiries',
+                _filteredData.length,
+                isMobile,
+                isTablet,
+                isDesktop,
+              ),
+              // Stats cards
+              Padding(
+                padding: EdgeInsets.all(12),
+                child: _buildResponsiveStatsCards(
+                  isMobile,
+                  isTablet,
+                  isDesktop,
+                ),
+              ),
+              // Table
+              Expanded(
+                child: _buildResponsiveTable(
+                  context,
+                  _filteredData,
+                  isMobile,
+                  isTablet,
+                  isDesktop,
+                ),
+              ),
+            ],
+          );
+        } else {
+          // Mobile Layout - List view with compact header
+          return Column(
+            children: [
+              // Mobile header
+              _buildResponsiveMobileHeader(
+                context,
+                'Inquiries',
+                _filteredData.length,
+                isMobile,
+                isTablet,
+                isDesktop,
+              ),
+              // Mobile list
+              Expanded(
+                child: _buildResponsiveMobileList(
+                  context,
+                  _filteredData,
+                  isMobile,
+                  isTablet,
+                  isDesktop,
+                ),
+              ),
+            ],
+          );
+        }
+      },
+    );
   }
 
-  Widget _buildHeader(BuildContext context, String title, int count) {
+  Widget _buildResponsiveHeader(
+    BuildContext context,
+    String title,
+    int count,
+    bool isMobile,
+    bool isTablet,
+    bool isDesktop,
+  ) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(
+        isMobile
+            ? 12
+            : isTablet
+            ? 16
+            : 20,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
       ),
       child: Row(
         children: [
-          Icon(Icons.assignment, size: 24, color: Colors.blue[700]),
-          const SizedBox(width: 12),
+          Icon(
+            Icons.assignment,
+            size: isMobile
+                ? 20
+                : isTablet
+                ? 22
+                : 24,
+            color: Colors.blue[700],
+          ),
+          SizedBox(width: isMobile ? 8 : 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -643,14 +739,21 @@ class _ProposalScreenState extends State<ProposalScreen> {
                 Text(
                   title,
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: isMobile
+                        ? 16
+                        : isTablet
+                        ? 18
+                        : 20,
                     fontWeight: FontWeight.bold,
                     color: Colors.grey[800],
                   ),
                 ),
                 Text(
                   '$count inquiries',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  style: TextStyle(
+                    fontSize: isMobile ? 12 : 14,
+                    color: Colors.grey[600],
+                  ),
                 ),
               ],
             ),
@@ -704,9 +807,16 @@ class _ProposalScreenState extends State<ProposalScreen> {
     );
   }
 
-  Widget _buildMobileHeader(BuildContext context, String title, int count) {
+  Widget _buildResponsiveMobileHeader(
+    BuildContext context,
+    String title,
+    int count,
+    bool isMobile,
+    bool isTablet,
+    bool isDesktop,
+  ) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isMobile ? 12 : 16),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
@@ -716,13 +826,17 @@ class _ProposalScreenState extends State<ProposalScreen> {
         children: [
           Row(
             children: [
-              Icon(Icons.assignment, size: 24, color: Colors.blue[700]),
-              const SizedBox(width: 8),
+              Icon(
+                Icons.assignment,
+                size: isMobile ? 20 : 24,
+                color: Colors.blue[700],
+              ),
+              SizedBox(width: isMobile ? 6 : 8),
               Expanded(
                 child: Text(
                   title,
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: isMobile ? 16 : 18,
                     fontWeight: FontWeight.bold,
                     color: Colors.grey[800],
                   ),
@@ -730,14 +844,17 @@ class _ProposalScreenState extends State<ProposalScreen> {
               ),
               ElevatedButton.icon(
                 onPressed: _loadData,
-                icon: const Icon(Icons.refresh, size: 16),
-                label: const Text('Refresh'),
+                icon: Icon(Icons.refresh, size: isMobile ? 14 : 16),
+                label: Text(
+                  'Refresh',
+                  style: TextStyle(fontSize: isMobile ? 12 : 14),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue[600],
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isMobile ? 8 : 12,
+                    vertical: isMobile ? 4 : 6,
                   ),
                 ),
               ),
@@ -788,47 +905,92 @@ class _ProposalScreenState extends State<ProposalScreen> {
     );
   }
 
-  Widget _buildStatsCards() {
+  Widget _buildResponsiveStatsCards(
+    bool isMobile,
+    bool isTablet,
+    bool isDesktop,
+  ) {
     final totalInquiries = _inquiries.length + _submittedInquiries.length;
     final pendingInquiries = _inquiries.length;
     final submittedInquiries = _getSubmittedCount();
 
-    return Row(
-      children: [
-        Expanded(
-          child: _buildStatCard(
+    if (isMobile) {
+      // Mobile Layout - Single Column
+      return Column(
+        children: [
+          _buildResponsiveStatCard(
             'Total Inquiries',
             totalInquiries.toString(),
             Icons.assignment,
             Colors.blue,
             null,
+            isMobile,
             onTap: () => _onStatusFilterChanged(null), // Show all
           ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _buildStatCard(
+          SizedBox(height: 8),
+          _buildResponsiveStatCard(
             'Pending',
             pendingInquiries.toString(),
             Icons.pending,
             Colors.orange,
             'Pending',
+            isMobile,
             onTap: () => _onStatusFilterChanged('Pending'),
           ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _buildStatCard(
+          SizedBox(height: 8),
+          _buildResponsiveStatCard(
             'Submitted',
             submittedInquiries.toString(),
             Icons.check_circle,
             Colors.green,
             'Submitted',
+            isMobile,
             onTap: () => _onStatusFilterChanged('Submitted'),
           ),
-        ),
-      ],
-    );
+        ],
+      );
+    } else {
+      // Desktop/Tablet Layout - Row
+      return Row(
+        children: [
+          Expanded(
+            child: _buildResponsiveStatCard(
+              'Total Inquiries',
+              totalInquiries.toString(),
+              Icons.assignment,
+              Colors.blue,
+              null,
+              isMobile,
+              onTap: () => _onStatusFilterChanged(null), // Show all
+            ),
+          ),
+          SizedBox(width: isTablet ? 12 : 16),
+          Expanded(
+            child: _buildResponsiveStatCard(
+              'Pending',
+              pendingInquiries.toString(),
+              Icons.pending,
+              Colors.orange,
+              'Pending',
+              isMobile,
+              onTap: () => _onStatusFilterChanged('Pending'),
+            ),
+          ),
+          SizedBox(width: isTablet ? 12 : 16),
+          Expanded(
+            child: _buildResponsiveStatCard(
+              'Submitted',
+              submittedInquiries.toString(),
+              Icons.check_circle,
+              Colors.green,
+              'Submitted',
+              isMobile,
+              onTap: () => _onStatusFilterChanged('Submitted'),
+            ),
+          ),
+        ],
+      );
+    }
   }
 
   int _getSubmittedCount() {
@@ -836,12 +998,13 @@ class _ProposalScreenState extends State<ProposalScreen> {
     return _submittedInquiries.length;
   }
 
-  Widget _buildStatCard(
+  Widget _buildResponsiveStatCard(
     String title,
     String value,
     IconData icon,
     Color color,
-    String? statusFilter, {
+    String? statusFilter,
+    bool isMobile, {
     VoidCallback? onTap,
   }) {
     final isSelected = _selectedStatusFilter == statusFilter;
@@ -850,16 +1013,18 @@ class _ProposalScreenState extends State<ProposalScreen> {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.all(isMobile ? 12 : 20),
         decoration: BoxDecoration(
           color: isSelected ? color.withValues(alpha: 0.1) : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: isSelected ? Border.all(color: color, width: 2) : null,
+          borderRadius: BorderRadius.circular(isMobile ? 8 : 12),
+          border: isSelected
+              ? Border.all(color: color, width: isMobile ? 1.5 : 2)
+              : null,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              blurRadius: isMobile ? 6 : 10,
+              offset: Offset(0, isMobile ? 2 : 4),
             ),
           ],
         ),
@@ -869,14 +1034,14 @@ class _ProposalScreenState extends State<ProposalScreen> {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: EdgeInsets.all(isMobile ? 8 : 12),
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(isMobile ? 6 : 8),
                   ),
-                  child: Icon(icon, color: color, size: 24),
+                  child: Icon(icon, color: color, size: isMobile ? 18 : 24),
                 ),
-                const SizedBox(width: 16),
+                SizedBox(width: isMobile ? 12 : 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -884,16 +1049,16 @@ class _ProposalScreenState extends State<ProposalScreen> {
                       Text(
                         value,
                         style: TextStyle(
-                          fontSize: 24,
+                          fontSize: isMobile ? 18 : 24,
                           fontWeight: FontWeight.bold,
                           color: isSelected ? color : Colors.grey[800],
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: isMobile ? 2 : 4),
                       Text(
                         title,
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: isMobile ? 12 : 14,
                           color: isSelected ? color : Colors.grey[600],
                           fontWeight: isSelected
                               ? FontWeight.w600
@@ -912,7 +1077,7 @@ class _ProposalScreenState extends State<ProposalScreen> {
   }
 
   Widget _buildMobileStatsCards() {
-    final totalInquiries = _inquiries.length;
+    final totalInquiries = _inquiries.length + _submittedInquiries.length;
     final pendingInquiries = _inquiries.length;
     final submittedInquiries = _getSubmittedCount();
 
@@ -926,6 +1091,8 @@ class _ProposalScreenState extends State<ProposalScreen> {
                 totalInquiries.toString(),
                 Icons.assignment,
                 Colors.blue,
+                null,
+                onTap: () => _onStatusFilterChanged(null), // Show all
               ),
             ),
             const SizedBox(width: 8),
@@ -935,6 +1102,8 @@ class _ProposalScreenState extends State<ProposalScreen> {
                 pendingInquiries.toString(),
                 Icons.pending,
                 Colors.orange,
+                'Pending',
+                onTap: () => _onStatusFilterChanged('Pending'),
               ),
             ),
             const SizedBox(width: 8),
@@ -944,6 +1113,8 @@ class _ProposalScreenState extends State<ProposalScreen> {
                 submittedInquiries.toString(),
                 Icons.check_circle,
                 Colors.green,
+                'Submitted',
+                onTap: () => _onStatusFilterChanged('Submitted'),
               ),
             ),
           ],
@@ -957,49 +1128,73 @@ class _ProposalScreenState extends State<ProposalScreen> {
     String value,
     IconData icon,
     Color color,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[800],
+    String? statusFilter, {
+    VoidCallback? onTap,
+  }) {
+    final isSelected = _selectedStatusFilter == statusFilter;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withValues(alpha: 0.1) : Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: isSelected ? Border.all(color: color, width: 2) : null,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
             ),
-          ),
-          Text(title, style: TextStyle(fontSize: 10, color: Colors.grey[600])),
-        ],
+          ],
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
+            ),
+            Text(
+              title,
+              style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildTable(BuildContext context, List<Map<String, dynamic>> data) {
+  Widget _buildResponsiveTable(
+    BuildContext context,
+    List<Map<String, dynamic>> data,
+    bool isMobile,
+    bool isTablet,
+    bool isDesktop,
+  ) {
     return Container(
-      margin: const EdgeInsets.all(16),
+      margin: EdgeInsets.all(
+        isMobile
+            ? 8
+            : isTablet
+            ? 12
+            : 16,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(isMobile ? 8 : 12),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            blurRadius: isMobile ? 6 : 10,
+            offset: Offset(0, isMobile ? 2 : 4),
           ),
         ],
       ),
@@ -1027,101 +1222,170 @@ class _ProposalScreenState extends State<ProposalScreen> {
             ),
           ),
           // Table Header
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.grey[50],
-              border: Border(top: BorderSide(color: Colors.grey[200]!)),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 4,
-                      vertical: 2,
-                    ),
-                    child: const Text(
-                      'Client/Date',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                      softWrap: true,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                  ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final screenWidth = constraints.maxWidth;
+              final isMobile = screenWidth < 600;
+              final isTablet = screenWidth >= 600 && screenWidth < 1200;
+
+              return Container(
+                padding: EdgeInsets.all(
+                  isMobile
+                      ? 8
+                      : isTablet
+                      ? 12
+                      : 16,
                 ),
-                Expanded(
-                  flex: 2,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 4,
-                      vertical: 2,
-                    ),
-                    child: const Text(
-                      'Project',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                      softWrap: true,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                  ),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  border: Border(top: BorderSide(color: Colors.grey[200]!)),
                 ),
-                Expanded(
-                  flex: 1,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 4,
-                      vertical: 2,
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: isMobile
+                          ? 3
+                          : isTablet
+                          ? 2
+                          : 2,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isMobile ? 2 : 4,
+                          vertical: isMobile ? 1 : 2,
+                        ),
+                        child: Text(
+                          'Client/Date',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: isMobile
+                                ? 11
+                                : isTablet
+                                ? 12
+                                : 13,
+                          ),
+                          textAlign: TextAlign.left,
+                          softWrap: true,
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ),
                     ),
-                    child: const Text(
-                      'Location',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                      softWrap: true,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
+                    Expanded(
+                      flex: isMobile
+                          ? 2
+                          : isTablet
+                          ? 2
+                          : 2,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isMobile ? 2 : 4,
+                          vertical: isMobile ? 1 : 2,
+                        ),
+                        child: Text(
+                          'Project',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: isMobile
+                                ? 11
+                                : isTablet
+                                ? 12
+                                : 13,
+                          ),
+                          textAlign: TextAlign.center,
+                          softWrap: true,
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ),
                     ),
-                  ),
+                    Expanded(
+                      flex: isMobile
+                          ? 2
+                          : isTablet
+                          ? 1
+                          : 1,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isMobile ? 2 : 4,
+                          vertical: isMobile ? 1 : 2,
+                        ),
+                        child: Text(
+                          'Location',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: isMobile
+                                ? 11
+                                : isTablet
+                                ? 12
+                                : 13,
+                          ),
+                          textAlign: TextAlign.center,
+                          softWrap: true,
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      flex: isMobile
+                          ? 2
+                          : isTablet
+                          ? 1
+                          : 1,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isMobile ? 2 : 4,
+                          vertical: isMobile ? 1 : 2,
+                        ),
+                        child: Text(
+                          'Added By',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: isMobile
+                                ? 11
+                                : isTablet
+                                ? 12
+                                : 13,
+                          ),
+                          textAlign: TextAlign.center,
+                          softWrap: true,
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      flex: isMobile
+                          ? 3
+                          : isTablet
+                          ? 2
+                          : 2,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isMobile ? 2 : 4,
+                          vertical: isMobile ? 1 : 2,
+                        ),
+                        child: Text(
+                          'Actions',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: isMobile
+                                ? 11
+                                : isTablet
+                                ? 12
+                                : 13,
+                          ),
+                          textAlign: TextAlign.center,
+                          softWrap: true,
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                Expanded(
-                  flex: 1,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 4,
-                      vertical: 2,
-                    ),
-                    child: const Text(
-                      'Added By',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                      softWrap: true,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 4,
-                      vertical: 2,
-                    ),
-                    child: const Text(
-                      'Actions',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                      softWrap: true,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              );
+            },
           ),
           // Table Body
           Expanded(
@@ -1144,189 +1408,322 @@ class _ProposalScreenState extends State<ProposalScreen> {
         ? DateFormat('dd-MM-yyyy').format(DateTime.parse(inquiry['created_at']))
         : '-';
 
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        decoration: BoxDecoration(
-          color: (index % 2 == 0 ? Colors.white : Colors.grey[50]),
-          border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () => _viewInquiryDetails(inquiry),
-            onHover: (isHovered) {
-              setState(() {
-                _hoveredRows[inquiryId] = isHovered;
-              });
-            },
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  // Client/Date
-                  Expanded(
-                    flex: 2,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          inquiry['client_name'] ?? 'N/A',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = constraints.maxWidth;
+        final isMobile = screenWidth < 600;
+        final isTablet = screenWidth >= 600 && screenWidth < 1200;
+
+        return MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            decoration: BoxDecoration(
+              color: (index % 2 == 0 ? Colors.white : Colors.grey[50]),
+              border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => _viewInquiryDetails(inquiry),
+                onHover: (isHovered) {
+                  setState(() {
+                    _hoveredRows[inquiryId] = isHovered;
+                  });
+                },
+                child: Container(
+                  padding: EdgeInsets.all(
+                    isMobile
+                        ? 8
+                        : isTablet
+                        ? 12
+                        : 16,
+                  ),
+                  child: Row(
+                    children: [
+                      // Client/Date
+                      Expanded(
+                        flex: isMobile
+                            ? 3
+                            : isTablet
+                            ? 2
+                            : 2,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              inquiry['client_name'] ?? 'N/A',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: isMobile
+                                    ? 12
+                                    : isTablet
+                                    ? 13
+                                    : 14,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            SizedBox(height: isMobile ? 2 : 4),
+                            Text(
+                              date,
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: isMobile
+                                    ? 10
+                                    : isTablet
+                                    ? 11
+                                    : 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Project
+                      Expanded(
+                        flex: isMobile
+                            ? 2
+                            : isTablet
+                            ? 2
+                            : 2,
+                        child: Text(
+                          inquiry['project_name'] ?? 'N/A',
+                          style: TextStyle(
+                            fontSize: isMobile
+                                ? 12
+                                : isTablet
+                                ? 13
+                                : 14,
                           ),
+                          textAlign: TextAlign.center,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          date,
+                      ),
+                      // Location
+                      Expanded(
+                        flex: isMobile
+                            ? 2
+                            : isTablet
+                            ? 1
+                            : 1,
+                        child: Text(
+                          inquiry['project_location'] ?? 'N/A',
                           style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 12,
+                            fontSize: isMobile
+                                ? 12
+                                : isTablet
+                                ? 13
+                                : 14,
                           ),
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ],
-                    ),
-                  ),
-                  // Project
-                  Expanded(
-                    flex: 2,
-                    child: Text(
-                      inquiry['project_name'] ?? 'N/A',
-                      style: const TextStyle(fontSize: 14),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  // Location
-                  Expanded(
-                    flex: 1,
-                    child: Text(
-                      inquiry['project_location'] ?? 'N/A',
-                      style: const TextStyle(fontSize: 14),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  // Added By
-                  Expanded(
-                    flex: 1,
-                    child: Text(
-                      inquiry['username'] ?? 'Unknown',
-                      style: const TextStyle(fontSize: 14),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  // Actions
-                  Expanded(
-                    flex: 2,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        IconButton(
-                          onPressed: () => _showAlertsDialog(context, inquiry),
-                          icon: const Icon(
-                            Icons.notifications,
-                            color: Colors.red,
+                      ),
+                      // Added By
+                      Expanded(
+                        flex: isMobile
+                            ? 2
+                            : isTablet
+                            ? 1
+                            : 1,
+                        child: Text(
+                          inquiry['username'] ?? 'Unknown',
+                          style: TextStyle(
+                            fontSize: isMobile
+                                ? 12
+                                : isTablet
+                                ? 13
+                                : 14,
                           ),
-                          tooltip: 'Alert',
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        IconButton(
-                          onPressed: () {
-                            showDialog(
-                              context: context,
-                              builder: (context) => QueryDialog(lead: inquiry),
-                            );
-                          },
-                          icon: const Icon(Icons.chat, color: Colors.orange),
-                          tooltip: 'Query',
-                        ),
-                        // Show different action based on whether inquiry is submitted or pending
-                        if (_isSubmittedInquiry(inquiry))
-                          ElevatedButton(
-                            onPressed: () =>
-                                _viewSubmittedProposal(context, inquiry),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green[600],
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
+                      ),
+                      // Actions
+                      Expanded(
+                        flex: isMobile
+                            ? 3
+                            : isTablet
+                            ? 2
+                            : 2,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            IconButton(
+                              onPressed: () =>
+                                  _showAlertsDialog(context, inquiry),
+                              icon: Icon(
+                                Icons.notifications,
+                                color: Colors.red,
+                                size: isMobile
+                                    ? 16
+                                    : isTablet
+                                    ? 18
+                                    : 20,
+                              ),
+                              tooltip: 'Alert',
+                              padding: EdgeInsets.all(isMobile ? 4 : 8),
+                              constraints: BoxConstraints(
+                                minWidth: isMobile ? 24 : 32,
+                                minHeight: isMobile ? 24 : 32,
                               ),
                             ),
-                            child: const Text('View'),
-                          )
-                        else
-                          ElevatedButton(
-                            onPressed: () {
-                              showDialog(
-                                context: context,
-                                builder: (context) => ProposalResponseDialog(
-                                  lead: inquiry,
-                                  currentUserId: widget.currentUserId,
-                                  onProposalSubmitted: () {
-                                    // Refresh the proposal data after submission
-                                    _loadData();
-                                  },
+                            IconButton(
+                              onPressed: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) =>
+                                      QueryDialog(lead: inquiry),
+                                );
+                              },
+                              icon: Icon(
+                                Icons.chat,
+                                color: Colors.orange,
+                                size: isMobile
+                                    ? 16
+                                    : isTablet
+                                    ? 18
+                                    : 20,
+                              ),
+                              tooltip: 'Query',
+                              padding: EdgeInsets.all(isMobile ? 4 : 8),
+                              constraints: BoxConstraints(
+                                minWidth: isMobile ? 24 : 32,
+                                minHeight: isMobile ? 24 : 32,
+                              ),
+                            ),
+                            // Show different action based on whether inquiry is submitted or pending
+                            if (_isSubmittedInquiry(inquiry))
+                              ElevatedButton(
+                                onPressed: () =>
+                                    _viewSubmittedProposal(context, inquiry),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green[600],
+                                  foregroundColor: Colors.white,
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: isMobile
+                                        ? 6
+                                        : isTablet
+                                        ? 8
+                                        : 12,
+                                    vertical: isMobile
+                                        ? 4
+                                        : isTablet
+                                        ? 6
+                                        : 8,
+                                  ),
+                                  textStyle: TextStyle(
+                                    fontSize: isMobile
+                                        ? 10
+                                        : isTablet
+                                        ? 11
+                                        : 12,
+                                  ),
                                 ),
-                              );
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue[600],
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
+                                child: Text(isMobile ? 'View' : 'View'),
+                              )
+                            else
+                              ElevatedButton(
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => ProposalResponseDialog(
+                                      lead: inquiry,
+                                      currentUserId: widget.currentUserId,
+                                      onProposalSubmitted: () {
+                                        // Refresh the proposal data after submission
+                                        _loadData();
+                                      },
+                                    ),
+                                  );
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue[600],
+                                  foregroundColor: Colors.white,
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: isMobile
+                                        ? 6
+                                        : isTablet
+                                        ? 8
+                                        : 12,
+                                    vertical: isMobile
+                                        ? 4
+                                        : isTablet
+                                        ? 6
+                                        : 8,
+                                  ),
+                                  textStyle: TextStyle(
+                                    fontSize: isMobile
+                                        ? 10
+                                        : isTablet
+                                        ? 11
+                                        : 12,
+                                  ),
+                                ),
+                                child: Text(isMobile ? 'Propose' : 'Propose'),
                               ),
-                            ),
-                            child: const Text('Propose'),
-                          ),
-                      ],
-                    ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMobileList(
-    BuildContext context,
-    List<Map<String, dynamic>> data,
-  ) {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: data.length,
-      itemBuilder: (context, index) {
-        final inquiry = data[index];
-        return _buildMobileCard(inquiry, index);
+        );
       },
     );
   }
 
-  Widget _buildMobileCard(Map<String, dynamic> inquiry, int index) {
+  Widget _buildResponsiveMobileList(
+    BuildContext context,
+    List<Map<String, dynamic>> data,
+    bool isMobile,
+    bool isTablet,
+    bool isDesktop,
+  ) {
+    return ListView.builder(
+      padding: EdgeInsets.all(isMobile ? 8 : 16),
+      itemCount: data.length,
+      itemBuilder: (context, index) {
+        final inquiry = data[index];
+        return _buildResponsiveMobileCard(
+          inquiry,
+          index,
+          isMobile,
+          isTablet,
+          isDesktop,
+        );
+      },
+    );
+  }
+
+  Widget _buildResponsiveMobileCard(
+    Map<String, dynamic> inquiry,
+    int index,
+    bool isMobile,
+    bool isTablet,
+    bool isDesktop,
+  ) {
     final date = inquiry['created_at'] != null
         ? DateFormat('dd-MM-yyyy').format(DateTime.parse(inquiry['created_at']))
         : '-';
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: EdgeInsets.only(bottom: isMobile ? 8 : 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(isMobile ? 8 : 12),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            blurRadius: isMobile ? 4 : 8,
+            offset: Offset(0, isMobile ? 1 : 2),
           ),
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isMobile ? 12 : 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1395,16 +1792,40 @@ class _ProposalScreenState extends State<ProposalScreen> {
                   icon: const Icon(Icons.chat, color: Colors.orange),
                   tooltip: 'Query',
                 ),
+                // Show different action based on whether inquiry is submitted or pending
                 Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => _viewSubmittedProposal(context, inquiry),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green[600],
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    child: const Text('View'),
-                  ),
+                  child: _isSubmittedInquiry(inquiry)
+                      ? ElevatedButton(
+                          onPressed: () =>
+                              _viewSubmittedProposal(context, inquiry),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green[600],
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: const Text('View'),
+                        )
+                      : ElevatedButton(
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) => ProposalResponseDialog(
+                                lead: inquiry,
+                                currentUserId: widget.currentUserId,
+                                onProposalSubmitted: () {
+                                  // Refresh the proposal data after submission
+                                  _loadData();
+                                },
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue[600],
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: const Text('Propose'),
+                        ),
                 ),
               ],
             ),
@@ -3532,6 +3953,16 @@ class _SubmittedProposalDialogState extends State<SubmittedProposalDialog>
                     ),
                   ),
                   IconButton(
+                    onPressed: () => _copyAllProposalInfo(),
+                    icon: Icon(Icons.copy, color: Colors.grey[600], size: 24),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      padding: const EdgeInsets.all(8),
+                    ),
+                    tooltip: 'Copy all proposal info',
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
                     onPressed: () => Navigator.of(context).pop(),
                     icon: Icon(Icons.close, color: Colors.grey[600], size: 24),
                     style: IconButton.styleFrom(
@@ -3800,6 +4231,94 @@ class _SubmittedProposalDialogState extends State<SubmittedProposalDialog>
     );
   }
 
+  Future<void> _copyAllProposalInfo() async {
+    try {
+      final inquiry = widget.inquiry;
+      final proposalData = widget.proposalData;
+
+      // Build comprehensive proposal information
+      final StringBuffer info = StringBuffer();
+
+      // Lead Information
+      info.writeln('=== SUBMITTED PROPOSAL INFORMATION ===');
+      info.writeln('Client: ${inquiry['client_name'] ?? 'N/A'}');
+      info.writeln('Project: ${inquiry['project_name'] ?? 'N/A'}');
+      info.writeln('Location: ${inquiry['project_location'] ?? 'N/A'}');
+      info.writeln('Added By: ${inquiry['username'] ?? 'Unknown'}');
+      info.writeln(
+        'Date: ${inquiry['created_at'] != null ? DateFormat('dd-MM-yyyy').format(DateTime.parse(inquiry['created_at'])) : 'N/A'}',
+      );
+      info.writeln('');
+
+      // Files Information
+      final files = proposalData
+          .where((item) => item['type'] == 'file')
+          .toList();
+      if (files.isNotEmpty) {
+        info.writeln('=== PROPOSAL FILES ===');
+        for (final file in files) {
+          info.writeln('File: ${file['file_name'] ?? 'Unnamed File'}');
+          if (file['file_link'] != null &&
+              file['file_link'].toString().isNotEmpty) {
+            info.writeln('Link: ${file['file_link']}');
+          }
+          info.writeln('');
+        }
+      }
+
+      // Inputs Information
+      final inputs = proposalData
+          .where((item) => item['type'] == 'input')
+          .toList();
+      if (inputs.isNotEmpty) {
+        info.writeln('=== PROPOSAL INPUTS ===');
+        for (final input in inputs) {
+          info.writeln('Input: ${input['input'] ?? 'N/A'}');
+          info.writeln('Value: ${input['value'] ?? 'N/A'}');
+          if (input['remark'] != null &&
+              input['remark'].toString().isNotEmpty) {
+            info.writeln('Remark: ${input['remark']}');
+          }
+          info.writeln('');
+        }
+      }
+
+      // Remarks Information
+      final remarks = proposalData
+          .where((item) => item['type'] == 'remark')
+          .toList();
+      if (remarks.isNotEmpty) {
+        info.writeln('=== PROPOSAL REMARKS ===');
+        for (final remark in remarks) {
+          info.writeln('Remark: ${remark['remark'] ?? 'N/A'}');
+          info.writeln('');
+        }
+      }
+
+      // Copy to clipboard
+      await Clipboard.setData(ClipboardData(text: info.toString()));
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('All proposal information copied to clipboard'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error copying proposal info: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Widget _buildFileCard(Map<String, dynamic> file) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -3837,20 +4356,88 @@ class _SubmittedProposalDialogState extends State<SubmittedProposalDialog>
           if (file['file_link'] != null &&
               file['file_link'].toString().isNotEmpty) ...[
             const SizedBox(height: 8),
-            InkWell(
-              onTap: () {
-                // Handle file link tap
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Opening: ${file['file_link']}')),
-                );
-              },
-              child: Text(
-                file['file_link'],
-                style: TextStyle(
-                  color: Colors.blue[600],
-                  decoration: TextDecoration.underline,
+            Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () async {
+                      final url = file['file_link'] ?? '';
+                      if (url.isNotEmpty) {
+                        try {
+                          final Uri uri = Uri.parse(url);
+                          if (await canLaunchUrl(uri)) {
+                            await launchUrl(
+                              uri,
+                              mode: LaunchMode.externalApplication,
+                            );
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Opening file in browser...'),
+                                  backgroundColor: Colors.blue,
+                                ),
+                              );
+                            }
+                          } else {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Could not open file link'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error opening file: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      }
+                    },
+                    child: Text(
+                      file['file_link'],
+                      style: TextStyle(
+                        color: Colors.blue[600],
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+                IconButton(
+                  icon: Icon(Icons.copy, size: 16, color: Colors.grey[600]),
+                  onPressed: () async {
+                    try {
+                      await Clipboard.setData(
+                        ClipboardData(text: file['file_link'] ?? ''),
+                      );
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('File link copied to clipboard'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error copying link: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  tooltip: 'Copy file link',
+                ),
+              ],
             ),
           ],
         ],
@@ -5059,27 +5646,47 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isWide = constraints.maxWidth > 700;
+        final screenWidth = constraints.maxWidth;
+
+        // Responsive breakpoints
+        final isMobile = screenWidth < 600;
+        final isTablet = screenWidth >= 600 && screenWidth < 1200;
+        final isDesktop = screenWidth >= 1200;
+
+        // Adaptive padding based on screen size
+        final horizontalPadding = isMobile
+            ? 12.0
+            : isTablet
+            ? 16.0
+            : 24.0;
+        final verticalPadding = isMobile
+            ? 8.0
+            : isTablet
+            ? 16.0
+            : 24.0;
 
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding,
+            vertical: verticalPadding,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Dashboard Header
-              _buildDashboardHeader(),
-              const SizedBox(height: 24),
+              _buildResponsiveDashboardHeader(isMobile, isTablet, isDesktop),
+              SizedBox(height: isMobile ? 16 : 24),
 
               // Quick Actions
-              _buildQuickActions(),
-              const SizedBox(height: 24),
+              _buildResponsiveQuickActions(isMobile, isTablet, isDesktop),
+              SizedBox(height: isMobile ? 16 : 24),
 
               // Key Metrics Cards
-              _buildKeyMetricsCards(),
-              const SizedBox(height: 24),
+              _buildResponsiveKeyMetricsCards(isMobile, isTablet, isDesktop),
+              SizedBox(height: isMobile ? 16 : 24),
 
-              if (isWide) ...[
-                // Desktop Layout
+              if (isDesktop) ...[
+                // Desktop Layout - Two Column
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -5089,35 +5696,44 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
                       child: Column(
                         children: [
                           _buildWorkAnalytics(),
-                          const SizedBox(height: 24),
+                          SizedBox(height: 24),
                           _buildTechnicalFocus(),
-                          const SizedBox(height: 24),
+                          SizedBox(height: 24),
                           _buildAttachmentAnalytics(),
                         ],
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    SizedBox(width: 24),
                     // Right Column
                     Expanded(
                       flex: 1,
                       child: Column(
                         children: [
                           _buildTaskManagement(),
-                          const SizedBox(height: 24),
+                          SizedBox(height: 24),
                           _buildRecentActivity(),
                         ],
                       ),
                     ),
                   ],
                 ),
-              ] else ...[
-                // Mobile Layout
+              ] else if (isTablet) ...[
+                // Tablet Layout - Single Column with larger cards
                 _buildWorkAnalytics(),
-                const SizedBox(height: 24),
+                SizedBox(height: 20),
                 _buildTechnicalFocus(),
-                const SizedBox(height: 24),
+                SizedBox(height: 20),
                 _buildTaskManagement(),
-                const SizedBox(height: 24),
+                SizedBox(height: 20),
+                _buildRecentActivity(),
+              ] else ...[
+                // Mobile Layout - Single Column with compact cards
+                _buildWorkAnalytics(),
+                SizedBox(height: 16),
+                _buildTechnicalFocus(),
+                SizedBox(height: 16),
+                _buildTaskManagement(),
+                SizedBox(height: 16),
                 _buildRecentActivity(),
               ],
             ],
@@ -5127,70 +5743,154 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
     );
   }
 
-  Widget _buildDashboardHeader() {
+  Widget _buildResponsiveDashboardHeader(
+    bool isMobile,
+    bool isTablet,
+    bool isDesktop,
+  ) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(
+        isMobile
+            ? 16
+            : isTablet
+            ? 20
+            : 24,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(isMobile ? 8 : 12),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            blurRadius: isMobile ? 6 : 10,
+            offset: Offset(0, isMobile ? 2 : 4),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue[100],
-                  borderRadius: BorderRadius.circular(8),
+          if (isMobile) ...[
+            // Mobile Header Layout
+            Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(isMobile ? 8 : 12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[100],
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Icon(
+                    Icons.analytics,
+                    color: Colors.blue[700],
+                    size: isMobile ? 20 : 24,
+                  ),
                 ),
-                child: Icon(Icons.analytics, color: Colors.blue[700], size: 24),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Proposal Engineer Dashboard',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey[800],
+                SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Proposal Engineer Dashboard',
+                        style: TextStyle(
+                          fontSize: isMobile ? 18 : 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[800],
+                        ),
                       ),
-                    ),
-                    Text(
-                      'Manage inquiries, create proposals, and track technical specifications',
-                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                    ),
-                  ],
+                      Text(
+                        'Manage inquiries, create proposals, and track technical specifications',
+                        style: TextStyle(
+                          fontSize: isMobile ? 12 : 14,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              IconButton(
-                onPressed: _loadDashboardData,
-                icon: Icon(Icons.refresh, color: Colors.blue[600]),
-                tooltip: 'Refresh Dashboard',
-              ),
-              IconButton(
-                onPressed: _showExportOptions,
-                icon: Icon(Icons.download, color: Colors.green[600]),
-                tooltip: 'Export Data',
-              ),
-              IconButton(
-                onPressed: _showSettings,
-                icon: Icon(Icons.settings, color: Colors.grey[600]),
-                tooltip: 'Dashboard Settings',
-              ),
-            ],
-          ),
+              ],
+            ),
+            SizedBox(height: 12),
+            // Mobile Action Buttons
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                IconButton(
+                  onPressed: _loadDashboardData,
+                  icon: Icon(Icons.refresh, color: Colors.blue[600], size: 20),
+                  tooltip: 'Refresh Dashboard',
+                ),
+                IconButton(
+                  onPressed: _showExportOptions,
+                  icon: Icon(
+                    Icons.download,
+                    color: Colors.green[600],
+                    size: 20,
+                  ),
+                  tooltip: 'Export Data',
+                ),
+                IconButton(
+                  onPressed: _showSettings,
+                  icon: Icon(Icons.settings, color: Colors.grey[600], size: 20),
+                  tooltip: 'Dashboard Settings',
+                ),
+              ],
+            ),
+          ] else ...[
+            // Desktop/Tablet Header Layout
+            Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(isTablet ? 12 : 16),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.analytics,
+                    color: Colors.blue[700],
+                    size: isTablet ? 22 : 24,
+                  ),
+                ),
+                SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Proposal Engineer Dashboard',
+                        style: TextStyle(
+                          fontSize: isTablet ? 22 : 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                      Text(
+                        'Manage inquiries, create proposals, and track technical specifications',
+                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: _loadDashboardData,
+                  icon: Icon(Icons.refresh, color: Colors.blue[600]),
+                  tooltip: 'Refresh Dashboard',
+                ),
+                IconButton(
+                  onPressed: _showExportOptions,
+                  icon: Icon(Icons.download, color: Colors.green[600]),
+                  tooltip: 'Export Data',
+                ),
+                IconButton(
+                  onPressed: _showSettings,
+                  icon: Icon(Icons.settings, color: Colors.grey[600]),
+                  tooltip: 'Dashboard Settings',
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 16),
           // Search and Filter Bar
           Row(
@@ -5322,17 +6022,27 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
     }
   }
 
-  Widget _buildQuickActions() {
+  Widget _buildResponsiveQuickActions(
+    bool isMobile,
+    bool isTablet,
+    bool isDesktop,
+  ) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(
+        isMobile
+            ? 16
+            : isTablet
+            ? 20
+            : 24,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(isMobile ? 8 : 12),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            blurRadius: isMobile ? 6 : 10,
+            offset: Offset(0, isMobile ? 2 : 4),
           ),
         ],
       ),
@@ -5341,22 +6051,26 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
         children: [
           Row(
             children: [
-              Icon(Icons.flash_on, color: Colors.orange[600], size: 20),
-              const SizedBox(width: 8),
+              Icon(
+                Icons.flash_on,
+                color: Colors.orange[600],
+                size: isMobile ? 18 : 20,
+              ),
+              SizedBox(width: isMobile ? 6 : 8),
               Text(
                 'Quick Actions',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: isMobile ? 16 : 18,
                   fontWeight: FontWeight.bold,
                   color: Colors.grey[800],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: isMobile ? 12 : 16),
           Wrap(
-            spacing: 12,
-            runSpacing: 12,
+            spacing: isMobile ? 8 : 12,
+            runSpacing: isMobile ? 8 : 12,
             children: [
               _buildQuickActionCard(
                 'View New Inquiries',
@@ -5424,7 +6138,11 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
     );
   }
 
-  Widget _buildKeyMetricsCards() {
+  Widget _buildResponsiveKeyMetricsCards(
+    bool isMobile,
+    bool isTablet,
+    bool isDesktop,
+  ) {
     final totalInquiries = _dashboardData['totalInquiries'] ?? 0;
     final pendingInquiries = _dashboardData['pendingInquiries'] ?? 0;
     final submittedProposals = _dashboardData['submittedProposals'] ?? 0;
@@ -5436,167 +6154,287 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
     final totalRemarks = _dashboardData['totalRemarks'] ?? 0;
     final totalInputs = _dashboardData['totalInputs'] ?? 0;
 
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: _buildMetricCard(
-                'Total Inquiries',
-                totalInquiries.toString(),
-                Icons.assignment,
-                Colors.blue,
-                'All assigned leads',
+    if (isMobile) {
+      // Mobile Layout - Single Column
+      return Column(
+        children: [
+          _buildResponsiveMetricCard(
+            'Total Inquiries',
+            totalInquiries.toString(),
+            Icons.assignment,
+            Colors.blue,
+            'All assigned leads',
+            isMobile,
+          ),
+          SizedBox(height: 12),
+          _buildResponsiveMetricCard(
+            'Pending',
+            pendingInquiries.toString(),
+            Icons.pending,
+            Colors.orange,
+            'Awaiting proposals',
+            isMobile,
+          ),
+          SizedBox(height: 12),
+          _buildResponsiveMetricCard(
+            'Submitted',
+            submittedProposals.toString(),
+            Icons.check_circle,
+            Colors.green,
+            'Proposals sent',
+            isMobile,
+          ),
+          SizedBox(height: 12),
+          _buildResponsiveMetricCard(
+            'Avg Response',
+            '${averageResponseTime.toStringAsFixed(1)}h',
+            Icons.schedule,
+            Colors.purple,
+            'Response time',
+            isMobile,
+          ),
+          SizedBox(height: 12),
+          _buildResponsiveMetricCard(
+            'Attachments',
+            totalAttachments.toString(),
+            Icons.attach_file,
+            Colors.indigo,
+            'Lead documents',
+            isMobile,
+          ),
+          SizedBox(height: 12),
+          _buildResponsiveMetricCard(
+            'Contacts',
+            totalContacts.toString(),
+            Icons.people,
+            Colors.teal,
+            'Lead contacts',
+            isMobile,
+          ),
+          SizedBox(height: 12),
+          _buildResponsiveMetricCard(
+            'Queries',
+            totalQueries.toString(),
+            Icons.chat,
+            Colors.amber,
+            'Communications',
+            isMobile,
+          ),
+          SizedBox(height: 12),
+          _buildResponsiveMetricCard(
+            'Activities',
+            totalActivities.toString(),
+            Icons.timeline,
+            Colors.deepPurple,
+            'Lead activities',
+            isMobile,
+          ),
+          SizedBox(height: 12),
+          _buildResponsiveMetricCard(
+            'Remarks',
+            totalRemarks.toString(),
+            Icons.comment,
+            Colors.orange,
+            'Proposal remarks',
+            isMobile,
+          ),
+          SizedBox(height: 12),
+          _buildResponsiveMetricCard(
+            'Inputs',
+            totalInputs.toString(),
+            Icons.input,
+            Colors.deepOrange,
+            'Technical inputs',
+            isMobile,
+          ),
+          SizedBox(height: 12),
+          _buildResponsiveMetricCard(
+            'Files',
+            (_dashboardData['proposalFiles']?.length ?? 0).toString(),
+            Icons.description,
+            Colors.green,
+            'Proposal files',
+            isMobile,
+          ),
+        ],
+      );
+    } else {
+      // Desktop/Tablet Layout - Grid
+      return Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _buildResponsiveMetricCard(
+                  'Total Inquiries',
+                  totalInquiries.toString(),
+                  Icons.assignment,
+                  Colors.blue,
+                  'All assigned leads',
+                  isMobile,
+                ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildMetricCard(
-                'Pending',
-                pendingInquiries.toString(),
-                Icons.pending,
-                Colors.orange,
-                'Awaiting proposals',
+              SizedBox(width: isTablet ? 12 : 16),
+              Expanded(
+                child: _buildResponsiveMetricCard(
+                  'Pending',
+                  pendingInquiries.toString(),
+                  Icons.pending,
+                  Colors.orange,
+                  'Awaiting proposals',
+                  isMobile,
+                ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildMetricCard(
-                'Submitted',
-                submittedProposals.toString(),
-                Icons.check_circle,
-                Colors.green,
-                'Proposals sent',
+              SizedBox(width: isTablet ? 12 : 16),
+              Expanded(
+                child: _buildResponsiveMetricCard(
+                  'Submitted',
+                  submittedProposals.toString(),
+                  Icons.check_circle,
+                  Colors.green,
+                  'Proposals sent',
+                  isMobile,
+                ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildMetricCard(
-                'Avg Response',
-                '${averageResponseTime.toStringAsFixed(1)}h',
-                Icons.schedule,
-                Colors.purple,
-                'Response time',
+              SizedBox(width: isTablet ? 12 : 16),
+              Expanded(
+                child: _buildResponsiveMetricCard(
+                  'Avg Response',
+                  '${averageResponseTime.toStringAsFixed(1)}h',
+                  Icons.schedule,
+                  Colors.purple,
+                  'Response time',
+                  isMobile,
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: _buildMetricCard(
-                'Attachments',
-                totalAttachments.toString(),
-                Icons.attach_file,
-                Colors.indigo,
-                'Lead documents',
+            ],
+          ),
+          SizedBox(height: isTablet ? 12 : 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildResponsiveMetricCard(
+                  'Attachments',
+                  totalAttachments.toString(),
+                  Icons.attach_file,
+                  Colors.indigo,
+                  'Lead documents',
+                  isMobile,
+                ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildMetricCard(
-                'Contacts',
-                totalContacts.toString(),
-                Icons.people,
-                Colors.teal,
-                'Lead contacts',
+              SizedBox(width: isTablet ? 12 : 16),
+              Expanded(
+                child: _buildResponsiveMetricCard(
+                  'Contacts',
+                  totalContacts.toString(),
+                  Icons.people,
+                  Colors.teal,
+                  'Lead contacts',
+                  isMobile,
+                ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildMetricCard(
-                'Queries',
-                totalQueries.toString(),
-                Icons.chat,
-                Colors.amber,
-                'Communications',
+              SizedBox(width: isTablet ? 12 : 16),
+              Expanded(
+                child: _buildResponsiveMetricCard(
+                  'Queries',
+                  totalQueries.toString(),
+                  Icons.chat,
+                  Colors.amber,
+                  'Communications',
+                  isMobile,
+                ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildMetricCard(
-                'Activities',
-                totalActivities.toString(),
-                Icons.timeline,
-                Colors.deepPurple,
-                'Lead activities',
+              SizedBox(width: isTablet ? 12 : 16),
+              Expanded(
+                child: _buildResponsiveMetricCard(
+                  'Activities',
+                  totalActivities.toString(),
+                  Icons.timeline,
+                  Colors.deepPurple,
+                  'Lead activities',
+                  isMobile,
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: _buildMetricCard(
-                'Remarks',
-                totalRemarks.toString(),
-                Icons.comment,
-                Colors.orange,
-                'Proposal remarks',
+            ],
+          ),
+          SizedBox(height: isTablet ? 12 : 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildResponsiveMetricCard(
+                  'Remarks',
+                  totalRemarks.toString(),
+                  Icons.comment,
+                  Colors.orange,
+                  'Proposal remarks',
+                  isMobile,
+                ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildMetricCard(
-                'Inputs',
-                totalInputs.toString(),
-                Icons.input,
-                Colors.deepOrange,
-                'Technical inputs',
+              SizedBox(width: isTablet ? 12 : 16),
+              Expanded(
+                child: _buildResponsiveMetricCard(
+                  'Inputs',
+                  totalInputs.toString(),
+                  Icons.input,
+                  Colors.deepOrange,
+                  'Technical inputs',
+                  isMobile,
+                ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildMetricCard(
-                'Files',
-                (_dashboardData['proposalFiles']?.length ?? 0).toString(),
-                Icons.description,
-                Colors.green,
-                'Proposal files',
+              SizedBox(width: isTablet ? 12 : 16),
+              Expanded(
+                child: _buildResponsiveMetricCard(
+                  'Files',
+                  (_dashboardData['proposalFiles']?.length ?? 0).toString(),
+                  Icons.description,
+                  Colors.green,
+                  'Proposal files',
+                  isMobile,
+                ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildMetricCard(
-                'Total Data',
-                (totalInquiries +
-                        totalAttachments +
-                        totalContacts +
-                        totalQueries +
-                        totalActivities +
-                        totalRemarks +
-                        totalInputs)
-                    .toString(),
-                Icons.analytics,
-                Colors.red,
-                'All records',
+              SizedBox(width: isTablet ? 12 : 16),
+              Expanded(
+                child: _buildResponsiveMetricCard(
+                  'Total Data',
+                  (totalInquiries +
+                          totalAttachments +
+                          totalContacts +
+                          totalQueries +
+                          totalActivities +
+                          totalRemarks +
+                          totalInputs)
+                      .toString(),
+                  Icons.analytics,
+                  Colors.red,
+                  'All records',
+                  isMobile,
+                ),
               ),
-            ),
-          ],
-        ),
-      ],
-    );
+            ],
+          ),
+        ],
+      );
+    }
   }
 
-  Widget _buildMetricCard(
+  Widget _buildResponsiveMetricCard(
     String title,
     String value,
     IconData icon,
     Color color,
     String subtitle,
+    bool isMobile,
   ) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(isMobile ? 12 : 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(isMobile ? 8 : 12),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            blurRadius: isMobile ? 4 : 8,
+            offset: Offset(0, isMobile ? 1 : 2),
           ),
         ],
       ),
@@ -5606,39 +6444,45 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: EdgeInsets.all(isMobile ? 6 : 8),
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(isMobile ? 4 : 6),
                 ),
-                child: Icon(icon, color: color, size: 20),
+                child: Icon(icon, color: color, size: isMobile ? 16 : 20),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: isMobile ? 8 : 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: isMobile ? 18 : 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    Text(
                       title,
-                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                      style: TextStyle(
+                        fontSize: isMobile ? 12 : 14,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                     Text(
                       subtitle,
-                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                      style: TextStyle(
+                        fontSize: isMobile ? 10 : 12,
+                        color: Colors.grey[500],
+                      ),
                     ),
                   ],
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
           ),
         ],
       ),
