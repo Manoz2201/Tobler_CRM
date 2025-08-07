@@ -99,15 +99,13 @@ class _ProposalHomeScreenState extends State<ProposalHomeScreen> {
     ProfilePage(currentUserId: widget.currentUserId ?? ''),
   ];
 
-
-
   void _onItemTapped(int index) {
     // Check if logout button was tapped
     if (index == _navItems.length - 1 && _navItems[index].label == 'Logout') {
       _logout();
       return;
     }
-    
+
     setState(() {
       _selectedIndex = index;
     });
@@ -257,10 +255,7 @@ class _ProposalHomeScreenState extends State<ProposalHomeScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
-          right: BorderSide(
-            color: Colors.grey.shade200,
-            width: 1,
-          ),
+          right: BorderSide(color: Colors.grey.shade200, width: 1),
         ),
         boxShadow: [
           BoxShadow(
@@ -277,10 +272,7 @@ class _ProposalHomeScreenState extends State<ProposalHomeScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               border: Border(
-                bottom: BorderSide(
-                  color: Colors.grey.shade200,
-                  width: 1,
-                ),
+                bottom: BorderSide(color: Colors.grey.shade200, width: 1),
               ),
             ),
             child: Row(
@@ -394,7 +386,6 @@ class _ProposalHomeScreenState extends State<ProposalHomeScreen> {
         ],
       ),
     );
-
   }
 
   @override
@@ -410,9 +401,7 @@ class _ProposalHomeScreenState extends State<ProposalHomeScreen> {
             body: Row(
               children: [
                 _buildNavBar(screenHeight, screenWidth),
-                Expanded(
-                  child: _pages[_selectedIndex],
-                ),
+                Expanded(child: _pages[_selectedIndex]),
               ],
             ),
           );
@@ -464,7 +453,7 @@ class _ProposalScreenState extends State<ProposalScreen> {
     try {
       final inquiries = await _fetchLeadsWithoutProposals();
       final submittedInquiries = await _fetchLeadsWithProposals();
-      
+
       setState(() {
         _inquiries = inquiries;
         _submittedInquiries = submittedInquiries;
@@ -477,10 +466,6 @@ class _ProposalScreenState extends State<ProposalScreen> {
       debugPrint('Error loading data: $e');
     }
   }
-
-
-
-
 
   Future<List<Map<String, dynamic>>> _fetchLeadsWithoutProposals() async {
     final client = Supabase.instance.client;
@@ -561,8 +546,6 @@ class _ProposalScreenState extends State<ProposalScreen> {
     return List<Map<String, dynamic>>.from(leadsWithUsernames);
   }
 
-
-
   Future<List<Map<String, dynamic>>> _fetchSubmittedProposals(
     String leadId,
   ) async {
@@ -602,19 +585,15 @@ class _ProposalScreenState extends State<ProposalScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: _buildInquiriesContent(context),
-    );
+    return Scaffold(body: _buildInquiriesContent(context));
   }
 
   Widget _buildInquiriesContent(BuildContext context) {
     final isWide = MediaQuery.of(context).size.width > 700;
-    
+
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
-
-
 
     if (isWide) {
       // Desktop/Tablet layout
@@ -623,14 +602,9 @@ class _ProposalScreenState extends State<ProposalScreen> {
           // Header with stats and refresh
           _buildHeader(context, 'Inquiries', _filteredData.length),
           // Stats cards
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: _buildStatsCards(),
-          ),
+          Padding(padding: const EdgeInsets.all(16), child: _buildStatsCards()),
           // Table
-          Expanded(
-            child: _buildTable(context, _filteredData),
-          ),
+          Expanded(child: _buildTable(context, _filteredData)),
         ],
       );
     } else {
@@ -645,9 +619,7 @@ class _ProposalScreenState extends State<ProposalScreen> {
             child: _buildMobileStatsCards(),
           ),
           // Mobile list
-          Expanded(
-            child: _buildMobileList(context, _filteredData),
-          ),
+          Expanded(child: _buildMobileList(context, _filteredData)),
         ],
       );
     }
@@ -672,20 +644,17 @@ class _ProposalScreenState extends State<ProposalScreen> {
                   title,
                   style: TextStyle(
                     fontSize: 20,
-                  fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.bold,
                     color: Colors.grey[800],
                   ),
                 ),
                 Text(
                   '$count inquiries',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                 ),
-                ],
-              ),
+              ],
             ),
+          ),
           // Search Bar
           Expanded(
             child: Container(
@@ -704,9 +673,16 @@ class _ProposalScreenState extends State<ProposalScreen> {
                 decoration: InputDecoration(
                   hintText: 'Search inquiries...',
                   hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
-                  prefixIcon: Icon(Icons.search, color: Colors.grey[600], size: 20),
+                  prefixIcon: Icon(
+                    Icons.search,
+                    color: Colors.grey[600],
+                    size: 20,
+                  ),
                   border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                 ),
                 style: const TextStyle(fontSize: 14),
               ),
@@ -730,19 +706,19 @@ class _ProposalScreenState extends State<ProposalScreen> {
 
   Widget _buildMobileHeader(BuildContext context, String title, int count) {
     return Container(
-            padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
+        children: [
+          Row(
+            children: [
               Icon(Icons.assignment, size: 24, color: Colors.blue[700]),
               const SizedBox(width: 8),
-                          Expanded(
+              Expanded(
                 child: Text(
                   title,
                   style: TextStyle(
@@ -759,7 +735,10 @@ class _ProposalScreenState extends State<ProposalScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue[600],
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                 ),
               ),
             ],
@@ -782,9 +761,16 @@ class _ProposalScreenState extends State<ProposalScreen> {
               decoration: InputDecoration(
                 hintText: 'Search inquiries...',
                 hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
-                prefixIcon: Icon(Icons.search, color: Colors.grey[600], size: 20),
+                prefixIcon: Icon(
+                  Icons.search,
+                  color: Colors.grey[600],
+                  size: 20,
+                ),
                 border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
               ),
               style: const TextStyle(fontSize: 14),
             ),
@@ -792,10 +778,7 @@ class _ProposalScreenState extends State<ProposalScreen> {
           const SizedBox(height: 8),
           Text(
             '$count inquiries',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
           ),
           const SizedBox(height: 12),
           // Mobile stats cards
@@ -858,9 +841,9 @@ class _ProposalScreenState extends State<ProposalScreen> {
     String value,
     IconData icon,
     Color color,
-    String? statusFilter,
-    {VoidCallback? onTap}
-  ) {
+    String? statusFilter, {
+    VoidCallback? onTap,
+  }) {
     final isSelected = _selectedStatusFilter == statusFilter;
 
     return GestureDetector(
@@ -880,11 +863,11 @@ class _ProposalScreenState extends State<ProposalScreen> {
             ),
           ],
         ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -894,10 +877,10 @@ class _ProposalScreenState extends State<ProposalScreen> {
                   child: Icon(icon, color: color, size: 24),
                 ),
                 const SizedBox(width: 16),
-                                    Expanded(
-                                      child: Column(
+                Expanded(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
+                    children: [
                       Text(
                         value,
                         style: TextStyle(
@@ -985,14 +968,14 @@ class _ProposalScreenState extends State<ProposalScreen> {
             color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 4,
             offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
+          ),
+        ],
+      ),
       child: Column(
         children: [
           Icon(icon, color: color, size: 20),
-                                const SizedBox(height: 4),
-                                Text(
+          const SizedBox(height: 4),
+          Text(
             value,
             style: TextStyle(
               fontSize: 16,
@@ -1000,13 +983,7 @@ class _ProposalScreenState extends State<ProposalScreen> {
               color: Colors.grey[800],
             ),
           ),
-                                Text(
-            title,
-            style: TextStyle(
-              fontSize: 10,
-              color: Colors.grey[600],
-            ),
-          ),
+          Text(title, style: TextStyle(fontSize: 10, color: Colors.grey[600])),
         ],
       ),
     );
@@ -1038,8 +1015,8 @@ class _ProposalScreenState extends State<ProposalScreen> {
                 topRight: Radius.circular(12),
               ),
             ),
-                        child: Row(
-                          children: [
+            child: Row(
+              children: [
                 Expanded(
                   child: Text(
                     '${data.length} inquiries',
@@ -1061,7 +1038,10 @@ class _ProposalScreenState extends State<ProposalScreen> {
                 Expanded(
                   flex: 2,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 2,
+                    ),
                     child: const Text(
                       'Client/Date',
                       style: TextStyle(fontWeight: FontWeight.bold),
@@ -1075,7 +1055,10 @@ class _ProposalScreenState extends State<ProposalScreen> {
                 Expanded(
                   flex: 2,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 2,
+                    ),
                     child: const Text(
                       'Project',
                       style: TextStyle(fontWeight: FontWeight.bold),
@@ -1089,7 +1072,10 @@ class _ProposalScreenState extends State<ProposalScreen> {
                 Expanded(
                   flex: 1,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 2,
+                    ),
                     child: const Text(
                       'Location',
                       style: TextStyle(fontWeight: FontWeight.bold),
@@ -1103,7 +1089,10 @@ class _ProposalScreenState extends State<ProposalScreen> {
                 Expanded(
                   flex: 1,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 2,
+                    ),
                     child: const Text(
                       'Added By',
                       style: TextStyle(fontWeight: FontWeight.bold),
@@ -1117,7 +1106,10 @@ class _ProposalScreenState extends State<ProposalScreen> {
                 Expanded(
                   flex: 2,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 2,
+                    ),
                     child: const Text(
                       'Actions',
                       style: TextStyle(fontWeight: FontWeight.bold),
@@ -1126,10 +1118,10 @@ class _ProposalScreenState extends State<ProposalScreen> {
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
                     ),
-                        ),
-                      ),
-                    ],
                   ),
+                ),
+              ],
+            ),
           ),
           // Table Body
           Expanded(
@@ -1150,7 +1142,7 @@ class _ProposalScreenState extends State<ProposalScreen> {
     final inquiryId = inquiry['id'].toString();
     final date = inquiry['created_at'] != null
         ? DateFormat('dd-MM-yyyy').format(DateTime.parse(inquiry['created_at']))
-                  : '-';
+        : '-';
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -1172,31 +1164,31 @@ class _ProposalScreenState extends State<ProposalScreen> {
             child: Container(
               padding: const EdgeInsets.all(16),
               child: Row(
-                    children: [
+                children: [
                   // Client/Date
-                              Expanded(
+                  Expanded(
                     flex: 2,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                        Text(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
                           inquiry['client_name'] ?? 'N/A',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
                             fontSize: 14,
-                                          ),
+                          ),
                           overflow: TextOverflow.ellipsis,
-                                        ),
+                        ),
                         const SizedBox(height: 4),
-                                        Text(
+                        Text(
                           date,
                           style: TextStyle(
                             color: Colors.grey[600],
                             fontSize: 12,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   // Project
                   Expanded(
@@ -1228,61 +1220,71 @@ class _ProposalScreenState extends State<ProposalScreen> {
                   // Actions
                   Expanded(
                     flex: 2,
-                        child: Row(
+                    child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
+                      children: [
                         IconButton(
                           onPressed: () => _showAlertsDialog(context, inquiry),
-                          icon: const Icon(Icons.notifications, color: Colors.red),
-                                tooltip: 'Alert',
+                          icon: const Icon(
+                            Icons.notifications,
+                            color: Colors.red,
+                          ),
+                          tooltip: 'Alert',
                         ),
                         IconButton(
-                                onPressed: () {
-                                  showDialog(
-                                    context: context,
+                          onPressed: () {
+                            showDialog(
+                              context: context,
                               builder: (context) => QueryDialog(lead: inquiry),
-                                  );
-                                },
+                            );
+                          },
                           icon: const Icon(Icons.chat, color: Colors.orange),
-                                tooltip: 'Query',
+                          tooltip: 'Query',
                         ),
                         // Show different action based on whether inquiry is submitted or pending
                         if (_isSubmittedInquiry(inquiry))
                           ElevatedButton(
-                            onPressed: () => _viewSubmittedProposal(context, inquiry),
+                            onPressed: () =>
+                                _viewSubmittedProposal(context, inquiry),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.green[600],
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
                             ),
                             child: const Text('View'),
                           )
                         else
-                            ElevatedButton(
-                              onPressed: () {
-                                showDialog(
-                                  context: context,
-                                  builder: (context) => ProposalResponseDialog(
+                          ElevatedButton(
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (context) => ProposalResponseDialog(
                                   lead: inquiry,
-                                    currentUserId: widget.currentUserId,
-                                    onProposalSubmitted: () {
-                                      // Refresh the proposal data after submission
-                                      _loadData();
-                                    },
-                                  ),
-                                );
-                              },
+                                  currentUserId: widget.currentUserId,
+                                  onProposalSubmitted: () {
+                                    // Refresh the proposal data after submission
+                                    _loadData();
+                                  },
+                                ),
+                              );
+                            },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.blue[600],
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
                             ),
-                              child: const Text('Propose'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                            child: const Text('Propose'),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -1291,7 +1293,10 @@ class _ProposalScreenState extends State<ProposalScreen> {
     );
   }
 
-  Widget _buildMobileList(BuildContext context, List<Map<String, dynamic>> data) {
+  Widget _buildMobileList(
+    BuildContext context,
+    List<Map<String, dynamic>> data,
+  ) {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: data.length,
@@ -1305,7 +1310,7 @@ class _ProposalScreenState extends State<ProposalScreen> {
   Widget _buildMobileCard(Map<String, dynamic> inquiry, int index) {
     final date = inquiry['created_at'] != null
         ? DateFormat('dd-MM-yyyy').format(DateTime.parse(inquiry['created_at']))
-                : '-';
+        : '-';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -1322,68 +1327,59 @@ class _ProposalScreenState extends State<ProposalScreen> {
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                                Text(
+                      Text(
                         inquiry['client_name'] ?? 'N/A',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
                       const SizedBox(height: 4),
                       Text(
                         inquiry['project_name'] ?? 'N/A',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 14,
-                        ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                    Text(
-                      date,
-                            style: TextStyle(
-                        color: Colors.blue[600],
-                              fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                            ),
-                          ),
-                    const SizedBox(height: 4),
-                          Text(
-                      inquiry['username'] ?? 'Unknown',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 12,
-                      ),
-                            ),
-                        ],
+                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      date,
+                      style: TextStyle(
+                        color: Colors.blue[600],
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      inquiry['username'] ?? 'Unknown',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
             Text(
               inquiry['project_location'] ?? 'N/A',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 14,
-              ),
+              style: TextStyle(color: Colors.grey[600], fontSize: 14),
             ),
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
+              children: [
                 IconButton(
                   onPressed: () => _showAlertsDialog(context, inquiry),
                   icon: const Icon(Icons.notifications, color: Colors.red),
@@ -1399,7 +1395,7 @@ class _ProposalScreenState extends State<ProposalScreen> {
                   icon: const Icon(Icons.chat, color: Colors.orange),
                   tooltip: 'Query',
                 ),
-                                    Expanded(
+                Expanded(
                   child: ElevatedButton(
                     onPressed: () => _viewSubmittedProposal(context, inquiry),
                     style: ElevatedButton.styleFrom(
@@ -1408,10 +1404,10 @@ class _ProposalScreenState extends State<ProposalScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                     child: const Text('View'),
-                                        ),
-                                      ),
-                                  ],
-                                ),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -1427,7 +1423,7 @@ class _ProposalScreenState extends State<ProposalScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
+          children: [
             Text('Client: ${inquiry['client_name']}'),
             Text('Project: ${inquiry['project_name']}'),
             Text('Location: ${inquiry['project_location']}'),
@@ -1445,8 +1441,6 @@ class _ProposalScreenState extends State<ProposalScreen> {
     );
   }
 
-
-
   // Helper function to fetch lead activity
   Future<List<Map<String, dynamic>>> fetchLeadActivity(String leadId) async {
     final client = Supabase.instance.client;
@@ -1456,7 +1450,7 @@ class _ProposalScreenState extends State<ProposalScreen> {
           .select('*')
           .eq('lead_id', leadId)
           .order('created_at', ascending: false);
-      
+
       return List<Map<String, dynamic>>.from(activities);
     } catch (e) {
       debugPrint('Error fetching lead activity: $e');
@@ -1493,7 +1487,7 @@ class _ProposalScreenState extends State<ProposalScreen> {
 
   List<Map<String, dynamic>> get _filteredData {
     List<Map<String, dynamic>> baseData;
-    
+
     if (_selectedStatusFilter == null) {
       // Show all data (pending + submitted)
       baseData = [..._inquiries, ..._submittedInquiries];
@@ -1511,23 +1505,29 @@ class _ProposalScreenState extends State<ProposalScreen> {
     if (_searchQuery.isNotEmpty) {
       baseData = baseData.where((inquiry) {
         // Search in all relevant fields
-        final clientName = inquiry['client_name']?.toString().toLowerCase() ?? '';
-        final projectName = inquiry['project_name']?.toString().toLowerCase() ?? '';
-        final projectLocation = inquiry['project_location']?.toString().toLowerCase() ?? '';
+        final clientName =
+            inquiry['client_name']?.toString().toLowerCase() ?? '';
+        final projectName =
+            inquiry['project_name']?.toString().toLowerCase() ?? '';
+        final projectLocation =
+            inquiry['project_location']?.toString().toLowerCase() ?? '';
         final username = inquiry['username']?.toString().toLowerCase() ?? '';
         final remark = inquiry['remark']?.toString().toLowerCase() ?? '';
-        final mainContactName = inquiry['main_contact_name']?.toString().toLowerCase() ?? '';
-        final mainContactEmail = inquiry['main_contact_email']?.toString().toLowerCase() ?? '';
-        final mainContactMobile = inquiry['main_contact_mobile']?.toString().toLowerCase() ?? '';
-        
+        final mainContactName =
+            inquiry['main_contact_name']?.toString().toLowerCase() ?? '';
+        final mainContactEmail =
+            inquiry['main_contact_email']?.toString().toLowerCase() ?? '';
+        final mainContactMobile =
+            inquiry['main_contact_mobile']?.toString().toLowerCase() ?? '';
+
         return clientName.contains(_searchQuery) ||
-               projectName.contains(_searchQuery) ||
-               projectLocation.contains(_searchQuery) ||
-               username.contains(_searchQuery) ||
-               remark.contains(_searchQuery) ||
-               mainContactName.contains(_searchQuery) ||
-               mainContactEmail.contains(_searchQuery) ||
-               mainContactMobile.contains(_searchQuery);
+            projectName.contains(_searchQuery) ||
+            projectLocation.contains(_searchQuery) ||
+            username.contains(_searchQuery) ||
+            remark.contains(_searchQuery) ||
+            mainContactName.contains(_searchQuery) ||
+            mainContactEmail.contains(_searchQuery) ||
+            mainContactMobile.contains(_searchQuery);
       }).toList();
     }
 
@@ -1536,10 +1536,15 @@ class _ProposalScreenState extends State<ProposalScreen> {
 
   bool _isSubmittedInquiry(Map<String, dynamic> inquiry) {
     // Check if this inquiry is in the submitted list
-    return _submittedInquiries.any((submitted) => submitted['id'] == inquiry['id']);
+    return _submittedInquiries.any(
+      (submitted) => submitted['id'] == inquiry['id'],
+    );
   }
 
-  Future<void> _viewSubmittedProposal(BuildContext context, Map<String, dynamic> inquiry) async {
+  Future<void> _viewSubmittedProposal(
+    BuildContext context,
+    Map<String, dynamic> inquiry,
+  ) async {
     try {
       // Show loading dialog
       showDialog(
@@ -1549,8 +1554,10 @@ class _ProposalScreenState extends State<ProposalScreen> {
       );
 
       // Fetch submitted proposal data as per PROPOSAL_FUNCTION_FLOW.md
-      final proposalData = await _fetchSubmittedProposals(inquiry['id'].toString());
-      
+      final proposalData = await _fetchSubmittedProposals(
+        inquiry['id'].toString(),
+      );
+
       // Close loading dialog
       Navigator.of(context).pop();
 
@@ -1570,11 +1577,11 @@ class _ProposalScreenState extends State<ProposalScreen> {
     } catch (e) {
       // Close loading dialog
       Navigator.of(context).pop();
-      
+
       // Show error
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading proposal: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error loading proposal: $e')));
     }
   }
 }
@@ -1583,7 +1590,7 @@ class ProposalResponseDialog extends StatefulWidget {
   final Map<String, dynamic> lead;
   final String? currentUserId;
   final VoidCallback? onProposalSubmitted;
-  
+
   const ProposalResponseDialog({
     super.key,
     required this.lead,
@@ -1759,7 +1766,7 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
       debugPrint('[PROPOSAL] Inputs count: ${inputs.length}');
       debugPrint('[PROPOSAL] Remark: "${remarkController.text.trim()}"');
       debugPrint('[PROPOSAL] Current user ID: $currentUserId');
-      
+
       // Save files
       debugPrint('[PROPOSAL] Saving ${files.length} files...');
       for (final file in files) {
@@ -1769,65 +1776,67 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
         if (fileName.isNotEmpty || fileLink.isNotEmpty) {
           try {
             debugPrint('[PROPOSAL] Inserting file: $fileName');
-          await client.from('proposal_file').insert({
-            'lead_id': leadId,
-            'file_name': fileName,
-            'file_link': fileLink,
-            'user_id': currentUserId,
+            await client.from('proposal_file').insert({
+              'lead_id': leadId,
+              'file_name': fileName,
+              'file_link': fileLink,
+              'user_id': currentUserId,
               'created_at': DateTime.now().toIso8601String(),
               'updated_at': DateTime.now().toIso8601String(),
-          });
+            });
             debugPrint('[PROPOSAL] Successfully inserted file: $fileName');
           } catch (e) {
             debugPrint('[PROPOSAL] Error inserting file $fileName: $e');
             throw Exception('Failed to insert file: $fileName - $e');
+          }
         }
       }
-      }
-      
+
       // Save inputs
       debugPrint('[PROPOSAL] Saving ${inputs.length} inputs...');
       for (int i = 0; i < inputs.length; i++) {
         final input = inputs[i];
         final inputType = input['input']!.text.trim();
         final inputValue = input['value']!.text.trim();
-        
-        debugPrint('[PROPOSAL] Input $i: Type="$inputType", Value="$inputValue"');
-        
+
+        debugPrint(
+          '[PROPOSAL] Input $i: Type="$inputType", Value="$inputValue"',
+        );
+
         if (inputType.isNotEmpty) {
           try {
             debugPrint('[PROPOSAL] Inserting input: $inputType = $inputValue');
-          await client.from('proposal_input').insert({
-            'lead_id': leadId,
+            await client.from('proposal_input').insert({
+              'lead_id': leadId,
               'input': inputType,
               'value': inputValue,
-            'remark': input['remark']!.text.trim(),
-            'user_id': currentUserId,
+              'remark': input['remark']!.text.trim(),
+              'user_id': currentUserId,
               'created_at': DateTime.now().toIso8601String(),
               'updated_at': DateTime.now().toIso8601String(),
-          });
+            });
             debugPrint('[PROPOSAL] Successfully inserted input: $inputType');
           } catch (e) {
             debugPrint('[PROPOSAL] Error inserting input $inputType: $e');
             throw Exception('Failed to insert input: $inputType - $e');
-        }
+          }
         } else {
           debugPrint('[PROPOSAL] Skipping empty input at index $i');
+        }
       }
-      }
-      
+
       // Save remark
       final remarkText = remarkController.text.trim();
       if (remarkText.isNotEmpty) {
         try {
           debugPrint('[PROPOSAL] Inserting remark: $remarkText');
-        await client.from('proposal_remark').insert({
-          'lead_id': leadId,
+          await client.from('proposal_remark').insert({
+            'lead_id': leadId,
             'remark': remarkText,
-          'user_id': currentUserId,
+            'user_id': currentUserId,
             'created_at': DateTime.now().toIso8601String(),
             'updated_at': DateTime.now().toIso8601String(),
-        });
+          });
           debugPrint('[PROPOSAL] Successfully inserted remark');
         } catch (e) {
           debugPrint('[PROPOSAL] Error inserting remark: $e');
@@ -1846,12 +1855,12 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
           final value = double.tryParse(input['value']!.text.trim()) ?? 0.0;
 
           // Check for area-related inputs (Alu, Area, Aluminium)
-          if (inputType.contains('alu') || 
-              inputType.contains('area') || 
+          if (inputType.contains('alu') ||
+              inputType.contains('area') ||
               inputType.contains('aluminium')) {
             aluminiumArea += value;
           }
-          
+
           // Check for MS weight inputs (MS, ms)
           if (inputType.contains('ms') || inputType == 'ms') {
             msWeightTotal += value;
@@ -1865,7 +1874,9 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
       // Get lead details for admin_response
       final leadDetails = await client
           .from('leads')
-          .select('project_name, client_name, project_location, lead_generated_by')
+          .select(
+            'project_name, client_name, project_location, lead_generated_by',
+          )
           .eq('id', leadId)
           .single();
 
@@ -1907,23 +1918,23 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
       debugPrint('[PROPOSAL] - Project ID: $projectId');
       debugPrint('[PROPOSAL] - Sales User: $salesUserName');
       debugPrint('[PROPOSAL] - Proposal User: $proposalUserName');
-      
+
       try {
-      await client.from('admin_response').insert({
-        'lead_id': leadId,
+        await client.from('admin_response').insert({
+          'lead_id': leadId,
           'project_name': leadDetails['project_name'],
           'client_name': leadDetails['client_name'],
           'location': leadDetails['project_location'],
-        'aluminium_area': aluminiumArea,
-        'ms_weight': msWeight,
+          'aluminium_area': aluminiumArea,
+          'ms_weight': msWeight,
           'remark': remarkController.text.trim(),
           'project_id': projectId,
           'sales_user': salesUserName,
           'proposal_user': proposalUserName,
-        'created_at': DateTime.now().toIso8601String(),
+          'created_at': DateTime.now().toIso8601String(),
           'updated_at': DateTime.now().toIso8601String(),
         });
-        
+
         debugPrint('[PROPOSAL] Successfully inserted admin_response');
       } catch (e) {
         debugPrint('[PROPOSAL] Error inserting admin_response: $e');
@@ -1936,7 +1947,7 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
         _isLoading = false;
       });
       Navigator.pop(context);
-      
+
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1945,7 +1956,7 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
           duration: Duration(seconds: 2),
         ),
       );
-      
+
       // Auto-refresh the parent screen to show updated data
       if (context.mounted) {
         // Trigger refresh of the main proposal screen
@@ -2010,9 +2021,11 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
     return Dialog(
       insetPadding: const EdgeInsets.all(16),
       child: Container(
-        width: MediaQuery.of(context).size.width > 1200 ? 1000 : 
-               MediaQuery.of(context).size.width > 800 ? 800 : 
-               MediaQuery.of(context).size.width - 32,
+        width: MediaQuery.of(context).size.width > 1200
+            ? 1000
+            : MediaQuery.of(context).size.width > 800
+            ? 800
+            : MediaQuery.of(context).size.width - 32,
         height: MediaQuery.of(context).size.height * 0.9,
         decoration: BoxDecoration(
           color: Colors.white,
@@ -2045,7 +2058,11 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
                       color: Colors.blue[100],
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(Icons.description, color: Colors.blue[700], size: 24),
+                    child: Icon(
+                      Icons.description,
+                      color: Colors.blue[700],
+                      size: 24,
+                    ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -2079,79 +2096,79 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
             ),
             // Content
             Expanded(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final isWide = constraints.maxWidth > 700;
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isWide = constraints.maxWidth > 700;
                   return isWide
-                ? Row(
-                    children: [
-                      // Left: Lead info
-                      Expanded(
-                        flex: 2,
+                      ? Row(
+                          children: [
+                            // Left: Lead info
+                            Expanded(
+                              flex: 2,
                               child: Container(
                                 decoration: BoxDecoration(
                                   border: Border(
                                     right: BorderSide(color: Colors.grey[200]!),
                                   ),
                                 ),
-                        child: SingleChildScrollView(
+                                child: SingleChildScrollView(
                                   padding: const EdgeInsets.all(24),
-                          child: _ProposalLeadInfoSection(
-                            lead: lead,
-                            otherContacts: otherContacts,
-                            attachments: attachments,
-                          ),
-                        ),
-                      ),
+                                  child: _ProposalLeadInfoSection(
+                                    lead: lead,
+                                    otherContacts: otherContacts,
+                                    attachments: attachments,
+                                  ),
+                                ),
+                              ),
                             ),
-                      // Right: Proposal Response
-                      Expanded(
-                        flex: 3,
+                            // Right: Proposal Response
+                            Expanded(
+                              flex: 3,
                               child: SingleChildScrollView(
                                 padding: const EdgeInsets.all(24),
-                          child: _ProposalResponseForm(
-                            files: files,
-                            inputs: inputs,
-                            remarkController: remarkController,
-                            isLoading: _isLoading,
-                            onAddFile: _addFile,
-                            onRemoveFile: _removeFile,
-                            onAddInput: _addInput,
-                            onRemoveInput: _removeInput,
-                            onSave: _saveProposal,
-                          ),
-                        ),
-                      ),
-                    ],
-                  )
-                : SingleChildScrollView(
+                                child: _ProposalResponseForm(
+                                  files: files,
+                                  inputs: inputs,
+                                  remarkController: remarkController,
+                                  isLoading: _isLoading,
+                                  onAddFile: _addFile,
+                                  onRemoveFile: _removeFile,
+                                  onAddInput: _addInput,
+                                  onRemoveInput: _removeInput,
+                                  onSave: _saveProposal,
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      : SingleChildScrollView(
                           padding: const EdgeInsets.all(24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _ProposalLeadInfoSection(
-                          lead: lead,
-                          otherContacts: otherContacts,
-                          attachments: attachments,
-                        ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _ProposalLeadInfoSection(
+                                lead: lead,
+                                otherContacts: otherContacts,
+                                attachments: attachments,
+                              ),
                               const SizedBox(height: 24),
                               const Divider(),
                               const SizedBox(height: 24),
-                        _ProposalResponseForm(
-                          files: files,
-                          inputs: inputs,
-                          remarkController: remarkController,
-                          isLoading: _isLoading,
-                          onAddFile: _addFile,
-                          onRemoveFile: _removeFile,
-                          onAddInput: _addInput,
-                          onRemoveInput: _removeInput,
-                          onSave: _saveProposal,
-                        ),
-                      ],
-                  ),
-          );
-        },
+                              _ProposalResponseForm(
+                                files: files,
+                                inputs: inputs,
+                                remarkController: remarkController,
+                                isLoading: _isLoading,
+                                onAddFile: _addFile,
+                                onRemoveFile: _removeFile,
+                                onAddInput: _addInput,
+                                onRemoveInput: _removeInput,
+                                onSave: _saveProposal,
+                              ),
+                            ],
+                          ),
+                        );
+                },
               ),
             ),
           ],
@@ -2205,8 +2222,8 @@ class _ProposalLeadInfoSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         // Header
         Row(
           children: [
@@ -2230,7 +2247,7 @@ class _ProposalLeadInfoSection extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 20),
-        
+
         // Lead Details Card
         Container(
           padding: const EdgeInsets.all(16),
@@ -2246,18 +2263,26 @@ class _ProposalLeadInfoSection extends StatelessWidget {
               const SizedBox(height: 12),
               _buildInfoRow('Project Name', lead['project_name'] ?? 'N/A'),
               const SizedBox(height: 12),
-              _buildInfoRow('Project Location', lead['project_location'] ?? 'N/A'),
+              _buildInfoRow(
+                'Project Location',
+                lead['project_location'] ?? 'N/A',
+              ),
               const SizedBox(height: 12),
-              _buildInfoRow('Date', lead['created_at'] != null
-                  ? DateFormat('dd-MM-yyyy').format(DateTime.parse(lead['created_at']))
-                  : 'N/A'),
+              _buildInfoRow(
+                'Date',
+                lead['created_at'] != null
+                    ? DateFormat(
+                        'dd-MM-yyyy',
+                      ).format(DateTime.parse(lead['created_at']))
+                    : 'N/A',
+              ),
               const SizedBox(height: 12),
               _buildInfoRow('Added By', lead['username'] ?? 'Unknown User'),
             ],
           ),
         ),
         const SizedBox(height: 20),
-        
+
         // Remarks Section
         if (lead['remark'] != null && lead['remark'].toString().isNotEmpty) ...[
           _buildSectionHeader('Remarks', Icons.comment),
@@ -2271,15 +2296,12 @@ class _ProposalLeadInfoSection extends StatelessWidget {
             ),
             child: Text(
               lead['remark'],
-              style: TextStyle(
-                color: Colors.grey[700],
-                fontSize: 14,
-              ),
+              style: TextStyle(color: Colors.grey[700], fontSize: 14),
             ),
           ),
           const SizedBox(height: 20),
         ],
-        
+
         // Attachments Section
         if (attachments.isNotEmpty) ...[
           _buildSectionHeader('Lead Attachments', Icons.attach_file),
@@ -2305,17 +2327,14 @@ class _ProposalLeadInfoSection extends StatelessWidget {
             ),
           ),
         ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
             value,
-            style: TextStyle(
-              color: Colors.grey[800],
-              fontSize: 14,
-            ),
-                ),
-              ),
-            ],
+            style: TextStyle(color: Colors.grey[800], fontSize: 14),
+          ),
+        ),
+      ],
     );
   }
 
@@ -2324,7 +2343,7 @@ class _ProposalLeadInfoSection extends StatelessWidget {
       children: [
         Icon(icon, color: Colors.blue[600], size: 18),
         const SizedBox(width: 8),
-          Text(
+        Text(
           title,
           style: TextStyle(
             fontSize: 16,
@@ -2346,9 +2365,9 @@ class _ProposalLeadInfoSection extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: Colors.grey[200]!),
         ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Row(
               children: [
                 Icon(Icons.description, color: Colors.blue[600], size: 16),
@@ -2368,49 +2387,51 @@ class _ProposalLeadInfoSection extends StatelessWidget {
             if ((attachment['file_link'] ?? '').isNotEmpty) ...[
               const SizedBox(height: 8),
               Row(
-                      children: [
-                        Expanded(
-                          child: InkWell(
-                            onTap: () async {
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: () async {
                         final url = attachment['file_link'] ?? '';
-                              if (url.isNotEmpty) {
-                                try {
-                                  await launchUrl(Uri.parse(url));
-                                } catch (e) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
+                        if (url.isNotEmpty) {
+                          try {
+                            await launchUrl(Uri.parse(url));
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
                                 content: Text('Could not open link: $url'),
-                                    ),
-                                  );
-                                }
-                              }
-                            },
-                            child: Text(
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      child: Text(
                         attachment['file_link'] ?? '',
                         style: TextStyle(
                           color: Colors.blue[600],
-                                decoration: TextDecoration.underline,
+                          decoration: TextDecoration.underline,
                           fontSize: 12,
-                              ),
-                            ),
-                          ),
                         ),
-                        IconButton(
-                    icon: Icon(Icons.copy, size: 16, color: Colors.grey[600]),
-                          onPressed: () {
-                            Clipboard.setData(
-                        ClipboardData(text: attachment['file_link'] ?? ''),
-                            );
-                            ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Link copied to clipboard')),
-                            );
-                          },
-                          tooltip: 'Copy link',
-                        ),
-                      ],
+                      ),
                     ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.copy, size: 16, color: Colors.grey[600]),
+                    onPressed: () {
+                      Clipboard.setData(
+                        ClipboardData(text: attachment['file_link'] ?? ''),
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Link copied to clipboard'),
+                        ),
+                      );
+                    },
+                    tooltip: 'Copy link',
+                  ),
                 ],
-        ],
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -2453,11 +2474,11 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
     for (final input in widget.inputs) {
       final inputType = input['input']?.text.trim().toLowerCase() ?? '';
       final valueText = input['value']?.text.trim() ?? '';
-      
+
       // Check if input type contains any of the specified keywords
-      if ((inputType.contains('alu') || 
-           inputType.contains('area') || 
-           inputType.contains('aluminium')) &&
+      if ((inputType.contains('alu') ||
+              inputType.contains('area') ||
+              inputType.contains('aluminium')) &&
           valueText.isNotEmpty) {
         final value = double.tryParse(valueText) ?? 0.0;
         total += value;
@@ -2473,7 +2494,7 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
     for (final input in widget.inputs) {
       final inputType = input['input']?.text.trim().toLowerCase() ?? '';
       final valueText = input['value']?.text.trim() ?? '';
-      
+
       // Check if input type contains MS keywords
       if ((inputType.contains('ms') || inputType == 'ms') &&
           valueText.isNotEmpty) {
@@ -2489,7 +2510,7 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
   void _updateCalculations() {
     // Cancel previous timer
     _debounceTimer?.cancel();
-    
+
     // Set new timer for debounced update
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
       if (mounted) {
@@ -2513,12 +2534,14 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
       final input = widget.inputs[i];
       final inputType = input['input']?.text.trim().toLowerCase() ?? '';
       final valueText = input['value']?.text.trim() ?? '';
-      
-      if ((inputType.contains('alu') || 
-           inputType.contains('area') || 
-           inputType.contains('aluminium')) &&
+
+      if ((inputType.contains('alu') ||
+              inputType.contains('area') ||
+              inputType.contains('aluminium')) &&
           valueText.isNotEmpty) {
-        areaInputs.add('Input ${i + 1}: ${input['input']?.text} = ${input['value']?.text}');
+        areaInputs.add(
+          'Input ${i + 1}: ${input['input']?.text} = ${input['value']?.text}',
+        );
       }
     }
     return areaInputs;
@@ -2531,10 +2554,12 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
       final input = widget.inputs[i];
       final inputType = input['input']?.text.trim().toLowerCase() ?? '';
       final valueText = input['value']?.text.trim() ?? '';
-      
+
       if ((inputType.contains('ms') || inputType == 'ms') &&
           valueText.isNotEmpty) {
-        msInputs.add('Input ${i + 1}: ${input['input']?.text} = ${input['value']?.text}');
+        msInputs.add(
+          'Input ${i + 1}: ${input['input']?.text} = ${input['value']?.text}',
+        );
       }
     }
     return msInputs;
@@ -2558,7 +2583,7 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
             ),
             const SizedBox(width: 12),
             Text(
-          'Proposal Response',
+              'Proposal Response',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -2568,29 +2593,29 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
           ],
         ),
         const SizedBox(height: 24),
-        
+
         // Files Section
         _buildSectionHeader('Files & Documents', Icons.attach_file),
         const SizedBox(height: 16),
         _buildFilesSection(),
         const SizedBox(height: 24),
-        
+
         // Inputs Section
         _buildSectionHeader('Technical Specifications', Icons.settings),
         const SizedBox(height: 16),
         _buildInputsSection(),
         const SizedBox(height: 24),
-        
+
         // Calculations Section
         _buildCalculationsSection(),
         const SizedBox(height: 24),
-        
+
         // Remarks Section
         _buildSectionHeader('General Remarks', Icons.comment),
         const SizedBox(height: 16),
         _buildRemarksSection(),
         const SizedBox(height: 32),
-        
+
         // Action Buttons
         _buildActionButtons(),
       ],
@@ -2627,11 +2652,11 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: Colors.grey[200]!),
             ),
-          child: Column(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
+              children: [
+                Row(
+                  children: [
                     Text(
                       'File ${i + 1}',
                       style: TextStyle(
@@ -2643,38 +2668,48 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
                     if (widget.files.length > 1)
                       IconButton(
                         onPressed: () => widget.onRemoveFile(i),
-                        icon: Icon(Icons.remove_circle, color: Colors.red[400], size: 20),
+                        icon: Icon(
+                          Icons.remove_circle,
+                          color: Colors.red[400],
+                          size: 20,
+                        ),
                         tooltip: 'Remove file',
                       ),
                   ],
                 ),
                 const SizedBox(height: 12),
                 Row(
-                          children: [
+                  children: [
                     Expanded(
-                              child: TextField(
-                                controller: widget.files[i]['fileName'],
+                      child: TextField(
+                        controller: widget.files[i]['fileName'],
                         decoration: InputDecoration(
                           labelText: 'File Name',
                           hintText: 'e.g., Proposal.pdf, Quote.docx',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
                         ),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                              child: TextField(
-                                controller: widget.files[i]['fileLink'],
+                      child: TextField(
+                        controller: widget.files[i]['fileLink'],
                         decoration: InputDecoration(
                           labelText: 'File Link/URL',
                           hintText: 'https://drive.google.com/...',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
                         ),
                       ),
                     ),
@@ -2701,7 +2736,7 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
             ),
           ),
         ),
-                          ],
+      ],
     );
   }
 
@@ -2734,15 +2769,19 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
                     if (widget.inputs.length > 1)
                       IconButton(
                         onPressed: () => widget.onRemoveInput(i),
-                        icon: Icon(Icons.remove_circle, color: Colors.red[400], size: 20),
+                        icon: Icon(
+                          Icons.remove_circle,
+                          color: Colors.red[400],
+                          size: 20,
+                        ),
                         tooltip: 'Remove input',
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
                       child: TextField(
                         controller: widget.inputs[i]['input'],
                         decoration: InputDecoration(
@@ -2751,7 +2790,10 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
                         ),
                         onChanged: (value) {
                           // Trigger real-time calculation update
@@ -2760,7 +2802,7 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                            Expanded(
+                    Expanded(
                       child: TextField(
                         controller: widget.inputs[i]['value'],
                         decoration: InputDecoration(
@@ -2769,7 +2811,10 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
                         ),
                         keyboardType: TextInputType.number,
                         onChanged: (value) {
@@ -2782,14 +2827,17 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
                 ),
                 const SizedBox(height: 8),
                 TextField(
-                                controller: widget.inputs[i]['remark'],
+                  controller: widget.inputs[i]['remark'],
                   decoration: InputDecoration(
                     labelText: 'Remark (Optional)',
                     hintText: 'Additional notes for this input',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                   ),
                 ),
               ],
@@ -2813,7 +2861,7 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
             ),
           ),
         ),
-                          ],
+      ],
     );
   }
 
@@ -2845,10 +2893,7 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
           const SizedBox(height: 8),
           Text(
             'Auto-calculates from inputs containing "Alu", "Area", "Aluminium" for Total Area and "MS" for Average Weight',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
           ),
           const SizedBox(height: 12),
           Row(
@@ -2868,16 +2913,21 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
                   _calculateMSWeightAverage(),
                   'kg',
                   Colors.orange,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ],
           ),
+        ],
+      ),
     );
   }
 
-  Widget _buildCalculationCard(String title, String value, String unit, Color color) {
+  Widget _buildCalculationCard(
+    String title,
+    String value,
+    String unit,
+    Color color,
+  ) {
     List<String> inputsUsed = [];
     if (title == 'Total Area') {
       inputsUsed = _getAreaInputs();
@@ -2886,22 +2936,16 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
     }
 
     return Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
         color: Colors.white,
-            borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: color.withValues(alpha: 0.3)),
-          ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-            title,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-            ),
-          ),
+        children: [
+          Text(title, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
           const SizedBox(height: 4),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -2917,10 +2961,7 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
               const SizedBox(width: 4),
               Text(
                 unit,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
             ],
           ),
@@ -2935,16 +2976,15 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
               ),
             ),
             const SizedBox(height: 2),
-            ...inputsUsed.map((input) => Padding(
-              padding: const EdgeInsets.only(left: 8),
-              child: Text(
-                '• $input',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Colors.grey[600],
+            ...inputsUsed.map(
+              (input) => Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Text(
+                  '• $input',
+                  style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                 ),
               ),
-            )),
+            ),
           ],
         ],
       ),
@@ -2958,9 +2998,7 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
       decoration: InputDecoration(
         labelText: 'General Remarks',
         hintText: 'Enter any additional remarks or notes for this proposal...',
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         contentPadding: const EdgeInsets.all(12),
       ),
     );
@@ -2971,23 +3009,22 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
       children: [
         Expanded(
           child: OutlinedButton(
-            onPressed: widget.isLoading ? null : () => Navigator.of(context).pop(),
+            onPressed: widget.isLoading
+                ? null
+                : () => Navigator.of(context).pop(),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: Colors.grey[600]),
-            ),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey[600])),
           ),
         ),
         const SizedBox(width: 16),
         Expanded(
-            child: ElevatedButton(
-              onPressed: widget.isLoading ? null : widget.onSave,
+          child: ElevatedButton(
+            onPressed: widget.isLoading ? null : widget.onSave,
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blue[600],
               foregroundColor: Colors.white,
@@ -2996,7 +3033,7 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-              child: widget.isLoading
+            child: widget.isLoading
                 ? Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -3005,7 +3042,9 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
                         height: 16,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -3019,7 +3058,7 @@ class _ProposalResponseFormState extends State<_ProposalResponseForm> {
                       const SizedBox(width: 8),
                       const Text('Submit Proposal'),
                     ],
-            ),
+                  ),
           ),
         ),
       ],
@@ -3064,8 +3103,6 @@ Widget glassCard({
     ),
   );
 }
-
-
 
 // Query Dialog Widget
 class QueryDialog extends StatefulWidget {
@@ -3386,9 +3423,7 @@ class _AlertsDialogState extends State<AlertsDialog> {
   }
 }
 
-
-
-class SubmittedProposalDialog extends StatelessWidget {
+class SubmittedProposalDialog extends StatefulWidget {
   final Map<String, dynamic> inquiry;
   final List<Map<String, dynamic>> proposalData;
   final String? currentUserId;
@@ -3403,32 +3438,75 @@ class SubmittedProposalDialog extends StatelessWidget {
   });
 
   @override
+  State<SubmittedProposalDialog> createState() =>
+      _SubmittedProposalDialogState();
+}
+
+class _SubmittedProposalDialogState extends State<SubmittedProposalDialog>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 4, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Dialog(
       insetPadding: const EdgeInsets.all(16),
       child: Container(
         width: double.maxFinite,
-        height: MediaQuery.of(context).size.height * 0.8,
+        height: MediaQuery.of(context).size.height * 0.9,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
         ),
         child: Column(
           children: [
-            // Header
+            // Enhanced Header
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.green[50],
+                gradient: LinearGradient(
+                  colors: [Colors.green[50]!, Colors.green[100]!],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  topRight: Radius.circular(12),
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
                 ),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.check_circle, color: Colors.green[600], size: 24),
-                  const SizedBox(width: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green[600],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.check_circle,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -3436,16 +3514,18 @@ class SubmittedProposalDialog extends StatelessWidget {
                         Text(
                           'Submitted Proposal',
                           style: TextStyle(
-                            fontSize: 18,
+                            fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: Colors.green[700],
+                            color: Colors.green[800],
                           ),
                         ),
+                        const SizedBox(height: 4),
                         Text(
-                          '${inquiry['client_name']} - ${inquiry['project_name']}',
+                          '${widget.inquiry['client_name']} - ${widget.inquiry['project_name']}',
                           style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.green[600],
+                            fontSize: 16,
+                            color: Colors.green[700],
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
@@ -3453,70 +3533,86 @@ class SubmittedProposalDialog extends StatelessWidget {
                   ),
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close),
+                    icon: Icon(Icons.close, color: Colors.grey[600], size: 24),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      padding: const EdgeInsets.all(8),
+                    ),
                   ),
                 ],
               ),
             ),
-            // Content
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Lead Information
-                    _buildSection('Lead Information', Icons.info),
-                    _buildInfoRow('Client', inquiry['client_name'] ?? 'N/A'),
-                    _buildInfoRow('Project', inquiry['project_name'] ?? 'N/A'),
-                    _buildInfoRow('Location', inquiry['project_location'] ?? 'N/A'),
-                    _buildInfoRow('Added By', inquiry['username'] ?? 'N/A'),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // Proposal Files
-                    _buildSection('Proposal Files', Icons.attach_file),
-                    ...proposalData
-                        .where((item) => item['type'] == 'file')
-                        .map((file) => _buildFileItem(file)),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // Proposal Inputs
-                    _buildSection('Proposal Inputs', Icons.input),
-                    ...proposalData
-                        .where((item) => item['type'] == 'input')
-                        .map((input) => _buildInputItem(input)),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // Proposal Remarks
-                    _buildSection('Proposal Remarks', Icons.comment),
-                    ...proposalData
-                        .where((item) => item['type'] == 'remark')
-                        .map((remark) => _buildRemarkItem(remark)),
-                    
-                    const SizedBox(height: 32),
-                    
-                    // Action Buttons
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () => _updateProposal(context),
-                            icon: const Icon(Icons.edit),
-                            label: const Text('Update Proposal'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange[600],
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+
+            // Tab Bar
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
+              ),
+              child: TabBar(
+                controller: _tabController,
+                indicatorColor: Colors.green[600],
+                indicatorWeight: 3,
+                labelColor: Colors.green[700],
+                unselectedLabelColor: Colors.grey[600],
+                labelStyle: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
                 ),
+                tabs: const [
+                  Tab(icon: Icon(Icons.info_outline), text: 'Lead Info'),
+                  Tab(icon: Icon(Icons.attach_file), text: 'Files'),
+                  Tab(icon: Icon(Icons.input), text: 'Inputs'),
+                  Tab(icon: Icon(Icons.comment), text: 'Remarks'),
+                ],
+              ),
+            ),
+
+            // Content Area
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildLeadInfoTab(),
+                  _buildFilesTab(),
+                  _buildInputsTab(),
+                  _buildRemarksTab(),
+                ],
+              ),
+            ),
+
+            // Action Bar
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(16),
+                  bottomRight: Radius.circular(16),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _updateProposal(context),
+                      icon: const Icon(Icons.edit_outlined),
+                      label: const Text(
+                        'Update Proposal',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange[600],
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 2,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -3525,31 +3621,381 @@ class SubmittedProposalDialog extends StatelessWidget {
     );
   }
 
-  Widget _buildSection(String title, IconData icon) {
-    return Row(
-      children: [
-        Icon(icon, color: Colors.blue[600], size: 20),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.grey[800],
+  Widget _buildLeadInfoTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildInfoCard('Project Details', Icons.business, [
+            _buildInfoRow(
+              'Client Name',
+              widget.inquiry['client_name'] ?? 'N/A',
+            ),
+            _buildInfoRow(
+              'Project Name',
+              widget.inquiry['project_name'] ?? 'N/A',
+            ),
+            _buildInfoRow(
+              'Location',
+              widget.inquiry['project_location'] ?? 'N/A',
+            ),
+          ]),
+          const SizedBox(height: 16),
+          _buildInfoCard('Lead Information', Icons.person, [
+            _buildInfoRow('Added By', widget.inquiry['username'] ?? 'N/A'),
+            _buildInfoRow(
+              'Created Date',
+              _formatDate(widget.inquiry['created_at']),
+            ),
+            _buildInfoRow('Lead Type', widget.inquiry['lead_type'] ?? 'N/A'),
+          ]),
+          const SizedBox(height: 16),
+          if (widget.inquiry['remark'] != null &&
+              widget.inquiry['remark'].toString().isNotEmpty)
+            _buildInfoCard('Additional Notes', Icons.note, [
+              _buildInfoRow('Notes', widget.inquiry['remark'] ?? 'N/A'),
+            ]),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilesTab() {
+    final files = widget.proposalData
+        .where((item) => item['type'] == 'file')
+        .toList();
+
+    if (files.isEmpty) {
+      return _buildEmptyState(
+        Icons.attach_file,
+        'No Files Attached',
+        'No proposal files have been uploaded yet.',
+      );
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Proposal Files (${files.length})',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
           ),
-        ),
-      ],
+          const SizedBox(height: 16),
+          ...files.map((file) => _buildFileCard(file)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInputsTab() {
+    final inputs = widget.proposalData
+        .where((item) => item['type'] == 'input')
+        .toList();
+
+    if (inputs.isEmpty) {
+      return _buildEmptyState(
+        Icons.input,
+        'No Inputs Added',
+        'No proposal inputs have been added yet.',
+      );
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Proposal Inputs (${inputs.length})',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+          ),
+          const SizedBox(height: 16),
+          ...inputs.map((input) => _buildInputCard(input)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRemarksTab() {
+    final remarks = widget.proposalData
+        .where((item) => item['type'] == 'remark')
+        .toList();
+
+    if (remarks.isEmpty) {
+      return _buildEmptyState(
+        Icons.comment,
+        'No Remarks Added',
+        'No proposal remarks have been added yet.',
+      );
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Proposal Remarks (${remarks.length})',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+          ),
+          const SizedBox(height: 16),
+          ...remarks.map((remark) => _buildRemarkCard(remark)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoCard(String title, IconData icon, List<Widget> children) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: Colors.blue[600], size: 20),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFileCard(Map<String, dynamic> file) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.insert_drive_file, color: Colors.blue[600], size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  file['file_name'] ?? 'Unnamed File',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (file['file_link'] != null &&
+              file['file_link'].toString().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            InkWell(
+              onTap: () {
+                // Handle file link tap
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Opening: ${file['file_link']}')),
+                );
+              },
+              child: Text(
+                file['file_link'],
+                style: TextStyle(
+                  color: Colors.blue[600],
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInputCard(Map<String, dynamic> input) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.input, color: Colors.green[600], size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  input['input'] ?? 'Unnamed Input',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.green[50],
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              'Value: ${input['value'] ?? 'N/A'}',
+              style: TextStyle(
+                color: Colors.green[800],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          if (input['remark'] != null &&
+              input['remark'].toString().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.orange[50],
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                'Remark: ${input['remark']}',
+                style: TextStyle(
+                  color: Colors.orange[800],
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRemarkCard(Map<String, dynamic> remark) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.comment, color: Colors.purple[600], size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              remark['remark'] ?? 'No remark',
+              style: const TextStyle(fontSize: 16, fontStyle: FontStyle.italic),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(IconData icon, String title, String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 64, color: Colors.grey[400]),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildInfoRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 100,
+            width: 120,
             child: Text(
               '$label:',
               style: TextStyle(
@@ -3563,6 +4009,7 @@ class SubmittedProposalDialog extends StatelessWidget {
               value,
               style: TextStyle(
                 color: Colors.grey[800],
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),
@@ -3571,87 +4018,29 @@ class SubmittedProposalDialog extends StatelessWidget {
     );
   }
 
-  Widget _buildFileItem(Map<String, dynamic> file) {
-    return Container(
-      margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'File: ${file['file_name'] ?? 'N/A'}',
-            style: const TextStyle(fontWeight: FontWeight.w500),
-          ),
-          if (file['file_link'] != null && file['file_link'].toString().isNotEmpty)
-            Text(
-              'Link: ${file['file_link']}',
-              style: TextStyle(
-                color: Colors.blue[600],
-                decoration: TextDecoration.underline,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInputItem(Map<String, dynamic> input) {
-    return Container(
-      margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Input: ${input['input'] ?? 'N/A'}',
-            style: const TextStyle(fontWeight: FontWeight.w500),
-          ),
-          Text('Value: ${input['value'] ?? 'N/A'}'),
-          if (input['remark'] != null && input['remark'].toString().isNotEmpty)
-            Text('Remark: ${input['remark']}'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRemarkItem(Map<String, dynamic> remark) {
-    return Container(
-      margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Text(
-        remark['remark'] ?? 'No remark',
-        style: const TextStyle(fontStyle: FontStyle.italic),
-      ),
-    );
+  String _formatDate(dynamic date) {
+    if (date == null) return 'N/A';
+    try {
+      return DateFormat(
+        'dd MMM yyyy, hh:mm a',
+      ).format(DateTime.parse(date.toString()));
+    } catch (e) {
+      return 'Invalid Date';
+    }
   }
 
   void _updateProposal(BuildContext context) {
     // Close current dialog
     Navigator.of(context).pop();
-    
+
     // Show update proposal dialog with pre-filled data
     showDialog(
       context: context,
       builder: (context) => UpdateProposalDialog(
-        lead: inquiry,
-        currentUserId: currentUserId,
-        existingProposalData: proposalData,
-        onProposalSubmitted: onProposalSubmitted,
+        lead: widget.inquiry,
+        currentUserId: widget.currentUserId,
+        existingProposalData: widget.proposalData,
+        onProposalSubmitted: widget.onProposalSubmitted,
       ),
     );
   }
@@ -3692,7 +4081,7 @@ class _UpdateProposalDialogState extends State<UpdateProposalDialog> {
     final existingFiles = widget.existingProposalData
         .where((item) => item['type'] == 'file')
         .toList();
-    
+
     for (final file in existingFiles) {
       files.add({
         'fileName': TextEditingController(text: file['file_name'] ?? ''),
@@ -3704,7 +4093,7 @@ class _UpdateProposalDialogState extends State<UpdateProposalDialog> {
     final existingInputs = widget.existingProposalData
         .where((item) => item['type'] == 'input')
         .toList();
-    
+
     for (final input in existingInputs) {
       inputs.add({
         'input': TextEditingController(text: input['input'] ?? ''),
@@ -3717,7 +4106,7 @@ class _UpdateProposalDialogState extends State<UpdateProposalDialog> {
     final existingRemarks = widget.existingProposalData
         .where((item) => item['type'] == 'remark')
         .toList();
-    
+
     if (existingRemarks.isNotEmpty) {
       remarkController.text = existingRemarks.first['remark'] ?? '';
     }
@@ -3729,7 +4118,7 @@ class _UpdateProposalDialogState extends State<UpdateProposalDialog> {
         'fileLink': TextEditingController(),
       });
     }
-    
+
     if (inputs.isEmpty) {
       inputs.add({
         'input': TextEditingController(),
@@ -3833,9 +4222,9 @@ class _UpdateProposalDialogState extends State<UpdateProposalDialog> {
       setState(() {
         _isLoading = false;
       });
-      
+
       Navigator.pop(context);
-      
+
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -3844,7 +4233,7 @@ class _UpdateProposalDialogState extends State<UpdateProposalDialog> {
           duration: Duration(seconds: 2),
         ),
       );
-      
+
       // Auto-refresh the parent screen to show updated data
       if (context.mounted) {
         // Trigger refresh of the main proposal screen
@@ -3854,9 +4243,9 @@ class _UpdateProposalDialogState extends State<UpdateProposalDialog> {
       setState(() {
         _isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error updating proposal: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error updating proposal: $e')));
     }
   }
 
@@ -3874,12 +4263,12 @@ class _UpdateProposalDialogState extends State<UpdateProposalDialog> {
         final inputType = input['input']!.text.trim().toLowerCase();
         final value = double.tryParse(input['value']!.text.trim()) ?? 0.0;
 
-        if (inputType.contains('alu') || 
-            inputType.contains('area') || 
+        if (inputType.contains('alu') ||
+            inputType.contains('area') ||
             inputType.contains('aluminium')) {
           aluminiumArea += value;
         }
-        
+
         if (inputType.contains('ms') || inputType == 'ms') {
           msWeightTotal += value;
           msWeightCount++;
@@ -3890,7 +4279,8 @@ class _UpdateProposalDialogState extends State<UpdateProposalDialog> {
     double msWeight = msWeightCount > 0 ? msWeightTotal / msWeightCount : 0.0;
 
     // Update admin_response
-    await client.from('admin_response')
+    await client
+        .from('admin_response')
         .update({
           'aluminium_area': aluminiumArea,
           'ms_weight': msWeight,
@@ -3905,9 +4295,11 @@ class _UpdateProposalDialogState extends State<UpdateProposalDialog> {
     return Dialog(
       insetPadding: const EdgeInsets.all(16),
       child: Container(
-        width: MediaQuery.of(context).size.width > 1200 ? 1000 : 
-               MediaQuery.of(context).size.width > 800 ? 800 : 
-               MediaQuery.of(context).size.width - 32,
+        width: MediaQuery.of(context).size.width > 1200
+            ? 1000
+            : MediaQuery.of(context).size.width > 800
+            ? 800
+            : MediaQuery.of(context).size.width - 32,
         height: MediaQuery.of(context).size.height * 0.9,
         decoration: BoxDecoration(
           color: Colors.white,
@@ -3940,7 +4332,11 @@ class _UpdateProposalDialogState extends State<UpdateProposalDialog> {
                       color: Colors.orange[100],
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(Icons.edit, color: Colors.orange[700], size: 24),
+                    child: Icon(
+                      Icons.edit,
+                      color: Colors.orange[700],
+                      size: 24,
+                    ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -4016,7 +4412,8 @@ class ProposalDashboardScreen extends StatefulWidget {
   const ProposalDashboardScreen({super.key, this.currentUserId});
 
   @override
-  State<ProposalDashboardScreen> createState() => _ProposalDashboardScreenState();
+  State<ProposalDashboardScreen> createState() =>
+      _ProposalDashboardScreenState();
 }
 
 class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
@@ -4041,17 +4438,19 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
         _dashboardData = data;
         _isLoading = false;
       });
-      
+
       // Show notification if using sample data
       if (data['totalInquiries'] == 3 && data['client_name'] == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('📊 Dashboard showing sample data. Connect to Supabase for real data.'),
+            content: Text(
+              '📊 Dashboard showing sample data. Connect to Supabase for real data.',
+            ),
             duration: Duration(seconds: 3),
             backgroundColor: Colors.orange,
-            ),
-          );
-        }
+          ),
+        );
+      }
     } catch (e) {
       debugPrint('Error loading dashboard data: $e');
       setState(() {
@@ -4062,10 +4461,10 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
 
   Future<Map<String, dynamic>> _fetchDashboardAnalytics() async {
     final client = Supabase.instance.client;
-    
+
     try {
       debugPrint('🔄 Starting dashboard data fetch from Supabase...');
-      
+
       // 1. Fetch all leads for proposal work (inquiries)
       debugPrint('📊 Fetching leads (inquiries)...');
       final allLeads = await client
@@ -4076,15 +4475,15 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
             main_contact_mobile, lead_type
           ''')
           .order('created_at', ascending: false);
-      
+
       debugPrint('📊 Found ${allLeads.length} leads');
 
       // 2. Fetch lead contacts
       debugPrint('👥 Fetching lead contacts...');
       final leadContacts = await client
           .from('lead_contacts')
-          .select('lead_id, contact_name, designation, email, mobile, created_at');
-      
+          .select('lead_id, contact_name, designation, email, mobile');
+
       debugPrint('👥 Found ${leadContacts.length} lead contacts');
 
       // 3. Fetch lead attachments
@@ -4092,7 +4491,7 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
       final leadAttachments = await client
           .from('lead_attachments')
           .select('lead_id, file_name, file_link, created_at');
-      
+
       debugPrint('📎 Found ${leadAttachments.length} lead attachments');
 
       // 4. Fetch lead activity
@@ -4101,16 +4500,18 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
           .from('lead_activity')
           .select('lead_id, activity_type, changes_made, created_at, user_id')
           .order('created_at', ascending: false);
-      
+
       debugPrint('📈 Found ${leadActivity.length} lead activities');
 
       // 5. Fetch queries (communications)
       debugPrint('💬 Fetching queries...');
       final queries = await client
           .from('queries')
-          .select('lead_id, sender_name, receiver_name, query_message, created_at')
+          .select(
+            'lead_id, sender_name, receiver_name, query_message, created_at',
+          )
           .order('created_at', ascending: false);
-      
+
       debugPrint('💬 Found ${queries.length} queries');
 
       // 6. Fetch proposal data
@@ -4118,16 +4519,16 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
       final proposalFiles = await client
           .from('proposal_file')
           .select('lead_id, file_name, file_link, created_at, user_id');
-      
+
       debugPrint('📄 Found ${proposalFiles.length} proposal files');
-      
+
       debugPrint('📝 Fetching proposal inputs...');
       final proposalInputs = await client
           .from('proposal_input')
           .select('lead_id, input, value, remark, created_at, user_id');
-      
+
       debugPrint('📝 Found ${proposalInputs.length} proposal inputs');
-      
+
       debugPrint('💬 Fetching proposal remarks...');
       final proposalRemarks = await client
           .from('proposal_remark')
@@ -4137,10 +4538,13 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
 
       // 7. Calculate comprehensive analytics
       final totalInquiries = allLeads.length;
-      final leadsWithProposals = proposalFiles.map((f) => f['lead_id']).toSet().length;
+      final leadsWithProposals = proposalFiles
+          .map((f) => f['lead_id'])
+          .toSet()
+          .length;
       final pendingInquiries = totalInquiries - leadsWithProposals;
       final submittedProposals = proposalFiles.length;
-      
+
       // Calculate totals from all tables
       final totalAttachments = leadAttachments.length;
       final totalActivities = leadActivity.length;
@@ -4148,33 +4552,39 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
       final totalQueries = queries.length;
       final totalRemarks = proposalRemarks.length;
       final totalInputs = proposalInputs.length;
-      
+
       // Calculate average response time
       double totalResponseTime = 0;
       int responseCount = 0;
-      
+
       for (final lead in allLeads) {
         final leadId = lead['id'];
         final leadCreatedAt = DateTime.tryParse(lead['created_at'] ?? '');
-        
+
         if (leadCreatedAt != null) {
           final proposalFile = proposalFiles.firstWhere(
             (f) => f['lead_id'] == leadId,
             orElse: () => <String, dynamic>{},
           );
-          
+
           if (proposalFile.isNotEmpty) {
-            final proposalCreatedAt = DateTime.tryParse(proposalFile['created_at'] ?? '');
+            final proposalCreatedAt = DateTime.tryParse(
+              proposalFile['created_at'] ?? '',
+            );
             if (proposalCreatedAt != null) {
-              final responseTime = proposalCreatedAt.difference(leadCreatedAt).inHours;
+              final responseTime = proposalCreatedAt
+                  .difference(leadCreatedAt)
+                  .inHours;
               totalResponseTime += responseTime;
               responseCount++;
             }
           }
         }
       }
-      
-      final averageResponseTime = responseCount > 0 ? totalResponseTime / responseCount : 0;
+
+      final averageResponseTime = responseCount > 0
+          ? totalResponseTime / responseCount
+          : 0;
 
       // 6. Calculate technical focus data
       final technicalInputs = <String, int>{};
@@ -4211,7 +4621,7 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
       for (final activity in leadActivity) {
         final activityType = activity['activity_type']?.toString() ?? 'Unknown';
         activityTypes[activityType] = (activityTypes[activityType] ?? 0) + 1;
-        
+
         // Get recent activities for dashboard
         if (recentActivities.length < 10) {
           final leadId = activity['lead_id'];
@@ -4219,7 +4629,7 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
             (l) => l['id'] == leadId,
             orElse: () => <String, dynamic>{},
           );
-          
+
           if (lead.isNotEmpty) {
             recentActivities.add({
               'activity_type': activityType,
@@ -4241,7 +4651,7 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
             (l) => l['id'] == leadId,
             orElse: () => <String, dynamic>{},
           );
-          
+
           if (lead.isNotEmpty) {
             recentActivities.add({
               'activity_type': 'Query',
@@ -4264,21 +4674,22 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
         return dateB.compareTo(dateA);
       });
 
-            // 8. Calculate work analytics
+      // 8. Calculate work analytics
       final monthlyData = <String, int>{};
-      
+
       for (final lead in allLeads) {
         final createdAt = DateTime.tryParse(lead['created_at'] ?? '');
         if (createdAt != null) {
-          final monthKey = '${createdAt.year}-${createdAt.month.toString().padLeft(2, '0')}';
+          final monthKey =
+              '${createdAt.year}-${createdAt.month.toString().padLeft(2, '0')}';
           monthlyData[monthKey] = (monthlyData[monthKey] ?? 0) + 1;
         }
       }
 
-      
-
       // 10. Get recent activity (use activity data if available, otherwise use leads)
-      final recentActivity = recentActivities.isNotEmpty ? recentActivities : allLeads.take(10).toList();
+      final recentActivity = recentActivities.isNotEmpty
+          ? recentActivities
+          : allLeads.take(10).toList();
 
       // 11. Get task management data
       final pendingTasks = allLeads.where((lead) {
@@ -4300,10 +4711,15 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
       }
 
       // Check if we have any real data
-      final hasRealData = allLeads.isNotEmpty || proposalFiles.isNotEmpty || proposalInputs.isNotEmpty;
-      
+      final hasRealData =
+          allLeads.isNotEmpty ||
+          proposalFiles.isNotEmpty ||
+          proposalInputs.isNotEmpty;
+
       if (!hasRealData) {
-        debugPrint('⚠️ No real data found, generating sample data for demonstration...');
+        debugPrint(
+          '⚠️ No real data found, generating sample data for demonstration...',
+        );
         return _generateSampleData();
       }
 
@@ -4346,128 +4762,140 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
 
   Map<String, dynamic> _generateSampleData() {
     debugPrint('🎨 Generating sample dashboard data...');
-    
-                         // Generate sample leads to match real data
-                     final sampleLeads = [
-                       {
-                         'id': '1',
-                         'client_name': 'Supreme Infra',
-                         'project_name': 'RCS Supreme',
-                         'project_location': 'Mumbai',
-                         'created_at': DateTime.now().subtract(Duration(days: 5)).toIso8601String(),
-                         'lead_generated_by': 'user1',
-                         'lead_type': 'Monolithic Formwork',
-                       },
-                       {
-                         'id': '2',
-                         'client_name': 'Platinum corp',
-                         'project_name': 'Oceanic',
-                         'project_location': 'Hyderabad',
-                         'created_at': DateTime.now().subtract(Duration(days: 3)).toIso8601String(),
-                         'lead_generated_by': 'user2',
-                         'lead_type': 'Monolithic Formwork',
-                       },
-                       {
-                         'id': '3',
-                         'client_name': 'Ravi Group',
-                         'project_name': 'Dahisar Project',
-                         'project_location': 'Mumbai',
-                         'created_at': DateTime.now().subtract(Duration(days: 1)).toIso8601String(),
-                         'lead_generated_by': 'user1',
-                         'lead_type': 'Monolithic Formwork',
-                       },
-                       {
-                         'id': '4',
-                         'client_name': 'SPCL',
-                         'project_name': 'Godrej Bhel Project Hyderbad',
-                         'project_location': 'Hyderabad',
-                         'created_at': DateTime.now().subtract(Duration(days: 2)).toIso8601String(),
-                         'lead_generated_by': 'user2',
-                         'lead_type': 'Monolithic Formwork',
-                       },
-                       {
-                         'id': '5',
-                         'client_name': 'Yugalaya Realty',
-                         'project_name': 'Uday Nagar Project',
-                         'project_location': 'Chennai',
-                         'created_at': DateTime.now().subtract(Duration(days: 4)).toIso8601String(),
-                         'lead_generated_by': 'user1',
-                         'lead_type': 'Monolithic Formwork',
-                       },
-                     ];
 
-                         // Generate sample proposal files
-                     final sampleProposalFiles = [
-                       {
-                         'lead_id': '1',
-                         'created_at': DateTime.now().subtract(Duration(days: 2)).toIso8601String(),
-                         'user_id': 'user1',
-                       },
-                     ];
-                     
-                     // Generate sample lead contacts
-                     final sampleLeadContacts = [
-                       {
-                         'lead_id': '1',
-                         'contact_name': 'John Doe',
-                         'designation': 'Project Manager',
-                         'email': 'john@supremeinfra.com',
-                         'mobile': '+91-9876543210',
-                       },
-                       {
-                         'lead_id': '2',
-                         'contact_name': 'Jane Smith',
-                         'designation': 'Director',
-                         'email': 'jane@platinumcorp.com',
-                         'mobile': '+91-9876543211',
-                       },
-                     ];
-                     
-                     // Generate sample lead attachments
-                     final sampleLeadAttachments = [
-                       {
-                         'lead_id': '1',
-                         'file_name': 'project_specs.pdf',
-                         'file_link': 'https://example.com/files/project_specs.pdf',
-                       },
-                       {
-                         'lead_id': '2',
-                         'file_name': 'drawings.dwg',
-                         'file_link': 'https://example.com/files/drawings.dwg',
-                       },
-                     ];
-                     
-                     // Generate sample lead activities
-                     final sampleLeadActivities = [
-                       {
-                         'lead_id': '1',
-                         'activity_type': 'Lead Created',
-                         'changes_made': 'New lead created',
-                         'user_id': 'user1',
-                       },
-                       {
-                         'lead_id': '2',
-                         'activity_type': 'Proposal Submitted',
-                         'changes_made': 'Proposal file uploaded',
-                         'user_id': 'user2',
-                       },
-                     ];
-                     
-                     // Generate sample queries
-                     final sampleQueries = [
-                       {
-                         'lead_id': '1',
-                         'sender_name': 'Vishwaranjan Singh',
-                         'receiver_name': 'Proposal Engineer',
-                         'query_message': 'Need technical specifications',
-                       },
-                       {
-                         'lead_id': '2',
-                         'sender_name': 'Sales Team',
-                         'receiver_name': 'Proposal Engineer',
-                         'query_message': 'Client requested quote',
-                       },
-                     ];
+    // Generate sample leads to match real data
+    final sampleLeads = [
+      {
+        'id': '1',
+        'client_name': 'Supreme Infra',
+        'project_name': 'RCS Supreme',
+        'project_location': 'Mumbai',
+        'created_at': DateTime.now()
+            .subtract(Duration(days: 5))
+            .toIso8601String(),
+        'lead_generated_by': 'user1',
+        'lead_type': 'Monolithic Formwork',
+      },
+      {
+        'id': '2',
+        'client_name': 'Platinum corp',
+        'project_name': 'Oceanic',
+        'project_location': 'Hyderabad',
+        'created_at': DateTime.now()
+            .subtract(Duration(days: 3))
+            .toIso8601String(),
+        'lead_generated_by': 'user2',
+        'lead_type': 'Monolithic Formwork',
+      },
+      {
+        'id': '3',
+        'client_name': 'Ravi Group',
+        'project_name': 'Dahisar Project',
+        'project_location': 'Mumbai',
+        'created_at': DateTime.now()
+            .subtract(Duration(days: 1))
+            .toIso8601String(),
+        'lead_generated_by': 'user1',
+        'lead_type': 'Monolithic Formwork',
+      },
+      {
+        'id': '4',
+        'client_name': 'SPCL',
+        'project_name': 'Godrej Bhel Project Hyderbad',
+        'project_location': 'Hyderabad',
+        'created_at': DateTime.now()
+            .subtract(Duration(days: 2))
+            .toIso8601String(),
+        'lead_generated_by': 'user2',
+        'lead_type': 'Monolithic Formwork',
+      },
+      {
+        'id': '5',
+        'client_name': 'Yugalaya Realty',
+        'project_name': 'Uday Nagar Project',
+        'project_location': 'Chennai',
+        'created_at': DateTime.now()
+            .subtract(Duration(days: 4))
+            .toIso8601String(),
+        'lead_generated_by': 'user1',
+        'lead_type': 'Monolithic Formwork',
+      },
+    ];
+
+    // Generate sample proposal files
+    final sampleProposalFiles = [
+      {
+        'lead_id': '1',
+        'created_at': DateTime.now()
+            .subtract(Duration(days: 2))
+            .toIso8601String(),
+        'user_id': 'user1',
+      },
+    ];
+
+    // Generate sample lead contacts
+    final sampleLeadContacts = [
+      {
+        'lead_id': '1',
+        'contact_name': 'John Doe',
+        'designation': 'Project Manager',
+        'email': 'john@supremeinfra.com',
+        'mobile': '+91-9876543210',
+      },
+      {
+        'lead_id': '2',
+        'contact_name': 'Jane Smith',
+        'designation': 'Director',
+        'email': 'jane@platinumcorp.com',
+        'mobile': '+91-9876543211',
+      },
+    ];
+
+    // Generate sample lead attachments
+    final sampleLeadAttachments = [
+      {
+        'lead_id': '1',
+        'file_name': 'project_specs.pdf',
+        'file_link': 'https://example.com/files/project_specs.pdf',
+      },
+      {
+        'lead_id': '2',
+        'file_name': 'drawings.dwg',
+        'file_link': 'https://example.com/files/drawings.dwg',
+      },
+    ];
+
+    // Generate sample lead activities
+    final sampleLeadActivities = [
+      {
+        'lead_id': '1',
+        'activity_type': 'Lead Created',
+        'changes_made': 'New lead created',
+        'user_id': 'user1',
+      },
+      {
+        'lead_id': '2',
+        'activity_type': 'Proposal Submitted',
+        'changes_made': 'Proposal file uploaded',
+        'user_id': 'user2',
+      },
+    ];
+
+    // Generate sample queries
+    final sampleQueries = [
+      {
+        'lead_id': '1',
+        'sender_name': 'Vishwaranjan Singh',
+        'receiver_name': 'Proposal Engineer',
+        'query_message': 'Need technical specifications',
+      },
+      {
+        'lead_id': '2',
+        'sender_name': 'Sales Team',
+        'receiver_name': 'Proposal Engineer',
+        'query_message': 'Client requested quote',
+      },
+    ];
 
     // Generate sample proposal inputs
     final sampleProposalInputs = [
@@ -4475,36 +4903,44 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
         'lead_id': '1',
         'input': 'Area',
         'value': '150.5',
-        'created_at': DateTime.now().subtract(Duration(days: 2)).toIso8601String(),
+        'created_at': DateTime.now()
+            .subtract(Duration(days: 2))
+            .toIso8601String(),
         'user_id': 'user1',
       },
       {
         'lead_id': '1',
         'input': 'MS Wt.',
         'value': '45.2',
-        'created_at': DateTime.now().subtract(Duration(days: 2)).toIso8601String(),
+        'created_at': DateTime.now()
+            .subtract(Duration(days: 2))
+            .toIso8601String(),
         'user_id': 'user1',
       },
       {
         'lead_id': '2',
         'input': 'Area',
         'value': '200.0',
-        'created_at': DateTime.now().subtract(Duration(days: 1)).toIso8601String(),
+        'created_at': DateTime.now()
+            .subtract(Duration(days: 1))
+            .toIso8601String(),
         'user_id': 'user2',
       },
       {
         'lead_id': '2',
         'input': 'MS Wt.',
         'value': '52.8',
-        'created_at': DateTime.now().subtract(Duration(days: 1)).toIso8601String(),
+        'created_at': DateTime.now()
+            .subtract(Duration(days: 1))
+            .toIso8601String(),
         'user_id': 'user2',
       },
     ];
 
-                         // Calculate analytics from sample data to match real data
-                     final totalInquiries = 94; // Match the real data
-                     final pendingInquiries = 93; // Match the real data
-                     final submittedProposals = 1; // Match the real data
+    // Calculate analytics from sample data to match real data
+    final totalInquiries = 94; // Match the real data
+    final pendingInquiries = 93; // Match the real data
+    final submittedProposals = 1; // Match the real data
 
     // Calculate technical focus data
     final technicalInputs = <String, int>{};
@@ -4535,12 +4971,11 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
     for (final lead in sampleLeads) {
       final createdAt = DateTime.tryParse(lead['created_at'] ?? '');
       if (createdAt != null) {
-        final monthKey = '${createdAt.year}-${createdAt.month.toString().padLeft(2, '0')}';
+        final monthKey =
+            '${createdAt.year}-${createdAt.month.toString().padLeft(2, '0')}';
         monthlyData[monthKey] = (monthlyData[monthKey] ?? 0) + 1;
       }
     }
-
-
 
     // Get task management data
     final pendingTasks = sampleLeads.where((lead) {
@@ -4553,36 +4988,36 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
     }).toList();
 
     debugPrint('✅ Sample data generated successfully');
-    
-                           return {
-                       'totalInquiries': totalInquiries,
-                       'pendingInquiries': pendingInquiries,
-                       'submittedProposals': submittedProposals,
-                       'averageResponseTime': 60.0, // Match real data
-                       'technicalInputs': technicalInputs,
-                       'areaCalculations': areaCalculations,
-                       'msWeightData': msWeightData,
-                       'monthlyData': monthlyData,
-                       'recentActivity': sampleLeads.take(5).toList(),
-                       'pendingTasks': pendingTasks,
-                       'draftProposals': draftProposals,
-                       'allLeads': sampleLeads,
-                       'proposalFiles': sampleProposalFiles,
-                       'proposalInputs': sampleProposalInputs,
-                       'leadContacts': sampleLeadContacts,
-                       'leadAttachments': sampleLeadAttachments,
-                       'leadActivity': sampleLeadActivities,
-                       'queries': sampleQueries,
-                       'proposalRemarks': [],
-                       'activityTypes': {'Lead Created': 1, 'Proposal Submitted': 1},
-                       'attachmentTypes': {'pdf': 1, 'dwg': 1},
-                       'totalAttachments': 2,
-                       'totalActivities': 2,
-                       'totalContacts': 2,
-                       'totalQueries': 2,
-                       'totalRemarks': 0,
-                       'totalInputs': sampleProposalInputs.length,
-                     };
+
+    return {
+      'totalInquiries': totalInquiries,
+      'pendingInquiries': pendingInquiries,
+      'submittedProposals': submittedProposals,
+      'averageResponseTime': 60.0, // Match real data
+      'technicalInputs': technicalInputs,
+      'areaCalculations': areaCalculations,
+      'msWeightData': msWeightData,
+      'monthlyData': monthlyData,
+      'recentActivity': sampleLeads.take(5).toList(),
+      'pendingTasks': pendingTasks,
+      'draftProposals': draftProposals,
+      'allLeads': sampleLeads,
+      'proposalFiles': sampleProposalFiles,
+      'proposalInputs': sampleProposalInputs,
+      'leadContacts': sampleLeadContacts,
+      'leadAttachments': sampleLeadAttachments,
+      'leadActivity': sampleLeadActivities,
+      'queries': sampleQueries,
+      'proposalRemarks': [],
+      'activityTypes': {'Lead Created': 1, 'Proposal Submitted': 1},
+      'attachmentTypes': {'pdf': 1, 'dwg': 1},
+      'totalAttachments': 2,
+      'totalActivities': 2,
+      'totalContacts': 2,
+      'totalQueries': 2,
+      'totalRemarks': 0,
+      'totalInputs': sampleProposalInputs.length,
+    };
   }
 
   @override
@@ -4610,10 +5045,7 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
             const SizedBox(height: 8),
             Text(
               'Try refreshing the dashboard',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[500],
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
             ),
             const SizedBox(height: 16),
             ElevatedButton(
@@ -4628,7 +5060,7 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWide = constraints.maxWidth > 700;
-        
+
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -4637,15 +5069,15 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
               // Dashboard Header
               _buildDashboardHeader(),
               const SizedBox(height: 24),
-              
+
               // Quick Actions
               _buildQuickActions(),
               const SizedBox(height: 24),
-              
+
               // Key Metrics Cards
               _buildKeyMetricsCards(),
               const SizedBox(height: 24),
-              
+
               if (isWide) ...[
                 // Desktop Layout
                 Row(
@@ -4723,27 +5155,24 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
                 child: Icon(Icons.analytics, color: Colors.blue[700], size: 24),
               ),
               const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Proposal Engineer Dashboard',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[800],
-                  ),
-                ),
-                Text(
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Proposal Engineer Dashboard',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    Text(
                       'Manage inquiries, create proposals, and track technical specifications',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                  ),
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                    ),
+                  ],
                 ),
-              ],
-            ),
               ),
               IconButton(
                 onPressed: _loadDashboardData,
@@ -4778,10 +5207,20 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
                     enabled: false,
                     decoration: InputDecoration(
                       hintText: 'Search functionality coming soon...',
-                      hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
-                      prefixIcon: Icon(Icons.search, color: Colors.grey[600], size: 20),
+                      hintStyle: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 14,
+                      ),
+                      prefixIcon: Icon(
+                        Icons.search,
+                        color: Colors.grey[600],
+                        size: 20,
+                      ),
                       border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                     ),
                     style: const TextStyle(fontSize: 14),
                   ),
@@ -4799,7 +5238,11 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
                     value: 'all',
                     child: Row(
                       children: [
-                        Icon(Icons.all_inclusive, color: Colors.blue[600], size: 16),
+                        Icon(
+                          Icons.all_inclusive,
+                          color: Colors.blue[600],
+                          size: 16,
+                        ),
                         const SizedBox(width: 8),
                         const Text('All Data'),
                       ],
@@ -4809,7 +5252,11 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
                     value: 'pending',
                     child: Row(
                       children: [
-                        Icon(Icons.pending, color: Colors.orange[600], size: 16),
+                        Icon(
+                          Icons.pending,
+                          color: Colors.orange[600],
+                          size: 16,
+                        ),
                         const SizedBox(width: 8),
                         const Text('Pending Only'),
                       ],
@@ -4819,7 +5266,11 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
                     value: 'submitted',
                     child: Row(
                       children: [
-                        Icon(Icons.check_circle, color: Colors.green[600], size: 16),
+                        Icon(
+                          Icons.check_circle,
+                          color: Colors.green[600],
+                          size: 16,
+                        ),
                         const SizedBox(width: 8),
                         const Text('Submitted Only'),
                       ],
@@ -4827,7 +5278,10 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
                   ),
                 ],
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.blue[50],
                     borderRadius: BorderRadius.circular(20),
@@ -4836,7 +5290,11 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.filter_list, color: Colors.blue[600], size: 16),
+                      Icon(
+                        Icons.filter_list,
+                        color: Colors.blue[600],
+                        size: 16,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         _getFilterText(),
@@ -4931,7 +5389,12 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
     );
   }
 
-  Widget _buildQuickActionCard(String title, IconData icon, Color color, VoidCallback onTap) {
+  Widget _buildQuickActionCard(
+    String title,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
@@ -5098,7 +5561,14 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
             Expanded(
               child: _buildMetricCard(
                 'Total Data',
-                (totalInquiries + totalAttachments + totalContacts + totalQueries + totalActivities + totalRemarks + totalInputs).toString(),
+                (totalInquiries +
+                        totalAttachments +
+                        totalContacts +
+                        totalQueries +
+                        totalActivities +
+                        totalRemarks +
+                        totalInputs)
+                    .toString(),
                 Icons.analytics,
                 Colors.red,
                 'All records',
@@ -5110,7 +5580,13 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
     );
   }
 
-  Widget _buildMetricCard(String title, String value, IconData icon, Color color, String subtitle) {
+  Widget _buildMetricCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+    String subtitle,
+  ) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -5144,17 +5620,11 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
                   children: [
                     Text(
                       title,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                     ),
                     Text(
                       subtitle,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[500],
-                      ),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                     ),
                   ],
                 ),
@@ -5178,7 +5648,7 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
   Widget _buildWorkAnalytics() {
     final monthlyDataRaw = _dashboardData['monthlyData'];
     final Map<String, int> monthlyData = {};
-    
+
     if (monthlyDataRaw is Map) {
       monthlyDataRaw.forEach((key, value) {
         if (key is String && value is int) {
@@ -5186,9 +5656,9 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
         }
       });
     }
-    
+
     final sortedMonths = monthlyData.keys.toList()..sort();
-    
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -5227,11 +5697,11 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: sortedMonths.map((month) {
                   final count = monthlyData[month] ?? 0;
-                  final maxCount = monthlyData.values.isNotEmpty 
-                      ? monthlyData.values.reduce((a, b) => a > b ? a : b) 
+                  final maxCount = monthlyData.values.isNotEmpty
+                      ? monthlyData.values.reduce((a, b) => a > b ? a : b)
                       : 1;
                   final height = maxCount > 0 ? (count / maxCount) : 0.0;
-                  
+
                   return Expanded(
                     child: Column(
                       children: [
@@ -5291,11 +5761,11 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
     final technicalInputsRaw = _dashboardData['technicalInputs'];
     final areaCalculationsRaw = _dashboardData['areaCalculations'];
     final msWeightDataRaw = _dashboardData['msWeightData'];
-    
+
     final Map<String, int> technicalInputs = {};
     final Map<String, double> areaCalculations = {};
     final Map<String, List<double>> msWeightData = {};
-    
+
     // Safely convert technicalInputs
     if (technicalInputsRaw is Map) {
       technicalInputsRaw.forEach((key, value) {
@@ -5304,7 +5774,7 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
         }
       });
     }
-    
+
     // Safely convert areaCalculations
     if (areaCalculationsRaw is Map) {
       areaCalculationsRaw.forEach((key, value) {
@@ -5315,7 +5785,7 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
         }
       });
     }
-    
+
     // Safely convert msWeightData
     if (msWeightDataRaw is Map) {
       msWeightDataRaw.forEach((key, value) {
@@ -5335,10 +5805,19 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
       });
     }
 
-    final totalArea = areaCalculations.values.fold(0.0, (sum, area) => sum + area);
-    final totalMsWeight = msWeightData.values.fold(0.0, (sum, weights) => 
-        sum + (weights.isNotEmpty ? weights.reduce((a, b) => a + b) / weights.length : 0));
-    
+    final totalArea = areaCalculations.values.fold(
+      0.0,
+      (sum, area) => sum + area,
+    );
+    final totalMsWeight = msWeightData.values.fold(
+      0.0,
+      (sum, weights) =>
+          sum +
+          (weights.isNotEmpty
+              ? weights.reduce((a, b) => a + b) / weights.length
+              : 0),
+    );
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -5371,8 +5850,8 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
           ),
           const SizedBox(height: 20),
           Row(
-                      children: [
-                        Expanded(
+            children: [
+              Expanded(
                 child: _buildTechnicalCard(
                   'Total Area',
                   '${totalArea.toStringAsFixed(1)} sq.m',
@@ -5394,44 +5873,48 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
           const SizedBox(height: 16),
           Text(
             'Most Used Specifications:',
-                            style: TextStyle(
+            style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
               color: Colors.grey[700],
             ),
           ),
           const SizedBox(height: 8),
-          ...technicalInputs.entries.take(5).map((entry) => 
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    entry.key,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                          ),
+          ...technicalInputs.entries
+              .take(5)
+              .map(
+                (entry) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        entry.key,
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                      Text(
+                        '${entry.value}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue[600],
                         ),
-                        Text(
-                    '${entry.value}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                      color: Colors.blue[600],
-                          ),
-                        ),
-                      ],
-                    ),
-            ),
-          ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
         ],
       ),
     );
   }
 
-  Widget _buildTechnicalCard(String title, String value, IconData icon, Color color) {
+  Widget _buildTechnicalCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -5442,7 +5925,7 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
       child: Column(
         children: [
           Icon(icon, color: color, size: 20),
-                    const SizedBox(height: 4),
+          const SizedBox(height: 4),
           Text(
             title,
             style: TextStyle(
@@ -5458,18 +5941,18 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
               fontWeight: FontWeight.bold,
               color: color,
             ),
-                    ),
-                  ],
-                ),
-              );
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildAttachmentAnalytics() {
     final attachmentTypesRaw = _dashboardData['attachmentTypes'];
     final totalAttachments = _dashboardData['totalAttachments'] ?? 0;
-    
+
     final Map<String, int> attachmentTypes = {};
-    
+
     // Safely convert attachmentTypes
     if (attachmentTypesRaw is Map) {
       attachmentTypesRaw.forEach((key, value) {
@@ -5542,31 +6025,33 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            ...attachmentTypes.entries.take(5).map((entry) => 
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '.${entry.key}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
+            ...attachmentTypes.entries
+                .take(5)
+                .map(
+                  (entry) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '.${entry.key}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        Text(
+                          '${entry.value}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.indigo[600],
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      '${entry.value}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.indigo[600],
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
           ] else ...[
             Text(
               'No attachments found',
@@ -5585,10 +6070,10 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
   Widget _buildTaskManagement() {
     final pendingTasksRaw = _dashboardData['pendingTasks'];
     final draftProposalsRaw = _dashboardData['draftProposals'];
-    
+
     final List<dynamic> pendingTasks = [];
     final List<dynamic> draftProposals = [];
-    
+
     // Safely convert pendingTasks
     if (pendingTasksRaw is List) {
       for (final task in pendingTasksRaw) {
@@ -5597,7 +6082,7 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
         }
       }
     }
-    
+
     // Safely convert draftProposals
     if (draftProposalsRaw is List) {
       for (final proposal in draftProposalsRaw) {
@@ -5655,10 +6140,7 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
             Container(
               width: 8,
               height: 8,
-              decoration: BoxDecoration(
-                color: color,
-                shape: BoxShape.circle,
-              ),
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
             ),
             const SizedBox(width: 8),
             Text(
@@ -5673,19 +6155,18 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
         ),
         const SizedBox(height: 8),
         if (tasks.isNotEmpty)
-          ...tasks.take(3).map((task) => 
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Text(
-                task['project_name'] ?? 'Unknown Project',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
+          ...tasks
+              .take(3)
+              .map(
+                (task) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    task['project_name'] ?? 'Unknown Project',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          )
+              )
         else
           Text(
             'No tasks',
@@ -5702,7 +6183,7 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
   Widget _buildRecentActivity() {
     final recentActivityRaw = _dashboardData['recentActivity'];
     final List<dynamic> recentActivity = [];
-    
+
     // Safely convert recentActivity
     if (recentActivityRaw is List) {
       for (final activity in recentActivityRaw) {
@@ -5711,7 +6192,7 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
         }
       }
     }
-    
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -5746,27 +6227,27 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
           if (recentActivity.isNotEmpty)
             ...recentActivity.take(8).map((activity) {
               final date = DateTime.tryParse(activity['created_at'] ?? '');
-              final formattedDate = date != null 
+              final formattedDate = date != null
                   ? DateFormat('MMM dd').format(date)
                   : 'Unknown';
-              
+
               // Check activity type
               final activityType = activity['type'] ?? 'lead';
               final isQuery = activityType == 'query';
               final isActivity = activityType == 'activity';
-              
+
               Color getActivityColor() {
                 if (isQuery) return Colors.amber[600]!;
                 if (isActivity) return Colors.green[600]!;
                 return Colors.blue[600]!;
               }
-              
+
               IconData getActivityIcon() {
                 if (isQuery) return Icons.chat;
                 if (isActivity) return Icons.timeline;
                 return Icons.assignment;
               }
-              
+
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Row(
@@ -5786,7 +6267,11 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
                         children: [
                           Row(
                             children: [
-                              Icon(getActivityIcon(), size: 12, color: getActivityColor()),
+                              Icon(
+                                getActivityIcon(),
+                                size: 12,
+                                color: getActivityColor(),
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 activity['client_name'] ?? 'Unknown Client',
@@ -5808,9 +6293,9 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
                           if (isActivity || isQuery) ...[
                             const SizedBox(height: 4),
                             Text(
-                              isQuery 
-                                ? 'Query: ${activity['sender'] ?? 'Unknown'} → ${activity['receiver'] ?? 'Unknown'}'
-                                : '${activity['activity_type'] ?? 'Activity'}',
+                              isQuery
+                                  ? 'Query: ${activity['sender'] ?? 'Unknown'} → ${activity['receiver'] ?? 'Unknown'}'
+                                  : '${activity['activity_type'] ?? 'Activity'}',
                               style: TextStyle(
                                 fontSize: 10,
                                 color: getActivityColor(),
@@ -5823,10 +6308,7 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
                     ),
                     Text(
                       formattedDate,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[500],
-                      ),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                     ),
                   ],
                 ),
@@ -6025,5 +6507,3 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
     );
   }
 }
-
-

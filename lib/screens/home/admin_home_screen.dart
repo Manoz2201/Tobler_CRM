@@ -13,7 +13,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:crm_app/widgets/profile_page.dart';
 import 'package:crm_app/screens/home/developer_home_screen.dart'
     show UserManagementPage;
-import 'package:intl/intl.dart';
 import '../settings/currency_settings_screen.dart';
 import '../../utils/navigation_utils.dart';
 import '../../utils/timezone_utils.dart';
@@ -83,15 +82,13 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     // Logout is handled separately in _onItemTapped
   ];
 
-
-
   void _onItemTapped(int index) {
     // Check if logout button was tapped
     if (index == _navItems.length - 1 && _navItems[index].label == 'Logout') {
       _logout();
       return;
     }
-    
+
     setState(() {
       _selectedIndex = index;
     });
@@ -181,10 +178,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
-          right: BorderSide(
-            color: Colors.grey.shade200,
-            width: 1,
-          ),
+          right: BorderSide(color: Colors.grey.shade200, width: 1),
         ),
         boxShadow: [
           BoxShadow(
@@ -201,10 +195,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               border: Border(
-                bottom: BorderSide(
-                  color: Colors.grey.shade200,
-                  width: 1,
-                ),
+                bottom: BorderSide(color: Colors.grey.shade200, width: 1),
               ),
             ),
             child: Row(
@@ -318,7 +309,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         ],
       ),
     );
-
   }
 
   @override
@@ -334,9 +324,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             body: Row(
               children: [
                 _buildNavBar(screenHeight, screenWidth),
-                Expanded(
-                  child: _pages[_selectedIndex],
-                ),
+                Expanded(child: _pages[_selectedIndex]),
               ],
             ),
           );
@@ -386,19 +374,133 @@ class _AdminLeadsPageState extends State<_AdminLeadsPage> {
     });
     try {
       final client = Supabase.instance.client;
-      final data = await client
-          .from('leads')
-          .select('*')
-          .order('created_at', ascending: false);
+      final stopwatch = Stopwatch()..start();
+
+      // Execute all queries in parallel for better performance
+      debugPrint('🔄 Fetching data from Supabase in parallel...');
+
+      final futures = await Future.wait([
+        client
+            .from('leads')
+            .select(
+              'id, created_at, project_name, client_name, project_location, lead_generated_by',
+            )
+            .order('created_at', ascending: false)
+            .timeout(const Duration(seconds: 15)),
+        client
+            .from('users')
+            .select('id, username')
+            .timeout(const Duration(seconds: 10)),
+        client
+            .from('proposal_input')
+            .select('lead_id, input, value')
+            .timeout(const Duration(seconds: 10)),
+        client
+            .from('admin_response')
+            .select('lead_id, rate_sqm, status, remark')
+            .timeout(const Duration(seconds: 10)),
+      ]);
+
+      final leadsResult = futures[0] as List<dynamic>;
+      final usersResult = futures[1] as List<dynamic>;
+      final proposalInputResult = futures[2] as List<dynamic>;
+      final adminResponseResult = futures[3] as List<dynamic>;
+
+      debugPrint('📊 Fetched data in ${stopwatch.elapsedMilliseconds}ms');
+      debugPrint(
+        '📈 Leads: ${leadsResult.length}, Users: ${usersResult.length}, Proposal Input: ${proposalInputResult.length}, Admin Response: ${adminResponseResult.length}',
+      );
+
+      // Create lookup maps for efficient processing
+      final Map<String, String> userMap = {};
+      for (final user in usersResult) {
+        userMap[user['id']] = user['username'] ?? '';
+      }
+
+      // Process proposal_input data to calculate Aluminium Area and MS Weight
+      final Map<String, double> aluminiumAreaMap = {};
+      final Map<String, List<double>> msWeightMap = {};
+
+      for (final input in proposalInputResult) {
+        final leadId = input['lead_id'];
+        final inputName = input['input']?.toString().toLowerCase() ?? '';
+        final value = double.tryParse(input['value']?.toString() ?? '0') ?? 0;
+
+        if (leadId != null) {
+          // Calculate Aluminium Area (sum of values containing "aluminium" or "alu")
+          if (inputName.contains('aluminium') || inputName.contains('alu')) {
+            aluminiumAreaMap[leadId] = (aluminiumAreaMap[leadId] ?? 0) + value;
+          }
+
+          // Calculate MS Weight (average of values containing "ms" or "ms wt.")
+          if (inputName.contains('ms') || inputName.contains('ms wt.')) {
+            if (!msWeightMap.containsKey(leadId)) {
+              msWeightMap[leadId] = [];
+            }
+            msWeightMap[leadId]!.add(value);
+          }
+        }
+      }
+
+      final Map<String, Map<String, dynamic>> adminResponseMap = {};
+      for (final response in adminResponseResult) {
+        final leadId = response['lead_id'];
+        if (leadId != null) {
+          adminResponseMap[leadId] = response;
+        }
+      }
+
+      // Join the data efficiently
+      final List<Map<String, dynamic>> joinedLeads = [];
+      for (final lead in leadsResult) {
+        final leadId = lead['id'];
+        final salesPersonName = userMap[lead['lead_generated_by']] ?? '';
+        final adminResponseData = adminResponseMap[leadId];
+
+        // Calculate MS Weight average
+        final msWeights = msWeightMap[leadId] ?? [];
+        final msWeightAverage = msWeights.isNotEmpty
+            ? msWeights.reduce((a, b) => a + b) / msWeights.length
+            : 0.0;
+
+        joinedLeads.add({
+          'lead_id': leadId,
+          'date': lead['created_at'],
+          'project_name': lead['project_name'] ?? '',
+          'client_name': lead['client_name'] ?? '',
+          'project_location': lead['project_location'] ?? '',
+          'sales_person_name': salesPersonName,
+          'aluminium_area': aluminiumAreaMap[leadId] ?? 0,
+          'ms_weight': msWeightAverage,
+          'rate_sqm': adminResponseData?['rate_sqm'] ?? 0,
+          'approved': adminResponseData?['status'] == 'Approved',
+        });
+      }
+
+      debugPrint(
+        '⚡ Data processing completed in ${stopwatch.elapsedMilliseconds}ms',
+      );
+
       setState(() {
-        leads = List<Map<String, dynamic>>.from(data);
+        leads = joinedLeads;
         _isLoading = false;
       });
     } catch (e) {
+      debugPrint('❌ Error loading data: $e');
       setState(() {
-        _error = 'Failed to fetch leads: ${e.toString()}';
         _isLoading = false;
       });
+
+      // Show error message to user
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading data: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -2101,29 +2203,44 @@ class _LeadTableState extends State<LeadTable> {
 
     try {
       final client = Supabase.instance.client;
+      final stopwatch = Stopwatch()..start();
 
-      // Fetch leads data
-      final leadsResult = await client
-          .from('leads')
-          .select(
-            'id, created_at, project_name, client_name, project_location, lead_generated_by',
-          )
-          .order('created_at', ascending: false);
+      // Execute all queries in parallel for better performance
+      debugPrint('🔄 Fetching data from Supabase in parallel...');
 
-      // Fetch users data for sales person names
-      final usersResult = await client.from('users').select('id, username');
+      final futures = await Future.wait([
+        client
+            .from('leads')
+            .select(
+              'id, created_at, project_name, client_name, project_location, lead_generated_by',
+            )
+            .order('created_at', ascending: false)
+            .timeout(const Duration(seconds: 15)),
+        client
+            .from('users')
+            .select('id, username')
+            .timeout(const Duration(seconds: 10)),
+        client
+            .from('proposal_input')
+            .select('lead_id, input, value')
+            .timeout(const Duration(seconds: 10)),
+        client
+            .from('admin_response')
+            .select('lead_id, rate_sqm, status, remark')
+            .timeout(const Duration(seconds: 10)),
+      ]);
 
-      // Fetch proposal_input data for Area and MS Weight
-      final proposalInputResult = await client
-          .from('proposal_input')
-          .select('lead_id, input, value');
+      final leadsResult = futures[0] as List<dynamic>;
+      final usersResult = futures[1] as List<dynamic>;
+      final proposalInputResult = futures[2] as List<dynamic>;
+      final adminResponseResult = futures[3] as List<dynamic>;
 
-      // Fetch admin_response data for Rate sq/m and approval status
-      final adminResponseResult = await client
-          .from('admin_response')
-          .select('lead_id, rate_sqm, status, remark');
+      debugPrint('📊 Fetched data in ${stopwatch.elapsedMilliseconds}ms');
+      debugPrint(
+        '📈 Leads: ${leadsResult.length}, Users: ${usersResult.length}, Proposal Input: ${proposalInputResult.length}, Admin Response: ${adminResponseResult.length}',
+      );
 
-      // Create maps for quick lookup
+      // Create lookup maps for efficient processing
       final Map<String, String> userMap = {};
       for (final user in usersResult) {
         userMap[user['id']] = user['username'] ?? '';
@@ -2162,7 +2279,7 @@ class _LeadTableState extends State<LeadTable> {
         }
       }
 
-      // Join the data
+      // Join the data efficiently
       final List<Map<String, dynamic>> joinedLeads = [];
       for (final lead in leadsResult) {
         final leadId = lead['id'];
@@ -2199,20 +2316,27 @@ class _LeadTableState extends State<LeadTable> {
         _totalAmounts[leadId] = totalAmount;
       }
 
+      debugPrint(
+        '⚡ Data processing completed in ${stopwatch.elapsedMilliseconds}ms',
+      );
+
       setState(() {
         _leads = joinedLeads;
-        _filteredLeads = joinedLeads;
         _isLoading = false;
       });
     } catch (e) {
+      debugPrint('❌ Error loading data: $e');
       setState(() {
         _isLoading = false;
       });
+
+      // Show error message to user
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error fetching leads: ${e.toString()}'),
+            content: Text('Error loading data: ${e.toString()}'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -4407,9 +4531,9 @@ class _LeadTableState extends State<LeadTable> {
     try {
       if (date is String) {
         final parsedDate = DateTime.parse(date);
-        return DateFormat('yyyy-MM-dd').format(parsedDate);
+        return '${parsedDate.day}/${parsedDate.month}/${parsedDate.year}';
       } else if (date is DateTime) {
-        return DateFormat('yyyy-MM-dd').format(date);
+        return '${date.day}/${date.month}/${date.year}';
       }
       return date.toString();
     } catch (e) {
@@ -5594,35 +5718,35 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   final TextEditingController _searchController = TextEditingController();
   String _selectedTimePeriod = 'Quarter'; // Default selected time period
   String _selectedCurrency = 'INR'; // Default currency
-  
+
   // Lead Performance state
   String _activeLeadTab = 'Won'; // 'Won', 'Lost', 'Loop'
   List<Map<String, dynamic>> _leadPerformanceData = [];
   List<Map<String, dynamic>> _filteredLeadData = [];
   bool _isLoadingLeadData = false;
   final TextEditingController _leadSearchController = TextEditingController();
-  
-      // Chart data state
-    List<BarChartGroupData> _barChartData = [];
-    bool _isLoadingChartData = false;
-  
+
+  // Chart data state
+  List<BarChartGroupData> _barChartData = [];
+  bool _isLoadingChartData = false;
+
   // Lead status distribution data state
-  Map<String, int> _leadStatusDistribution = {
-    'Won': 0,
-    'Lost': 0,
-    'Loop': 0,
-  };
+  Map<String, int> _leadStatusDistribution = {'Won': 0, 'Lost': 0, 'Loop': 0};
   bool _isLoadingLeadStatusData = false;
-  
+
   // Dashboard data state
   Map<String, dynamic> _dashboardData = {
     'totalRevenue': {'value': '₹0', 'percentage': '+0.0%', 'isPositive': true},
-    'aluminiumArea': {'value': '0 m²', 'percentage': '+0.0%', 'isPositive': true},
+    'aluminiumArea': {
+      'value': '0 m²',
+      'percentage': '+0.0%',
+      'isPositive': true,
+    },
     'qualifiedLeads': {'value': '0', 'percentage': '+0.0%', 'isPositive': true},
   };
-  
+
   bool _isLoading = false;
-  
+
   // Currency conversion rates (you can fetch these from an API)
   final Map<String, double> _currencyRates = {
     'INR': 1.0,
@@ -5631,7 +5755,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     'CHF': 0.010, // 1 INR = 0.010 CHF (Swiss Franc, approximate)
     'GBP': 0.009, // 1 INR = 0.009 GBP (approximate)
   };
-  
+
   // Currency symbols
   final Map<String, String> _currencySymbols = {
     'INR': '₹',
@@ -5652,7 +5776,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     try {
       // Initialize timezone utilities
       await TimezoneUtils.initialize();
-      
+
       // Fetch data after timezone initialization
       _fetchDashboardData();
       _fetchLeadPerformanceData();
@@ -5679,7 +5803,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     final now = DateTime.now();
     DateTime startDate;
     DateTime endDate;
-    
+
     switch (timePeriod.toLowerCase()) {
       case 'week':
         startDate = now.subtract(Duration(days: 7));
@@ -5714,10 +5838,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
         break;
       default:
-        startDate = DateTime(now.year, now.month - 3, now.day); // Default to quarter
+        startDate = DateTime(
+          now.year,
+          now.month - 3,
+          now.day,
+        ); // Default to quarter
         endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
     }
-    
+
     return {'start': startDate, 'end': endDate};
   }
 
@@ -5730,7 +5858,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     try {
       final client = Supabase.instance.client;
       final dateRange = _getDateRange(_selectedTimePeriod);
-      
+
       // Fetch data from admin_response table for Won leads only
       final response = await client
           .from('admin_response')
@@ -5741,7 +5869,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
       // Calculate dashboard metrics
       await _calculateDashboardMetrics(response);
-      
     } catch (e) {
       debugPrint('Error fetching dashboard data: $e');
       // Keep default values on error
@@ -5761,40 +5888,56 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     for (var record in data) {
       // Sum up total revenue from total_amount_gst field
       if (record['total_amount_gst'] != null) {
-        totalRevenue += (record['total_amount_gst'] is num) ? record['total_amount_gst'].toDouble() : 0;
+        totalRevenue += (record['total_amount_gst'] is num)
+            ? record['total_amount_gst'].toDouble()
+            : 0;
       }
-      
+
       // Sum up aluminium area (assuming there's an aluminium_area field)
       if (record['aluminium_area'] != null) {
-        totalAluminiumArea += (record['aluminium_area'] is num) ? record['aluminium_area'].toDouble() : 0;
+        totalAluminiumArea += (record['aluminium_area'] is num)
+            ? record['aluminium_area'].toDouble()
+            : 0;
       }
-      
+
       qualifiedLeadsCount++;
     }
 
     // Get previous period data for comparison
     final previousPeriodData = await _getPreviousPeriodData();
-    
+
     // Calculate percentages
-    final revenuePercentage = _calculatePercentage(totalRevenue, previousPeriodData['revenue'] ?? 0);
-    final aluminiumAreaPercentage = _calculatePercentage(totalAluminiumArea, previousPeriodData['aluminiumArea'] ?? 0);
-    final leadsPercentage = _calculatePercentage(qualifiedLeadsCount.toDouble(), previousPeriodData['leads'] ?? 0);
+    final revenuePercentage = _calculatePercentage(
+      totalRevenue,
+      previousPeriodData['revenue'] ?? 0,
+    );
+    final aluminiumAreaPercentage = _calculatePercentage(
+      totalAluminiumArea,
+      previousPeriodData['aluminiumArea'] ?? 0,
+    );
+    final leadsPercentage = _calculatePercentage(
+      qualifiedLeadsCount.toDouble(),
+      previousPeriodData['leads'] ?? 0,
+    );
 
     setState(() {
       _dashboardData = {
         'totalRevenue': {
           'value': _formatCurrency(totalRevenue, _selectedCurrency),
-          'percentage': '${revenuePercentage >= 0 ? '+' : ''}${revenuePercentage.toStringAsFixed(1)}%',
+          'percentage':
+              '${revenuePercentage >= 0 ? '+' : ''}${revenuePercentage.toStringAsFixed(1)}%',
           'isPositive': revenuePercentage >= 0,
         },
         'aluminiumArea': {
           'value': '${totalAluminiumArea.toStringAsFixed(0)} m²',
-          'percentage': '${aluminiumAreaPercentage >= 0 ? '+' : ''}${aluminiumAreaPercentage.toStringAsFixed(1)}%',
+          'percentage':
+              '${aluminiumAreaPercentage >= 0 ? '+' : ''}${aluminiumAreaPercentage.toStringAsFixed(1)}%',
           'isPositive': aluminiumAreaPercentage >= 0,
         },
         'qualifiedLeads': {
           'value': qualifiedLeadsCount.toString(),
-          'percentage': '${leadsPercentage >= 0 ? '+' : ''}${leadsPercentage.toStringAsFixed(1)}%',
+          'percentage':
+              '${leadsPercentage >= 0 ? '+' : ''}${leadsPercentage.toStringAsFixed(1)}%',
           'isPositive': leadsPercentage >= 0,
         },
       };
@@ -5806,12 +5949,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     try {
       final client = Supabase.instance.client;
       final currentDateRange = _getDateRange(_selectedTimePeriod);
-      
+
       // Calculate previous period date range
-      final duration = currentDateRange['end']!.difference(currentDateRange['start']!);
+      final duration = currentDateRange['end']!.difference(
+        currentDateRange['start']!,
+      );
       final previousStartDate = currentDateRange['start']!.subtract(duration);
       final previousEndDate = currentDateRange['start']!;
-      
+
       // Fetch previous period data for Won leads only
       final previousResponse = await client
           .from('admin_response')
@@ -5819,22 +5964,26 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           .eq('update_lead_status', 'Won')
           .gte('updated_at', previousStartDate.toIso8601String())
           .lte('updated_at', previousEndDate.toIso8601String());
-      
+
       // Calculate previous period metrics
       double previousRevenue = 0;
       double previousAluminiumArea = 0;
       int previousLeadsCount = 0;
-      
+
       for (var record in previousResponse) {
         if (record['total_amount_gst'] != null) {
-          previousRevenue += (record['total_amount_gst'] is num) ? record['total_amount_gst'].toDouble() : 0;
+          previousRevenue += (record['total_amount_gst'] is num)
+              ? record['total_amount_gst'].toDouble()
+              : 0;
         }
         if (record['aluminium_area'] != null) {
-          previousAluminiumArea += (record['aluminium_area'] is num) ? record['aluminium_area'].toDouble() : 0;
+          previousAluminiumArea += (record['aluminium_area'] is num)
+              ? record['aluminium_area'].toDouble()
+              : 0;
         }
         previousLeadsCount++;
       }
-      
+
       return {
         'revenue': previousRevenue,
         'aluminiumArea': previousAluminiumArea,
@@ -5863,7 +6012,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     final symbol = _currencySymbols[currency] ?? '₹';
     final rate = _currencyRates[currency] ?? 1.0;
     final convertedAmount = amount * rate;
-    
+
     if (convertedAmount < 1000) {
       return '$symbol${convertedAmount.toStringAsFixed(0)}';
     } else if (convertedAmount < 1000000) {
@@ -5903,7 +6052,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
     try {
       final client = Supabase.instance.client;
-      
+
       // Fetch data from admin_response table based on active tab
       final response = await client
           .from('admin_response')
@@ -5938,27 +6087,68 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   void _filterLeadData(String query) {
     if (query.isEmpty) {
       setState(() {
-        _filteredLeadData = List<Map<String, dynamic>>.from(_leadPerformanceData);
+        _filteredLeadData = List<Map<String, dynamic>>.from(
+          _leadPerformanceData,
+        );
       });
     } else {
       final lowercaseQuery = query.toLowerCase();
       final filtered = _leadPerformanceData.where((lead) {
         // Search across all relevant fields
-        return lead['project_id']?.toString().toLowerCase().contains(lowercaseQuery) == true ||
-               lead['project_name']?.toString().toLowerCase().contains(lowercaseQuery) == true ||
-               lead['client_name']?.toString().toLowerCase().contains(lowercaseQuery) == true ||
-               lead['location']?.toString().toLowerCase().contains(lowercaseQuery) == true ||
-               lead['aluminium_area']?.toString().toLowerCase().contains(lowercaseQuery) == true ||
-               lead['rc_weight']?.toString().toLowerCase().contains(lowercaseQuery) == true ||
-               lead['rate_sqm']?.toString().toLowerCase().contains(lowercaseQuery) == true ||
-               lead['total_amount_gst']?.toString().toLowerCase().contains(lowercaseQuery) == true ||
-               lead['sales_user']?.toString().toLowerCase().contains(lowercaseQuery) == true ||
-               lead['update_lead_status']?.toString().toLowerCase().contains(lowercaseQuery) == true ||
-               lead['lead_status_remark']?.toString().toLowerCase().contains(lowercaseQuery) == true ||
-               lead['created_at']?.toString().toLowerCase().contains(lowercaseQuery) == true ||
-               lead['updated_at']?.toString().toLowerCase().contains(lowercaseQuery) == true;
+        return lead['project_id']?.toString().toLowerCase().contains(
+                  lowercaseQuery,
+                ) ==
+                true ||
+            lead['project_name']?.toString().toLowerCase().contains(
+                  lowercaseQuery,
+                ) ==
+                true ||
+            lead['client_name']?.toString().toLowerCase().contains(
+                  lowercaseQuery,
+                ) ==
+                true ||
+            lead['location']?.toString().toLowerCase().contains(
+                  lowercaseQuery,
+                ) ==
+                true ||
+            lead['aluminium_area']?.toString().toLowerCase().contains(
+                  lowercaseQuery,
+                ) ==
+                true ||
+            lead['rc_weight']?.toString().toLowerCase().contains(
+                  lowercaseQuery,
+                ) ==
+                true ||
+            lead['rate_sqm']?.toString().toLowerCase().contains(
+                  lowercaseQuery,
+                ) ==
+                true ||
+            lead['total_amount_gst']?.toString().toLowerCase().contains(
+                  lowercaseQuery,
+                ) ==
+                true ||
+            lead['sales_user']?.toString().toLowerCase().contains(
+                  lowercaseQuery,
+                ) ==
+                true ||
+            lead['update_lead_status']?.toString().toLowerCase().contains(
+                  lowercaseQuery,
+                ) ==
+                true ||
+            lead['lead_status_remark']?.toString().toLowerCase().contains(
+                  lowercaseQuery,
+                ) ==
+                true ||
+            lead['created_at']?.toString().toLowerCase().contains(
+                  lowercaseQuery,
+                ) ==
+                true ||
+            lead['updated_at']?.toString().toLowerCase().contains(
+                  lowercaseQuery,
+                ) ==
+                true;
       }).toList();
-      
+
       setState(() {
         _filteredLeadData = filtered;
       });
@@ -5974,7 +6164,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     try {
       final client = Supabase.instance.client;
       final dateRange = _getDateRange(_selectedTimePeriod);
-      
+
       // Fetch data from admin_response table where update_lead_status = 'Won'
       final response = await client
           .from('admin_response')
@@ -5987,7 +6177,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
       // Process the data to create chart spots
       await _processChartData(response);
-      
     } catch (e) {
       // Set default empty data on error
       setState(() {
@@ -6011,23 +6200,24 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     final dateRange = _getDateRange(_selectedTimePeriod);
     final startDate = dateRange['start']!;
     final endDate = dateRange['end']!;
-    
+
     // Group data based on time period with cumulative approach
     Map<String, List<Map<String, dynamic>>> groupedData = {};
-    
+
     for (var record in data) {
       final updatedAt = DateTime.parse(record['updated_at']);
-      
+
       // Convert UTC datetime to local timezone for proper comparison
       final localUpdatedAt = TimezoneUtils.convertToLocal(updatedAt);
-      
+
       // Only include data within the selected time period range
-      if (localUpdatedAt.isBefore(startDate) || localUpdatedAt.isAfter(endDate)) {
+      if (localUpdatedAt.isBefore(startDate) ||
+          localUpdatedAt.isAfter(endDate)) {
         continue;
       }
-      
+
       String groupKey;
-      
+
       switch (_selectedTimePeriod.toLowerCase()) {
         case 'week':
           final dayOfWeek = updatedAt.weekday;
@@ -6060,9 +6250,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         default:
           groupKey = _getMonthName(updatedAt.month);
       }
-      
+
       debugPrint('🏷️ [CHART] Group key: $groupKey');
-      
+
       if (!groupedData.containsKey(groupKey)) {
         groupedData[groupKey] = [];
       }
@@ -6071,14 +6261,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
     final labels = _getChartLabels();
     final barGroups = <BarChartGroupData>[];
-    
+
     debugPrint('📊 [CHART] Chart labels: $labels');
     debugPrint('📊 [CHART] Grouped data keys: ${groupedData.keys.toList()}');
-    
+
     for (int i = 0; i < labels.length; i++) {
       final label = labels[i];
       final groupData = groupedData[label] ?? [];
-      
+
       int qualifiedLeadCount = groupData.length; // Count of Won leads
       double totalRevenue = 0;
 
@@ -6088,8 +6278,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
       // Convert revenue to thousands for display
       final revenueInK = totalRevenue / 1000;
-      
-      debugPrint('📊 [CHART] Label "$label": $qualifiedLeadCount leads, ₹${totalRevenue.toStringAsFixed(0)} (${revenueInK.toStringAsFixed(1)}K)');
+
+      debugPrint(
+        '📊 [CHART] Label "$label": $qualifiedLeadCount leads, ₹${totalRevenue.toStringAsFixed(0)} (${revenueInK.toStringAsFixed(1)}K)',
+      );
 
       barGroups.add(
         BarChartGroupData(
@@ -6124,24 +6316,32 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   // Helper method to get month name
   String _getMonthName(int month) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return months[month - 1];
   }
 
   // Helper method to get day of week name
   String _getDayOfWeekName(int dayOfWeek) {
-    const days = [
-      'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'
-    ];
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     return days[dayOfWeek - 1];
   }
 
   // Helper method to get chart labels based on time period
   List<String> _getChartLabels() {
     final now = DateTime.now();
-    
+
     switch (_selectedTimePeriod.toLowerCase()) {
       case 'week':
         return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -6149,7 +6349,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         // Show only current month's weeks
         final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
         final totalWeeks = ((daysInMonth - 1) ~/ 7) + 1;
-        
+
         final labels = <String>[];
         for (int week = 1; week <= totalWeeks; week++) {
           labels.add('Week $week');
@@ -6182,7 +6382,20 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           return ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         }
       case 'annual':
-        return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return [
+          'Jan',
+          'Feb',
+          'Mar',
+          'Apr',
+          'May',
+          'Jun',
+          'Jul',
+          'Aug',
+          'Sep',
+          'Oct',
+          'Nov',
+          'Dec',
+        ];
       case 'two years':
         // Show quarters for current year and previous year
         final labels = <String>[];
@@ -6205,7 +6418,20 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         }
         return labels.reversed.toList(); // Show most recent first
       default:
-        return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return [
+          'Jan',
+          'Feb',
+          'Mar',
+          'Apr',
+          'May',
+          'Jun',
+          'Jul',
+          'Aug',
+          'Sep',
+          'Oct',
+          'Nov',
+          'Dec',
+        ];
     }
   }
 
@@ -6218,7 +6444,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     try {
       final client = Supabase.instance.client;
       final dateRange = _getDateRange(_selectedTimePeriod);
-      
+
       // Fetch data from admin_response table for all lead statuses
       final response = await client
           .from('admin_response')
@@ -6229,16 +6455,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
       // Process the data to count lead statuses
       await _processLeadStatusDistributionData(response);
-      
     } catch (e) {
       debugPrint('Error fetching lead status distribution data: $e');
       // Set default empty data on error
       setState(() {
-        _leadStatusDistribution = {
-          'Won': 0,
-          'Lost': 0,
-          'Loop': 0,
-        };
+        _leadStatusDistribution = {'Won': 0, 'Lost': 0, 'Loop': 0};
         _isLoadingLeadStatusData = false;
       });
     }
@@ -6246,11 +6467,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   // Process lead status distribution data
   Future<void> _processLeadStatusDistributionData(List<dynamic> data) async {
-    Map<String, int> statusCounts = {
-      'Won': 0,
-      'Lost': 0,
-      'Loop': 0,
-    };
+    Map<String, int> statusCounts = {'Won': 0, 'Lost': 0, 'Loop': 0};
 
     for (var record in data) {
       final status = record['update_lead_status'];
@@ -6265,13 +6482,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     });
   }
 
-
-
   // Build Syncfusion pie chart data
   List<ChartData> _buildSyncfusionPieChartData() {
-    final totalLeads = _leadStatusDistribution.values.fold(0, (sum, count) => sum + count);
+    final totalLeads = _leadStatusDistribution.values.fold(
+      0,
+      (sum, count) => sum + count,
+    );
     final chartData = <ChartData>[];
-    
+
     if (totalLeads == 0) {
       return chartData;
     }
@@ -6285,11 +6503,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     for (var entry in _leadStatusDistribution.entries) {
       if (entry.value > 0) {
         chartData.add(
-          ChartData(
-            entry.key,
-            entry.value.toDouble(),
-            colors[entry.key]!,
-          ),
+          ChartData(entry.key, entry.value.toDouble(), colors[entry.key]!),
         );
       }
     }
@@ -6309,11 +6523,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               // Header with Dashboard heading, search bar, notification and chat icons
               _buildHeader(),
               SizedBox(height: 24),
-              
+
               // Dashboard content
-              Expanded(
-                child: _buildDashboardContent(),
-              ),
+              Expanded(child: _buildDashboardContent()),
             ],
           ),
         ),
@@ -6325,7 +6537,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth <= 600;
-        
+
         if (isMobile) {
           // Mobile layout - only search and three dots
           return Column(
@@ -6372,7 +6584,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                   decoration: InputDecoration(
                                     hintText: 'Search...',
                                     border: InputBorder.none,
-                                    hintStyle: TextStyle(color: Colors.grey[400], fontSize: 12),
+                                    hintStyle: TextStyle(
+                                      color: Colors.grey[400],
+                                      fontSize: 12,
+                                    ),
                                   ),
                                   style: TextStyle(fontSize: 12),
                                 ),
@@ -6397,7 +6612,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                     _isSearchExpanded = true;
                                   });
                                 },
-                                icon: Icon(Icons.search, color: Colors.grey[600]),
+                                icon: Icon(
+                                  Icons.search,
+                                  color: Colors.grey[600],
+                                ),
                                 iconSize: 16,
                                 padding: EdgeInsets.zero,
                               ),
@@ -6504,21 +6722,17 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                             },
                             hasBadge: true,
                           ),
-                          _buildMobileMenuItem(
-                            Icons.chat,
-                            'Chat',
-                            () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Chat'),
-                                  duration: Duration(seconds: 2),
-                                ),
-                              );
-                              setState(() {
-                                _isMenuExpanded = false;
-                              });
-                            },
-                          ),
+                          _buildMobileMenuItem(Icons.chat, 'Chat', () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Chat'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                            setState(() {
+                              _isMenuExpanded = false;
+                            });
+                          }),
                         ],
                       ),
                     ),
@@ -6545,9 +6759,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   ),
                 ],
               ),
-              
+
               Expanded(child: SizedBox()), // Flexible space
-              
               // Right side actions - wrap in Flexible to prevent overflow
               Flexible(
                 child: Row(
@@ -6580,7 +6793,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                   decoration: InputDecoration(
                                     hintText: 'Search...',
                                     border: InputBorder.none,
-                                    hintStyle: TextStyle(color: Colors.grey[400]),
+                                    hintStyle: TextStyle(
+                                      color: Colors.grey[400],
+                                    ),
                                   ),
                                   style: TextStyle(fontSize: 14),
                                 ),
@@ -6604,7 +6819,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                     _isSearchExpanded = true;
                                   });
                                 },
-                                icon: Icon(Icons.search, color: Colors.grey[600]),
+                                icon: Icon(
+                                  Icons.search,
+                                  color: Colors.grey[600],
+                                ),
                                 iconSize: 20,
                               ),
                             ),
@@ -6612,9 +6830,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         ],
                       ),
                     ),
-                    
+
                     SizedBox(width: 12),
-                    
+
                     // Currency icon button
                     Container(
                       width: 48,
@@ -6647,9 +6865,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         iconSize: 20,
                       ),
                     ),
-                    
+
                     SizedBox(width: 12),
-                    
+
                     // Time period icon button
                     Container(
                       width: 48,
@@ -6679,9 +6897,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         iconSize: 20,
                       ),
                     ),
-                    
+
                     SizedBox(width: 12),
-                    
+
                     // Notification button icon
                     Container(
                       width: 48,
@@ -6710,7 +6928,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                   ),
                                 );
                               },
-                              icon: Icon(Icons.notifications, color: Colors.grey[600]),
+                              icon: Icon(
+                                Icons.notifications,
+                                color: Colors.grey[600],
+                              ),
                               iconSize: 20,
                             ),
                           ),
@@ -6730,9 +6951,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         ],
                       ),
                     ),
-                    
+
                     SizedBox(width: 12),
-                    
+
                     // Chat button icon
                     Container(
                       width: 48,
@@ -6776,7 +6997,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWide = constraints.maxWidth > 900;
-        
+
         if (isWide) {
           // Desktop layout - horizontal row
           return SingleChildScrollView(
@@ -6785,66 +7006,62 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 // Time Period Filter and Action Buttons
                 _buildTimePeriodFilter(),
                 SizedBox(height: 24),
-                _isLoading 
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                _isLoading
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(),
+                            SizedBox(height: 16),
+                            Text(
+                              'Loading dashboard data...',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : Row(
                         children: [
-                          CircularProgressIndicator(),
-                          SizedBox(height: 16),
-                          Text(
-                            'Loading dashboard data...',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 14,
+                          Expanded(
+                            child: _buildDashboardCard(
+                              'Total Revenue',
+                              _dashboardData['totalRevenue']['value'],
+                              _dashboardData['totalRevenue']['percentage'],
+                              Icons.attach_money,
+                              Colors.blue,
+                            ),
+                          ),
+                          SizedBox(width: 16),
+                          Expanded(
+                            child: _buildDashboardCard(
+                              'Aluminum Area',
+                              _dashboardData['aluminiumArea']['value'],
+                              _dashboardData['aluminiumArea']['percentage'],
+                              Icons.grid_on,
+                              Colors.purple,
+                            ),
+                          ),
+                          SizedBox(width: 16),
+                          Expanded(
+                            child: _buildDashboardCard(
+                              'Qualified Leads',
+                              _dashboardData['qualifiedLeads']['value'],
+                              _dashboardData['qualifiedLeads']['percentage'],
+                              Icons.people,
+                              Colors.orange,
                             ),
                           ),
                         ],
                       ),
-                    )
-                  : Row(
-                      children: [
-                        Expanded(
-                          child: _buildDashboardCard(
-                            'Total Revenue',
-                            _dashboardData['totalRevenue']['value'],
-                            _dashboardData['totalRevenue']['percentage'],
-                            Icons.attach_money,
-                            Colors.blue,
-                          ),
-                        ),
-                        SizedBox(width: 16),
-                        Expanded(
-                          child: _buildDashboardCard(
-                            'Aluminum Area',
-                            _dashboardData['aluminiumArea']['value'],
-                            _dashboardData['aluminiumArea']['percentage'],
-                            Icons.grid_on,
-                            Colors.purple,
-                          ),
-                        ),
-                        SizedBox(width: 16),
-                        Expanded(
-                          child: _buildDashboardCard(
-                            'Qualified Leads',
-                            _dashboardData['qualifiedLeads']['value'],
-                            _dashboardData['qualifiedLeads']['percentage'],
-                            Icons.people,
-                            Colors.orange,
-                          ),
-                        ),
-                      ],
-                    ),
                 SizedBox(height: 24),
                 Row(
                   children: [
-                    Expanded(
-                      child: _buildQualifiedAreaVsRevenueChart(),
-                    ),
+                    Expanded(child: _buildQualifiedAreaVsRevenueChart()),
                     SizedBox(width: 16),
-                    Expanded(
-                      child: _buildLeadStatusDistributionChart(),
-                    ),
+                    Expanded(child: _buildLeadStatusDistributionChart()),
                   ],
                 ),
                 SizedBox(height: 24),
@@ -6854,67 +7071,67 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           );
         } else {
           // Mobile and tablet layout - custom layout
-          
+
           return SingleChildScrollView(
             child: Column(
               children: [
                 // Mobile Time Period Filter
                 _buildMobileTimePeriodFilter(),
                 SizedBox(height: 16),
-                _isLoading 
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CircularProgressIndicator(),
-                          SizedBox(height: 16),
-                          Text(
-                            'Loading dashboard data...',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : Column(
-                      children: [
-                        // First row with Qualified Leads and Aluminum Area
-                        Row(
+                _isLoading
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Expanded(
-                              child: _buildDashboardCard(
-                                'Qualified Leads',
-                                _dashboardData['qualifiedLeads']['value'],
-                                _dashboardData['qualifiedLeads']['percentage'],
-                                Icons.people,
-                                Colors.orange,
-                              ),
-                            ),
-                            SizedBox(width: 12),
-                            Expanded(
-                              child: _buildDashboardCard(
-                                'Aluminum Area',
-                                _dashboardData['aluminiumArea']['value'],
-                                _dashboardData['aluminiumArea']['percentage'],
-                                Icons.grid_on,
-                                Colors.purple,
+                            CircularProgressIndicator(),
+                            SizedBox(height: 16),
+                            Text(
+                              'Loading dashboard data...',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 14,
                               ),
                             ),
                           ],
                         ),
-                        SizedBox(height: 12),
-                        // Second row with Total Revenue taking full width
-                        _buildDashboardCard(
-                          'Total Revenue',
-                          _dashboardData['totalRevenue']['value'],
-                          _dashboardData['totalRevenue']['percentage'],
-                          Icons.attach_money,
-                          Colors.blue,
-                        ),
-                      ],
-                    ),
+                      )
+                    : Column(
+                        children: [
+                          // First row with Qualified Leads and Aluminum Area
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildDashboardCard(
+                                  'Qualified Leads',
+                                  _dashboardData['qualifiedLeads']['value'],
+                                  _dashboardData['qualifiedLeads']['percentage'],
+                                  Icons.people,
+                                  Colors.orange,
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                              Expanded(
+                                child: _buildDashboardCard(
+                                  'Aluminum Area',
+                                  _dashboardData['aluminiumArea']['value'],
+                                  _dashboardData['aluminiumArea']['percentage'],
+                                  Icons.grid_on,
+                                  Colors.purple,
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 12),
+                          // Second row with Total Revenue taking full width
+                          _buildDashboardCard(
+                            'Total Revenue',
+                            _dashboardData['totalRevenue']['value'],
+                            _dashboardData['totalRevenue']['percentage'],
+                            Icons.attach_money,
+                            Colors.blue,
+                          ),
+                        ],
+                      ),
                 SizedBox(height: 24),
                 _buildQualifiedAreaVsRevenueChart(),
                 SizedBox(height: 16),
@@ -6929,439 +7146,461 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     );
   }
 
-   Widget _buildLeadStatusDistributionChart() {
-     return Container(
-       height: 300,
-       padding: EdgeInsets.all(16),
-       decoration: BoxDecoration(
-         color: Colors.white,
-         borderRadius: BorderRadius.circular(12),
-         boxShadow: [
-           BoxShadow(
-             color: Colors.black.withValues(alpha: 0.1),
-             blurRadius: 4,
-             offset: Offset(0, 2),
-           ),
-         ],
-       ),
-       child: Column(
-         crossAxisAlignment: CrossAxisAlignment.start,
-         children: [
-           Row(
-             children: [
-               Icon(Icons.pie_chart, color: Colors.grey[800], size: 20),
-               SizedBox(width: 8),
-               Text(
-                 'Lead Status Distribution',
-                 style: TextStyle(
-                   fontSize: 16,
-                   fontWeight: FontWeight.bold,
-                   color: Colors.grey[800],
-                 ),
-               ),
-             ],
-           ),
-           SizedBox(height: 16),
-           Expanded(
-             child: _isLoadingLeadStatusData
-                 ? Center(
-                     child: Column(
-                       mainAxisAlignment: MainAxisAlignment.center,
-                       children: [
-                         CircularProgressIndicator(),
-                         SizedBox(height: 16),
-                         Text(
-                           'Loading distribution data...',
-                           style: TextStyle(
-                             color: Colors.grey[600],
-                             fontSize: 14,
-                           ),
-                         ),
-                       ],
-                     ),
-                   )
-                 : _leadStatusDistribution.values.every((count) => count == 0)
-                     ? Center(
-                         child: Column(
-                           mainAxisAlignment: MainAxisAlignment.center,
-                           children: [
-                             Icon(
-                               Icons.pie_chart,
-                               size: 48,
-                               color: Colors.grey[400],
-                             ),
-                             SizedBox(height: 16),
-                             Text(
-                               'No data available',
-                               style: TextStyle(
-                                 color: Colors.grey[600],
-                                 fontSize: 16,
-                                 fontWeight: FontWeight.w500,
-                               ),
-                             ),
-                             SizedBox(height: 8),
-                             Text(
-                               'No leads found for the selected period',
-                               style: TextStyle(
-                                 color: Colors.grey[500],
-                                 fontSize: 14,
-                               ),
-                             ),
-                           ],
-                         ),
-                       )
-                     : Row(
-                         children: [
-                           // Left side legend with percentage and count
-                           Expanded(
-                             flex: 1,
-                             child: _buildLegendWithPercentage(),
-                           ),
-                           SizedBox(width: 16),
-                           // Right side pie chart
-                           Expanded(
-                             flex: 2,
-                             child: SizedBox(
-                               height: 200.0,
-                               child: SfCircularChart(
-                                 legend: Legend(isVisible: false),
-                                 series: <CircularSeries>[
-                                   PieSeries<ChartData, String>(
-                                     dataSource: _buildSyncfusionPieChartData(),
-                                     pointColorMapper: (ChartData data, _) => data.color,
-                                     xValueMapper: (ChartData data, _) => data.x,
-                                     yValueMapper: (ChartData data, _) => data.y,
-                                     dataLabelSettings: DataLabelSettings(
-                                       isVisible: false,
-                                     ),
-                                   ),
-                                 ],
-                               ),
-                             ),
-                           ),
-                         ],
-                       ),
-                     ),
-         ],
-       ),
-     );
-   }
+  Widget _buildLeadStatusDistributionChart() {
+    return Container(
+      height: 300,
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.pie_chart, color: Colors.grey[800], size: 20),
+              SizedBox(width: 8),
+              Text(
+                'Lead Status Distribution',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          Expanded(
+            child: _isLoadingLeadStatusData
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text(
+                          'Loading distribution data...',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : _leadStatusDistribution.values.every((count) => count == 0)
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.pie_chart,
+                          size: 48,
+                          color: Colors.grey[400],
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'No data available',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'No leads found for the selected period',
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : Row(
+                    children: [
+                      // Left side legend with percentage and count
+                      Expanded(flex: 1, child: _buildLegendWithPercentage()),
+                      SizedBox(width: 16),
+                      // Right side pie chart
+                      Expanded(
+                        flex: 2,
+                        child: SizedBox(
+                          height: 200.0,
+                          child: SfCircularChart(
+                            legend: Legend(isVisible: false),
+                            series: <CircularSeries>[
+                              PieSeries<ChartData, String>(
+                                dataSource: _buildSyncfusionPieChartData(),
+                                pointColorMapper: (ChartData data, _) =>
+                                    data.color,
+                                xValueMapper: (ChartData data, _) => data.x,
+                                yValueMapper: (ChartData data, _) => data.y,
+                                dataLabelSettings: DataLabelSettings(
+                                  isVisible: false,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
 
-   Widget _buildLegendWithPercentage() {
-     final totalLeads = _leadStatusDistribution.values.fold(0, (sum, count) => sum + count);
-     final colors = {
-       'Won': Colors.green,
-       'Lost': Colors.red,
-       'Loop': Colors.orange,
-     };
+  Widget _buildLegendWithPercentage() {
+    final totalLeads = _leadStatusDistribution.values.fold(
+      0,
+      (sum, count) => sum + count,
+    );
+    final colors = {
+      'Won': Colors.green,
+      'Lost': Colors.red,
+      'Loop': Colors.orange,
+    };
 
-     return Column(
-       crossAxisAlignment: CrossAxisAlignment.start,
-       children: [
-         ..._leadStatusDistribution.entries.map((entry) {
-           if (entry.value == 0) return SizedBox.shrink();
-           
-           final percentage = totalLeads > 0 ? (entry.value / totalLeads * 100).toStringAsFixed(1) : '0.0';
-           final color = colors[entry.key] ?? Colors.grey;
-           
-           return Padding(
-             padding: EdgeInsets.only(bottom: 12),
-             child: Row(
-               children: [
-                 Container(
-                   width: 12,
-                   height: 12,
-                   decoration: BoxDecoration(
-                     color: color,
-                     shape: BoxShape.circle,
-                   ),
-                 ),
-                 SizedBox(width: 8),
-                 Expanded(
-                   child: Column(
-                     crossAxisAlignment: CrossAxisAlignment.start,
-                     children: [
-                       Text(
-                         entry.key,
-                         style: TextStyle(
-                           fontSize: 14,
-                           fontWeight: FontWeight.w600,
-                           color: Colors.grey[800],
-                         ),
-                       ),
-                       SizedBox(height: 2),
-                       Text(
-                         '$entry.value leads ($percentage%)',
-                         style: TextStyle(
-                           fontSize: 12,
-                           color: Colors.grey[600],
-                         ),
-                       ),
-                     ],
-                   ),
-                 ),
-               ],
-             ),
-           );
-         }),
-       ],
-     );
-   }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ..._leadStatusDistribution.entries.map((entry) {
+          if (entry.value == 0) return SizedBox.shrink();
 
-   Widget _buildMobileTimePeriodFilter() {
-     final timePeriods = ['Week', 'Month', 'Quarter', 'Semester', 'Annual', 'Two Years', 'Three Years', 'Five Years'];
-     
-     return Column(
-       crossAxisAlignment: CrossAxisAlignment.start,
-       children: [
-         // Time Period Label
-         Padding(
-           padding: EdgeInsets.only(left: 8, bottom: 8),
-           child: Text(
-             'Time Period:',
-             style: TextStyle(
-               fontSize: 14,
-               fontWeight: FontWeight.w600,
-               color: Colors.grey[800],
-             ),
-           ),
-         ),
-         // Time Period Buttons - Horizontal Scroll
-         SingleChildScrollView(
-           scrollDirection: Axis.horizontal,
-           padding: EdgeInsets.symmetric(horizontal: 8),
-           child: Row(
-             children: timePeriods.map((period) {
-               final isSelected = _selectedTimePeriod == period;
-               return Padding(
-                 padding: EdgeInsets.only(right: 8),
-                 child: InkWell(
-                   onTap: () {
-                     _onTimePeriodChanged(period);
-                   },
-                   child: Container(
-                     padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                     decoration: BoxDecoration(
-                       color: isSelected ? Colors.blue[100] : Colors.transparent,
-                       borderRadius: BorderRadius.circular(16),
-                       border: Border.all(
-                         color: isSelected ? Colors.blue : Colors.grey[300]!,
-                         width: 1,
-                       ),
-                     ),
-                     child: Text(
-                       period,
-                       style: TextStyle(
-                         fontSize: 11,
-                         fontWeight: FontWeight.w500,
-                         color: isSelected ? Colors.blue[700] : Colors.grey[600],
-                       ),
-                     ),
-                   ),
-                 ),
-               );
-             }).toList(),
-           ),
-         ),
-         SizedBox(height: 12),
-         // Action Buttons Row
-         Padding(
-           padding: EdgeInsets.symmetric(horizontal: 8),
-           child: Row(
-             children: [
-               Expanded(
-                 child: ElevatedButton(
-                   onPressed: () {
-                     ScaffoldMessenger.of(context).showSnackBar(
-                       SnackBar(
-                         content: Text('Exporting data...'),
-                         duration: Duration(seconds: 2),
-                       ),
-                     );
-                   },
-                   style: ElevatedButton.styleFrom(
-                     backgroundColor: Colors.blue,
-                     foregroundColor: Colors.white,
-                     padding: EdgeInsets.symmetric(vertical: 8),
-                     shape: RoundedRectangleBorder(
-                       borderRadius: BorderRadius.circular(8),
-                     ),
-                   ),
-                   child: Text(
-                     'Export',
-                     style: TextStyle(
-                       fontSize: 12,
-                       fontWeight: FontWeight.w600,
-                     ),
-                   ),
-                 ),
-               ),
-               SizedBox(width: 8),
-               Expanded(
-                 child: OutlinedButton(
-                   onPressed: () {
-                     ScaffoldMessenger.of(context).showSnackBar(
-                       SnackBar(
-                         content: Text('Opening more filters...'),
-                         duration: Duration(seconds: 2),
-                       ),
-                     );
-                   },
-                   style: OutlinedButton.styleFrom(
-                     foregroundColor: Colors.grey[700],
-                     side: BorderSide(color: Colors.grey[300]!),
-                     padding: EdgeInsets.symmetric(vertical: 8),
-                     shape: RoundedRectangleBorder(
-                       borderRadius: BorderRadius.circular(8),
-                     ),
-                   ),
-                   child: Row(
-                     mainAxisAlignment: MainAxisAlignment.center,
-                     children: [
-                       Icon(Icons.filter_list, size: 14),
-                       SizedBox(width: 4),
-                       Text(
-                         'More Filters',
-                         style: TextStyle(
-                           fontSize: 12,
-                           fontWeight: FontWeight.w600,
-                         ),
-                       ),
-                     ],
-                   ),
-                 ),
-               ),
-             ],
-           ),
-         ),
-       ],
-     );
-   }
+          final percentage = totalLeads > 0
+              ? (entry.value / totalLeads * 100).toStringAsFixed(1)
+              : '0.0';
+          final color = colors[entry.key] ?? Colors.grey;
 
-   Widget _buildTimePeriodFilter() {
-     final timePeriods = ['Week', 'Month', 'Quarter', 'Semester', 'Annual', 'Two Years', 'Three Years', 'Five Years'];
-     
-     return Row(
-       children: [
-         // Time Period Label
-         Text(
-           'Time Period:',
-           style: TextStyle(
-             fontSize: 14,
-             fontWeight: FontWeight.w600,
-             color: Colors.grey[800],
-           ),
-         ),
-         SizedBox(width: 16),
-         // Time Period Buttons
-         Expanded(
-           child: SingleChildScrollView(
-             scrollDirection: Axis.horizontal,
-             child: Row(
-               children: timePeriods.map((period) {
-                 final isSelected = _selectedTimePeriod == period;
-                 return Padding(
-                   padding: EdgeInsets.only(right: 8),
-                   child: InkWell(
-                     onTap: () {
-                       _onTimePeriodChanged(period);
-                     },
-                     child: Container(
-                       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                       decoration: BoxDecoration(
-                         color: isSelected ? Colors.blue[100] : Colors.transparent,
-                         borderRadius: BorderRadius.circular(20),
-                         border: Border.all(
-                           color: isSelected ? Colors.blue : Colors.grey[300]!,
-                           width: 1,
-                         ),
-                       ),
-                       child: Text(
-                         period,
-                         style: TextStyle(
-                           fontSize: 12,
-                           fontWeight: FontWeight.w500,
-                           color: isSelected ? Colors.blue[700] : Colors.grey[600],
-                         ),
-                       ),
-                     ),
-                   ),
-                 );
-               }).toList(),
-             ),
-           ),
-         ),
-         SizedBox(width: 16),
-         // Export Button
-         ElevatedButton(
-           onPressed: () {
-             // Handle export functionality
-             ScaffoldMessenger.of(context).showSnackBar(
-               SnackBar(
-                 content: Text('Exporting data...'),
-                 duration: Duration(seconds: 2),
-               ),
-             );
-           },
-           style: ElevatedButton.styleFrom(
-             backgroundColor: Colors.blue,
-             foregroundColor: Colors.white,
-             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-             shape: RoundedRectangleBorder(
-               borderRadius: BorderRadius.circular(8),
-             ),
-           ),
-           child: Text(
-             'Export',
-             style: TextStyle(
-               fontSize: 12,
-               fontWeight: FontWeight.w600,
-             ),
-           ),
-         ),
-         SizedBox(width: 8),
-         // More Filters Button
-         OutlinedButton(
-           onPressed: () {
-             // Handle more filters functionality
-             ScaffoldMessenger.of(context).showSnackBar(
-               SnackBar(
-                 content: Text('Opening more filters...'),
-                 duration: Duration(seconds: 2),
-               ),
-             );
-           },
-           style: OutlinedButton.styleFrom(
-             foregroundColor: Colors.grey[700],
-             side: BorderSide(color: Colors.grey[300]!),
-             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-             shape: RoundedRectangleBorder(
-               borderRadius: BorderRadius.circular(8),
-             ),
-           ),
-           child: Row(
-             mainAxisSize: MainAxisSize.min,
-             children: [
-               Icon(Icons.filter_list, size: 16),
-               SizedBox(width: 4),
-               Text(
-                 'More Filters',
-                 style: TextStyle(
-                   fontSize: 12,
-                   fontWeight: FontWeight.w600,
-                 ),
-               ),
-             ],
-           ),
-         ),
-       ],
-     );
-   }
+          return Padding(
+            padding: EdgeInsets.only(bottom: 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        entry.key,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        '$entry.value leads ($percentage%)',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
 
-  Widget _buildDashboardCard(String title, String value, String percentage, IconData icon, Color color) {
+  Widget _buildMobileTimePeriodFilter() {
+    final timePeriods = [
+      'Week',
+      'Month',
+      'Quarter',
+      'Semester',
+      'Annual',
+      'Two Years',
+      'Three Years',
+      'Five Years',
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Time Period Label
+        Padding(
+          padding: EdgeInsets.only(left: 8, bottom: 8),
+          child: Text(
+            'Time Period:',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[800],
+            ),
+          ),
+        ),
+        // Time Period Buttons - Horizontal Scroll
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            children: timePeriods.map((period) {
+              final isSelected = _selectedTimePeriod == period;
+              return Padding(
+                padding: EdgeInsets.only(right: 8),
+                child: InkWell(
+                  onTap: () {
+                    _onTimePeriodChanged(period);
+                  },
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isSelected ? Colors.blue[100] : Colors.transparent,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isSelected ? Colors.blue : Colors.grey[300]!,
+                        width: 1,
+                      ),
+                    ),
+                    child: Text(
+                      period,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: isSelected ? Colors.blue[700] : Colors.grey[600],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        SizedBox(height: 12),
+        // Action Buttons Row
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Exporting data...'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Text(
+                    'Export',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+              SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Opening more filters...'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.grey[700],
+                    side: BorderSide(color: Colors.grey[300]!),
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.filter_list, size: 14),
+                      SizedBox(width: 4),
+                      Text(
+                        'More Filters',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTimePeriodFilter() {
+    final timePeriods = [
+      'Week',
+      'Month',
+      'Quarter',
+      'Semester',
+      'Annual',
+      'Two Years',
+      'Three Years',
+      'Five Years',
+    ];
+
+    return Row(
+      children: [
+        // Time Period Label
+        Text(
+          'Time Period:',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey[800],
+          ),
+        ),
+        SizedBox(width: 16),
+        // Time Period Buttons
+        Expanded(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: timePeriods.map((period) {
+                final isSelected = _selectedTimePeriod == period;
+                return Padding(
+                  padding: EdgeInsets.only(right: 8),
+                  child: InkWell(
+                    onTap: () {
+                      _onTimePeriodChanged(period);
+                    },
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? Colors.blue[100]
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isSelected ? Colors.blue : Colors.grey[300]!,
+                          width: 1,
+                        ),
+                      ),
+                      child: Text(
+                        period,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: isSelected
+                              ? Colors.blue[700]
+                              : Colors.grey[600],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+        SizedBox(width: 16),
+        // Export Button
+        ElevatedButton(
+          onPressed: () {
+            // Handle export functionality
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Exporting data...'),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue,
+            foregroundColor: Colors.white,
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          child: Text(
+            'Export',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ),
+        SizedBox(width: 8),
+        // More Filters Button
+        OutlinedButton(
+          onPressed: () {
+            // Handle more filters functionality
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Opening more filters...'),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          },
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.grey[700],
+            side: BorderSide(color: Colors.grey[300]!),
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.filter_list, size: 16),
+              SizedBox(width: 4),
+              Text(
+                'More Filters',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDashboardCard(
+    String title,
+    String value,
+    String percentage,
+    IconData icon,
+    Color color,
+  ) {
     final isPositive = percentage.startsWith('+');
     final percentageColor = isPositive ? Colors.green : Colors.red;
-    
+
     return InkWell(
       onTap: () {
         // Handle filter tap
@@ -7454,10 +7693,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             // Footer: "From previous period" centered
             Text(
               'From previous period',
-              style: TextStyle(
-                fontSize: 9,
-                color: Colors.grey[500],
-              ),
+              style: TextStyle(fontSize: 9, color: Colors.grey[500]),
               textAlign: TextAlign.center,
             ),
           ],
@@ -7466,7 +7702,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     );
   }
 
-  Widget _buildMobileMenuItem(IconData icon, String label, VoidCallback onTap, {bool hasBadge = false}) {
+  Widget _buildMobileMenuItem(
+    IconData icon,
+    String label,
+    VoidCallback onTap, {
+    bool hasBadge = false,
+  }) {
     return InkWell(
       onTap: onTap,
       child: Container(
@@ -7558,133 +7799,142 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                     ),
                   )
                 : _barChartData.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.bar_chart_outlined,
-                              size: 48,
-                              color: Colors.grey[400],
-                            ),
-                            SizedBox(height: 16),
-                            Text(
-                              'No chart data available',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              'No won leads found for the selected period',
-                              style: TextStyle(
-                                color: Colors.grey[500],
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.bar_chart_outlined,
+                          size: 48,
+                          color: Colors.grey[400],
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'No chart data available',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'No won leads found for the selected period',
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : BarChart(
+                    BarChartData(
+                      alignment: BarChartAlignment.spaceAround,
+                      maxY: _getMaxYValue(),
+                      minY: 0,
+                      barTouchData: BarTouchData(
+                        enabled: true,
+                        touchTooltipData: BarTouchTooltipData(
+                          getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                            final labels = _getChartLabels();
+                            final label = group.x.toInt() < labels.length
+                                ? labels[group.x.toInt()]
+                                : '';
+                            final value = rod.toY.toStringAsFixed(1);
+                            final seriesName = rodIndex == 0
+                                ? 'Qualified Leads'
+                                : 'Revenue (K)';
+
+                            return BarTooltipItem(
+                              '$label\n',
+                              const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
                                 fontSize: 14,
                               ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : BarChart(
-                        BarChartData(
-                          alignment: BarChartAlignment.spaceAround,
-                          maxY: _getMaxYValue(),
-                          minY: 0,
-                          barTouchData: BarTouchData(
-                            enabled: true,
-                            touchTooltipData: BarTouchTooltipData(
-                              getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                                final labels = _getChartLabels();
-                                final label = group.x.toInt() < labels.length ? labels[group.x.toInt()] : '';
-                                final value = rod.toY.toStringAsFixed(1);
-                                final seriesName = rodIndex == 0 ? 'Qualified Leads' : 'Revenue (K)';
-                                
-                                return BarTooltipItem(
-                                  '$label\n',
-                                  const TextStyle(
+                              children: <TextSpan>[
+                                TextSpan(
+                                  text: '$seriesName: $value',
+                                  style: const TextStyle(
                                     color: Colors.white,
-                                    fontWeight: FontWeight.bold,
                                     fontSize: 14,
+                                    fontWeight: FontWeight.w500,
                                   ),
-                                  children: <TextSpan>[
-                                    TextSpan(
-                                      text: '$seriesName: $value',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              },
-                            ),
-                          ),
-                          titlesData: FlTitlesData(
-                            show: true,
-                            rightTitles: AxisTitles(
-                              sideTitles: SideTitles(showTitles: false),
-                            ),
-                            topTitles: AxisTitles(
-                              sideTitles: SideTitles(showTitles: false),
-                            ),
-                            bottomTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                reservedSize: 40,
-                                getTitlesWidget: (double value, TitleMeta meta) {
-                                  const style = TextStyle(
-                                    color: Color(0xff7589a2),
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                  );
-                                  final labels = _getChartLabels();
-                                  if (value.toInt() < labels.length) {
-                                    final label = labels[value.toInt()];
-                                    // Truncate long labels to prevent overflow
-                                    final displayLabel = label.length > 8 ? '${label.substring(0, 8)}...' : label;
-                                    return Text(displayLabel, style: style);
-                                  }
-                                  return const Text('', style: style);
-                                },
-                              ),
-                            ),
-                            leftTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                interval: _getYAxisInterval(),
-                                getTitlesWidget: (double value, TitleMeta meta) {
-                                  const style = TextStyle(
-                                    color: Color(0xff67727d),
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 10,
-                                  );
-                                  return Text(_formatYAxisLabel(value), style: style);
-                                },
-                                reservedSize: 50,
-                              ),
-                            ),
-                          ),
-                          gridData: FlGridData(
-                            show: true,
-                            horizontalInterval: _getGridInterval(),
-                            getDrawingHorizontalLine: (value) {
-                              return FlLine(
-                                color: Colors.grey[300]!,
-                                strokeWidth: 1,
-                                dashArray: [5, 5],
-                              );
-                            },
-                          ),
-                          borderData: FlBorderData(
-                            show: true,
-                            border: Border.all(color: Colors.grey[300]!, width: 1),
-                          ),
-                          barGroups: _buildBarGroups(),
+                                ),
+                              ],
+                            );
+                          },
                         ),
                       ),
+                      titlesData: FlTitlesData(
+                        show: true,
+                        rightTitles: AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        topTitles: AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 40,
+                            getTitlesWidget: (double value, TitleMeta meta) {
+                              const style = TextStyle(
+                                color: Color(0xff7589a2),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              );
+                              final labels = _getChartLabels();
+                              if (value.toInt() < labels.length) {
+                                final label = labels[value.toInt()];
+                                // Truncate long labels to prevent overflow
+                                final displayLabel = label.length > 8
+                                    ? '${label.substring(0, 8)}...'
+                                    : label;
+                                return Text(displayLabel, style: style);
+                              }
+                              return const Text('', style: style);
+                            },
+                          ),
+                        ),
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            interval: _getYAxisInterval(),
+                            getTitlesWidget: (double value, TitleMeta meta) {
+                              const style = TextStyle(
+                                color: Color(0xff67727d),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 10,
+                              );
+                              return Text(
+                                _formatYAxisLabel(value),
+                                style: style,
+                              );
+                            },
+                            reservedSize: 50,
+                          ),
+                        ),
+                      ),
+                      gridData: FlGridData(
+                        show: true,
+                        horizontalInterval: _getGridInterval(),
+                        getDrawingHorizontalLine: (value) {
+                          return FlLine(
+                            color: Colors.grey[300]!,
+                            strokeWidth: 1,
+                            dashArray: [5, 5],
+                          );
+                        },
+                      ),
+                      borderData: FlBorderData(
+                        show: true,
+                        border: Border.all(color: Colors.grey[300]!, width: 1),
+                      ),
+                      barGroups: _buildBarGroups(),
+                    ),
+                  ),
           ),
           SizedBox(height: 16),
           Row(
@@ -7701,10 +7951,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               SizedBox(width: 8),
               Text(
                 'Qualified Leads',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[700],
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[700]),
               ),
               SizedBox(width: 24),
               Container(
@@ -7718,10 +7965,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               SizedBox(width: 8),
               Text(
                 'Revenue (K)',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[700],
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[700]),
               ),
             ],
           ),
@@ -7733,7 +7977,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   // Helper method to get max Y value for bar chart
   double _getMaxYValue() {
     if (_barChartData.isEmpty) return 10.0;
-    
+
     double maxValue = 0.0;
     for (var group in _barChartData) {
       for (var bar in group.barRods) {
@@ -7798,7 +8042,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           LayoutBuilder(
             builder: (context, constraints) {
               final isMobile = constraints.maxWidth < 600;
-              
+
               if (isMobile) {
                 // Mobile layout - stacked vertically
                 return Column(
@@ -7825,10 +8069,16 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         onChanged: _filterLeadData,
                         decoration: InputDecoration(
                           hintText: 'Search leads...',
-                          prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
+                          prefixIcon: Icon(
+                            Icons.search,
+                            color: Colors.grey[600],
+                          ),
                           suffixIcon: _leadSearchController.text.isNotEmpty
                               ? IconButton(
-                                  icon: Icon(Icons.clear, color: Colors.grey[600]),
+                                  icon: Icon(
+                                    Icons.clear,
+                                    color: Colors.grey[600],
+                                  ),
                                   onPressed: () {
                                     _leadSearchController.clear();
                                     _filterLeadData('');
@@ -7836,7 +8086,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                 )
                               : null,
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                         ),
                       ),
                     ),
@@ -7859,10 +8112,16 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                           onChanged: _filterLeadData,
                           decoration: InputDecoration(
                             hintText: 'Search leads...',
-                            prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
+                            prefixIcon: Icon(
+                              Icons.search,
+                              color: Colors.grey[600],
+                            ),
                             suffixIcon: _leadSearchController.text.isNotEmpty
                                 ? IconButton(
-                                    icon: Icon(Icons.clear, color: Colors.grey[600]),
+                                    icon: Icon(
+                                      Icons.clear,
+                                      color: Colors.grey[600],
+                                    ),
                                     onPressed: () {
                                       _leadSearchController.clear();
                                       _filterLeadData('');
@@ -7870,7 +8129,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                   )
                                 : null,
                             border: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
                           ),
                         ),
                       ),
@@ -7891,14 +8153,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             },
           ),
           SizedBox(height: 16),
-          
+
           // Tabs
           _buildLeadTabs(),
           SizedBox(height: 16),
-          
+
           // Table
           _buildLeadTable(),
-          
+
           // Pagination
           SizedBox(height: 16),
           _buildPagination(),
@@ -7956,10 +8218,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             SizedBox(height: 16),
             Text(
               'Loading lead data...',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 14,
-              ),
+              style: TextStyle(color: Colors.grey[600], fontSize: 14),
             ),
           ],
         ),
@@ -7972,13 +8231,15 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              _leadSearchController.text.isNotEmpty ? Icons.search_off : Icons.inbox_outlined,
+              _leadSearchController.text.isNotEmpty
+                  ? Icons.search_off
+                  : Icons.inbox_outlined,
               size: 48,
               color: Colors.grey[400],
             ),
             SizedBox(height: 16),
             Text(
-              _leadSearchController.text.isNotEmpty 
+              _leadSearchController.text.isNotEmpty
                   ? 'No search results found'
                   : 'No ${_activeLeadTab.toLowerCase()} leads found',
               style: TextStyle(
@@ -7992,10 +8253,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               _leadSearchController.text.isNotEmpty
                   ? 'Try adjusting your search terms'
                   : 'Try selecting a different tab or check back later',
-              style: TextStyle(
-                color: Colors.grey[500],
-                fontSize: 14,
-              ),
+              style: TextStyle(color: Colors.grey[500], fontSize: 14),
             ),
           ],
         ),
@@ -8007,8 +8265,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         // For Windows screens, always use the desktop table layout
         // Mobile layout only for very small screens
         final isMobile = constraints.maxWidth < 400;
-        final isTablet = constraints.maxWidth >= 400 && constraints.maxWidth < 800;
-        
+        final isTablet =
+            constraints.maxWidth >= 400 && constraints.maxWidth < 800;
+
         if (isMobile) {
           return _buildMobileLeadTable();
         } else if (isTablet) {
@@ -8038,11 +8297,21 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 Row(
                   children: [
                     Expanded(
-                      child: _buildMobileInfoItem('Project ID', lead['project_id'] ?? 'N/A', Colors.grey[100]!),
+                      child: _buildMobileInfoItem(
+                        'Project ID',
+                        lead['project_id'] ?? 'N/A',
+                        Colors.grey[100]!,
+                      ),
                     ),
                     SizedBox(width: 8),
                     Expanded(
-                      child: _buildMobileInfoItem('Status', lead['update_lead_status'] ?? 'N/A', _getStatusColor(lead['update_lead_status'] ?? '').withValues(alpha: 0.1)),
+                      child: _buildMobileInfoItem(
+                        'Status',
+                        lead['update_lead_status'] ?? 'N/A',
+                        _getStatusColor(
+                          lead['update_lead_status'] ?? '',
+                        ).withValues(alpha: 0.1),
+                      ),
                     ),
                   ],
                 ),
@@ -8051,11 +8320,19 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 Row(
                   children: [
                     Expanded(
-                      child: _buildMobileInfoItem('Project', lead['project_name'] ?? 'N/A', Colors.blue[50]!),
+                      child: _buildMobileInfoItem(
+                        'Project',
+                        lead['project_name'] ?? 'N/A',
+                        Colors.blue[50]!,
+                      ),
                     ),
                     SizedBox(width: 8),
                     Expanded(
-                      child: _buildMobileInfoItem('Sales User', lead['sales_user'] ?? 'N/A', Colors.indigo[50]!),
+                      child: _buildMobileInfoItem(
+                        'Sales User',
+                        lead['sales_user'] ?? 'N/A',
+                        Colors.indigo[50]!,
+                      ),
                     ),
                   ],
                 ),
@@ -8064,11 +8341,19 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 Row(
                   children: [
                     Expanded(
-                      child: _buildMobileInfoItem('Client', lead['client_name'] ?? 'N/A', Colors.white),
+                      child: _buildMobileInfoItem(
+                        'Client',
+                        lead['client_name'] ?? 'N/A',
+                        Colors.white,
+                      ),
                     ),
                     SizedBox(width: 8),
                     Expanded(
-                      child: _buildMobileInfoItem('Location', lead['location'] ?? 'N/A', Colors.white),
+                      child: _buildMobileInfoItem(
+                        'Location',
+                        lead['location'] ?? 'N/A',
+                        Colors.white,
+                      ),
                     ),
                   ],
                 ),
@@ -8077,11 +8362,23 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 Row(
                   children: [
                     Expanded(
-                      child: _buildMobileInfoItem('Area', lead['aluminium_area'] != null ? '${lead['aluminium_area'].toString()} m²' : 'N/A', Colors.green[50]!),
+                      child: _buildMobileInfoItem(
+                        'Area',
+                        lead['aluminium_area'] != null
+                            ? '${lead['aluminium_area'].toString()} m²'
+                            : 'N/A',
+                        Colors.green[50]!,
+                      ),
                     ),
                     SizedBox(width: 8),
                     Expanded(
-                      child: _buildMobileInfoItem('Rate', lead['rate_sqm'] != null ? '₹${lead['rate_sqm'].toString()}' : 'N/A', Colors.orange[50]!),
+                      child: _buildMobileInfoItem(
+                        'Rate',
+                        lead['rate_sqm'] != null
+                            ? '₹${lead['rate_sqm'].toString()}'
+                            : 'N/A',
+                        Colors.orange[50]!,
+                      ),
                     ),
                   ],
                 ),
@@ -8090,11 +8387,25 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 Row(
                   children: [
                     Expanded(
-                      child: _buildMobileInfoItem('Total', lead['total_amount_gst'] != null ? '₹${lead['total_amount_gst'].toString()}' : 'N/A', Colors.purple[50]!),
+                      child: _buildMobileInfoItem(
+                        'Total',
+                        lead['total_amount_gst'] != null
+                            ? '₹${lead['total_amount_gst'].toString()}'
+                            : 'N/A',
+                        Colors.purple[50]!,
+                      ),
                     ),
                     SizedBox(width: 8),
                     Expanded(
-                      child: _buildMobileInfoItem('Closed', lead['updated_at'] != null ? DateTime.parse(lead['updated_at']).toLocal().toString().split('.')[0] : 'N/A', Colors.white),
+                      child: _buildMobileInfoItem(
+                        'Closed',
+                        lead['updated_at'] != null
+                            ? DateTime.parse(
+                                lead['updated_at'],
+                              ).toLocal().toString().split('.')[0]
+                            : 'N/A',
+                        Colors.white,
+                      ),
                     ),
                   ],
                 ),
@@ -8106,7 +8417,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     );
   }
 
-  Widget _buildMobileInfoItem(String label, String value, Color backgroundColor) {
+  Widget _buildMobileInfoItem(
+    String label,
+    String value,
+    Color backgroundColor,
+  ) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
@@ -8150,10 +8465,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           color: Colors.grey[800],
           fontSize: 11,
         ),
-        dataTextStyle: TextStyle(
-          fontSize: 11,
-          color: Colors.grey[700],
-        ),
+        dataTextStyle: TextStyle(fontSize: 11, color: Colors.grey[700]),
         columns: [
           DataColumn(label: SizedBox(width: 80, child: Text('PROJECT ID'))),
           DataColumn(label: SizedBox(width: 100, child: Text('PROJECT NAME'))),
@@ -8166,7 +8478,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           DataColumn(label: SizedBox(width: 60, child: Text('STATUS'))),
           DataColumn(label: SizedBox(width: 100, child: Text('CLOSED DATE'))),
         ],
-        rows: _filteredLeadData.map((lead) => _buildTabletLeadRow(lead)).toList(),
+        rows: _filteredLeadData
+            .map((lead) => _buildTabletLeadRow(lead))
+            .toList(),
       ),
     );
   }
@@ -8176,33 +8490,123 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     final projectName = lead['project_name'] ?? 'N/A';
     final clientName = lead['client_name'] ?? 'N/A';
     final location = lead['location'] ?? 'N/A';
-    final aluminiumArea = lead['aluminium_area'] != null 
+    final aluminiumArea = lead['aluminium_area'] != null
         ? '${lead['aluminium_area'].toString()} m²'
         : 'N/A';
-    final rateSqm = lead['rate_sqm'] != null 
+    final rateSqm = lead['rate_sqm'] != null
         ? '₹${lead['rate_sqm'].toString()}'
         : 'N/A';
-    final totalAmount = lead['total_amount_gst'] != null 
+    final totalAmount = lead['total_amount_gst'] != null
         ? '₹${lead['total_amount_gst'].toString()}'
         : 'N/A';
     final salesUser = lead['sales_user'] ?? 'N/A';
     final status = lead['update_lead_status'] ?? 'N/A';
-    final closedDate = lead['updated_at'] != null 
+    final closedDate = lead['updated_at'] != null
         ? DateTime.parse(lead['updated_at']).toLocal().toString().split('.')[0]
         : 'N/A';
 
     return DataRow(
       cells: [
-        DataCell(SizedBox(width: 80, child: Text(projectId, style: TextStyle(fontSize: 9), overflow: TextOverflow.ellipsis))),
-        DataCell(SizedBox(width: 100, child: Text(projectName, style: TextStyle(fontSize: 10), overflow: TextOverflow.ellipsis))),
-        DataCell(SizedBox(width: 90, child: Text(clientName, style: TextStyle(fontSize: 10), overflow: TextOverflow.ellipsis))),
-        DataCell(SizedBox(width: 70, child: Text(location, style: TextStyle(fontSize: 9), overflow: TextOverflow.ellipsis))),
-        DataCell(SizedBox(width: 80, child: Text(aluminiumArea, style: TextStyle(fontSize: 9), overflow: TextOverflow.ellipsis))),
-        DataCell(SizedBox(width: 70, child: Text(rateSqm, style: TextStyle(fontSize: 9), overflow: TextOverflow.ellipsis))),
-        DataCell(SizedBox(width: 90, child: Text(totalAmount, style: TextStyle(fontSize: 9), overflow: TextOverflow.ellipsis))),
-        DataCell(SizedBox(width: 100, child: Text(salesUser, style: TextStyle(fontSize: 9), overflow: TextOverflow.ellipsis))),
-        DataCell(SizedBox(width: 60, child: Text(status, style: TextStyle(fontSize: 9), overflow: TextOverflow.ellipsis))),
-        DataCell(SizedBox(width: 100, child: Text(closedDate, style: TextStyle(fontSize: 9), overflow: TextOverflow.ellipsis))),
+        DataCell(
+          SizedBox(
+            width: 80,
+            child: Text(
+              projectId,
+              style: TextStyle(fontSize: 9),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        DataCell(
+          SizedBox(
+            width: 100,
+            child: Text(
+              projectName,
+              style: TextStyle(fontSize: 10),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        DataCell(
+          SizedBox(
+            width: 90,
+            child: Text(
+              clientName,
+              style: TextStyle(fontSize: 10),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        DataCell(
+          SizedBox(
+            width: 70,
+            child: Text(
+              location,
+              style: TextStyle(fontSize: 9),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        DataCell(
+          SizedBox(
+            width: 80,
+            child: Text(
+              aluminiumArea,
+              style: TextStyle(fontSize: 9),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        DataCell(
+          SizedBox(
+            width: 70,
+            child: Text(
+              rateSqm,
+              style: TextStyle(fontSize: 9),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        DataCell(
+          SizedBox(
+            width: 90,
+            child: Text(
+              totalAmount,
+              style: TextStyle(fontSize: 9),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        DataCell(
+          SizedBox(
+            width: 100,
+            child: Text(
+              salesUser,
+              style: TextStyle(fontSize: 9),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        DataCell(
+          SizedBox(
+            width: 60,
+            child: Text(
+              status,
+              style: TextStyle(fontSize: 9),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        DataCell(
+          SizedBox(
+            width: 100,
+            child: Text(
+              closedDate,
+              style: TextStyle(fontSize: 9),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -8246,8 +8650,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     );
   }
 
-
-
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'won':
@@ -8261,29 +8663,24 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     }
   }
 
-
-
   Widget _buildPagination() {
     final totalResults = _filteredLeadData.length;
     final totalOriginalResults = _leadPerformanceData.length;
-    final showingText = totalResults > 0 
+    final showingText = totalResults > 0
         ? 'Showing 1 to $totalResults of $totalOriginalResults results'
         : 'No results found';
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth < 600;
-        
+
         if (isMobile) {
           // Mobile layout - stacked vertically
           return Column(
             children: [
               Text(
                 showingText,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
               SizedBox(height: 8),
               Row(
@@ -8293,10 +8690,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                     onPressed: null, // Disabled for first page
                     child: Text(
                       'Previous',
-                      style: TextStyle(
-                        color: Colors.grey[400],
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: Colors.grey[400], fontSize: 12),
                     ),
                   ),
                   SizedBox(width: 4),
@@ -8342,10 +8736,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               Flexible(
                 child: Text(
                   showingText,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -8357,10 +8748,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                     onPressed: null, // Disabled for first page
                     child: Text(
                       'Previous',
-                      style: TextStyle(
-                        color: Colors.grey[400],
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: Colors.grey[400], fontSize: 12),
                     ),
                   ),
                   SizedBox(width: 8),
@@ -8443,16 +8831,24 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           _buildTableDataCell(lead['project_name']?.toString() ?? 'N/A', 2),
           _buildTableDataCell(lead['client_name']?.toString() ?? 'N/A', 2),
           _buildTableDataCell(lead['location']?.toString() ?? 'N/A', 1),
-          _buildTableDataCell('${lead['aluminium_area']?.toString() ?? '0'} m²', 1),
+          _buildTableDataCell(
+            '${lead['aluminium_area']?.toString() ?? '0'} m²',
+            1,
+          ),
           _buildTableDataCell(lead['rc_weight']?.toString() ?? 'N/A', 1),
           _buildTableDataCell('₹${lead['rate_sqm']?.toString() ?? '0'}', 1),
-          _buildTableDataCell('₹${lead['total_amount_gst']?.toString() ?? '0'}', 1),
+          _buildTableDataCell(
+            '₹${lead['total_amount_gst']?.toString() ?? '0'}',
+            1,
+          ),
           _buildTableDataCell(lead['sales_user']?.toString() ?? 'N/A', 1),
           _buildTableDataCell(
             Container(
               padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: _getStatusColor(lead['update_lead_status']).withValues(alpha: 0.1),
+                color: _getStatusColor(
+                  lead['update_lead_status'],
+                ).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
@@ -8466,7 +8862,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             ),
             1,
           ),
-          _buildTableDataCell(lead['lead_status_remark']?.toString() ?? 'N/A', 1),
+          _buildTableDataCell(
+            lead['lead_status_remark']?.toString() ?? 'N/A',
+            1,
+          ),
           _buildTableDataCell(_formatDate(lead['updated_at']), 1),
         ],
       ),
@@ -8488,10 +8887,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 width: double.infinity,
                 child: Text(
                   content.toString(),
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey[700],
-                  ),
+                  style: TextStyle(fontSize: 11, color: Colors.grey[700]),
                   textAlign: TextAlign.center,
                   overflow: TextOverflow.visible,
                   softWrap: true,
@@ -8512,7 +8908,4 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       return 'N/A';
     }
   }
-
-
-
 }
