@@ -1891,7 +1891,6 @@ class _ProposalScreenState extends State<ProposalScreen> {
       await client.from('lead_activity').insert({
         'lead_id': leadId,
         'user_id': userId,
-        'activity_type': activityType,
         'changes_made': jsonEncode(changesMade),
         'created_at': DateTime.now().toIso8601String(),
       });
@@ -2610,7 +2609,6 @@ Future<void> logLeadActivity({
   await client.from('lead_activity').insert({
     'lead_id': leadId,
     'user_id': userId,
-    'activity_type': activityType,
     'changes_made': changesMade is String
         ? changesMade
         : jsonEncode(changesMade),
@@ -5008,10 +5006,65 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
   Map<String, dynamic> _dashboardData = {};
   String _selectedFilter = 'all';
 
+  // Real-time data state
+  Map<String, int> _realTimeCounts = {};
+  Timer? _refreshTimer;
+
   @override
   void initState() {
     super.initState();
     _loadDashboardData();
+    _startAutoRefresh();
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startAutoRefresh() {
+    _refreshTimer = Timer.periodic(const Duration(minutes: 2), (timer) {
+      if (mounted) {
+        _loadDashboardData();
+      }
+    });
+  }
+
+  Future<void> _refreshData() async {
+    setState(() => _isLoading = true);
+
+    try {
+      await _loadDashboardData();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Dashboard data refreshed successfully'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      _handleError(e);
+    }
+  }
+
+  void _handleError(dynamic error) {
+    debugPrint('Error in dashboard data loading: $error');
+
+    setState(() => _isLoading = false);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading dashboard data: ${error.toString()}'),
+          backgroundColor: Colors.red,
+          action: SnackBarAction(label: 'Retry', onPressed: _loadDashboardData),
+        ),
+      );
+    }
   }
 
   Future<void> _loadDashboardData() async {
@@ -5020,14 +5073,19 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
     });
 
     try {
-      final data = await _fetchDashboardAnalytics();
+      // Fetch data sequentially to avoid casting issues
+      final dashboardData = await _fetchDashboardAnalytics();
+      final realTimeCounts = await _fetchRealTimeCounts();
+
       setState(() {
-        _dashboardData = data;
+        _dashboardData = dashboardData;
+        _realTimeCounts = realTimeCounts;
         _isLoading = false;
       });
 
       // Show notification if using sample data
-      if (data['totalInquiries'] == 3 && data['client_name'] == null) {
+      if (dashboardData['totalInquiries'] == 3 &&
+          dashboardData['client_name'] == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -5077,7 +5135,7 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
       debugPrint('📎 Fetching lead attachments...');
       final leadAttachments = await client
           .from('lead_attachments')
-          .select('lead_id, file_name, file_link, created_at');
+          .select('lead_id, file_name, file_link');
 
       debugPrint('📎 Found ${leadAttachments.length} lead attachments');
 
@@ -5085,7 +5143,7 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
       debugPrint('📈 Fetching lead activity...');
       final leadActivity = await client
           .from('lead_activity')
-          .select('lead_id, activity_type, changes_made, created_at, user_id')
+          .select('lead_id, changes_made, created_at, user_id')
           .order('created_at', ascending: false);
 
       debugPrint('📈 Found ${leadActivity.length} lead activities');
@@ -5206,7 +5264,8 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
 
       // Process lead activities
       for (final activity in leadActivity) {
-        final activityType = activity['activity_type']?.toString() ?? 'Unknown';
+        // Since activity_type doesn't exist, use a default type
+        final activityType = 'Activity';
         activityTypes[activityType] = (activityTypes[activityType] ?? 0) + 1;
 
         // Get recent activities for dashboard
@@ -5344,6 +5403,42 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
       debugPrint('❌ Error fetching dashboard analytics: $e');
       debugPrint('🔄 Generating sample data due to error...');
       return _generateSampleData();
+    }
+  }
+
+  Future<Map<String, int>> _fetchRealTimeCounts() async {
+    final client = Supabase.instance.client;
+
+    try {
+      // Fetch data and calculate counts manually
+      final allLeads = await client
+          .from('leads')
+          .select('id')
+          .eq('lead_type', 'Monolithic Formwork');
+
+      final proposalFiles = await client
+          .from('proposal_file')
+          .select('lead_id')
+          .not('lead_id', 'is', null);
+
+      final totalLeads = allLeads.length;
+      final leadsWithProposals = proposalFiles
+          .map((f) => f['lead_id'])
+          .toSet()
+          .length;
+
+      return {
+        'totalInquiries': totalLeads,
+        'pendingInquiries': totalLeads - leadsWithProposals,
+        'submittedInquiries': leadsWithProposals,
+      };
+    } catch (e) {
+      debugPrint('Error fetching real-time counts: $e');
+      return {
+        'totalInquiries': 0,
+        'pendingInquiries': 0,
+        'submittedInquiries': 0,
+      };
     }
   }
 
@@ -5806,6 +5901,28 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
                           color: Colors.grey[600],
                         ),
                       ),
+                      SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: _isLoading ? Colors.orange : Colors.green,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          SizedBox(width: 6),
+                          Text(
+                            _isLoading ? 'Updating...' : 'Live Data',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: _isLoading ? Colors.orange : Colors.green,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -5817,7 +5934,7 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 IconButton(
-                  onPressed: _loadDashboardData,
+                  onPressed: _refreshData,
                   icon: Icon(Icons.refresh, color: Colors.blue[600], size: 20),
                   tooltip: 'Refresh Dashboard',
                 ),
@@ -5870,11 +5987,33 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
                         'Manage inquiries, create proposals, and track technical specifications',
                         style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                       ),
+                      SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: _isLoading ? Colors.orange : Colors.green,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          SizedBox(width: 6),
+                          Text(
+                            _isLoading ? 'Updating...' : 'Live Data',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: _isLoading ? Colors.orange : Colors.green,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
                 IconButton(
-                  onPressed: _loadDashboardData,
+                  onPressed: _refreshData,
                   icon: Icon(Icons.refresh, color: Colors.blue[600]),
                   tooltip: 'Refresh Dashboard',
                 ),
@@ -6143,9 +6282,19 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
     bool isTablet,
     bool isDesktop,
   ) {
-    final totalInquiries = _dashboardData['totalInquiries'] ?? 0;
-    final pendingInquiries = _dashboardData['pendingInquiries'] ?? 0;
-    final submittedProposals = _dashboardData['submittedProposals'] ?? 0;
+    // Use real-time counts from enhanced data fetching
+    final totalInquiries =
+        _realTimeCounts['totalInquiries'] ??
+        _dashboardData['totalInquiries'] ??
+        0;
+    final pendingInquiries =
+        _realTimeCounts['pendingInquiries'] ??
+        _dashboardData['pendingInquiries'] ??
+        0;
+    final submittedInquiries =
+        _realTimeCounts['submittedInquiries'] ??
+        _dashboardData['submittedProposals'] ??
+        0;
     final averageResponseTime = _dashboardData['averageResponseTime'] ?? 0.0;
     final totalAttachments = _dashboardData['totalAttachments'] ?? 0;
     final totalActivities = _dashboardData['totalActivities'] ?? 0;
@@ -6178,7 +6327,7 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
           SizedBox(height: 12),
           _buildResponsiveMetricCard(
             'Submitted',
-            submittedProposals.toString(),
+            submittedInquiries.toString(),
             Icons.check_circle,
             Colors.green,
             'Proposals sent',
@@ -6289,7 +6438,7 @@ class _ProposalDashboardScreenState extends State<ProposalDashboardScreen> {
               Expanded(
                 child: _buildResponsiveMetricCard(
                   'Submitted',
-                  submittedProposals.toString(),
+                  submittedInquiries.toString(),
                   Icons.check_circle,
                   Colors.green,
                   'Proposals sent',
