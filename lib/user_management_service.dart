@@ -6,13 +6,17 @@ class UserManagementService {
 
   static Future<List<Map<String, dynamic>>> fetchUsers() async {
     try {
-      debugPrint('🔄 UserManagementService: Fetching users from users table...');
+      debugPrint(
+        '🔄 UserManagementService: Fetching users from users table...',
+      );
       // Use the correct table name - users
       final data = await client
           .from('users')
           .select('*')
           .order('created_at', ascending: false);
-      debugPrint('✅ UserManagementService: Successfully fetched ${data.length} users');
+      debugPrint(
+        '✅ UserManagementService: Successfully fetched ${data.length} users',
+      );
       return List<Map<String, dynamic>>.from(data);
     } catch (e) {
       debugPrint('❌ UserManagementService: Error fetching users: $e');
@@ -86,11 +90,7 @@ class UserManagementService {
 
   static Future<Map<String, dynamic>?> fetchUserById(String id) async {
     try {
-      final data = await client
-          .from('users')
-          .select('*')
-          .eq('id', id)
-          .single();
+      final data = await client.from('users').select('*').eq('id', id).single();
       return Map<String, dynamic>.from(data);
     } catch (e) {
       return null;
@@ -105,11 +105,14 @@ class UserManagementService {
       // Only include non-null, non-empty values
       final cleanData = <String, dynamic>{};
       user.forEach((key, value) {
-        if (value != null && value.toString().isNotEmpty && key != 'id' && key != 'created_at') {
+        if (value != null &&
+            value.toString().isNotEmpty &&
+            key != 'id' &&
+            key != 'created_at') {
           cleanData[key] = value;
         }
       });
-      
+
       // Only update if there are fields to update
       if (cleanData.isNotEmpty) {
         await client.from('users').update(cleanData).eq('id', id);

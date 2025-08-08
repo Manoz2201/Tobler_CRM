@@ -8,11 +8,12 @@ class NavigationUtils {
           NavItem('Dashboard', Icons.dashboard),
           NavItem('Leads Management', Icons.leaderboard),
           NavItem('User Management', Icons.group),
+          NavItem('Role Management', Icons.security),
           NavItem('Settings', Icons.settings),
           NavItem('Profile', Icons.person),
           NavItem('Logout', Icons.logout),
         ];
-      
+
       case 'sales':
         return [
           NavItem('Dashboard', Icons.dashboard),
@@ -22,7 +23,7 @@ class NavigationUtils {
           NavItem('Profile', Icons.person),
           NavItem('Logout', Icons.logout),
         ];
-      
+
       case 'developer':
         return [
           NavItem('Dashboard', Icons.dashboard),
@@ -36,7 +37,7 @@ class NavigationUtils {
           NavItem('Profile', Icons.person),
           NavItem('Logout', Icons.logout),
         ];
-      
+
       case 'proposal engineer':
         return [
           NavItem('Dashboard', Icons.dashboard),
@@ -47,7 +48,7 @@ class NavigationUtils {
           NavItem('Profile', Icons.person),
           NavItem('Logout', Icons.logout),
         ];
-      
+
       default:
         // Default navigation for unknown user types
         return [
@@ -74,6 +75,6 @@ class NavigationUtils {
 class NavItem {
   final String label;
   final IconData icon;
-  
+
   const NavItem(this.label, this.icon);
-} 
+}

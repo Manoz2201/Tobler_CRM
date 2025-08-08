@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
 
 import 'package:crm_app/widgets/profile_page.dart';
 import 'package:crm_app/screens/home/developer_home_screen.dart'
@@ -77,6 +78,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     AdminDashboardPage(), // Dashboard
     LeadTable(), // Leads Management
     UserManagementPage(), // User Management
+    AdminRoleManagementPage(), // Role Management
     AdminSettingsPage(), // Settings
     ProfilePage(), // Profile
     // Logout is handled separately in _onItemTapped
@@ -383,7 +385,7 @@ class _AdminLeadsPageState extends State<_AdminLeadsPage> {
         client
             .from('leads')
             .select(
-              'id, created_at, project_name, client_name, project_location, lead_generated_by',
+              'id, created_at, project_name, client_name, project_location, lead_generated_by, lead_type',
             )
             .order('created_at', ascending: false)
             .timeout(const Duration(seconds: 15)),
@@ -2171,7 +2173,7 @@ class _LeadTableState extends State<LeadTable> {
 
   final List<String> _filterOptions = [
     'All',
-    'New/Progress',
+    'New',
     'Proposal Progress',
     'Waiting for Approval',
     'Approved',
@@ -2324,6 +2326,9 @@ class _LeadTableState extends State<LeadTable> {
         _leads = joinedLeads;
         _isLoading = false;
       });
+
+      // Apply filters after loading data to show all leads by default
+      _applyFilters();
     } catch (e) {
       debugPrint('❌ Error loading data: $e');
       setState(() {
@@ -3289,51 +3294,69 @@ class _LeadTableState extends State<LeadTable> {
     IconData icon,
     Color color,
   ) {
+    final isSelected = _getSelectedFilterFromLabel(title) == _selectedFilter;
+    debugPrint(
+      'Building stat card: $title, selectedFilter: $_selectedFilter, isSelected: $isSelected',
+    );
+
     return Expanded(
-      child: Container(
-        padding: EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: () => _onStatItemTap(title),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 10,
+                offset: Offset(0, 4),
               ),
-              child: Icon(icon, color: color, size: 24),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    value,
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[800],
+            ],
+            border: isSelected ? Border.all(color: color, width: 2) : null,
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? color.withValues(alpha: 0.2)
+                      : color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color, size: 24),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: isSelected ? color : Colors.grey[800],
+                      ),
                     ),
-                  ),
-                  Text(
-                    title,
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                  ),
-                ],
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: isSelected ? color : Colors.grey[600],
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -3813,6 +3836,7 @@ class _LeadTableState extends State<LeadTable> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
+          onTap: () => _viewLeadDetails(lead),
           child: Padding(
             padding: EdgeInsets.all(16),
             child: Row(
@@ -3891,19 +3915,12 @@ class _LeadTableState extends State<LeadTable> {
                   flex: 1,
                   child: Container(
                     padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${aluminiumArea.toStringAsFixed(2)} sq/m',
-                          style: TextStyle(fontSize: 14),
-                          softWrap: true,
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                        SizedBox(height: 4),
-                        _buildRateChainDisplay(leadId.toString()),
-                      ],
+                    child: Text(
+                      '${aluminiumArea.toStringAsFixed(2)} sq/m',
+                      style: TextStyle(fontSize: 14),
+                      softWrap: true,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                   ),
                 ),
@@ -3924,41 +3941,71 @@ class _LeadTableState extends State<LeadTable> {
                   flex: 1,
                   child: Container(
                     padding: EdgeInsets.symmetric(horizontal: 2, vertical: 2),
-                    child: TextField(
-                      controller: _rateControllers.putIfAbsent(
-                        leadId.toString(),
-                        () => TextEditingController(text: rate.toString()),
-                      ),
-                      keyboardType: TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: 'Rate',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(4),
-                          borderSide: BorderSide(color: Colors.grey[300]!),
-                        ),
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 4,
-                        ),
-                        isDense: true,
-                      ),
-                      style: TextStyle(fontSize: 12),
-                      onChanged: (val) {
-                        // Calculate and store total amount in real-time
-                        final aluminiumArea =
-                            double.tryParse(
-                              lead['aluminium_area']?.toString() ?? '0',
-                            ) ??
-                            0;
-                        final currentRate = double.tryParse(val) ?? 0;
-                        final totalAmount = aluminiumArea * currentRate * 1.18;
-                        _totalAmounts[leadId.toString()] = totalAmount;
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextField(
+                          controller: _rateControllers.putIfAbsent(
+                            leadId.toString(),
+                            () => TextEditingController(text: rate.toString()),
+                          ),
+                          enabled:
+                              status == 'Waiting for Approval' ||
+                              status == 'Approved',
+                          keyboardType: TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: 'Rate',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(4),
+                              borderSide: BorderSide(color: Colors.grey[300]!),
+                            ),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 4,
+                            ),
+                            isDense: true,
+                            filled:
+                                !(status == 'Waiting for Approval' ||
+                                    status == 'Approved'),
+                            fillColor:
+                                !(status == 'Waiting for Approval' ||
+                                    status == 'Approved')
+                                ? Colors.grey[100]
+                                : null,
+                          ),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color:
+                                (status == 'Waiting for Approval' ||
+                                    status == 'Approved')
+                                ? Colors.black
+                                : Colors.grey[600],
+                          ),
+                          onChanged: (val) {
+                            // Only allow changes if status allows editing
+                            if (status == 'Waiting for Approval' ||
+                                status == 'Approved') {
+                              // Calculate and store total amount in real-time
+                              final aluminiumArea =
+                                  double.tryParse(
+                                    lead['aluminium_area']?.toString() ?? '0',
+                                  ) ??
+                                  0;
+                              final currentRate = double.tryParse(val) ?? 0;
+                              final totalAmount =
+                                  aluminiumArea * currentRate * 1.18;
+                              _totalAmounts[leadId.toString()] = totalAmount;
 
-                        setState(() {});
-                        _saveRateToDatabase(leadId.toString(), val);
-                      },
+                              setState(() {});
+                              _saveRateToDatabase(leadId.toString(), val);
+                            }
+                          },
+                        ),
+                        SizedBox(height: 4),
+                        _buildRateChainDisplay(leadId.toString()),
+                      ],
                     ),
                   ),
                 ),
@@ -3966,16 +4013,24 @@ class _LeadTableState extends State<LeadTable> {
                   flex: 1,
                   child: Container(
                     padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                    child: Text(
-                      '₹${calculateTotalAmount()}',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green[700],
-                      ),
-                      softWrap: true,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '₹${calculateTotalAmount()}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green[700],
+                          ),
+                          softWrap: true,
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                        SizedBox(height: 4),
+                        // Empty space to match the rate history height
+                        SizedBox(height: 20),
+                      ],
                     ),
                   ),
                 ),
@@ -4021,58 +4076,61 @@ class _LeadTableState extends State<LeadTable> {
                   flex: 2,
                   child: Container(
                     padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        IconButton(
-                          onPressed: () => _showApproveDialog(
-                            context,
-                            lead,
-                            calculateTotalAmount(),
+                    child: GestureDetector(
+                      onTap: () {}, // Empty onTap to stop propagation
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          IconButton(
+                            onPressed: () => _showApproveDialog(
+                              context,
+                              lead,
+                              calculateTotalAmount(),
+                            ),
+                            icon: Icon(Icons.approval, size: 18),
+                            tooltip: 'Approve',
+                            color: Colors.green[600],
+                            padding: EdgeInsets.all(4),
+                            constraints: BoxConstraints(
+                              minWidth: 32,
+                              minHeight: 32,
+                            ),
                           ),
-                          icon: Icon(Icons.approval, size: 18),
-                          tooltip: 'Approve',
-                          color: Colors.green[600],
-                          padding: EdgeInsets.all(4),
-                          constraints: BoxConstraints(
-                            minWidth: 32,
-                            minHeight: 32,
+                          IconButton(
+                            onPressed: () => _showAlertsDialog(context, lead),
+                            icon: Icon(Icons.notifications, size: 18),
+                            tooltip: 'Alert',
+                            color: Colors.orange[600],
+                            padding: EdgeInsets.all(4),
+                            constraints: BoxConstraints(
+                              minWidth: 32,
+                              minHeight: 32,
+                            ),
                           ),
-                        ),
-                        IconButton(
-                          onPressed: () => _viewLeadDetails(lead),
-                          icon: Icon(Icons.visibility, size: 18),
-                          tooltip: 'View Details',
-                          color: Colors.blue[600],
-                          padding: EdgeInsets.all(4),
-                          constraints: BoxConstraints(
-                            minWidth: 32,
-                            minHeight: 32,
+                          IconButton(
+                            onPressed: () => _showQueryDialog(context, lead),
+                            icon: Icon(Icons.chat, size: 18),
+                            tooltip: 'Query',
+                            color: Colors.blue[600],
+                            padding: EdgeInsets.all(4),
+                            constraints: BoxConstraints(
+                              minWidth: 32,
+                              minHeight: 32,
+                            ),
                           ),
-                        ),
-                        IconButton(
-                          onPressed: () => _queryLead(lead),
-                          icon: Icon(Icons.question_mark, size: 18),
-                          tooltip: 'Query',
-                          color: Colors.orange[600],
-                          padding: EdgeInsets.all(4),
-                          constraints: BoxConstraints(
-                            minWidth: 32,
-                            minHeight: 32,
+                          IconButton(
+                            onPressed: () => _editLead(lead),
+                            icon: Icon(Icons.edit, size: 18),
+                            tooltip: 'Edit',
+                            color: Colors.grey[600],
+                            padding: EdgeInsets.all(4),
+                            constraints: BoxConstraints(
+                              minWidth: 32,
+                              minHeight: 32,
+                            ),
                           ),
-                        ),
-                        IconButton(
-                          onPressed: () => _editLead(lead),
-                          icon: Icon(Icons.edit, size: 18),
-                          tooltip: 'Edit',
-                          color: Colors.grey[600],
-                          padding: EdgeInsets.all(4),
-                          constraints: BoxConstraints(
-                            minWidth: 32,
-                            minHeight: 32,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -4459,7 +4517,7 @@ class _LeadTableState extends State<LeadTable> {
               value,
               style: TextStyle(fontSize: 14),
               softWrap: true,
-              overflow: TextOverflow.visible,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -5591,6 +5649,30 @@ class _LeadTableState extends State<LeadTable> {
     }
   }
 
+  void _showAlertsDialog(
+    BuildContext context,
+    Map<String, dynamic> lead,
+  ) async {
+    // Check if widget is still mounted before showing dialog
+    if (mounted && context.mounted) {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertsDialog(lead: lead);
+        },
+      );
+    }
+  }
+
+  void _showQueryDialog(BuildContext context, Map<String, dynamic> lead) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return QueryDialog(lead: lead);
+      },
+    );
+  }
+
   String _getLeadStatus(Map<String, dynamic> lead) {
     // Check if lead is approved first
     if (lead['approved'] == true) {
@@ -5684,12 +5766,15 @@ class _LeadTableState extends State<LeadTable> {
   String _getSelectedFilterFromLabel(String label) {
     switch (label.toLowerCase()) {
       case 'total':
+      case 'total leads':
         return 'All';
       case 'new':
         return 'New';
       case 'proposal':
+      case 'proposal progress':
         return 'Proposal Progress';
       case 'waiting':
+      case 'waiting approval':
         return 'Waiting for Approval';
       case 'approved':
         return 'Approved';
@@ -5700,6 +5785,7 @@ class _LeadTableState extends State<LeadTable> {
 
   void _onStatItemTap(String label) {
     final filterValue = _getSelectedFilterFromLabel(label);
+    debugPrint('Stat card tapped: $label -> filterValue: $filterValue');
     _onFilterChanged(filterValue);
   }
 }
@@ -5720,7 +5806,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   String _selectedCurrency = 'INR'; // Default currency
 
   // Lead Performance state
-  String _activeLeadTab = 'Won'; // 'Won', 'Lost', 'Loop'
+  String _activeLeadTab = 'Won'; // 'Won', 'Lost', 'Follow Up'
   List<Map<String, dynamic>> _leadPerformanceData = [];
   List<Map<String, dynamic>> _filteredLeadData = [];
   bool _isLoadingLeadData = false;
@@ -5731,7 +5817,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   bool _isLoadingChartData = false;
 
   // Lead status distribution data state
-  Map<String, int> _leadStatusDistribution = {'Won': 0, 'Lost': 0, 'Loop': 0};
+  Map<String, int> _leadStatusDistribution = {
+    'Won': 0,
+    'Lost': 0,
+    'Follow Up': 0,
+  };
   bool _isLoadingLeadStatusData = false;
 
   // Dashboard data state
@@ -6115,7 +6205,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   lowercaseQuery,
                 ) ==
                 true ||
-            lead['rc_weight']?.toString().toLowerCase().contains(
+            lead['ms_weight']?.toString().toLowerCase().contains(
                   lowercaseQuery,
                 ) ==
                 true ||
@@ -6459,7 +6549,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       debugPrint('Error fetching lead status distribution data: $e');
       // Set default empty data on error
       setState(() {
-        _leadStatusDistribution = {'Won': 0, 'Lost': 0, 'Loop': 0};
+        _leadStatusDistribution = {'Won': 0, 'Lost': 0, 'Follow Up': 0};
         _isLoadingLeadStatusData = false;
       });
     }
@@ -6467,7 +6557,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   // Process lead status distribution data
   Future<void> _processLeadStatusDistributionData(List<dynamic> data) async {
-    Map<String, int> statusCounts = {'Won': 0, 'Lost': 0, 'Loop': 0};
+    Map<String, int> statusCounts = {'Won': 0, 'Lost': 0, 'Follow Up': 0};
 
     for (var record in data) {
       final status = record['update_lead_status'];
@@ -6497,7 +6587,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     final colors = {
       'Won': Colors.green,
       'Lost': Colors.red,
-      'Loop': Colors.orange,
+      'Follow Up': Colors.orange,
     };
 
     for (var entry in _leadStatusDistribution.entries) {
@@ -6761,7 +6851,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               ),
 
               Expanded(child: SizedBox()), // Flexible space
-              // Right side actions - wrap in Flexible to prevent overflow
+              // Right side actions
               Flexible(
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -7270,58 +7360,69 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     final colors = {
       'Won': Colors.green,
       'Lost': Colors.red,
-      'Loop': Colors.orange,
+      'Follow Up': Colors.orange,
     };
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ..._leadStatusDistribution.entries.map((entry) {
-          if (entry.value == 0) return SizedBox.shrink();
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ..._leadStatusDistribution.entries.map((entry) {
+            if (entry.value == 0) return SizedBox.shrink();
 
-          final percentage = totalLeads > 0
-              ? (entry.value / totalLeads * 100).toStringAsFixed(1)
-              : '0.0';
-          final color = colors[entry.key] ?? Colors.grey;
+            final percentage = totalLeads > 0
+                ? (entry.value / totalLeads * 100).toStringAsFixed(1)
+                : '0.0';
+            final color = colors[entry.key] ?? Colors.grey;
 
-          return Padding(
-            padding: EdgeInsets.only(bottom: 12),
-            child: Row(
-              children: [
-                Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
+            return Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                    ),
                   ),
-                ),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        entry.key,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey[800],
+                  SizedBox(width: 6),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          entry.key,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[800],
+                            height: 1.2,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        '$entry.value leads ($percentage%)',
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                      ),
-                    ],
+                        SizedBox(height: 1),
+                        Text(
+                          '$entry.value leads ($percentage%)',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey[600],
+                            height: 1.1,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-          );
-        }),
-      ],
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
     );
   }
 
@@ -8176,7 +8277,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         SizedBox(width: 24),
         _buildTab('Lost Leads', _activeLeadTab == 'Lost', 'Lost'),
         SizedBox(width: 24),
-        _buildTab('In Loop', _activeLeadTab == 'Loop', 'Loop'),
+        _buildTab('Follow Up', _activeLeadTab == 'Follow Up', 'Follow Up'),
       ],
     );
   }
@@ -8262,11 +8363,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // For Windows screens, always use the desktop table layout
-        // Mobile layout only for very small screens
-        final isMobile = constraints.maxWidth < 400;
+        // Mobile layout for screens smaller than 600px
+        // Tablet layout for screens between 600px and 900px
+        // Desktop layout for screens larger than 900px
+        final isMobile = constraints.maxWidth < 600;
         final isTablet =
-            constraints.maxWidth >= 400 && constraints.maxWidth < 800;
+            constraints.maxWidth >= 600 && constraints.maxWidth < 900;
 
         if (isMobile) {
           return _buildMobileLeadTable();
@@ -8286,130 +8388,213 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       itemCount: _filteredLeadData.length,
       itemBuilder: (context, index) {
         final lead = _filteredLeadData[index];
-        return Card(
-          margin: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-          child: Padding(
-            padding: EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Project Info Row
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildMobileInfoItem(
-                        'Project ID',
-                        lead['project_id'] ?? 'N/A',
-                        Colors.grey[100]!,
-                      ),
-                    ),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: _buildMobileInfoItem(
-                        'Status',
-                        lead['update_lead_status'] ?? 'N/A',
-                        _getStatusColor(
-                          lead['update_lead_status'] ?? '',
-                        ).withValues(alpha: 0.1),
-                      ),
-                    ),
-                  ],
+        return AnimatedContainer(
+          duration: Duration(milliseconds: 300),
+          margin: EdgeInsets.only(bottom: 16),
+          child: Card(
+            elevation: 6,
+            shadowColor: Colors.black.withValues(alpha: 0.15),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: InkWell(
+              onTap: () => _showLeadDetailsDialog(lead),
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Colors.white, Colors.grey[50]!],
+                  ),
                 ),
-                SizedBox(height: 8),
-                // Project Name and Sales User
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildMobileInfoItem(
-                        'Project',
-                        lead['project_name'] ?? 'N/A',
-                        Colors.blue[50]!,
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header with project name and status
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  lead['project_name']?.toString() ?? 'N/A',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 20,
+                                    color: Colors.grey[800],
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                                SizedBox(height: 6),
+                                Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.blue.withValues(alpha: 0.3),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'ID: ${lead['project_id']?.toString() ?? 'N/A'}',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.blue[700],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _getStatusColor(
+                                lead['update_lead_status'] ?? '',
+                              ).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: _getStatusColor(
+                                  lead['update_lead_status'] ?? '',
+                                ),
+                                width: 2,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _getStatusColor(
+                                    lead['update_lead_status'] ?? '',
+                                  ).withValues(alpha: 0.3),
+                                  blurRadius: 8,
+                                  offset: Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Text(
+                              lead['update_lead_status']?.toString() ?? 'N/A',
+                              style: TextStyle(
+                                color: _getStatusColor(
+                                  lead['update_lead_status'] ?? '',
+                                ),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: _buildMobileInfoItem(
-                        'Sales User',
-                        lead['sales_user'] ?? 'N/A',
-                        Colors.indigo[50]!,
+                      SizedBox(height: 20),
+
+                      // Key metrics in a grid layout with enhanced styling
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildEnhancedMetricCard(
+                              'Area',
+                              '${lead['aluminium_area']?.toString() ?? '0'} m²',
+                              Icons.grid_on,
+                              Colors.blue,
+                            ),
+                          ),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: _buildEnhancedMetricCard(
+                              'Rate',
+                              '₹${lead['rate_sqm']?.toString() ?? '0'}',
+                              Icons.attach_money,
+                              Colors.green,
+                            ),
+                          ),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: _buildEnhancedMetricCard(
+                              'Total',
+                              '₹${lead['total_amount_gst']?.toString() ?? '0'}',
+                              Icons.account_balance_wallet,
+                              Colors.purple,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 8),
-                // Client and Location
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildMobileInfoItem(
+                      SizedBox(height: 20),
+
+                      // Additional info in a clean layout with enhanced styling
+                      _buildEnhancedMobileInfoRow(
                         'Client',
-                        lead['client_name'] ?? 'N/A',
-                        Colors.white,
+                        lead['client_name']?.toString() ?? 'N/A',
+                        Icons.person,
                       ),
-                    ),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: _buildMobileInfoItem(
+                      _buildEnhancedMobileInfoRow(
                         'Location',
-                        lead['location'] ?? 'N/A',
-                        Colors.white,
+                        lead['location']?.toString() ?? 'N/A',
+                        Icons.location_on,
                       ),
-                    ),
-                  ],
+                      _buildEnhancedMobileInfoRow(
+                        'MS Weight',
+                        lead['ms_weight']?.toString() ?? 'N/A',
+                        Icons.fitness_center,
+                      ),
+                      _buildEnhancedMobileInfoRow(
+                        'Sales User',
+                        lead['sales_user']?.toString() ?? 'N/A',
+                        Icons.person_outline,
+                      ),
+                      _buildEnhancedMobileInfoRow(
+                        'Updated',
+                        _formatDate(lead['updated_at']),
+                        Icons.schedule,
+                      ),
+
+                      // Interactive action buttons with enhanced styling
+                      SizedBox(height: 20),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildEnhancedActionButton(
+                              'Query',
+                              Icons.chat_bubble_outline,
+                              Colors.blue,
+                              () => _showQueryDialogMobile(context, lead),
+                            ),
+                          ),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: _buildEnhancedActionButton(
+                              'Alerts',
+                              Icons.notifications_none,
+                              Colors.orange,
+                              () => _showAlertsDialogMobile(context, lead),
+                            ),
+                          ),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: _buildEnhancedActionButton(
+                              'Details',
+                              Icons.info_outline,
+                              Colors.grey[600]!,
+                              () => _showLeadDetailsDialog(lead),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-                SizedBox(height: 8),
-                // Metrics Row
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildMobileInfoItem(
-                        'Area',
-                        lead['aluminium_area'] != null
-                            ? '${lead['aluminium_area'].toString()} m²'
-                            : 'N/A',
-                        Colors.green[50]!,
-                      ),
-                    ),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: _buildMobileInfoItem(
-                        'Rate',
-                        lead['rate_sqm'] != null
-                            ? '₹${lead['rate_sqm'].toString()}'
-                            : 'N/A',
-                        Colors.orange[50]!,
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 8),
-                // Amount and Date
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildMobileInfoItem(
-                        'Total',
-                        lead['total_amount_gst'] != null
-                            ? '₹${lead['total_amount_gst'].toString()}'
-                            : 'N/A',
-                        Colors.purple[50]!,
-                      ),
-                    ),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: _buildMobileInfoItem(
-                        'Closed',
-                        lead['updated_at'] != null
-                            ? DateTime.parse(
-                                lead['updated_at'],
-                              ).toLocal().toString().split('.')[0]
-                            : 'N/A',
-                        Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+              ),
             ),
           ),
         );
@@ -8417,40 +8602,283 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     );
   }
 
-  Widget _buildMobileInfoItem(
+  // Build enhanced mobile info row for better styling
+  Widget _buildEnhancedMobileInfoRow(
+    String label,
+    String value, [
+    IconData? icon,
+  ]) {
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: 4),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!, width: 1),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 18, color: Colors.grey[600]),
+            SizedBox(width: 10),
+          ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[800],
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Build enhanced metric card for better styling
+  Widget _buildEnhancedMetricCard(
     String label,
     String value,
-    Color backgroundColor,
+    IconData icon,
+    Color color,
   ) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.grey[200]!, width: 1),
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.2), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.1),
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
-            ),
+          Row(
+            children: [
+              Icon(icon, size: 18, color: color),
+              SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
+            ],
           ),
-          SizedBox(height: 2),
+          SizedBox(height: 6),
           Text(
             value,
             style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
               color: Colors.grey[800],
             ),
             overflow: TextOverflow.ellipsis,
+            maxLines: 1,
           ),
         ],
+      ),
+    );
+  }
+
+  // Build enhanced action button for better styling
+  Widget _buildEnhancedActionButton(
+    String label,
+    IconData icon,
+    Color color,
+    VoidCallback onPressed,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            color.withValues(alpha: 0.12),
+            color.withValues(alpha: 0.06),
+          ],
+        ),
+        border: Border.all(color: color.withValues(alpha: 0.25), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.15),
+            blurRadius: 6,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+            child: Column(
+              children: [
+                Icon(icon, size: 24, color: color),
+                SizedBox(height: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Show lead details dialog for mobile
+  void _showLeadDetailsDialog(Map<String, dynamic> lead) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Lead Details'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildDetailRow(
+                  'Project ID',
+                  lead['project_id']?.toString() ?? 'N/A',
+                ),
+                _buildDetailRow(
+                  'Project Name',
+                  lead['project_name']?.toString() ?? 'N/A',
+                ),
+                _buildDetailRow(
+                  'Client Name',
+                  lead['client_name']?.toString() ?? 'N/A',
+                ),
+                _buildDetailRow(
+                  'Location',
+                  lead['location']?.toString() ?? 'N/A',
+                ),
+                _buildDetailRow(
+                  'Aluminium Area',
+                  '${lead['aluminium_area']?.toString() ?? '0'} m²',
+                ),
+                _buildDetailRow(
+                  'MS Weight',
+                  lead['ms_weight']?.toString() ?? 'N/A',
+                ),
+                _buildDetailRow(
+                  'Rate/SQM',
+                  '₹${lead['rate_sqm']?.toString() ?? '0'}',
+                ),
+                _buildDetailRow(
+                  'Total Amount',
+                  '₹${lead['total_amount_gst']?.toString() ?? '0'}',
+                ),
+                _buildDetailRow(
+                  'Sales User',
+                  lead['sales_user']?.toString() ?? 'N/A',
+                ),
+                _buildDetailRow(
+                  'Status',
+                  lead['update_lead_status']?.toString() ?? 'N/A',
+                ),
+                _buildDetailRow('Remark', lead['remark']?.toString() ?? 'N/A'),
+                _buildDetailRow('Updated At', _formatDate(lead['updated_at'])),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Build detail row for dialog
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              '$label:',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[600],
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(fontSize: 12, color: Colors.grey[800]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Show query dialog for mobile
+  void _showQueryDialogMobile(BuildContext context, Map<String, dynamic> lead) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Query functionality coming soon!'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  // Show alerts dialog for mobile
+  void _showAlertsDialogMobile(
+    BuildContext context,
+    Map<String, dynamic> lead,
+  ) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Alerts functionality coming soon!'),
+        duration: Duration(seconds: 2),
       ),
     );
   }
@@ -8633,7 +9061,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 _buildTableHeaderCell('CLIENT NAME', 2),
                 _buildTableHeaderCell('LOCATION', 1),
                 _buildTableHeaderCell('ALUMINIUM AREA', 1),
-                _buildTableHeaderCell('RC WEIGHT', 1),
+                _buildTableHeaderCell('MS WEIGHT', 1),
                 _buildTableHeaderCell('RATE/SQM', 1),
                 _buildTableHeaderCell('TOTAL AMOUNT', 1),
                 _buildTableHeaderCell('SALES USER', 1),
@@ -8656,7 +9084,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         return Colors.green[700]!;
       case 'lost':
         return Colors.red[700]!;
-      case 'loop':
+      case 'follow up':
         return Colors.orange[700]!;
       default:
         return Colors.grey[700]!;
@@ -8810,9 +9238,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               color: Colors.grey[800],
             ),
             textAlign: TextAlign.center,
-            overflow: TextOverflow.visible,
+            overflow: TextOverflow.ellipsis,
             softWrap: true,
-            maxLines: null, // Allow unlimited lines
+            maxLines: 3, // Limit to 3 lines to prevent layout issues
           ),
         ),
       ),
@@ -8835,7 +9263,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             '${lead['aluminium_area']?.toString() ?? '0'} m²',
             1,
           ),
-          _buildTableDataCell(lead['rc_weight']?.toString() ?? 'N/A', 1),
+          _buildTableDataCell(lead['ms_weight']?.toString() ?? 'N/A', 1),
           _buildTableDataCell('₹${lead['rate_sqm']?.toString() ?? '0'}', 1),
           _buildTableDataCell(
             '₹${lead['total_amount_gst']?.toString() ?? '0'}',
@@ -8889,9 +9317,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   content.toString(),
                   style: TextStyle(fontSize: 11, color: Colors.grey[700]),
                   textAlign: TextAlign.center,
-                  overflow: TextOverflow.visible,
+                  overflow: TextOverflow.ellipsis,
                   softWrap: true,
-                  maxLines: null, // Allow unlimited lines
+                  maxLines: 3, // Limit to 3 lines to prevent layout issues
                 ),
               ),
       ),
@@ -8907,5 +9335,1667 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     } catch (e) {
       return 'N/A';
     }
+  }
+}
+
+// Alerts Dialog Widget
+class AlertsDialog extends StatefulWidget {
+  final Map<String, dynamic> lead;
+
+  const AlertsDialog({super.key, required this.lead});
+
+  @override
+  State<AlertsDialog> createState() => _AlertsDialogState();
+}
+
+class _AlertsDialogState extends State<AlertsDialog> {
+  List<Map<String, dynamic>> _alerts = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAlerts();
+  }
+
+  Future<void> _loadAlerts() async {
+    try {
+      final client = Supabase.instance.client;
+
+      // Fetch alerts for this lead
+      final alerts = await client
+          .from('queries')
+          .select('*')
+          .eq('lead_id', widget.lead['lead_id'] ?? widget.lead['id'])
+          .order('created_at', ascending: false);
+
+      setState(() {
+        _alerts = List<Map<String, dynamic>>.from(alerts);
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  String _formatDateTime(String dateTimeString) {
+    try {
+      final dateTime = DateTime.parse(dateTimeString);
+      final date = DateFormat('yyyy-MM-dd').format(dateTime);
+      final time = DateFormat('HH:mm:ss').format(dateTime);
+      return '$date at $time';
+    } catch (e) {
+      return dateTimeString;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Alerts & Queries'),
+      content: SizedBox(
+        width: 500,
+        height: 400,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Lead: ${widget.lead['project_name'] ?? 'Unknown Project'}',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 16),
+            if (_isLoading)
+              const Center(child: CircularProgressIndicator())
+            else if (_alerts.isEmpty)
+              const Center(
+                child: Text(
+                  'No alerts or queries found for this lead.',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              )
+            else
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _alerts.length,
+                  itemBuilder: (context, index) {
+                    final alert = _alerts[index];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'From: ${alert['sender_name'] ?? 'Unknown'}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue,
+                                  ),
+                                ),
+                                Text(
+                                  _formatDateTime(alert['created_at'] ?? ''),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'To: ${alert['receiver_name'] ?? alert['to_username'] ?? 'Unknown'}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                                color: Colors.green,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              alert['query_message'] ??
+                                  alert['message'] ??
+                                  'No message',
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+}
+
+// Query Dialog Widget
+class QueryDialog extends StatefulWidget {
+  final Map<String, dynamic> lead;
+
+  const QueryDialog({super.key, required this.lead});
+
+  @override
+  State<QueryDialog> createState() => _QueryDialogState();
+}
+
+class _QueryDialogState extends State<QueryDialog> {
+  final TextEditingController _messageController = TextEditingController();
+  String? _selectedUsername;
+  List<String> _usernames = [];
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUsernames();
+  }
+
+  Future<void> _loadUsernames() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final usernames = await fetchAllUsernames();
+      setState(() {
+        _usernames = usernames;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitQuery() async {
+    if (_selectedUsername == null || _messageController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a user and enter a message'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final client = Supabase.instance.client;
+
+      // Get current user's username from cache memory
+      String? currentUsername;
+      try {
+        // Step 1: Get cached user data
+        final prefs = await SharedPreferences.getInstance();
+        final cachedUserId = prefs.getString('user_id');
+        final cachedSessionId = prefs.getString('session_id');
+        final cachedSessionActive = prefs.getBool('session_active');
+
+        debugPrint('[CACHE] Cached user_id: $cachedUserId');
+        debugPrint('[CACHE] Cached session_id: $cachedSessionId');
+        debugPrint('[CACHE] Cached session_active: $cachedSessionActive');
+
+        // Step 2: Validate cache data
+        if (cachedUserId == null ||
+            cachedSessionId == null ||
+            cachedSessionActive != true) {
+          debugPrint(
+            '[CACHE] Invalid cache data, falling back to auth session',
+          );
+
+          // Fallback to current auth session
+          final currentUser = await client.auth.getUser();
+          if (currentUser.user != null) {
+            currentUsername = await fetchUsernameByUserId(currentUser.user!.id);
+          }
+        } else {
+          // Step 3: Get username from users table using cached user_id
+          final userResponse = await client
+              .from('users')
+              .select('username')
+              .eq('id', cachedUserId)
+              .single();
+
+          currentUsername = userResponse['username'] as String;
+          debugPrint(
+            '[CACHE] Successfully loaded username from cache: $currentUsername (ID: $cachedUserId)',
+          );
+        }
+      } catch (e) {
+        debugPrint('Error getting current username: $e');
+        currentUsername = 'Unknown User';
+      }
+
+      // Insert query into database with all required fields
+      await client.from('queries').insert({
+        'lead_id': widget.lead['lead_id'] ?? widget.lead['id'],
+        'sender_name': currentUsername ?? 'Unknown User',
+        'receiver_name': _selectedUsername,
+        'to_username': _selectedUsername,
+        'query_message': _messageController.text.trim(),
+        'message': _messageController.text.trim(),
+        'created_at': DateTime.now().toIso8601String(),
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Query sent successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error sending query: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Send Query'),
+      content: SizedBox(
+        width: 400,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Lead: ${widget.lead['project_name'] ?? 'Unknown Project'}',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Select User:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            if (_isLoading)
+              const Center(child: CircularProgressIndicator())
+            else
+              DropdownButtonFormField<String>(
+                value: _selectedUsername,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: 'Select a user',
+                ),
+                items: _usernames.map((username) {
+                  return DropdownMenuItem<String>(
+                    value: username,
+                    child: Text(username),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedUsername = value;
+                  });
+                },
+              ),
+            const SizedBox(height: 16),
+            const Text(
+              'Message:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _messageController,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'Enter your query message...',
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _submitQuery,
+          child: const Text('Send Query'),
+        ),
+      ],
+    );
+  }
+}
+
+// Helper function to fetch username by user ID
+Future<String?> fetchUsernameByUserId(String userId) async {
+  final client = Supabase.instance.client;
+  try {
+    // First try to get from users table
+    var user = await client
+        .from('users')
+        .select('username')
+        .eq('id', userId)
+        .maybeSingle();
+
+    if (user != null) {
+      return user['username'];
+    }
+
+    // If not found in users, try dev_user table
+    user = await client
+        .from('dev_user')
+        .select('username')
+        .eq('id', userId)
+        .maybeSingle();
+
+    return user?['username'];
+  } catch (e) {
+    return null;
+  }
+}
+
+// Helper function to fetch all usernames
+Future<List<String>> fetchAllUsernames() async {
+  final client = Supabase.instance.client;
+  try {
+    // Fetch from users table
+    final users = await client.from('users').select('username');
+    final usernames = users.map((user) => user['username'] as String).toList();
+
+    // Fetch from dev_user table
+    final devUsers = await client.from('dev_user').select('username');
+    final devUsernames = devUsers
+        .map((user) => user['username'] as String)
+        .toList();
+
+    // Combine and remove duplicates
+    final allUsernames = [...usernames, ...devUsernames];
+    return allUsernames.toSet().toList();
+  } catch (e) {
+    return [];
+  }
+}
+
+// Admin Role Management Page with Dashboard UI Style
+class AdminRoleManagementPage extends StatefulWidget {
+  const AdminRoleManagementPage({super.key});
+
+  @override
+  State<AdminRoleManagementPage> createState() =>
+      _AdminRoleManagementPageState();
+}
+
+class _AdminRoleManagementPageState extends State<AdminRoleManagementPage>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  bool _isSearchExpanded = false;
+  final TextEditingController _searchController = TextEditingController();
+
+  // User data state
+  List<Map<String, dynamic>> _allUsers = [];
+  List<Map<String, dynamic>> _invitedUsers = [];
+  List<Map<String, dynamic>> _activeUsers = [];
+  bool _isLoadingUsers = false;
+
+  // Form controllers
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  String? _selectedRole;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _fetchUsersData();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _searchController.dispose();
+    _nameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  // Fetch users data from Supabase
+  Future<void> _fetchUsersData() async {
+    setState(() {
+      _isLoadingUsers = true;
+    });
+
+    try {
+      final client = Supabase.instance.client;
+
+      // Fetch all users from the users table
+      final usersResponse = await client
+          .from('users')
+          .select('*')
+          .order('created_at', ascending: false);
+
+      // Fetch all invitations from the invitation table
+      final invitationsResponse = await client
+          .from('invitation')
+          .select('*')
+          .order('created_at', ascending: false);
+
+      // Get list of emails that are already in users table
+      final existingUserEmails = usersResponse
+          .map((user) => user['email']?.toString().toLowerCase())
+          .where((email) => email != null && email.isNotEmpty)
+          .toSet();
+
+      // Filter invitations to only include those where email is not in users table
+      final pendingInvitations = invitationsResponse.where((invitation) {
+        final invitationEmail = invitation['email']?.toString().toLowerCase();
+        return invitationEmail != null &&
+            invitationEmail.isNotEmpty &&
+            !existingUserEmails.contains(invitationEmail);
+      }).toList();
+
+      setState(() {
+        _allUsers = List<Map<String, dynamic>>.from(usersResponse);
+        _invitedUsers = List<Map<String, dynamic>>.from(pendingInvitations);
+        _activeUsers = _allUsers
+            .where((user) => user['verified'] == true)
+            .toList();
+      });
+    } catch (e) {
+      debugPrint('Error fetching users data: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading users data'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        _isLoadingUsers = false;
+      });
+    }
+  }
+
+  // Handle user actions
+  void _handleUserAction(String action, Map<String, dynamic>? user) {
+    if (user == null) return;
+
+    switch (action) {
+      case 'view':
+        _showUserDetailsDialog(user);
+        break;
+      case 'resend':
+        _resendInvitation(user);
+        break;
+      case 'delete':
+        _showDeleteUserDialog(user);
+        break;
+    }
+  }
+
+  // Show user details dialog
+  void _showUserDetailsDialog(Map<String, dynamic> user) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('User Details'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildDetailRow(
+                  'Full Name',
+                  user['user_name']?.toString() ??
+                      user['username']?.toString() ??
+                      'N/A',
+                ),
+                _buildDetailRow('Email', user['email']?.toString() ?? 'N/A'),
+                _buildDetailRow(
+                  'Phone Number',
+                  user['mobile_no']?.toString() ??
+                      user['phone']?.toString() ??
+                      'N/A',
+                ),
+                _buildDetailRow(
+                  'User Type',
+                  user['user_type']?.toString() ?? 'N/A',
+                ),
+                if (user['verified'] != null)
+                  _buildDetailRow(
+                    'Verified',
+                    user['verified'] == true ? 'Yes' : 'No',
+                  ),
+                _buildDetailRow('Created At', _formatDate(user['created_at'])),
+                if (user['updated_at'] != null)
+                  _buildDetailRow(
+                    'Updated At',
+                    _formatDate(user['updated_at']),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Resend invitation
+  void _resendInvitation(Map<String, dynamic> user) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Invitation resent to ${user['email']}'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  // Show delete user dialog
+  void _showDeleteUserDialog(Map<String, dynamic> user) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Delete User'),
+          content: Text(
+            'Are you sure you want to delete ${user['username']}? This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _deleteUser(user);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Delete user
+  void _deleteUser(Map<String, dynamic> user) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('User ${user['username']} deleted successfully'),
+        backgroundColor: Colors.green,
+      ),
+    );
+    // Refresh the user list
+    _fetchUsersData();
+  }
+
+  // Build detail row for dialog
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              '$label:',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[600],
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(fontSize: 12, color: Colors.grey[800]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Format date
+  String _formatDate(dynamic date) {
+    if (date == null) return 'N/A';
+    try {
+      final dateTime = DateTime.parse(date.toString());
+      return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+    } catch (e) {
+      return 'N/A';
+    }
+  }
+
+  // Create invitation in Supabase
+  Future<void> _createInvitation() async {
+    if (_nameController.text.isEmpty ||
+        _emailController.text.isEmpty ||
+        _selectedRole == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please fill in all required fields'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoadingUsers = true;
+    });
+
+    try {
+      final client = Supabase.instance.client;
+
+      // Create invitation in the invitation table
+      await client.from('invitation').insert({
+        'user_name': _nameController.text.trim(),
+        'email': _emailController.text.trim(),
+        'mobile_no': _phoneController.text.trim(),
+        'user_type': _selectedRole,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+
+      // Clear form
+      _nameController.clear();
+      _emailController.clear();
+      _phoneController.clear();
+      setState(() {
+        _selectedRole = null;
+      });
+
+      // Refresh user list
+      await _fetchUsersData();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Invitation sent successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error creating invitation: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error sending invitation: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        _isLoadingUsers = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey[50],
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              // Header with Role Management heading, search bar, and action buttons
+              _buildHeader(),
+              SizedBox(height: 24),
+
+              // Role Management content
+              Expanded(child: _buildRoleManagementContent()),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth <= 600;
+
+        if (isMobile) {
+          // Mobile layout
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Role Management heading with icon
+              Row(
+                children: [
+                  Icon(Icons.security, color: Colors.grey[800], size: 20),
+                  SizedBox(width: 6),
+                  Text(
+                    'Role Management',
+                    style: TextStyle(
+                      color: Colors.grey[800],
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  // Collapsible search bar
+                  Expanded(
+                    child: AnimatedContainer(
+                      duration: Duration(milliseconds: 300),
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 4,
+                            offset: Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          if (_isSearchExpanded) ...[
+                            Expanded(
+                              child: Padding(
+                                padding: EdgeInsets.only(left: 12),
+                                child: TextField(
+                                  controller: _searchController,
+                                  decoration: InputDecoration(
+                                    hintText: 'Search roles...',
+                                    border: InputBorder.none,
+                                    hintStyle: TextStyle(
+                                      color: Colors.grey[400],
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () {
+                                setState(() {
+                                  _isSearchExpanded = false;
+                                  _searchController.clear();
+                                });
+                              },
+                              icon: Icon(Icons.close, color: Colors.grey[600]),
+                              iconSize: 14,
+                              padding: EdgeInsets.zero,
+                            ),
+                          ] else ...[
+                            Expanded(
+                              child: IconButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _isSearchExpanded = true;
+                                  });
+                                },
+                                icon: Icon(
+                                  Icons.search,
+                                  color: Colors.grey[600],
+                                ),
+                                iconSize: 14,
+                                padding: EdgeInsets.zero,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        } else {
+          // Desktop layout
+          return Row(
+            children: [
+              // Role Management heading with icon
+              Row(
+                children: [
+                  Icon(Icons.security, color: Colors.grey[800], size: 24),
+                  SizedBox(width: 8),
+                  Text(
+                    'Role Management',
+                    style: TextStyle(
+                      color: Colors.grey[800],
+                      fontWeight: FontWeight.bold,
+                      fontSize: 24,
+                    ),
+                  ),
+                ],
+              ),
+
+              Expanded(child: SizedBox()), // Flexible space
+              // Right side actions
+              Flexible(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Collapsible search bar
+                    AnimatedContainer(
+                      duration: Duration(milliseconds: 300),
+                      width: _isSearchExpanded ? 300 : 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 8,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          if (_isSearchExpanded) ...[
+                            Expanded(
+                              child: Padding(
+                                padding: EdgeInsets.only(left: 16),
+                                child: TextField(
+                                  controller: _searchController,
+                                  decoration: InputDecoration(
+                                    hintText: 'Search roles...',
+                                    border: InputBorder.none,
+                                    hintStyle: TextStyle(
+                                      color: Colors.grey[400],
+                                    ),
+                                  ),
+                                  style: TextStyle(fontSize: 14),
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () {
+                                setState(() {
+                                  _isSearchExpanded = false;
+                                  _searchController.clear();
+                                });
+                              },
+                              icon: Icon(Icons.close, color: Colors.grey[600]),
+                              iconSize: 20,
+                            ),
+                          ] else ...[
+                            Expanded(
+                              child: IconButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _isSearchExpanded = true;
+                                  });
+                                },
+                                icon: Icon(
+                                  Icons.search,
+                                  color: Colors.grey[600],
+                                ),
+                                iconSize: 20,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+
+                    SizedBox(width: 12),
+
+                    // Refresh button
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Colors.green,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 8,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: IconButton(
+                        onPressed: () {
+                          _fetchUsersData();
+                        },
+                        icon: Icon(Icons.refresh, color: Colors.white),
+                        iconSize: 20,
+                      ),
+                    ),
+
+                    SizedBox(width: 12),
+
+                    // Add Role button
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Colors.blue,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 8,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: IconButton(
+                        onPressed: () {
+                          _showAddRoleDialog(context);
+                        },
+                        icon: Icon(Icons.add, color: Colors.white),
+                        iconSize: 20,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        }
+      },
+    );
+  }
+
+  Widget _buildRoleManagementContent() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth > 900;
+
+        if (isWide) {
+          // Desktop layout
+          return Column(
+            children: [
+              // Tabs
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: TabBar(
+                  controller: _tabController,
+                  labelColor: Colors.blue[600],
+                  unselectedLabelColor: Colors.grey[600],
+                  indicatorColor: Colors.blue[600],
+                  indicatorWeight: 3,
+                  tabs: const [
+                    Tab(text: 'Invite'),
+                    Tab(text: 'Invited'),
+                    Tab(text: 'Active'),
+                  ],
+                ),
+              ),
+              SizedBox(height: 24),
+
+              // Tab content
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 4,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildInviteTab(),
+                      _buildInvitedTab(),
+                      _buildActiveTab(),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        } else {
+          // Mobile layout
+          return Column(
+            children: [
+              // Tabs
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: TabBar(
+                  controller: _tabController,
+                  labelColor: Colors.blue[600],
+                  unselectedLabelColor: Colors.grey[600],
+                  indicatorColor: Colors.blue[600],
+                  indicatorWeight: 3,
+                  tabs: const [
+                    Tab(text: 'Invite'),
+                    Tab(text: 'Invited'),
+                    Tab(text: 'Active'),
+                  ],
+                ),
+              ),
+              SizedBox(height: 16),
+
+              // Tab content
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 4,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildInviteTab(),
+                      _buildInvitedTab(),
+                      _buildActiveTab(),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
+      },
+    );
+  }
+
+  Widget _buildInviteTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Send Invitation',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+          ),
+          SizedBox(height: 16),
+          Text(
+            'Send invitations to new users to join your organization and assign appropriate roles.',
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+          ),
+          SizedBox(height: 24),
+          _buildInviteForm(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInviteForm() {
+    return Container(
+      padding: EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Invitation Information',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
+            ),
+            SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _nameController,
+                    decoration: InputDecoration(
+                      labelText: 'Full Name',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.person),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 16),
+                Expanded(
+                  child: TextField(
+                    controller: _emailController,
+                    decoration: InputDecoration(
+                      labelText: 'Email Address',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.email),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _phoneController,
+                    decoration: InputDecoration(
+                      labelText: 'Phone Number',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.phone),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 16),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: _selectedRole,
+                    decoration: InputDecoration(
+                      labelText: 'Role',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.security),
+                      isDense: true,
+                    ),
+                    isExpanded: true,
+                    items:
+                        [
+                          'Admin',
+                          'Sales',
+                          'Proposal Engineer',
+                          'Developer',
+                          'User',
+                        ].map((role) {
+                          return DropdownMenuItem<String>(
+                            value: role,
+                            child: Text(
+                              role,
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          );
+                        }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedRole = value;
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _createInvitation,
+                    icon: Icon(Icons.send),
+                    label: Text('Send Invitation'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInvitedTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Invited Users',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+          ),
+          SizedBox(height: 16),
+          Text(
+            'Users who have been invited but not yet activated.',
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+          ),
+          SizedBox(height: 24),
+          _buildInvitedUsersList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInvitedUsersList() {
+    if (_isLoadingUsers) {
+      return Container(
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey[50],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[200]!),
+        ),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_invitedUsers.isEmpty) {
+      return Container(
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey[50],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[200]!),
+        ),
+        child: Center(
+          child: Column(
+            children: [
+              Icon(Icons.people_outline, size: 48, color: Colors.grey[400]),
+              SizedBox(height: 16),
+              Text(
+                'No invited users found',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Users will appear here once they are invited',
+                style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          children: _invitedUsers.map((invitation) {
+            return Column(
+              children: [
+                _buildUserCard(
+                  invitation['user_name']?.toString() ?? 'Unknown User',
+                  invitation['email']?.toString() ?? 'No email',
+                  invitation['user_type']?.toString() ?? 'User',
+                  'Pending',
+                  Colors.orange,
+                  user: invitation,
+                ),
+                if (_invitedUsers.indexOf(invitation) <
+                    _invitedUsers.length - 1)
+                  SizedBox(height: 12),
+              ],
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActiveTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Active Users',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+          ),
+          SizedBox(height: 16),
+          Text(
+            'Currently active users in your organization.',
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+          ),
+          SizedBox(height: 24),
+          _buildActiveUsersList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActiveUsersList() {
+    if (_isLoadingUsers) {
+      return Container(
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey[50],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[200]!),
+        ),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_activeUsers.isEmpty) {
+      return Container(
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey[50],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[200]!),
+        ),
+        child: Center(
+          child: Column(
+            children: [
+              Icon(Icons.people, size: 48, color: Colors.grey[400]),
+              SizedBox(height: 16),
+              Text(
+                'No active users found',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Verified users will appear here',
+                style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          children: _activeUsers.map((user) {
+            return Column(
+              children: [
+                _buildUserCard(
+                  user['username']?.toString() ?? 'Unknown User',
+                  user['email']?.toString() ?? 'No email',
+                  user['user_type']?.toString() ?? 'User',
+                  'Active',
+                  Colors.green,
+                  user: user,
+                ),
+                if (_activeUsers.indexOf(user) < _activeUsers.length - 1)
+                  SizedBox(height: 12),
+              ],
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUserCard(
+    String name,
+    String email,
+    String role,
+    String status,
+    Color statusColor, {
+    Map<String, dynamic>? user,
+  }) {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[200]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 2,
+            offset: Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: Colors.blue[100],
+            child: Text(
+              name[0].toUpperCase(),
+              style: TextStyle(
+                color: Colors.blue[700],
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  email,
+                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                ),
+                SizedBox(height: 4),
+                Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.blue[50],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.blue[200]!),
+                      ),
+                      child: Text(
+                        role,
+                        style: TextStyle(
+                          color: Colors.blue[700],
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: statusColor),
+                      ),
+                      child: Text(
+                        status,
+                        style: TextStyle(
+                          color: statusColor,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              _handleUserAction(value, user);
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'view',
+                child: Row(
+                  children: [
+                    Icon(Icons.visibility, size: 16),
+                    SizedBox(width: 8),
+                    Text('View Details'),
+                  ],
+                ),
+              ),
+              if (user != null && user['verified'] != true)
+                PopupMenuItem(
+                  value: 'resend',
+                  child: Row(
+                    children: [
+                      Icon(Icons.refresh, size: 16),
+                      SizedBox(width: 8),
+                      Text('Resend Invitation'),
+                    ],
+                  ),
+                ),
+              PopupMenuItem(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete, size: 16, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Delete User', style: TextStyle(color: Colors.red)),
+                  ],
+                ),
+              ),
+            ],
+            icon: Icon(Icons.more_vert, color: Colors.grey[600]),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddRoleDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Add New Role'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                decoration: InputDecoration(
+                  labelText: 'Role Name',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              SizedBox(height: 16),
+              TextField(
+                decoration: InputDecoration(
+                  labelText: 'Description',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Role added successfully!'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              },
+              child: Text('Add Role'),
+            ),
+          ],
+        );
+      },
+    );
   }
 }

@@ -11,6 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../utils/navigation_utils.dart';
 import '../auth/login_screen.dart';
+import '../../services/query_notification_service.dart';
 import '../../main.dart'
     show
         updateUserSessionActiveMCP,
@@ -474,7 +475,7 @@ class _ProposalScreenState extends State<ProposalScreen> {
     final allLeads = await client
         .from('leads')
         .select(
-          'id, client_name, project_name, project_location, created_at, remark, main_contact_name, main_contact_email, main_contact_mobile, lead_generated_by',
+          'id, client_name, project_name, project_location, created_at, remark, main_contact_name, main_contact_email, main_contact_mobile, lead_generated_by, lead_type',
         )
         .eq('lead_type', 'Monolithic Formwork')
         .order('created_at', ascending: false);
@@ -528,7 +529,7 @@ class _ProposalScreenState extends State<ProposalScreen> {
     final leadsData = await client
         .from('leads')
         .select(
-          'id, client_name, project_name, project_location, created_at, remark, main_contact_name, main_contact_email, main_contact_mobile, lead_generated_by',
+          'id, client_name, project_name, project_location, created_at, remark, main_contact_name, main_contact_email, main_contact_mobile, lead_generated_by, lead_type',
         )
         .inFilter('id', submittedLeadIds.toList())
         .order('created_at', ascending: false);
@@ -576,11 +577,67 @@ class _ProposalScreenState extends State<ProposalScreen> {
     ];
   }
 
-  void _showAlertsDialog(BuildContext context, Map<String, dynamic> lead) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertsDialog(lead: lead),
-    );
+  void _showAlertsDialog(
+    BuildContext context,
+    Map<String, dynamic> lead,
+  ) async {
+    // Mark queries as read when dialog is opened
+    final leadId = lead['lead_id']?.toString() ?? lead['id']?.toString();
+    if (leadId != null) {
+      final userId = await _getCurrentUserId();
+      if (userId != null) {
+        await QueryNotificationService.markQueriesAsRead(leadId, userId);
+        // Refresh the UI to update the green dot
+        if (mounted) {
+          setState(() {});
+        }
+      }
+    }
+
+    // Check if widget is still mounted before showing dialog
+    if (mounted && context.mounted) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertsDialog(lead: lead),
+      );
+    }
+  }
+
+  /// Get current user's ID
+  Future<String?> _getCurrentUserId() async {
+    try {
+      // First try to get from cache
+      final prefs = await SharedPreferences.getInstance();
+      final cachedUserId = prefs.getString('user_id');
+      final cachedSessionId = prefs.getString('session_id');
+      final cachedSessionActive = prefs.getBool('session_active');
+
+      if (cachedUserId != null &&
+          cachedSessionId != null &&
+          cachedSessionActive == true) {
+        return cachedUserId;
+      } else {
+        // Fallback to current auth session
+        final currentUser = await Supabase.instance.client.auth.getUser();
+        return currentUser.user?.id;
+      }
+    } catch (e) {
+      debugPrint('Error getting current user ID: $e');
+    }
+    return null;
+  }
+
+  /// Check if a lead has unread queries for the current user
+  Future<bool> _hasUnreadQueries(String leadId) async {
+    try {
+      final userId = await _getCurrentUserId();
+      if (userId == null) return false;
+
+      return await QueryNotificationService.hasUnreadQueries(leadId, userId);
+    } catch (e) {
+      debugPrint('Error checking unread queries: $e');
+      return false;
+    }
   }
 
   @override
@@ -1777,10 +1834,43 @@ class _ProposalScreenState extends State<ProposalScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                IconButton(
-                  onPressed: () => _showAlertsDialog(context, inquiry),
-                  icon: const Icon(Icons.notifications, color: Colors.red),
-                  tooltip: 'Alert',
+                Stack(
+                  children: [
+                    IconButton(
+                      onPressed: () => _showAlertsDialog(context, inquiry),
+                      icon: const Icon(Icons.notifications, color: Colors.red),
+                      tooltip: 'Alert',
+                    ),
+                    // Green dot for unread alerts
+                    FutureBuilder<bool>(
+                      future: _hasUnreadQueries(
+                        inquiry['lead_id']?.toString() ??
+                            inquiry['id']?.toString() ??
+                            '',
+                      ),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasData && snapshot.data == true) {
+                          return Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Container(
+                              width: 12,
+                              height: 12,
+                              decoration: BoxDecoration(
+                                color: Colors.green,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 1,
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                        return SizedBox.shrink();
+                      },
+                    ),
+                  ],
                 ),
                 IconButton(
                   onPressed: () {
@@ -1891,6 +1981,8 @@ class _ProposalScreenState extends State<ProposalScreen> {
       await client.from('lead_activity').insert({
         'lead_id': leadId,
         'user_id': userId,
+        'activity_type': activityType,
+        'activity_date': DateTime.now().toIso8601String(),
         'changes_made': jsonEncode(changesMade),
         'created_at': DateTime.now().toIso8601String(),
       });
@@ -2328,37 +2420,82 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
       final leadIdShort = leadId.substring(0, 4).toUpperCase();
       final projectId = 'Tobler-$leadIdShort';
 
-      // Insert into admin_response table with all required fields
-      // This creates a comprehensive record linking the proposal to the lead
-      debugPrint('[PROPOSAL] Inserting admin_response with:');
-      debugPrint('[PROPOSAL] - Project: ${leadDetails['project_name']}');
-      debugPrint('[PROPOSAL] - Client: ${leadDetails['client_name']}');
-      debugPrint('[PROPOSAL] - Aluminium Area: $aluminiumArea');
-      debugPrint('[PROPOSAL] - MS Weight: $msWeight');
-      debugPrint('[PROPOSAL] - Project ID: $projectId');
-      debugPrint('[PROPOSAL] - Sales User: $salesUserName');
-      debugPrint('[PROPOSAL] - Proposal User: $proposalUserName');
+      // Check if admin_response record exists for this lead_id
+      final existingRecord = await client
+          .from('admin_response')
+          .select('id')
+          .eq('lead_id', leadId)
+          .maybeSingle();
 
-      try {
-        await client.from('admin_response').insert({
-          'lead_id': leadId,
-          'project_name': leadDetails['project_name'],
-          'client_name': leadDetails['client_name'],
-          'location': leadDetails['project_location'],
-          'aluminium_area': aluminiumArea,
-          'ms_weight': msWeight,
-          'remark': remarkController.text.trim(),
-          'project_id': projectId,
-          'sales_user': salesUserName,
-          'proposal_user': proposalUserName,
-          'created_at': DateTime.now().toIso8601String(),
-          'updated_at': DateTime.now().toIso8601String(),
-        });
+      if (existingRecord != null) {
+        // Record exists, update it
+        debugPrint(
+          '[PROPOSAL] Updating existing admin_response record for lead_id: $leadId',
+        );
+        debugPrint('[PROPOSAL] - Project: ${leadDetails['project_name']}');
+        debugPrint('[PROPOSAL] - Client: ${leadDetails['client_name']}');
+        debugPrint('[PROPOSAL] - Aluminium Area: $aluminiumArea');
+        debugPrint('[PROPOSAL] - MS Weight: $msWeight');
+        debugPrint('[PROPOSAL] - Project ID: $projectId');
+        debugPrint('[PROPOSAL] - Sales User: $salesUserName');
+        debugPrint('[PROPOSAL] - Proposal User: $proposalUserName');
 
-        debugPrint('[PROPOSAL] Successfully inserted admin_response');
-      } catch (e) {
-        debugPrint('[PROPOSAL] Error inserting admin_response: $e');
-        throw Exception('Failed to insert admin_response - $e');
+        try {
+          await client
+              .from('admin_response')
+              .update({
+                'project_name': leadDetails['project_name'],
+                'client_name': leadDetails['client_name'],
+                'location': leadDetails['project_location'],
+                'aluminium_area': aluminiumArea,
+                'ms_weight': msWeight,
+                'remark': remarkController.text.trim(),
+                'project_id': projectId,
+                'sales_user': salesUserName,
+                'proposal_user': proposalUserName,
+                'updated_at': DateTime.now().toIso8601String(),
+              })
+              .eq('lead_id', leadId);
+
+          debugPrint('[PROPOSAL] Successfully updated admin_response');
+        } catch (e) {
+          debugPrint('[PROPOSAL] Error updating admin_response: $e');
+          throw Exception('Failed to update admin_response - $e');
+        }
+      } else {
+        // Record doesn't exist, create new one
+        debugPrint(
+          '[PROPOSAL] Creating new admin_response record for lead_id: $leadId',
+        );
+        debugPrint('[PROPOSAL] - Project: ${leadDetails['project_name']}');
+        debugPrint('[PROPOSAL] - Client: ${leadDetails['client_name']}');
+        debugPrint('[PROPOSAL] - Aluminium Area: $aluminiumArea');
+        debugPrint('[PROPOSAL] - MS Weight: $msWeight');
+        debugPrint('[PROPOSAL] - Project ID: $projectId');
+        debugPrint('[PROPOSAL] - Sales User: $salesUserName');
+        debugPrint('[PROPOSAL] - Proposal User: $proposalUserName');
+
+        try {
+          await client.from('admin_response').insert({
+            'lead_id': leadId,
+            'project_name': leadDetails['project_name'],
+            'client_name': leadDetails['client_name'],
+            'location': leadDetails['project_location'],
+            'aluminium_area': aluminiumArea,
+            'ms_weight': msWeight,
+            'remark': remarkController.text.trim(),
+            'project_id': projectId,
+            'sales_user': salesUserName,
+            'proposal_user': proposalUserName,
+            'created_at': DateTime.now().toIso8601String(),
+            'updated_at': DateTime.now().toIso8601String(),
+          });
+
+          debugPrint('[PROPOSAL] Successfully inserted admin_response');
+        } catch (e) {
+          debugPrint('[PROPOSAL] Error inserting admin_response: $e');
+          throw Exception('Failed to insert admin_response - $e');
+        }
       }
 
       debugPrint('[PROPOSAL] All database operations completed successfully!');
@@ -2609,6 +2746,8 @@ Future<void> logLeadActivity({
   await client.from('lead_activity').insert({
     'lead_id': leadId,
     'user_id': userId,
+    'activity_type': activityType,
+    'activity_date': DateTime.now().toIso8601String(),
     'changes_made': changesMade is String
         ? changesMade
         : jsonEncode(changesMade),
@@ -3583,14 +3722,47 @@ class _QueryDialogState extends State<QueryDialog> {
     try {
       final client = Supabase.instance.client;
 
-      // Get current user's username
+      // Get current user's username from cache memory
       String? currentUsername;
       try {
-        final currentUser = await client.auth.getUser();
-        if (currentUser.user != null) {
-          currentUsername = await fetchUsernameByUserId(currentUser.user!.id);
+        // Step 1: Get cached user data
+        final prefs = await SharedPreferences.getInstance();
+        final cachedUserId = prefs.getString('user_id');
+        final cachedSessionId = prefs.getString('session_id');
+        final cachedSessionActive = prefs.getBool('session_active');
+
+        debugPrint('[CACHE] Cached user_id: $cachedUserId');
+        debugPrint('[CACHE] Cached session_id: $cachedSessionId');
+        debugPrint('[CACHE] Cached session_active: $cachedSessionActive');
+
+        // Step 2: Validate cache data
+        if (cachedUserId == null ||
+            cachedSessionId == null ||
+            cachedSessionActive != true) {
+          debugPrint(
+            '[CACHE] Invalid cache data, falling back to auth session',
+          );
+
+          // Fallback to current auth session
+          final currentUser = await client.auth.getUser();
+          if (currentUser.user != null) {
+            currentUsername = await fetchUsernameByUserId(currentUser.user!.id);
+          }
+        } else {
+          // Step 3: Get username from users table using cached user_id
+          final userResponse = await client
+              .from('users')
+              .select('username')
+              .eq('id', cachedUserId)
+              .single();
+
+          currentUsername = userResponse['username'] as String;
+          debugPrint(
+            '[CACHE] Successfully loaded username from cache: $currentUsername (ID: $cachedUserId)',
+          );
         }
       } catch (e) {
+        debugPrint('Error getting current username: $e');
         currentUsername = 'Unknown User';
       }
 
@@ -4801,8 +4973,26 @@ class _UpdateProposalDialogState extends State<UpdateProposalDialog> {
         });
       }
 
-      // Update admin_response with new calculations
-      await _updateAdminResponse();
+      // Check if admin_response record exists for this lead_id
+      final existingRecord = await client
+          .from('admin_response')
+          .select('id')
+          .eq('lead_id', leadId)
+          .maybeSingle();
+
+      if (existingRecord != null) {
+        // Record exists, update it
+        debugPrint(
+          '[UPDATE] Updating existing admin_response record for lead_id: $leadId',
+        );
+        await _updateAdminResponse();
+      } else {
+        // Record doesn't exist, create new one
+        debugPrint(
+          '[UPDATE] Creating new admin_response record for lead_id: $leadId',
+        );
+        await _createAdminResponse();
+      }
 
       setState(() {
         _isLoading = false;
@@ -4873,6 +5063,87 @@ class _UpdateProposalDialogState extends State<UpdateProposalDialog> {
           'updated_at': DateTime.now().toIso8601String(),
         })
         .eq('lead_id', leadId);
+  }
+
+  Future<void> _createAdminResponse() async {
+    final client = Supabase.instance.client;
+    final leadId = widget.lead['id'] as String;
+
+    // Calculate new values
+    double aluminiumArea = 0.0;
+    double msWeightTotal = 0.0;
+    int msWeightCount = 0;
+
+    for (final input in inputs) {
+      if (input['input']!.text.trim().isNotEmpty) {
+        final inputType = input['input']!.text.trim().toLowerCase();
+        final value = double.tryParse(input['value']!.text.trim()) ?? 0.0;
+
+        if (inputType.contains('alu') ||
+            inputType.contains('area') ||
+            inputType.contains('aluminium')) {
+          aluminiumArea += value;
+        }
+
+        if (inputType.contains('ms') || inputType == 'ms') {
+          msWeightTotal += value;
+          msWeightCount++;
+        }
+      }
+    }
+
+    double msWeight = msWeightCount > 0 ? msWeightTotal / msWeightCount : 0.0;
+
+    // Get lead details
+    final leadDetails = await client
+        .from('leads')
+        .select(
+          'project_name, client_name, project_location, lead_generated_by',
+        )
+        .eq('id', leadId)
+        .single();
+
+    // Get sales user name
+    String salesUserName = '';
+    if (leadDetails['lead_generated_by'] != null) {
+      final salesUser = await client
+          .from('users')
+          .select('username')
+          .eq('id', leadDetails['lead_generated_by'])
+          .maybeSingle();
+      salesUserName = salesUser?['username'] ?? '';
+    }
+
+    // Get proposal user name
+    String proposalUserName = '';
+    if (widget.currentUserId != null) {
+      final proposalUser = await client
+          .from('users')
+          .select('username')
+          .eq('id', widget.currentUserId as String)
+          .maybeSingle();
+      proposalUserName = proposalUser?['username'] ?? '';
+    }
+
+    // Generate project_id using lead_id
+    final leadIdShort = leadId.substring(0, 4).toUpperCase();
+    final projectId = 'Tobler-$leadIdShort';
+
+    // Insert new admin_response record
+    await client.from('admin_response').insert({
+      'lead_id': leadId,
+      'project_name': leadDetails['project_name'],
+      'client_name': leadDetails['client_name'],
+      'location': leadDetails['project_location'],
+      'aluminium_area': aluminiumArea,
+      'ms_weight': msWeight,
+      'remark': remarkController.text.trim(),
+      'project_id': projectId,
+      'sales_user': salesUserName,
+      'proposal_user': proposalUserName,
+      'created_at': DateTime.now().toIso8601String(),
+      'updated_at': DateTime.now().toIso8601String(),
+    });
   }
 
   @override

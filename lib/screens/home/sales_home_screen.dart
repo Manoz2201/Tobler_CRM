@@ -10,6 +10,7 @@ import 'package:syncfusion_flutter_charts/charts.dart';
 import 'package:intl/intl.dart';
 import '../../utils/navigation_utils.dart';
 import '../auth/login_screen.dart';
+import '../../services/query_notification_service.dart';
 import '../../main.dart'
     show
         updateUserSessionActiveMCP,
@@ -393,6 +394,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
   final Map<String, bool> _hoveredButtons = {}; // Track hover state for buttons
   String? _selectedStatusFilter; // Track selected status filter for sorting
 
+  // Add query count tracking
+  final Map<String, int> _queryCounts = {};
+
   String? _currentUserId;
   String? _currentUsername;
 
@@ -403,6 +407,19 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     _fetchLeads();
     // Add sample data to match the image exactly
     _addSampleData();
+
+    // Set up periodic query count refresh
+    _startQueryCountRefresh();
+  }
+
+  void _startQueryCountRefresh() {
+    // Refresh query counts every 30 seconds
+    Future.delayed(Duration(seconds: 30), () {
+      if (mounted) {
+        _fetchQueryCounts();
+        _startQueryCountRefresh(); // Schedule next refresh
+      }
+    });
   }
 
   void _addSampleData() {
@@ -786,6 +803,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         _totalAmounts[leadId] = lead['total_amount'] ?? 0.0;
       }
 
+      // Step 8: Fetch query counts for all leads
+      await _fetchQueryCounts();
+
       setState(() {
         _leads = joinedLeads;
         _filteredLeads = joinedLeads;
@@ -808,6 +828,47 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           ),
         );
       }
+    }
+  }
+
+  // Method to fetch query counts for all leads
+  Future<void> _fetchQueryCounts() async {
+    try {
+      final client = Supabase.instance.client;
+
+      // Fetch query counts for each lead
+      for (final lead in _leads) {
+        final leadId = lead['lead_id'].toString();
+
+        try {
+          // The leadId should be the actual UUID from the leads table
+          // If it's not a valid UUID, we can't proceed
+          if (leadId.isEmpty || leadId == 'null') {
+            debugPrint('Invalid leadId: $leadId');
+            setState(() {
+              _queryCounts[leadId] = 0;
+            });
+            continue;
+          }
+
+          // Get query count for this lead
+          final queryCount = await client
+              .from('queries')
+              .select('id')
+              .eq('lead_id', leadId);
+
+          setState(() {
+            _queryCounts[leadId] = queryCount.length;
+          });
+        } catch (e) {
+          debugPrint('Error fetching query counts: $e');
+          setState(() {
+            _queryCounts[leadId] = 0;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching query counts: $e');
     }
   }
 
@@ -1011,7 +1072,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Lead Management',
+                  'Leads Management',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -1641,7 +1702,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                   ),
                 ),
                 Expanded(
-                  flex: 2,
+                  flex: 3,
                   child: Container(
                     padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                     child: Text(
@@ -1937,7 +1998,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                     ),
                   ),
                   Expanded(
-                    flex: 2,
+                    flex: 3,
                     child: Container(
                       padding: EdgeInsets.symmetric(
                         horizontal: 4,
@@ -1951,6 +2012,22 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                             onPressed: () => _editLead(lead),
                             tooltip: 'Edit Lead',
                             leadId: leadId,
+                          ),
+                          SizedBox(width: 4),
+                          _buildInteractiveIconButton(
+                            icon: Icons.notifications,
+                            onPressed: () => _showAlertsDialog(context, lead),
+                            tooltip: 'Alert',
+                            leadId: leadId,
+                            isAlert: true,
+                          ),
+                          SizedBox(width: 4),
+                          _buildInteractiveIconButton(
+                            icon: Icons.chat,
+                            onPressed: () => _showQueryDialog(context, lead),
+                            tooltip: 'Query',
+                            leadId: leadId,
+                            isQuery: true,
                           ),
                           SizedBox(width: 4),
                           _buildInteractiveIconButton(
@@ -2148,6 +2225,22 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                             onPressed: () => _editLead(lead),
                             tooltip: 'Edit',
                             leadId: leadId,
+                          ),
+                          SizedBox(width: 8),
+                          _buildMobileInteractiveButton(
+                            icon: Icons.notifications,
+                            onPressed: () => _showAlertsDialog(context, lead),
+                            tooltip: 'Alert',
+                            leadId: leadId,
+                            isAlert: true,
+                          ),
+                          SizedBox(width: 8),
+                          _buildMobileInteractiveButton(
+                            icon: Icons.chat,
+                            onPressed: () => _showQueryDialog(context, lead),
+                            tooltip: 'Query',
+                            leadId: leadId,
+                            isQuery: true,
                           ),
                           SizedBox(width: 8),
                           _buildMobileInteractiveButton(
@@ -2446,6 +2539,83 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     );
   }
 
+  void _showAlertsDialog(
+    BuildContext context,
+    Map<String, dynamic> lead,
+  ) async {
+    // Refresh query counts before showing dialog
+    _fetchQueryCounts();
+
+    // Mark queries as read when dialog is opened
+    final leadId = lead['lead_id']?.toString() ?? lead['id']?.toString();
+    if (leadId != null) {
+      final userId = await _getCurrentUserId();
+      if (userId != null) {
+        await QueryNotificationService.markQueriesAsRead(leadId, userId);
+        // Refresh the UI to update the green dot
+        if (mounted) {
+          setState(() {});
+        }
+      }
+    }
+
+    // Check if widget is still mounted before showing dialog
+    if (mounted && context.mounted) {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertsDialog(lead: lead);
+        },
+      );
+    }
+  }
+
+  void _showQueryDialog(BuildContext context, Map<String, dynamic> lead) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return QueryDialog(lead: lead);
+      },
+    );
+  }
+
+  /// Get current user's ID
+  Future<String?> _getCurrentUserId() async {
+    try {
+      // First try to get from cache
+      final prefs = await SharedPreferences.getInstance();
+      final cachedUserId = prefs.getString('user_id');
+      final cachedSessionId = prefs.getString('session_id');
+      final cachedSessionActive = prefs.getBool('session_active');
+
+      if (cachedUserId != null &&
+          cachedSessionId != null &&
+          cachedSessionActive == true) {
+        return cachedUserId;
+      } else {
+        // Fallback to current auth session
+        final currentUser = await Supabase.instance.client.auth.getUser();
+        return currentUser.user?.id;
+      }
+    } catch (e) {
+      debugPrint('Error getting current user ID: $e');
+    }
+    return null;
+  }
+
+  /// Check if a lead has unread queries for the current user
+  Future<bool> _hasUnreadQueries(String leadId) async {
+    try {
+      final userId = await _getCurrentUserId();
+      if (userId == null) return false;
+
+      return await QueryNotificationService.hasUnreadQueries(leadId, userId);
+    } catch (e) {
+      debugPrint('Error checking unread queries: $e');
+      return false;
+    }
+  }
+
   Future<void> _viewLeadDetails(Map<String, dynamic> lead) async {
     // Check if we have 'id' or 'lead_id' field
     final leadId = lead['id']?.toString() ?? lead['lead_id']?.toString();
@@ -2724,10 +2894,14 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     required String tooltip,
     required String leadId,
     bool isDestructive = false,
+    bool isAlert = false,
+    bool isQuery = false,
   }) {
     // Determine color based on action type
     Color getActionColor() {
       if (isDestructive) return Colors.red;
+      if (isAlert) return Colors.red;
+      if (isQuery) return Colors.orange;
 
       switch (tooltip.toLowerCase()) {
         case 'view details':
@@ -2738,6 +2912,10 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           return Colors.green;
         case 'refresh data':
           return Colors.purple;
+        case 'alert':
+          return Colors.red;
+        case 'query':
+          return Colors.orange;
         default:
           return Colors.grey;
       }
@@ -2758,23 +2936,50 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
               ? Border.all(color: actionColor.withValues(alpha: 0.3), width: 1)
               : null,
         ),
-        child: IconButton(
-          icon: Icon(
-            icon,
-            color: _hoveredButtons['$leadId-$tooltip'] == true
-                ? actionColor
-                : actionColor.withValues(alpha: 0.7),
-            size: 20,
-          ),
-          onPressed: onPressed,
-          tooltip: tooltip,
-          padding: EdgeInsets.all(8),
-          constraints: BoxConstraints(minWidth: 36, minHeight: 36),
-          onHover: (isHovered) {
-            setState(() {
-              _hoveredButtons['$leadId-$tooltip'] = isHovered;
-            });
-          },
+        child: Stack(
+          children: [
+            IconButton(
+              icon: Icon(
+                icon,
+                color: _hoveredButtons['$leadId-$tooltip'] == true
+                    ? actionColor
+                    : actionColor.withValues(alpha: 0.7),
+                size: 20,
+              ),
+              onPressed: onPressed,
+              tooltip: tooltip,
+              padding: EdgeInsets.all(8),
+              constraints: BoxConstraints(minWidth: 36, minHeight: 36),
+              onHover: (isHovered) {
+                setState(() {
+                  _hoveredButtons['$leadId-$tooltip'] = isHovered;
+                });
+              },
+            ),
+            // Green dot for unread alerts
+            if (isAlert)
+              FutureBuilder<bool>(
+                future: _hasUnreadQueries(leadId),
+                builder: (context, snapshot) {
+                  if (snapshot.hasData && snapshot.data == true) {
+                    return Positioned(
+                      top: 4,
+                      right: 4,
+                      child: Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: Colors.green,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.white, width: 1),
+                        ),
+                      ),
+                    );
+                  }
+                  return SizedBox.shrink();
+                },
+              ),
+          ],
         ),
       ),
     );
@@ -3295,10 +3500,14 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     required String tooltip,
     required String leadId,
     bool isDestructive = false,
+    bool isAlert = false,
+    bool isQuery = false,
   }) {
     // Determine color based on action type
     Color getActionColor() {
       if (isDestructive) return Colors.red;
+      if (isAlert) return Colors.red;
+      if (isQuery) return Colors.orange;
 
       switch (tooltip.toLowerCase()) {
         case 'view':
@@ -3307,6 +3516,10 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           return Colors.green;
         case 'delete':
           return Colors.red;
+        case 'alert':
+          return Colors.red;
+        case 'query':
+          return Colors.orange;
         default:
           return Colors.grey;
       }
@@ -3325,23 +3538,50 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             ? Border.all(color: actionColor.withValues(alpha: 0.3), width: 1)
             : null,
       ),
-      child: IconButton(
-        icon: Icon(
-          icon,
-          color: _hoveredButtons['$leadId-$tooltip'] == true
-              ? actionColor
-              : actionColor.withValues(alpha: 0.7),
-          size: 18,
-        ),
-        onPressed: onPressed,
-        tooltip: tooltip,
-        padding: EdgeInsets.all(6),
-        constraints: BoxConstraints(minWidth: 32, minHeight: 32),
-        onHover: (isHovered) {
-          setState(() {
-            _hoveredButtons['$leadId-$tooltip'] = isHovered;
-          });
-        },
+      child: Stack(
+        children: [
+          IconButton(
+            icon: Icon(
+              icon,
+              color: _hoveredButtons['$leadId-$tooltip'] == true
+                  ? actionColor
+                  : actionColor.withValues(alpha: 0.7),
+              size: 18,
+            ),
+            onPressed: onPressed,
+            tooltip: tooltip,
+            padding: EdgeInsets.all(6),
+            constraints: BoxConstraints(minWidth: 32, minHeight: 32),
+            onHover: (isHovered) {
+              setState(() {
+                _hoveredButtons['$leadId-$tooltip'] = isHovered;
+              });
+            },
+          ),
+          // Green dot for unread alerts
+          if (isAlert)
+            FutureBuilder<bool>(
+              future: _hasUnreadQueries(leadId),
+              builder: (context, snapshot) {
+                if (snapshot.hasData && snapshot.data == true) {
+                  return Positioned(
+                    top: 2,
+                    right: 2,
+                    child: Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: Colors.green,
+                        borderRadius: BorderRadius.circular(5),
+                        border: Border.all(color: Colors.white, width: 1),
+                      ),
+                    ),
+                  );
+                }
+                return SizedBox.shrink();
+              },
+            ),
+        ],
       ),
     );
   }
@@ -3649,7 +3889,29 @@ class _AddLeadDialogState extends State<AddLeadDialog> {
     try {
       final client = Supabase.instance.client;
 
-      // Insert new lead into the leads table
+      // Get current active user data from cache memory
+      final prefs = await SharedPreferences.getInstance();
+      final cachedUserId = prefs.getString('user_id');
+      final cachedUserEmail = prefs.getString('user_email');
+      final cachedUserType = prefs.getString('user_type');
+      final cachedSessionActive = prefs.getBool('session_active');
+
+      debugPrint('[CACHE] Cached user_id: $cachedUserId');
+      debugPrint('[CACHE] Cached user_email: $cachedUserEmail');
+      debugPrint('[CACHE] Cached user_type: $cachedUserType');
+      debugPrint('[CACHE] Cached session_active: $cachedSessionActive');
+
+      // Validate cache data
+      if (cachedUserId == null || cachedSessionActive != true) {
+        debugPrint('[CACHE] Invalid cache data, using fallback');
+        // Fallback to current auth session
+        final currentUser = client.auth.currentUser;
+        if (currentUser == null) {
+          throw Exception('No active user found');
+        }
+      }
+
+      // Insert new lead into the leads table with user information
       final result = await client.from('leads').insert({
         'project_name': _projectNameController.text.trim(),
         'client_name': _clientNameController.text.trim(),
@@ -3662,6 +3924,10 @@ class _AddLeadDialogState extends State<AddLeadDialog> {
         'main_contact_designation': _mainContactDesignationController.text
             .trim(),
         'lead_generated_by': widget.currentUserId,
+        'user_type': cachedUserType ?? 'sales', // Get from cache memory
+        'user_id':
+            cachedUserId ?? widget.currentUserId, // Get from cache memory
+        'user_email': cachedUserEmail ?? '', // Get from cache memory
         'created_at': DateTime.now().toIso8601String(),
       }).select();
 
@@ -5991,7 +6257,11 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
   bool _isLoadingChartData = false;
 
   // Lead status distribution data state
-  Map<String, int> _leadStatusDistribution = {'Won': 0, 'Lost': 0, 'Loop': 0};
+  Map<String, int> _leadStatusDistribution = {
+    'Won': 0,
+    'Lost': 0,
+    'Follow Up': 0,
+  };
   bool _isLoadingLeadStatusData = false;
 
   // Lead Performance state
@@ -6403,7 +6673,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     } catch (e) {
       debugPrint('Error fetching lead status distribution data: $e');
       setState(() {
-        _leadStatusDistribution = {'Won': 0, 'Lost': 0, 'Loop': 0};
+        _leadStatusDistribution = {'Won': 0, 'Lost': 0, 'Follow Up': 0};
         _isLoadingLeadStatusData = false;
       });
     }
@@ -6411,7 +6681,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
 
   // Process lead status distribution data
   Future<void> _processLeadStatusDistributionData(List<dynamic> data) async {
-    Map<String, int> statusCounts = {'Won': 0, 'Lost': 0, 'Loop': 0};
+    Map<String, int> statusCounts = {'Won': 0, 'Lost': 0, 'Follow Up': 0};
 
     for (var record in data) {
       final status = record['update_lead_status'];
@@ -6573,7 +6843,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     final colors = {
       'Won': Colors.green,
       'Lost': Colors.red,
-      'Loop': Colors.orange,
+      'Follow Up': Colors.orange,
     };
 
     for (var entry in _leadStatusDistribution.entries) {
@@ -6612,15 +6882,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
 
       final response = await client
           .from('admin_response')
-          .select('''
-            project_id,
-            project_name,
-            aluminium_area,
-            total_amount_gst,
-            update_lead_status,
-            updated_at,
-            sales_user
-          ''')
+          .select('*')
           .eq('sales_user', _currentUsername)
           .gte('updated_at', dateRange['start']!.toIso8601String())
           .lte('updated_at', dateRange['end']!.toIso8601String())
@@ -6652,23 +6914,41 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
 
     final filtered = _leadPerformanceData.where((lead) {
       final searchQuery = query.toLowerCase();
-      return lead['project_name']?.toString().toLowerCase().contains(
+      return lead['project_id']?.toString().toLowerCase().contains(
                 searchQuery,
               ) ==
               true ||
-          lead['project_id']?.toString().toLowerCase().contains(searchQuery) ==
-              true ||
-          lead['update_lead_status']?.toString().toLowerCase().contains(
+          lead['project_name']?.toString().toLowerCase().contains(
                 searchQuery,
               ) ==
+              true ||
+          lead['client_name']?.toString().toLowerCase().contains(searchQuery) ==
+              true ||
+          lead['location']?.toString().toLowerCase().contains(searchQuery) ==
               true ||
           lead['aluminium_area']?.toString().toLowerCase().contains(
+                searchQuery,
+              ) ==
+              true ||
+          lead['ms_weight']?.toString().toLowerCase().contains(searchQuery) ==
+              true ||
+          lead['rate_per_sqm']?.toString().toLowerCase().contains(
                 searchQuery,
               ) ==
               true ||
           lead['total_amount_gst']?.toString().toLowerCase().contains(
                 searchQuery,
               ) ==
+              true ||
+          lead['sales_user']?.toString().toLowerCase().contains(searchQuery) ==
+              true ||
+          lead['update_lead_status']?.toString().toLowerCase().contains(
+                searchQuery,
+              ) ==
+              true ||
+          lead['remark']?.toString().toLowerCase().contains(searchQuery) ==
+              true ||
+          lead['created_at']?.toString().toLowerCase().contains(searchQuery) ==
               true ||
           lead['updated_at']?.toString().toLowerCase().contains(searchQuery) ==
               true;
@@ -6916,9 +7196,9 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
         'count': _getLeadCountByStatus('Lost'),
       },
       {
-        'key': 'Loop',
-        'label': 'In Loop',
-        'count': _getLeadCountByStatus('Loop'),
+        'key': 'Follow Up',
+        'label': 'Follow Up',
+        'count': _getLeadCountByStatus('Follow Up'),
       },
     ];
 
@@ -7021,77 +7301,211 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // For Windows screens, always use the desktop table layout
-        // Mobile layout only for very small screens
-        if (constraints.maxWidth < 400) {
-          // Mobile layout - cards
+        // Mobile layout for screens smaller than 600px
+        if (constraints.maxWidth < 600) {
+          // Mobile layout - interactive cards with dashboard style
           return ListView.builder(
             shrinkWrap: true,
             physics: NeverScrollableScrollPhysics(),
             itemCount: filteredData.length,
             itemBuilder: (context, index) {
               final lead = filteredData[index];
-              return Card(
-                margin: EdgeInsets.only(bottom: 8),
-                child: Padding(
-                  padding: EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              lead['project_name']?.toString() ?? 'N/A',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _getStatusColor(
-                                lead['update_lead_status'],
-                              ).withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              lead['update_lead_status']?.toString() ?? 'N/A',
-                              style: TextStyle(
-                                color: _getStatusColor(
-                                  lead['update_lead_status'],
+              return AnimatedContainer(
+                duration: Duration(milliseconds: 300),
+                margin: EdgeInsets.only(bottom: 16),
+                child: Card(
+                  elevation: 4,
+                  shadowColor: Colors.black.withValues(alpha: 0.1),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: InkWell(
+                    onTap: () => _showLeadDetailsDialog(lead),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Colors.white, Colors.grey[50]!],
+                        ),
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Header with project name and status
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        lead['project_name']?.toString() ??
+                                            'N/A',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 18,
+                                          color: Colors.grey[800],
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                      ),
+                                      SizedBox(height: 4),
+                                      Text(
+                                        'ID: ${lead['project_id']?.toString() ?? 'N/A'}',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
+                                Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: _getStatusColor(
+                                      lead['update_lead_status'],
+                                    ).withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: _getStatusColor(
+                                        lead['update_lead_status'],
+                                      ),
+                                      width: 1.5,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: _getStatusColor(
+                                          lead['update_lead_status'],
+                                        ).withValues(alpha: 0.2),
+                                        blurRadius: 4,
+                                        offset: Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Text(
+                                    lead['update_lead_status']?.toString() ??
+                                        'N/A',
+                                    style: TextStyle(
+                                      color: _getStatusColor(
+                                        lead['update_lead_status'],
+                                      ),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
+                            SizedBox(height: 16),
+
+                            // Key metrics in a grid layout
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildMetricCard(
+                                    'Area',
+                                    '${lead['aluminium_area']?.toString() ?? '0'} m²',
+                                    Icons.grid_on,
+                                    Colors.blue,
+                                  ),
+                                ),
+                                SizedBox(width: 12),
+                                Expanded(
+                                  child: _buildMetricCard(
+                                    'Rate',
+                                    '₹${lead['rate_per_sqm']?.toString() ?? '0'}',
+                                    Icons.attach_money,
+                                    Colors.green,
+                                  ),
+                                ),
+                                SizedBox(width: 12),
+                                Expanded(
+                                  child: _buildMetricCard(
+                                    'Total',
+                                    '₹${lead['total_amount_gst']?.toString() ?? '0'}',
+                                    Icons.account_balance_wallet,
+                                    Colors.purple,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 16),
+
+                            // Additional info in a clean layout
+                            _buildMobileInfoRow(
+                              'Client',
+                              lead['client_name']?.toString() ?? 'N/A',
+                              Icons.person,
+                            ),
+                            _buildMobileInfoRow(
+                              'Location',
+                              lead['location']?.toString() ?? 'N/A',
+                              Icons.location_on,
+                            ),
+                            _buildMobileInfoRow(
+                              'MS Weight',
+                              lead['ms_weight']?.toString() ?? 'N/A',
+                              Icons.fitness_center,
+                            ),
+                            _buildMobileInfoRow(
+                              'Sales User',
+                              lead['sales_user']?.toString() ?? 'N/A',
+                              Icons.person_outline,
+                            ),
+                            _buildMobileInfoRow(
+                              'Updated',
+                              _formatDate(lead['updated_at']),
+                              Icons.schedule,
+                            ),
+
+                            // Interactive action buttons
+                            SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildActionButton(
+                                    'Query',
+                                    Icons.chat_bubble_outline,
+                                    Colors.blue,
+                                    () => _showQueryDialogMobile(context, lead),
+                                  ),
+                                ),
+                                SizedBox(width: 12),
+                                Expanded(
+                                  child: _buildActionButton(
+                                    'Alerts',
+                                    Icons.notifications_none,
+                                    Colors.orange,
+                                    () =>
+                                        _showAlertsDialogMobile(context, lead),
+                                  ),
+                                ),
+                                SizedBox(width: 12),
+                                Expanded(
+                                  child: _buildActionButton(
+                                    'Details',
+                                    Icons.info_outline,
+                                    Colors.grey[600]!,
+                                    () => _showLeadDetailsDialog(lead),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                      SizedBox(height: 8),
-                      _buildLeadInfoRow(
-                        'Project ID',
-                        lead['project_id']?.toString() ?? 'N/A',
-                      ),
-                      _buildLeadInfoRow(
-                        'Area',
-                        '${lead['aluminium_area']?.toString() ?? '0'} m²',
-                      ),
-                      _buildLeadInfoRow(
-                        'Revenue',
-                        '₹${lead['total_amount_gst']?.toString() ?? '0'}',
-                      ),
-                      _buildLeadInfoRow(
-                        'Closed Date',
-                        _formatDate(lead['updated_at']),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               );
@@ -7121,7 +7535,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                       _buildTableHeaderCell('CLIENT NAME', 2),
                       _buildTableHeaderCell('LOCATION', 1),
                       _buildTableHeaderCell('ALUMINIUM AREA', 1),
-                      _buildTableHeaderCell('RC WEIGHT', 1),
+                      _buildTableHeaderCell('MS WEIGHT', 1),
                       _buildTableHeaderCell('RATE/SQM', 1),
                       _buildTableHeaderCell('TOTAL AMOUNT', 1),
                       _buildTableHeaderCell('SALES USER', 1),
@@ -7141,23 +7555,249 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     );
   }
 
-  // Build lead info row for mobile
-  Widget _buildLeadInfoRow(String label, String value) {
+  // Build mobile info row
+  Widget _buildMobileInfoRow(String label, String value, [IconData? icon]) {
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: 2),
+      padding: EdgeInsets.symmetric(vertical: 6),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '$label: ',
-            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+          if (icon != null) ...[
+            Icon(icon, size: 16, color: Colors.grey[500]),
+            SizedBox(width: 8),
+          ],
+          SizedBox(
+            width: 80,
+            child: Text(
+              '$label:',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[600],
+              ),
+            ),
           ),
           Expanded(
             child: Text(
               value,
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+              style: TextStyle(fontSize: 12, color: Colors.grey[800]),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 2,
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // Build metric card for dashboard style
+  Widget _buildMetricCard(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Container(
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 16, color: color),
+              SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Build action button for dashboard style
+  Widget _buildActionButton(
+    String label,
+    IconData icon,
+    Color color,
+    VoidCallback onPressed,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [color.withValues(alpha: 0.1), color.withValues(alpha: 0.05)],
+        ),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+            child: Column(
+              children: [
+                Icon(icon, size: 20, color: color),
+                SizedBox(height: 4),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: color,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Show lead details dialog
+  void _showLeadDetailsDialog(Map<String, dynamic> lead) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Lead Details'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildDetailRow(
+                  'Project ID',
+                  lead['project_id']?.toString() ?? 'N/A',
+                ),
+                _buildDetailRow(
+                  'Project Name',
+                  lead['project_name']?.toString() ?? 'N/A',
+                ),
+                _buildDetailRow(
+                  'Client Name',
+                  lead['client_name']?.toString() ?? 'N/A',
+                ),
+                _buildDetailRow(
+                  'Location',
+                  lead['location']?.toString() ?? 'N/A',
+                ),
+                _buildDetailRow(
+                  'Aluminium Area',
+                  '${lead['aluminium_area']?.toString() ?? '0'} m²',
+                ),
+                _buildDetailRow(
+                  'MS Weight',
+                  lead['ms_weight']?.toString() ?? 'N/A',
+                ),
+                _buildDetailRow(
+                  'Rate/SQM',
+                  '₹${lead['rate_per_sqm']?.toString() ?? '0'}',
+                ),
+                _buildDetailRow(
+                  'Total Amount',
+                  '₹${lead['total_amount_gst']?.toString() ?? '0'}',
+                ),
+                _buildDetailRow(
+                  'Sales User',
+                  lead['sales_user']?.toString() ?? 'N/A',
+                ),
+                _buildDetailRow(
+                  'Status',
+                  lead['update_lead_status']?.toString() ?? 'N/A',
+                ),
+                _buildDetailRow('Remark', lead['remark']?.toString() ?? 'N/A'),
+                _buildDetailRow('Updated At', _formatDate(lead['updated_at'])),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Build detail row for dialog
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              '$label:',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[700],
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(fontSize: 12, color: Colors.grey[800]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Show query dialog for mobile
+  void _showQueryDialogMobile(BuildContext context, Map<String, dynamic> lead) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Query functionality - Coming soon'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  // Show alerts dialog for mobile
+  void _showAlertsDialogMobile(
+    BuildContext context,
+    Map<String, dynamic> lead,
+  ) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Alerts functionality - Coming soon'),
+        duration: Duration(seconds: 2),
       ),
     );
   }
@@ -7169,7 +7809,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
         return Colors.green;
       case 'Lost':
         return Colors.red;
-      case 'Loop':
+      case 'Follow Up':
         return Colors.orange;
       default:
         return Colors.grey;
@@ -7206,9 +7846,9 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
               color: Colors.grey[800],
             ),
             textAlign: TextAlign.center,
-            overflow: TextOverflow.visible,
+            overflow: TextOverflow.ellipsis,
             softWrap: true,
-            maxLines: null, // Allow unlimited lines
+            maxLines: 3, // Limit to 3 lines to prevent layout issues
           ),
         ),
       ),
@@ -7231,7 +7871,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
             '${lead['aluminium_area']?.toString() ?? '0'} m²',
             1,
           ),
-          _buildTableDataCell(lead['rc_weight']?.toString() ?? 'N/A', 1),
+          _buildTableDataCell(lead['ms_weight']?.toString() ?? 'N/A', 1),
           _buildTableDataCell('₹${lead['rate_per_sqm']?.toString() ?? '0'}', 1),
           _buildTableDataCell(
             '₹${lead['total_amount_gst']?.toString() ?? '0'}',
@@ -7266,7 +7906,11 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
   }
 
   // Build table data cell
-  Widget _buildTableDataCell(dynamic content, int flex) {
+  Widget _buildTableDataCell(
+    dynamic content,
+    int flex, {
+    bool isClientName = false,
+  }) {
     return Expanded(
       flex: flex,
       child: Container(
@@ -7281,10 +7925,10 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                 child: Text(
                   content.toString(),
                   style: TextStyle(fontSize: 11, color: Colors.grey[700]),
-                  textAlign: TextAlign.center,
-                  overflow: TextOverflow.visible,
+                  textAlign: isClientName ? TextAlign.left : TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
                   softWrap: true,
-                  maxLines: null, // Allow unlimited lines
+                  maxLines: 3, // Limit to 3 lines to prevent layout issues
                 ),
               ),
       ),
@@ -7918,6 +8562,8 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                 _buildQualifiedAreaVsRevenueChart(),
                 SizedBox(height: 16),
                 _buildLeadStatusDistributionChart(),
+                SizedBox(height: 24),
+                _buildLeadPerformanceTable(),
               ],
             ),
           );
@@ -8393,7 +9039,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     final colors = {
       'Won': Colors.green,
       'Lost': Colors.red,
-      'Loop': Colors.orange,
+      'Follow Up': Colors.orange,
     };
 
     return SingleChildScrollView(
@@ -8541,7 +9187,7 @@ class _InitializeStatusDialogState extends State<InitializeStatusDialog> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: _buildStatusButton(
-                    'Loop',
+                    'Follow Up',
                     Colors.orange.shade600,
                     Icons.refresh,
                   ),
@@ -8725,7 +9371,7 @@ class _InitializeStatusDialogState extends State<InitializeStatusDialog> {
       // Step 6: Map status values according to requirements
       String mappedStatus;
       switch (_selectedStatus) {
-        case 'Loop':
+        case 'Follow Up':
           mappedStatus = 'Negotiation';
           break;
         case 'Lost':
@@ -8897,6 +9543,413 @@ class _StatusButtonState extends State<_StatusButton> {
           ),
         ),
       ),
+    );
+  }
+}
+
+// Alerts Dialog Widget
+class AlertsDialog extends StatefulWidget {
+  final Map<String, dynamic> lead;
+
+  const AlertsDialog({super.key, required this.lead});
+
+  @override
+  State<AlertsDialog> createState() => _AlertsDialogState();
+}
+
+class _AlertsDialogState extends State<AlertsDialog> {
+  List<Map<String, dynamic>> _alerts = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAlerts();
+  }
+
+  Future<void> _loadAlerts() async {
+    try {
+      final client = Supabase.instance.client;
+
+      // Fetch alerts for this lead
+      final alerts = await client
+          .from('queries')
+          .select('*')
+          .eq('lead_id', widget.lead['lead_id'] ?? widget.lead['id'])
+          .order('created_at', ascending: false);
+
+      setState(() {
+        _alerts = List<Map<String, dynamic>>.from(alerts);
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  String _formatDateTime(String dateTimeString) {
+    try {
+      final dateTime = DateTime.parse(dateTimeString);
+      final date = DateFormat('yyyy-MM-dd').format(dateTime);
+      final time = DateFormat('HH:mm:ss').format(dateTime);
+      return '$date at $time';
+    } catch (e) {
+      return dateTimeString;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Alerts & Queries'),
+      content: SizedBox(
+        width: 500,
+        height: 400,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Lead: ${widget.lead['project_name'] ?? 'Unknown Project'}',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 16),
+            if (_isLoading)
+              const Center(child: CircularProgressIndicator())
+            else if (_alerts.isEmpty)
+              const Center(
+                child: Text(
+                  'No alerts or queries found for this lead.',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              )
+            else
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _alerts.length,
+                  itemBuilder: (context, index) {
+                    final alert = _alerts[index];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'From: ${alert['sender_name'] ?? 'Unknown'}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue,
+                                  ),
+                                ),
+                                Text(
+                                  _formatDateTime(alert['created_at'] ?? ''),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'To: ${alert['receiver_name'] ?? alert['to_username'] ?? 'Unknown'}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                                color: Colors.green,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              alert['query_message'] ??
+                                  alert['message'] ??
+                                  'No message',
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+}
+
+// Helper function to fetch username by user ID
+Future<String?> fetchUsernameByUserId(String userId) async {
+  final client = Supabase.instance.client;
+  try {
+    // First try to get from users table
+    var user = await client
+        .from('users')
+        .select('username')
+        .eq('id', userId)
+        .maybeSingle();
+
+    if (user != null) {
+      return user['username'];
+    }
+
+    // If not found in users, try dev_user table
+    user = await client
+        .from('dev_user')
+        .select('username')
+        .eq('id', userId)
+        .maybeSingle();
+
+    return user?['username'];
+  } catch (e) {
+    return null;
+  }
+}
+
+// Helper function to fetch all usernames
+Future<List<String>> fetchAllUsernames() async {
+  final client = Supabase.instance.client;
+  try {
+    // Fetch from users table
+    final users = await client
+        .from('users')
+        .select('username')
+        .not('username', 'is', null);
+
+    // Fetch from dev_user table
+    final devUsers = await client
+        .from('dev_user')
+        .select('username')
+        .not('username', 'is', null);
+
+    // Combine and remove duplicates
+    final allUsernames = <String>{};
+    allUsernames.addAll(users.map((u) => u['username'] as String));
+    allUsernames.addAll(devUsers.map((u) => u['username'] as String));
+
+    return allUsernames.toList()..sort();
+  } catch (e) {
+    return [];
+  }
+}
+
+// Query Dialog Widget
+class QueryDialog extends StatefulWidget {
+  final Map<String, dynamic> lead;
+
+  const QueryDialog({super.key, required this.lead});
+
+  @override
+  State<QueryDialog> createState() => _QueryDialogState();
+}
+
+class _QueryDialogState extends State<QueryDialog> {
+  final TextEditingController _messageController = TextEditingController();
+  String? _selectedUsername;
+  List<String> _usernames = [];
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUsernames();
+  }
+
+  Future<void> _loadUsernames() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final usernames = await fetchAllUsernames();
+      setState(() {
+        _usernames = usernames;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitQuery() async {
+    if (_selectedUsername == null || _messageController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a user and enter a message'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final client = Supabase.instance.client;
+
+      // Get current user's username from cache memory
+      String? currentUsername;
+      try {
+        // Step 1: Get cached user data
+        final prefs = await SharedPreferences.getInstance();
+        final cachedUserId = prefs.getString('user_id');
+        final cachedSessionId = prefs.getString('session_id');
+        final cachedSessionActive = prefs.getBool('session_active');
+
+        debugPrint('[CACHE] Cached user_id: $cachedUserId');
+        debugPrint('[CACHE] Cached session_id: $cachedSessionId');
+        debugPrint('[CACHE] Cached session_active: $cachedSessionActive');
+
+        // Step 2: Validate cache data
+        if (cachedUserId == null ||
+            cachedSessionId == null ||
+            cachedSessionActive != true) {
+          debugPrint(
+            '[CACHE] Invalid cache data, falling back to auth session',
+          );
+
+          // Fallback to current auth session
+          final currentUser = await client.auth.getUser();
+          if (currentUser.user != null) {
+            currentUsername = await fetchUsernameByUserId(currentUser.user!.id);
+          }
+        } else {
+          // Step 3: Get username from users table using cached user_id
+          final userResponse = await client
+              .from('users')
+              .select('username')
+              .eq('id', cachedUserId)
+              .single();
+
+          currentUsername = userResponse['username'] as String;
+          debugPrint(
+            '[CACHE] Successfully loaded username from cache: $currentUsername (ID: $cachedUserId)',
+          );
+        }
+      } catch (e) {
+        debugPrint('Error getting current username: $e');
+        currentUsername = 'Unknown User';
+      }
+
+      // Insert query into database with all required fields
+      await client.from('queries').insert({
+        'lead_id': widget.lead['lead_id'] ?? widget.lead['id'],
+        'sender_name': currentUsername ?? 'Unknown User',
+        'receiver_name': _selectedUsername,
+        'to_username': _selectedUsername,
+        'query_message': _messageController.text.trim(),
+        'message': _messageController.text.trim(),
+        'created_at': DateTime.now().toIso8601String(),
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Query sent successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error sending query: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Send Query'),
+      content: SizedBox(
+        width: 400,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Lead: ${widget.lead['project_name'] ?? 'Unknown Project'}',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Select User:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            if (_isLoading)
+              const Center(child: CircularProgressIndicator())
+            else
+              DropdownButtonFormField<String>(
+                value: _selectedUsername,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: 'Select a user',
+                ),
+                items: _usernames.map((username) {
+                  return DropdownMenuItem<String>(
+                    value: username,
+                    child: Text(username),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedUsername = value;
+                  });
+                },
+              ),
+            const SizedBox(height: 16),
+            const Text(
+              'Message:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _messageController,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'Enter your query message...',
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _submitQuery,
+          child: const Text('Send Query'),
+        ),
+      ],
     );
   }
 }

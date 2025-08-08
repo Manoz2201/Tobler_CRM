@@ -15,7 +15,7 @@ class LeadUtils {
       final leadsResult = await client
           .from('leads')
           .select(
-            'id, created_at, project_name, client_name, project_location, lead_generated_by',
+            'id, created_at, project_name, client_name, project_location, lead_generated_by, lead_type',
           )
           .eq('lead_generated_by', userId) // Filter by user ID
           .order('created_at', ascending: false);
@@ -91,7 +91,7 @@ class LeadUtils {
           'rate_sqm': rate,
           'total_amount': totalAmount,
           'approved': adminResponseData?['status'] == 'Approved',
-          'status': adminResponseData?['status'] ?? 'New/Progress',
+          'status': adminResponseData?['status'] ?? 'New',
         });
       }
 
@@ -111,7 +111,7 @@ class LeadUtils {
       final leadsResult = await client
           .from('leads')
           .select(
-            'id, created_at, project_name, client_name, project_location, lead_generated_by',
+            'id, created_at, project_name, client_name, project_location, lead_generated_by, lead_type',
           )
           .order('created_at', ascending: false);
 
@@ -197,7 +197,7 @@ class LeadUtils {
           'rate_sqm': rate,
           'total_amount': totalAmount,
           'approved': adminResponseData?['status'] == 'Approved',
-          'status': adminResponseData?['status'] ?? 'New/Progress',
+          'status': adminResponseData?['status'] ?? 'New',
         });
       }
 
@@ -214,26 +214,26 @@ class LeadUtils {
     if (lead['approved'] == true) {
       return 'Approved';
     }
-    
+
     // Check if lead has proposal input (found in proposal_input table)
     if (lead['aluminium_area'] != null && lead['aluminium_area'] > 0) {
       return 'Waiting for Approval';
     }
-    
+
     // Check if lead is within 12 hours of creation
     final createdAt = lead['date'];
     if (createdAt != null) {
-      final DateTime leadDate = createdAt is String 
-          ? DateTime.parse(createdAt) 
+      final DateTime leadDate = createdAt is String
+          ? DateTime.parse(createdAt)
           : createdAt as DateTime;
       final DateTime now = DateTime.now();
       final Duration difference = now.difference(leadDate);
-      
+
       if (difference.inHours <= 12) {
         return 'New';
       }
     }
-    
+
     // Default status
     return 'Proposal Progress';
   }
@@ -286,7 +286,7 @@ class LeadUtils {
       }
 
       debugPrint('[CACHE] Using cached user_id: $cachedUserId');
-      
+
       // Fetch leads using the cached user_id
       return await fetchLeadsByUserId(cachedUserId);
     } catch (e) {
