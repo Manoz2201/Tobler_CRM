@@ -36,15 +36,13 @@ class _DeveloperHomeScreenState extends State<DeveloperHomeScreen> {
   double get _drawerHeight =>
       _drawerExpansion == 0 ? 48 : (_drawerExpansion * 52.0 + 20.0);
 
-
-
   void _onItemTapped(int index) {
     // Check if logout button was tapped
     if (index == _navItems.length - 1 && _navItems[index].label == 'Logout') {
       _logout();
       return;
     }
-    
+
     setState(() {
       _selectedIndex = index;
     });
@@ -89,10 +87,7 @@ class _DeveloperHomeScreenState extends State<DeveloperHomeScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
-          right: BorderSide(
-            color: Colors.grey.shade200,
-            width: 1,
-          ),
+          right: BorderSide(color: Colors.grey.shade200, width: 1),
         ),
         boxShadow: [
           BoxShadow(
@@ -109,10 +104,7 @@ class _DeveloperHomeScreenState extends State<DeveloperHomeScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               border: Border(
-                bottom: BorderSide(
-                  color: Colors.grey.shade200,
-                  width: 1,
-                ),
+                bottom: BorderSide(color: Colors.grey.shade200, width: 1),
               ),
             ),
             child: Row(
@@ -257,9 +249,7 @@ class _DeveloperHomeScreenState extends State<DeveloperHomeScreen> {
           ? Row(
               children: [
                 _buildNavBar(screenHeight, screenWidth),
-                Expanded(
-                  child: _pages[_selectedIndex],
-                ),
+                Expanded(child: _pages[_selectedIndex]),
               ],
             )
           : Stack(
@@ -519,8 +509,6 @@ class _DeveloperHomeScreenState extends State<DeveloperHomeScreen> {
     super.dispose();
   }
 }
-
-
 
 // Top-level ScreenManagementPage widget
 class ScreenManagementPage extends StatefulWidget {

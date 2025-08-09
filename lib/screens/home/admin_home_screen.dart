@@ -12,8 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 
 import 'package:crm_app/widgets/profile_page.dart';
-import 'package:crm_app/screens/home/developer_home_screen.dart'
-    show UserManagementPage;
+import 'admin_user_management_page.dart';
 import '../settings/currency_settings_screen.dart';
 import '../../utils/navigation_utils.dart';
 import '../../utils/timezone_utils.dart';
@@ -74,10 +73,14 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     return NavigationUtils.getNavigationItemsForRole('admin');
   }
 
-  late final List<Widget> _pages = <Widget>[
-    AdminDashboardPage(), // Dashboard
-    LeadTable(), // Leads Management
-    UserManagementPage(), // User Management
+  String? _leadTableFilter; // Store the filter for LeadTable
+
+  List<Widget> get _pages => <Widget>[
+    AdminDashboardPage(
+      onNavigateToLeadManagement: _navigateToLeadManagementWithFilter,
+    ), // Dashboard
+    LeadTable(initialFilter: _leadTableFilter), // Leads Management
+    AdminUserManagementPage(), // User Management
     AdminRoleManagementPage(), // Role Management
     AdminSettingsPage(), // Settings
     ProfilePage(), // Profile
@@ -94,6 +97,20 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     setState(() {
       _selectedIndex = index;
     });
+  }
+
+  // Navigate to Lead Management with specific filter
+  void _navigateToLeadManagementWithFilter(String filter) {
+    debugPrint(
+      '🔍 AdminHomeScreen: Navigating to Lead Management with filter: $filter',
+    );
+    setState(() {
+      _leadTableFilter = filter;
+      _selectedIndex = 1; // Lead Management index
+    });
+    debugPrint(
+      '🔍 AdminHomeScreen: Navigation completed - filter: $_leadTableFilter, index: $_selectedIndex',
+    );
   }
 
   Future<void> _logout() async {
@@ -2144,7 +2161,9 @@ class _AdminSettingsPageState extends State<AdminSettingsPage> {
 }
 
 class LeadTable extends StatefulWidget {
-  const LeadTable({super.key});
+  final String? initialFilter;
+
+  const LeadTable({super.key, this.initialFilter});
 
   @override
   State<LeadTable> createState() => _LeadTableState();
@@ -2195,6 +2214,13 @@ class _LeadTableState extends State<LeadTable> {
   @override
   void initState() {
     super.initState();
+    // Set initial filter if provided
+    if (widget.initialFilter != null) {
+      _selectedFilter = widget.initialFilter!;
+      debugPrint(
+        '🔍 LeadTable: Setting initial filter to: ${widget.initialFilter}',
+      );
+    }
     _fetchLeads();
   }
 
@@ -5792,7 +5818,9 @@ class _LeadTableState extends State<LeadTable> {
 
 // Admin Dashboard Page with requested elements
 class AdminDashboardPage extends StatefulWidget {
-  const AdminDashboardPage({super.key});
+  final Function(String)? onNavigateToLeadManagement;
+
+  const AdminDashboardPage({super.key, this.onNavigateToLeadManagement});
 
   @override
   State<AdminDashboardPage> createState() => _AdminDashboardPageState();
@@ -5837,6 +5865,22 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   bool _isLoading = false;
 
+  // Lead Status data state
+  Map<String, dynamic> _leadStatusData = {
+    'totalLeads': {'value': '0', 'percentage': '+0.0%', 'isPositive': true},
+    'proposalProgress': {
+      'value': '0',
+      'percentage': '+0.0%',
+      'isPositive': true,
+    },
+    'waitingApproval': {
+      'value': '0',
+      'percentage': '+0.0%',
+      'isPositive': true,
+    },
+    'approved': {'value': '0', 'percentage': '+0.0%', 'isPositive': true},
+  };
+
   // Currency conversion rates (you can fetch these from an API)
   final Map<String, double> _currencyRates = {
     'INR': 1.0,
@@ -5869,12 +5913,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
       // Fetch data after timezone initialization
       _fetchDashboardData();
+      _fetchLeadStatusData();
       _fetchLeadPerformanceData();
       _fetchChartData();
       _fetchLeadStatusDistributionData();
     } catch (e) {
       // Fallback to fetching data without timezone
       _fetchDashboardData();
+      _fetchLeadStatusData();
       _fetchLeadPerformanceData();
       _fetchChartData();
       _fetchLeadStatusDistributionData();
@@ -6122,6 +6168,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       _selectedTimePeriod = newPeriod;
     });
     _fetchDashboardData();
+    _fetchLeadStatusData();
     _fetchChartData();
     _fetchLeadStatusDistributionData();
   }
@@ -6132,6 +6179,281 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       _selectedCurrency = newCurrency;
     });
     _fetchDashboardData();
+  }
+
+  // Navigate to Lead Management with specific filter
+  void _navigateToLeadManagementWithFilter(String filter) {
+    debugPrint(
+      '🔍 AdminDashboardPage: Attempting to navigate with filter: $filter',
+    );
+    if (widget.onNavigateToLeadManagement != null) {
+      debugPrint('🔍 AdminDashboardPage: Using callback to navigate');
+      widget.onNavigateToLeadManagement!(filter);
+    } else {
+      debugPrint('❌ AdminDashboardPage: No callback provided');
+    }
+  }
+
+  // Fetch lead status data from leads, proposal_input, and admin_response tables
+  Future<void> _fetchLeadStatusData() async {
+    try {
+      final client = Supabase.instance.client;
+
+      // Execute all queries in parallel for better performance - NO TIME FILTERING to match Lead Management
+      final futures = await Future.wait([
+        client
+            .from('leads')
+            .select('id, created_at')
+            .order('created_at', ascending: false)
+            .timeout(const Duration(seconds: 15)),
+        client
+            .from('proposal_input')
+            .select('lead_id, input, value')
+            .timeout(const Duration(seconds: 10)),
+        client
+            .from('admin_response')
+            .select('lead_id, status, created_at')
+            .timeout(const Duration(seconds: 10)),
+      ]);
+
+      final leadsResult = futures[0] as List<dynamic>;
+      final proposalInputResult = futures[1] as List<dynamic>;
+      final adminResponseResult = futures[2] as List<dynamic>;
+
+      // Calculate lead status metrics using the same logic as Leads Management
+      await _calculateLeadStatusMetrics(
+        leadsResult,
+        proposalInputResult,
+        adminResponseResult,
+      );
+    } catch (e) {
+      debugPrint('Error fetching lead status data: $e');
+      // Keep default values on error
+    }
+  }
+
+  // Calculate lead status metrics from fetched data using same logic as Leads Management
+  Future<void> _calculateLeadStatusMetrics(
+    List<dynamic> leadsData,
+    List<dynamic> proposalInputData,
+    List<dynamic> adminResponseData,
+  ) async {
+    int totalLeads = leadsData.length;
+    int proposalProgress = 0;
+    int waitingApproval = 0;
+    int approved = 0;
+
+    // Create lookup maps for efficient processing
+    final Map<String, double> aluminiumAreaMap = {};
+    final Map<String, List<double>> msWeightMap = {};
+
+    // Process proposal_input data to calculate Aluminium Area and MS Weight
+    for (final input in proposalInputData) {
+      final leadId = input['lead_id'];
+      final inputName = input['input']?.toString().toLowerCase() ?? '';
+      final value = double.tryParse(input['value']?.toString() ?? '0') ?? 0;
+
+      if (leadId != null) {
+        // Calculate Aluminium Area (sum of values containing "aluminium" or "alu")
+        if (inputName.contains('aluminium') || inputName.contains('alu')) {
+          aluminiumAreaMap[leadId] = (aluminiumAreaMap[leadId] ?? 0) + value;
+        }
+
+        // Calculate MS Weight (average of values containing "ms" or "ms wt.")
+        if (inputName.contains('ms') || inputName.contains('ms wt.')) {
+          if (!msWeightMap.containsKey(leadId)) {
+            msWeightMap[leadId] = [];
+          }
+          msWeightMap[leadId]!.add(value);
+        }
+      }
+    }
+
+    // Create admin response lookup map
+    final Map<String, Map<String, dynamic>> adminResponseMap = {};
+    for (final response in adminResponseData) {
+      final leadId = response['lead_id'];
+      if (leadId != null) {
+        adminResponseMap[leadId] = response;
+      }
+    }
+
+    // Calculate status for each lead using same logic as Leads Management
+    for (final lead in leadsData) {
+      final leadId = lead['id'];
+      final adminResponseData = adminResponseMap[leadId];
+
+      // Check if lead is approved first
+      if (adminResponseData?['status'] == 'Approved') {
+        approved++;
+        continue;
+      }
+
+      // Calculate MS Weight average
+      final msWeights = msWeightMap[leadId] ?? [];
+      final msWeightAverage = msWeights.isNotEmpty
+          ? msWeights.reduce((a, b) => a + b) / msWeights.length
+          : 0.0;
+
+      final aluminiumArea = aluminiumAreaMap[leadId] ?? 0;
+
+      // Check if lead has proposal data
+      if (aluminiumArea == 0 && msWeightAverage == 0) {
+        proposalProgress++;
+      } else {
+        waitingApproval++;
+      }
+    }
+
+    // Get previous period data for comparison
+    final previousPeriodData = await _getPreviousPeriodLeadStatusData();
+
+    // Calculate percentages
+    final totalLeadsPercentage = _calculatePercentage(
+      totalLeads.toDouble(),
+      previousPeriodData['totalLeads'] ?? 0,
+    );
+    final proposalProgressPercentage = _calculatePercentage(
+      proposalProgress.toDouble(),
+      previousPeriodData['proposalProgress'] ?? 0,
+    );
+    final waitingApprovalPercentage = _calculatePercentage(
+      waitingApproval.toDouble(),
+      previousPeriodData['waitingApproval'] ?? 0,
+    );
+    final approvedPercentage = _calculatePercentage(
+      approved.toDouble(),
+      previousPeriodData['approved'] ?? 0,
+    );
+
+    setState(() {
+      _leadStatusData = {
+        'totalLeads': {
+          'value': totalLeads.toString(),
+          'percentage':
+              '${totalLeadsPercentage >= 0 ? '+' : ''}${totalLeadsPercentage.toStringAsFixed(1)}%',
+          'isPositive': totalLeadsPercentage >= 0,
+        },
+        'proposalProgress': {
+          'value': proposalProgress.toString(),
+          'percentage':
+              '${proposalProgressPercentage >= 0 ? '+' : ''}${proposalProgressPercentage.toStringAsFixed(1)}%',
+          'isPositive': proposalProgressPercentage >= 0,
+        },
+        'waitingApproval': {
+          'value': waitingApproval.toString(),
+          'percentage':
+              '${waitingApprovalPercentage >= 0 ? '+' : ''}${waitingApprovalPercentage.toStringAsFixed(1)}%',
+          'isPositive': waitingApprovalPercentage >= 0,
+        },
+        'approved': {
+          'value': approved.toString(),
+          'percentage':
+              '${approvedPercentage >= 0 ? '+' : ''}${approvedPercentage.toStringAsFixed(1)}%',
+          'isPositive': approvedPercentage >= 0,
+        },
+      };
+    });
+  }
+
+  // Get previous period lead status data for comparison
+  Future<Map<String, double>> _getPreviousPeriodLeadStatusData() async {
+    try {
+      final client = Supabase.instance.client;
+
+      // Execute all queries in parallel for better performance - NO TIME FILTERING to match Lead Management
+      final futures = await Future.wait([
+        client.from('leads').select('id').timeout(const Duration(seconds: 15)),
+        client
+            .from('proposal_input')
+            .select('lead_id, input, value')
+            .timeout(const Duration(seconds: 10)),
+        client
+            .from('admin_response')
+            .select('lead_id, status')
+            .timeout(const Duration(seconds: 10)),
+      ]);
+
+      final previousLeadsResult = futures[0] as List<dynamic>;
+      final previousProposalInputResult = futures[1] as List<dynamic>;
+      final previousAdminResponseResult = futures[2] as List<dynamic>;
+
+      // Calculate previous period metrics using same logic
+      final Map<String, double> aluminiumAreaMap = {};
+      final Map<String, List<double>> msWeightMap = {};
+
+      // Process proposal_input data
+      for (final input in previousProposalInputResult) {
+        final leadId = input['lead_id'];
+        final inputName = input['input']?.toString().toLowerCase() ?? '';
+        final value = double.tryParse(input['value']?.toString() ?? '0') ?? 0;
+
+        if (leadId != null) {
+          if (inputName.contains('aluminium') || inputName.contains('alu')) {
+            aluminiumAreaMap[leadId] = (aluminiumAreaMap[leadId] ?? 0) + value;
+          }
+          if (inputName.contains('ms') || inputName.contains('ms wt.')) {
+            if (!msWeightMap.containsKey(leadId)) {
+              msWeightMap[leadId] = [];
+            }
+            msWeightMap[leadId]!.add(value);
+          }
+        }
+      }
+
+      // Create admin response lookup map
+      final Map<String, Map<String, dynamic>> adminResponseMap = {};
+      for (final response in previousAdminResponseResult) {
+        final leadId = response['lead_id'];
+        if (leadId != null) {
+          adminResponseMap[leadId] = response;
+        }
+      }
+
+      int previousTotalLeads = previousLeadsResult.length;
+      int previousProposalProgress = 0;
+      int previousWaitingApproval = 0;
+      int previousApproved = 0;
+
+      // Calculate status for each lead
+      for (final lead in previousLeadsResult) {
+        final leadId = lead['id'];
+        final adminResponseData = adminResponseMap[leadId];
+
+        if (adminResponseData?['status'] == 'Approved') {
+          previousApproved++;
+          continue;
+        }
+
+        final msWeights = msWeightMap[leadId] ?? [];
+        final msWeightAverage = msWeights.isNotEmpty
+            ? msWeights.reduce((a, b) => a + b) / msWeights.length
+            : 0.0;
+
+        final aluminiumArea = aluminiumAreaMap[leadId] ?? 0;
+
+        if (aluminiumArea == 0 && msWeightAverage == 0) {
+          previousProposalProgress++;
+        } else {
+          previousWaitingApproval++;
+        }
+      }
+
+      return {
+        'totalLeads': previousTotalLeads.toDouble(),
+        'proposalProgress': previousProposalProgress.toDouble(),
+        'waitingApproval': previousWaitingApproval.toDouble(),
+        'approved': previousApproved.toDouble(),
+      };
+    } catch (e) {
+      debugPrint('Error fetching previous period lead status data: $e');
+      return {
+        'totalLeads': 0.0,
+        'proposalProgress': 0.0,
+        'waitingApproval': 0.0,
+        'approved': 0.0,
+      };
+    }
   }
 
   // Fetch lead performance data from admin_response table
@@ -6359,34 +6681,26 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       final label = labels[i];
       final groupData = groupedData[label] ?? [];
 
-      int qualifiedLeadCount = groupData.length; // Count of Won leads
       double totalRevenue = 0;
 
       for (var record in groupData) {
         totalRevenue += (record['total_amount_gst'] ?? 0).toDouble();
       }
 
-      // Convert revenue to thousands for display
-      final revenueInK = totalRevenue / 1000;
+      // Convert revenue to crores for display
+      final revenueInCr = totalRevenue / 10000000; // 1 crore = 10,000,000
 
       debugPrint(
-        '📊 [CHART] Label "$label": $qualifiedLeadCount leads, ₹${totalRevenue.toStringAsFixed(0)} (${revenueInK.toStringAsFixed(1)}K)',
+        '📊 [CHART] Label "$label": ₹${totalRevenue.toStringAsFixed(0)} (${revenueInCr.toStringAsFixed(2)} Cr)',
       );
 
       barGroups.add(
         BarChartGroupData(
           x: i,
           barRods: [
-            // Qualified Lead count bar (Teal color)
+            // Revenue bar (Pink color) - only revenue bar
             BarChartRodData(
-              toY: qualifiedLeadCount.toDouble(),
-              color: Colors.teal,
-              width: 20,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            // Revenue bar (Pink color)
-            BarChartRodData(
-              toY: revenueInK,
+              toY: revenueInCr,
               color: Colors.pink,
               width: 20,
               borderRadius: BorderRadius.circular(4),
@@ -7147,6 +7461,65 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         ],
                       ),
                 SizedBox(height: 24),
+                // Lead Status Cards Section
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Lead Status',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildLeadStatusCard(
+                            'Total Leads',
+                            _leadStatusData['totalLeads']['value'],
+                            _leadStatusData['totalLeads']['percentage'],
+                            Icons.people_outline,
+                            Colors.indigo,
+                          ),
+                        ),
+                        SizedBox(width: 16),
+                        Expanded(
+                          child: _buildLeadStatusCard(
+                            'Proposal Progress',
+                            _leadStatusData['proposalProgress']['value'],
+                            _leadStatusData['proposalProgress']['percentage'],
+                            Icons.description,
+                            Colors.teal,
+                          ),
+                        ),
+                        SizedBox(width: 16),
+                        Expanded(
+                          child: _buildLeadStatusCard(
+                            'Waiting Approval',
+                            _leadStatusData['waitingApproval']['value'],
+                            _leadStatusData['waitingApproval']['percentage'],
+                            Icons.pending,
+                            Colors.orange,
+                          ),
+                        ),
+                        SizedBox(width: 16),
+                        Expanded(
+                          child: _buildLeadStatusCard(
+                            'Approved',
+                            _leadStatusData['approved']['value'],
+                            _leadStatusData['approved']['percentage'],
+                            Icons.check_circle,
+                            Colors.green,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                SizedBox(height: 24),
                 Row(
                   children: [
                     Expanded(child: _buildQualifiedAreaVsRevenueChart()),
@@ -7223,6 +7596,71 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         ],
                       ),
                 SizedBox(height: 24),
+                // Lead Status Cards Section for Mobile
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Lead Status',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                    // First row: Total Leads and Proposal Progress
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildDashboardCard(
+                            'Total Leads',
+                            _leadStatusData['totalLeads']['value'],
+                            _leadStatusData['totalLeads']['percentage'],
+                            Icons.people_outline,
+                            Colors.indigo,
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: _buildLeadStatusCard(
+                            'Proposal Progress',
+                            _leadStatusData['proposalProgress']['value'],
+                            _leadStatusData['proposalProgress']['percentage'],
+                            Icons.description,
+                            Colors.teal,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 12),
+                    // Second row: Waiting Approval and Approved
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildLeadStatusCard(
+                            'Waiting Approval',
+                            _leadStatusData['waitingApproval']['value'],
+                            _leadStatusData['waitingApproval']['percentage'],
+                            Icons.pending,
+                            Colors.orange,
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: _buildLeadStatusCard(
+                            'Approved',
+                            _leadStatusData['approved']['value'],
+                            _leadStatusData['approved']['percentage'],
+                            Icons.check_circle,
+                            Colors.green,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                SizedBox(height: 24),
                 _buildQualifiedAreaVsRevenueChart(),
                 SizedBox(height: 16),
                 _buildLeadStatusDistributionChart(),
@@ -7238,7 +7676,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   Widget _buildLeadStatusDistributionChart() {
     return Container(
-      height: 300,
+      height: 350,
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -7803,6 +8241,134 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     );
   }
 
+  // Build Lead Status card with navigation to Lead Management
+  Widget _buildLeadStatusCard(
+    String title,
+    String value,
+    String percentage,
+    IconData icon,
+    Color color,
+  ) {
+    final isPositive = percentage.startsWith('+');
+    final percentageColor = isPositive ? Colors.green : Colors.red;
+
+    return InkWell(
+      onTap: () {
+        debugPrint('🔍 LeadStatusCard: Card clicked - $title');
+        // Map card title to filter value
+        String filterValue;
+        switch (title) {
+          case 'Total Leads':
+            filterValue = 'All';
+            break;
+          case 'Proposal Progress':
+            filterValue = 'Proposal Progress';
+            break;
+          case 'Waiting Approval':
+            filterValue = 'Waiting for Approval';
+            break;
+          case 'Approved':
+            filterValue = 'Approved';
+            break;
+          default:
+            filterValue = 'All';
+        }
+        debugPrint('🔍 LeadStatusCard: Mapped to filter: $filterValue');
+
+        // Navigate to Lead Management with filter
+        _navigateToLeadManagementWithFilter(filterValue);
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Top row: Icon + Title
+            Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Icon(icon, color: color, size: 14),
+                ),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[700],
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 12),
+            // Main value - centered
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 6),
+            // Percentage with arrow - centered below value
+            SizedBox(
+              height: 28,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isPositive ? Icons.trending_up : Icons.trending_down,
+                    color: percentageColor,
+                    size: 12,
+                  ),
+                  SizedBox(width: 4),
+                  Text(
+                    percentage,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: percentageColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 6),
+            // Footer: "From previous period" centered
+            Text(
+              'From previous period',
+              style: TextStyle(fontSize: 9, color: Colors.grey[500]),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildMobileMenuItem(
     IconData icon,
     String label,
@@ -7850,7 +8416,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   Widget _buildQualifiedAreaVsRevenueChart() {
     return Container(
-      height: 300,
+      height: 350,
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -7942,10 +8508,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                             final label = group.x.toInt() < labels.length
                                 ? labels[group.x.toInt()]
                                 : '';
-                            final value = rod.toY.toStringAsFixed(1);
-                            final seriesName = rodIndex == 0
-                                ? 'Qualified Leads'
-                                : 'Revenue (K)';
+                            final value = rod.toY.toStringAsFixed(2);
 
                             return BarTooltipItem(
                               '$label\n',
@@ -7956,7 +8519,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                               ),
                               children: <TextSpan>[
                                 TextSpan(
-                                  text: '$seriesName: $value',
+                                  text: 'Revenue: $value Cr',
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 14,
@@ -8014,7 +8577,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                 style: style,
                               );
                             },
-                            reservedSize: 50,
+                            reservedSize: 70,
                           ),
                         ),
                       ),
@@ -8045,27 +8608,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 width: 12,
                 height: 12,
                 decoration: BoxDecoration(
-                  color: Colors.teal,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              SizedBox(width: 8),
-              Text(
-                'Qualified Leads',
-                style: TextStyle(fontSize: 12, color: Colors.grey[700]),
-              ),
-              SizedBox(width: 24),
-              Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
                   color: Colors.pink,
                   shape: BoxShape.circle,
                 ),
               ),
               SizedBox(width: 8),
               Text(
-                'Revenue (K)',
+                'Revenue (Cr)',
                 style: TextStyle(fontSize: 12, color: Colors.grey[700]),
               ),
             ],
@@ -8087,7 +8636,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         }
       }
     }
-    return (maxValue * 1.4).clamp(10.0, double.infinity); // Add 40% padding
+    return (maxValue * 1.6).clamp(
+      10.0,
+      double.infinity,
+    ); // Add 60% padding to prevent overlap
   }
 
   // Helper method to get grid interval based on max value
@@ -8104,16 +8656,15 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     return (maxY / 6).ceil().toDouble();
   }
 
-  // Helper method to format Y-axis labels
+  // Helper method to format Y-axis labels in Crores
   String _formatYAxisLabel(double value) {
-    if (value >= 1000000000) {
-      return '${(value / 1000000000).toStringAsFixed(1)}B';
-    } else if (value >= 1000000) {
-      return '${(value / 1000000).toStringAsFixed(1)}M';
-    } else if (value >= 1000) {
-      return '${(value / 1000).toStringAsFixed(0)}K';
+    // Since the data is already in crores, just format it properly
+    if (value >= 100) {
+      return '${value.toStringAsFixed(0)} Cr';
+    } else if (value >= 10) {
+      return '${value.toStringAsFixed(1)} Cr';
     } else {
-      return value.toStringAsFixed(0);
+      return '${value.toStringAsFixed(2)} Cr';
     }
   }
 

@@ -6974,8 +6974,13 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
   }
 
   // Fetch lead performance data from admin_response table
+  // This method fetches ONLY the data that matches the current user's username
+  // in the admin_response table's sales_user column
   Future<void> _fetchLeadPerformanceData() async {
-    if (_currentUsername.isEmpty) return;
+    if (_currentUsername.isEmpty) {
+      debugPrint('[LEAD_PERFORMANCE] Username is empty, skipping fetch');
+      return;
+    }
 
     setState(() {
       _isLoadingLeadData = true;
@@ -6985,13 +6990,27 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
       final client = Supabase.instance.client;
       final dateRange = _getDateRange(_selectedTimePeriod);
 
+      debugPrint(
+        '[LEAD_PERFORMANCE] Fetching data for user: $_currentUsername',
+      );
+      debugPrint(
+        '[LEAD_PERFORMANCE] Date range: ${dateRange['start']} to ${dateRange['end']}',
+      );
+
       final response = await client
           .from('admin_response')
           .select('*')
-          .eq('sales_user', _currentUsername)
+          .eq(
+            'sales_user',
+            _currentUsername,
+          ) // Only fetch rows where sales_user matches current username
           .gte('updated_at', dateRange['start']!.toIso8601String())
           .lte('updated_at', dateRange['end']!.toIso8601String())
           .order('updated_at', ascending: false);
+
+      debugPrint(
+        '[LEAD_PERFORMANCE] Fetched ${response.length} records for user: $_currentUsername',
+      );
 
       setState(() {
         _leadPerformanceData = List<Map<String, dynamic>>.from(response);
@@ -7051,9 +7070,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                 searchQuery,
               ) ==
               true ||
-          lead['lead_status_remark']?.toString().toLowerCase().contains(
-                searchQuery,
-              ) ==
+          lead['remark']?.toString().toLowerCase().contains(searchQuery) ==
               true ||
           lead['created_at']?.toString().toLowerCase().contains(searchQuery) ==
               true ||
@@ -7841,10 +7858,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                   'Status',
                   lead['update_lead_status']?.toString() ?? 'N/A',
                 ),
-                _buildDetailRow(
-                  'Remark',
-                  lead['lead_status_remark']?.toString() ?? 'N/A',
-                ),
+                _buildDetailRow('Remark', lead['remark']?.toString() ?? 'N/A'),
                 _buildDetailRow('Updated At', _formatDate(lead['updated_at'])),
               ],
             ),
@@ -8008,10 +8022,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
             ),
             1,
           ),
-          _buildTableDataCell(
-            lead['lead_status_remark']?.toString() ?? 'N/A',
-            1,
-          ),
+          _buildTableDataCell(lead['remark']?.toString() ?? 'N/A', 1),
           _buildTableDataCell(_formatDate(lead['updated_at']), 1),
         ],
       ),
@@ -9242,7 +9253,8 @@ class _InitializeStatusDialogState extends State<InitializeStatusDialog> {
   final TextEditingController _qualifiedDateController =
       TextEditingController();
   bool _isSubmitting = false;
-  bool _isLoading = true;
+  DateTime? _listingDate;
+  DateTime? _qualifiedDate;
 
   @override
   void initState() {
@@ -9252,64 +9264,43 @@ class _InitializeStatusDialogState extends State<InitializeStatusDialog> {
 
   Future<void> _initializeDates() async {
     try {
-      final client = Supabase.instance.client;
+      // Set Qualified Date to current date
+      _qualifiedDate = DateTime.now();
+      _qualifiedDateController.text = DateFormat(
+        'yyyy-MM-dd',
+      ).format(_qualifiedDate!);
 
-      // Fetch created_at from leads table for Listing Date
+      // Fetch Listing Date from leads table
+      final client = Supabase.instance.client;
       final leadResponse = await client
           .from('leads')
           .select('created_at')
           .eq('id', widget.leadId)
-          .maybeSingle();
+          .single();
 
-      if (leadResponse != null) {
-        final createdAt = leadResponse['created_at'] as String?;
-        if (createdAt != null) {
-          final date = DateTime.parse(createdAt);
-          _listingDateController.text = DateFormat('dd/MM/yyyy').format(date);
-        } else {
-          // If created_at is null, use current date
-          _listingDateController.text = DateFormat(
-            'dd/MM/yyyy',
-          ).format(DateTime.now());
-        }
-      } else {
-        // If no lead found, use current date
+      if (leadResponse['created_at'] != null) {
+        _listingDate = DateTime.parse(leadResponse['created_at']);
         _listingDateController.text = DateFormat(
-          'dd/MM/yyyy',
-        ).format(DateTime.now());
+          'yyyy-MM-dd',
+        ).format(_listingDate!);
+      } else {
+        // Fallback to current date if created_at is null
+        _listingDate = DateTime.now();
+        _listingDateController.text = DateFormat(
+          'yyyy-MM-dd',
+        ).format(_listingDate!);
       }
-
-      // Set current date as default for Qualified Date
-      _qualifiedDateController.text = DateFormat(
-        'dd/MM/yyyy',
-      ).format(DateTime.now());
     } catch (e) {
-      debugPrint('Error fetching lead data: $e');
-      // Set current date as fallback for both fields
-      final currentDate = DateFormat('dd/MM/yyyy').format(DateTime.now());
-      _listingDateController.text = currentDate;
-      _qualifiedDateController.text = currentDate;
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _selectDate(
-    BuildContext context,
-    TextEditingController controller,
-  ) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2030),
-    );
-    if (picked != null) {
-      setState(() {
-        controller.text = DateFormat('dd/MM/yyyy').format(picked);
-      });
+      debugPrint('Error initializing dates: $e');
+      // Set both dates to current date as fallback
+      _listingDate = DateTime.now();
+      _qualifiedDate = DateTime.now();
+      _listingDateController.text = DateFormat(
+        'yyyy-MM-dd',
+      ).format(_listingDate!);
+      _qualifiedDateController.text = DateFormat(
+        'yyyy-MM-dd',
+      ).format(_qualifiedDate!);
     }
   }
 
@@ -9321,6 +9312,30 @@ class _InitializeStatusDialogState extends State<InitializeStatusDialog> {
     super.dispose();
   }
 
+  Future<void> _selectDate(BuildContext context, bool isListingDate) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: isListingDate
+          ? (_listingDate ?? DateTime.now())
+          : (_qualifiedDate ?? DateTime.now()),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+    );
+    if (picked != null) {
+      setState(() {
+        if (isListingDate) {
+          _listingDate = picked;
+          _listingDateController.text = DateFormat('yyyy-MM-dd').format(picked);
+        } else {
+          _qualifiedDate = picked;
+          _qualifiedDateController.text = DateFormat(
+            'yyyy-MM-dd',
+          ).format(picked);
+        }
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -9330,200 +9345,139 @@ class _InitializeStatusDialogState extends State<InitializeStatusDialog> {
           SizedBox(width: 8),
           Text('Initialize Status'),
           Spacer(),
-          if (!_isLoading) ...[
-            IconButton(
-              onPressed: () => _selectDate(context, _listingDateController),
-              icon: Icon(Icons.calendar_today, color: Colors.blue, size: 20),
-              tooltip: 'Select Listing Date',
-            ),
-            IconButton(
-              onPressed: () => _selectDate(context, _qualifiedDateController),
-              icon: Icon(Icons.calendar_today, color: Colors.blue, size: 20),
-              tooltip: 'Select Qualified Date',
-            ),
-          ],
+          // Date input fields on the right side
+          Row(
+            children: [
+              // Listing Date
+              SizedBox(
+                width: 120,
+                child: TextField(
+                  controller: _listingDateController,
+                  readOnly: true,
+                  decoration: InputDecoration(
+                    labelText: 'Listing Date',
+                    suffixIcon: IconButton(
+                      icon: Icon(Icons.calendar_today, size: 16),
+                      onPressed: () => _selectDate(context, true),
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 8,
+                    ),
+                    labelStyle: TextStyle(fontSize: 12),
+                  ),
+                  style: TextStyle(fontSize: 12),
+                ),
+              ),
+              SizedBox(width: 8),
+              // Qualified Date
+              SizedBox(
+                width: 120,
+                child: TextField(
+                  controller: _qualifiedDateController,
+                  readOnly: true,
+                  decoration: InputDecoration(
+                    labelText: 'Qualified Date',
+                    suffixIcon: IconButton(
+                      icon: Icon(Icons.calendar_today, size: 16),
+                      onPressed: () => _selectDate(context, false),
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 8,
+                    ),
+                    labelStyle: TextStyle(fontSize: 12),
+                  ),
+                  style: TextStyle(fontSize: 12),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
       content: SizedBox(
-        width: 500,
-        child: _isLoading
-            ? Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text('Loading...'),
-                  ],
-                ),
-              )
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Project: ${widget.projectName}',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[800],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Listing Date:',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey[700],
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextField(
-                              controller: _listingDateController,
-                              readOnly: true,
-                              decoration: InputDecoration(
-                                hintText: 'Select Listing Date',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(
-                                    color: Colors.blue,
-                                    width: 2,
-                                  ),
-                                ),
-                                suffixIcon: IconButton(
-                                  onPressed: () => _selectDate(
-                                    context,
-                                    _listingDateController,
-                                  ),
-                                  icon: Icon(
-                                    Icons.calendar_today,
-                                    color: Colors.blue,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Qualified Date:',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey[700],
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextField(
-                              controller: _qualifiedDateController,
-                              readOnly: true,
-                              decoration: InputDecoration(
-                                hintText: 'Select Qualified Date',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(
-                                    color: Colors.blue,
-                                    width: 2,
-                                  ),
-                                ),
-                                suffixIcon: IconButton(
-                                  onPressed: () => _selectDate(
-                                    context,
-                                    _qualifiedDateController,
-                                  ),
-                                  icon: Icon(
-                                    Icons.calendar_today,
-                                    color: Colors.blue,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Select Status:',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey[700],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildStatusButton(
-                          'Won',
-                          Colors.green.shade600,
-                          Icons.check_circle,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _buildStatusButton(
-                          'Lost',
-                          Colors.red.shade600,
-                          Icons.cancel,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _buildStatusButton(
-                          'Follow Up',
-                          Colors.orange.shade600,
-                          Icons.refresh,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Remark:',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey[700],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _remarkController,
-                    maxLines: 3,
-                    decoration: InputDecoration(
-                      hintText: 'Enter your remark here...',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.blue, width: 2),
-                      ),
-                    ),
-                  ),
-                ],
+        width: 400,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Project: ${widget.projectName}',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
               ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Select Status:',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[700],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatusButton(
+                    'Won',
+                    Colors.green.shade600,
+                    Icons.check_circle,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildStatusButton(
+                    'Lost',
+                    Colors.red.shade600,
+                    Icons.cancel,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildStatusButton(
+                    'Follow Up',
+                    Colors.orange.shade600,
+                    Icons.refresh,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Remark:',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[700],
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _remarkController,
+              maxLines: 3,
+              decoration: InputDecoration(
+                hintText: 'Enter your remark here...',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.blue, width: 2),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
       actions: [
         TextButton.icon(
@@ -9646,8 +9600,6 @@ class _InitializeStatusDialogState extends State<InitializeStatusDialog> {
           .from('admin_response')
           .select('sales_user, id, lead_id')
           .eq('lead_id', widget.leadId)
-          .order('created_at', ascending: false)
-          .limit(1)
           .maybeSingle();
 
       debugPrint(
@@ -9658,8 +9610,7 @@ class _InitializeStatusDialogState extends State<InitializeStatusDialog> {
         final salesUser = leadResponse['sales_user'] as String?;
         final recordId = leadResponse['id'] as String?;
         debugPrint('[AUTH] Sales user from lead: $salesUser');
-        debugPrint('[AUTH] Record ID to update: $recordId');
-        debugPrint('[AUTH] Lead ID: ${widget.leadId}');
+        debugPrint('[AUTH] Record ID: $recordId');
 
         // Step 5: Verify that the current user matches the sales user
         if (salesUser != null && salesUser == currentUsername) {
@@ -9667,13 +9618,6 @@ class _InitializeStatusDialogState extends State<InitializeStatusDialog> {
         } else {
           throw Exception(
             'User not authorized to update this lead status. Expected: $salesUser, Current: $currentUsername',
-          );
-        }
-
-        // Step 5.5: Verify we have a valid record ID for update
-        if (recordId == null) {
-          throw Exception(
-            'Invalid record ID found for lead_id: ${widget.leadId}. Cannot update status.',
           );
         }
       } else {
@@ -9698,86 +9642,34 @@ class _InitializeStatusDialogState extends State<InitializeStatusDialog> {
           mappedStatus = _selectedStatus!;
       }
 
-      // Step 7: Parse date values
-      DateTime? listingDate;
-      DateTime? qualifiedDate;
-
-      try {
-        if (_listingDateController.text.isNotEmpty) {
-          listingDate = DateFormat(
-            'dd/MM/yyyy',
-          ).parse(_listingDateController.text);
-        }
-        if (_qualifiedDateController.text.isNotEmpty) {
-          qualifiedDate = DateFormat(
-            'dd/MM/yyyy',
-          ).parse(_qualifiedDateController.text);
-        }
-      } catch (e) {
-        debugPrint('Error parsing dates: $e');
-        // Use current date as fallback
-        listingDate = DateTime.now();
-        qualifiedDate = DateTime.now();
-      }
-
-      // Step 8: Update the existing admin_response row (NO NEW ROW CREATED)
+      // Step 7: Update the existing admin_response row using the record ID
+      final recordId = leadResponse['id'] as String;
       debugPrint(
-        '[UPDATE] Updating EXISTING record for lead_id: ${widget.leadId}',
-      );
-      debugPrint('[UPDATE] Record ID to update: ${leadResponse['id']}');
-      debugPrint('[UPDATE] Status: $_selectedStatus → $mappedStatus');
-      debugPrint('[UPDATE] Remark: ${_remarkController.text.trim()}');
-      debugPrint(
-        '[UPDATE] Listing Date (created_at): ${listingDate?.toIso8601String()}',
-      );
-      debugPrint(
-        '[UPDATE] Qualified Date (updated_at): ${qualifiedDate?.toIso8601String()}',
+        '[UPDATE] Updating existing record with ID: $recordId for lead_id: ${widget.leadId}',
       );
 
       await client
           .from('admin_response')
           .update({
-            'update_lead_status': _selectedStatus, // Status field
-            'status': mappedStatus, // Mapped status
-            'lead_status_remark': _remarkController.text.trim(), // Remark field
-            'created_at': listingDate?.toIso8601String(), // Listing Date
-            'updated_at': qualifiedDate?.toIso8601String(), // Qualified Date
+            'update_lead_status': _selectedStatus,
+            'status': mappedStatus,
+            'lead_status_remark': _remarkController.text.trim(),
+            'created_at': _listingDate?.toIso8601String(),
+            'updated_at': _qualifiedDate?.toIso8601String(),
           })
-          .eq('id', leadResponse['id']); // Update specific existing row
+          .eq('id', recordId);
 
-      debugPrint(
-        '[UPDATE] ✅ Successfully updated EXISTING record (no new row created)',
-      );
-
-      // Step 9: Verify the update was successful
-      final verificationResponse = await client
-          .from('admin_response')
-          .select(
-            'update_lead_status, status, lead_status_remark, created_at, updated_at',
-          )
-          .eq('id', leadResponse['id'])
-          .single();
-
-      debugPrint('[VERIFY] ✅ Update verification successful:');
-      debugPrint(
-        '[VERIFY] - Status: ${verificationResponse['update_lead_status']}',
-      );
-      debugPrint('[VERIFY] - Mapped Status: ${verificationResponse['status']}');
-      debugPrint(
-        '[VERIFY] - Remark: ${verificationResponse['lead_status_remark']}',
-      );
-      debugPrint(
-        '[VERIFY] - Listing Date: ${verificationResponse['created_at']}',
-      );
-      debugPrint(
-        '[VERIFY] - Qualified Date: ${verificationResponse['updated_at']}',
-      );
+      debugPrint('[UPDATE] ✅ Successfully updated existing record');
 
       debugPrint('✅ Status updated successfully: $_selectedStatus');
       debugPrint('✅ Mapped status: $mappedStatus');
       debugPrint('✅ Remark: ${_remarkController.text.trim()}');
-      debugPrint('✅ Listing Date: ${listingDate?.toIso8601String()}');
-      debugPrint('✅ Qualified Date: ${qualifiedDate?.toIso8601String()}');
+      debugPrint(
+        '✅ Listing Date (created_at): ${_listingDate?.toIso8601String()}',
+      );
+      debugPrint(
+        '✅ Qualified Date (updated_at): ${_qualifiedDate?.toIso8601String()}',
+      );
 
       if (mounted) {
         Navigator.of(context).pop();
