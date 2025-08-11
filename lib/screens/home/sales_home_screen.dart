@@ -6377,22 +6377,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
   bool _isLoadingLeadData = false;
   final TextEditingController _leadSearchController = TextEditingController();
 
-  // Currency conversion rates
-  final Map<String, double> _currencyRates = {
-    'INR': 1.0,
-    'USD': 0.012,
-    'EUR': 0.011,
-    'CHF': 0.010,
-    'GBP': 0.009,
-  };
 
-  final Map<String, String> _currencySymbols = {
-    'INR': '₹',
-    'USD': '\$',
-    'EUR': '€',
-    'CHF': 'CHF ',
-    'GBP': '£',
-  };
 
   @override
   void initState() {
@@ -6540,7 +6525,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     setState(() {
       _dashboardData = {
         'totalRevenue': {
-          'value': _formatCurrency(totalRevenue, _selectedCurrency),
+          'value': _formatRevenueInCrore(totalRevenue),
           'percentage':
               '${revenuePercentage >= 0 ? '+' : ''}${revenuePercentage.toStringAsFixed(1)}%',
           'isPositive': revenuePercentage >= 0,
@@ -6920,11 +6905,35 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     return ((current - previous) / previous) * 100;
   }
 
-  String _formatCurrency(double amount, String currency) {
-    final symbol = _currencySymbols[currency] ?? '₹';
-    final rate = _currencyRates[currency] ?? 1.0;
-    final convertedAmount = amount * rate;
-    return '$symbol${NumberFormat('#,##0').format(convertedAmount)}';
+  // Format revenue in Crore (Cr) format
+  String _formatRevenueInCrore(double amount) {
+    if (amount >= 10000000) {
+      // 1 Crore = 10,000,000
+      final croreValue = amount / 10000000;
+      if (croreValue >= 100) {
+        return '₹${croreValue.toStringAsFixed(0)} Cr';
+      } else if (croreValue >= 10) {
+        return '₹${croreValue.toStringAsFixed(1)} Cr';
+      } else {
+        return '₹${croreValue.toStringAsFixed(2)} Cr';
+      }
+    } else if (amount >= 100000) {
+      // 1 Lakh = 100,000
+      final lakhValue = amount / 100000;
+      if (lakhValue >= 100) {
+        return '₹${lakhValue.toStringAsFixed(0)} L';
+      } else if (lakhValue >= 10) {
+        return '₹${lakhValue.toStringAsFixed(1)} L';
+      } else {
+        return '₹${lakhValue.toStringAsFixed(2)} L';
+      }
+    } else if (amount >= 1000) {
+      // 1 Thousand = 1,000
+      final thousandValue = amount / 1000;
+      return '₹${thousandValue.toStringAsFixed(0)} K';
+    } else {
+      return '₹${amount.toStringAsFixed(0)}';
+    }
   }
 
   // Build Syncfusion pie chart data
