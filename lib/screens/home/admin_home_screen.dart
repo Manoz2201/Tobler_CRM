@@ -8877,43 +8877,78 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 
   Widget _buildLeadTabs() {
+    final tabs = [
+      {
+        'key': 'Won',
+        'label': 'Won Leads',
+        'count': _getLeadCountByStatus('Won'),
+      },
+      {
+        'key': 'Lost',
+        'label': 'Lost Leads',
+        'count': _getLeadCountByStatus('Lost'),
+      },
+      {
+        'key': 'Follow Up',
+        'label': 'Follow Up',
+        'count': _getLeadCountByStatus('Follow Up'),
+      },
+    ];
+
     return Row(
-      children: [
-        _buildTab('Won Leads', _activeLeadTab == 'Won', 'Won'),
-        SizedBox(width: 24),
-        _buildTab('Lost Leads', _activeLeadTab == 'Lost', 'Lost'),
-        SizedBox(width: 24),
-        _buildTab('Follow Up', _activeLeadTab == 'Follow Up', 'Follow Up'),
-      ],
+      children: tabs.map((tab) {
+        final isActive = _activeLeadTab == tab['key'];
+        return Expanded(
+          child: GestureDetector(
+            onTap: () {
+              _onLeadTabChanged(tab['key'] as String);
+            },
+            child: Container(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: isActive ? Colors.blue : Colors.transparent,
+                    width: 2,
+                  ),
+                ),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    tab['label'] as String,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: isActive ? Colors.blue : Colors.grey[600],
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    '${tab['count']}',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: isActive ? Colors.blue : Colors.grey[800],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 
-  Widget _buildTab(String title, bool isActive, String tabValue) {
-    return GestureDetector(
-      onTap: () {
-        _onLeadTabChanged(tabValue);
-      },
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: isActive ? Colors.blue[600]! : Colors.transparent,
-              width: 2,
-            ),
-          ),
-        ),
-        child: Text(
-          title,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-            color: isActive ? Colors.blue[600] : Colors.grey[600],
-          ),
-        ),
-      ),
-    );
+  // Get lead count by status
+  int _getLeadCountByStatus(String status) {
+    return _filteredLeadData
+        .where((lead) => lead['update_lead_status'] == status)
+        .length;
   }
+
+
 
   Widget _buildLeadTable() {
     if (_isLoadingLeadData) {
