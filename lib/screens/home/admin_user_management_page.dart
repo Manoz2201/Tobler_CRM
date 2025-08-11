@@ -20,10 +20,10 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
 
   // User statistics data
   Map<String, dynamic> _userStats = {
-    'totalUsers': {'value': '0'},
-    'activeUsers': {'value': '0'},
-    'verifiedUsers': {'value': '0'},
-    'onlineUsers': {'value': '0'},
+    'totalUsers': {'value': '0', 'percentage': '+0.0%', 'isPositive': true},
+    'activeUsers': {'value': '0', 'percentage': '+0.0%', 'isPositive': true},
+    'verifiedUsers': {'value': '0', 'percentage': '+0.0%', 'isPositive': true},
+    'onlineUsers': {'value': '0', 'percentage': '+0.0%', 'isPositive': true},
   };
 
   @override
@@ -64,15 +64,23 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
       _userStats = {
         'totalUsers': {
           'value': totalUsers.toString(),
+          'percentage': '+0.0%',
+          'isPositive': true,
         },
         'activeUsers': {
           'value': activeUsers.toString(),
+          'percentage': '+0.0%',
+          'isPositive': true,
         },
         'verifiedUsers': {
           'value': verifiedUsers.toString(),
+          'percentage': '+0.0%',
+          'isPositive': true,
         },
         'onlineUsers': {
           'value': onlineUsers.toString(),
+          'percentage': '+0.0%',
+          'isPositive': true,
         },
       };
     });
@@ -376,6 +384,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
           child: _buildUserStatCard(
             'Total Users',
             _userStats['totalUsers']['value'],
+            _userStats['totalUsers']['percentage'],
             Icons.people,
             Colors.blue,
           ),
@@ -385,6 +394,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
           child: _buildUserStatCard(
             'Active Users',
             _userStats['activeUsers']['value'],
+            _userStats['activeUsers']['percentage'],
             Icons.person,
             Colors.green,
           ),
@@ -394,6 +404,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
           child: _buildUserStatCard(
             'Verified Users',
             _userStats['verifiedUsers']['value'],
+            _userStats['verifiedUsers']['percentage'],
             Icons.verified,
             Colors.orange,
           ),
@@ -403,6 +414,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
           child: _buildUserStatCard(
             'Online Users',
             _userStats['onlineUsers']['value'],
+            _userStats['onlineUsers']['percentage'],
             Icons.online_prediction,
             Colors.purple,
           ),
@@ -421,6 +433,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
               child: _buildUserStatCard(
                 'Total Users',
                 _userStats['totalUsers']['value'],
+                _userStats['totalUsers']['percentage'],
                 Icons.people,
                 Colors.blue,
               ),
@@ -430,6 +443,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
               child: _buildUserStatCard(
                 'Active Users',
                 _userStats['activeUsers']['value'],
+                _userStats['activeUsers']['percentage'],
                 Icons.person,
                 Colors.green,
               ),
@@ -444,6 +458,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
               child: _buildUserStatCard(
                 'Verified Users',
                 _userStats['verifiedUsers']['value'],
+                _userStats['verifiedUsers']['percentage'],
                 Icons.verified,
                 Colors.orange,
               ),
@@ -453,6 +468,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
               child: _buildUserStatCard(
                 'Online Users',
                 _userStats['onlineUsers']['value'],
+                _userStats['onlineUsers']['percentage'],
                 Icons.online_prediction,
                 Colors.purple,
               ),
@@ -466,9 +482,12 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
   Widget _buildUserStatCard(
     String title,
     String value,
+    String percentage,
     IconData icon,
     Color color,
   ) {
+    final isPositive = percentage.startsWith('+');
+    final percentageColor = isPositive ? Colors.green : Colors.red;
 
     return Container(
       padding: EdgeInsets.all(16),
@@ -522,7 +541,38 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
             ),
             textAlign: TextAlign.center,
           ),
-
+          SizedBox(height: 6),
+          // Percentage with arrow - centered below value
+          SizedBox(
+            height: 28,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  isPositive ? Icons.trending_up : Icons.trending_down,
+                  color: percentageColor,
+                  size: 12,
+                ),
+                SizedBox(width: 4),
+                Text(
+                  percentage,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: percentageColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: 6),
+          // Footer: "From previous period" centered
+          Text(
+            'From previous period',
+            style: TextStyle(fontSize: 9, color: Colors.grey[500]),
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
     );

@@ -9,6 +9,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 import 'package:intl/intl.dart';
 import '../../utils/navigation_utils.dart';
+import '../../utils/timezone_utils.dart';
 import '../auth/login_screen.dart';
 import '../../services/query_notification_service.dart';
 import '../../main.dart'
@@ -6662,8 +6663,12 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     for (var record in data) {
       final updatedAt = DateTime.parse(record['updated_at']);
 
+      // Convert UTC datetime to local timezone for proper comparison
+      final localUpdatedAt = TimezoneUtils.convertToLocal(updatedAt);
+
       // Only include data within the selected time period range
-      if (updatedAt.isBefore(startDate) || updatedAt.isAfter(endDate)) {
+      if (localUpdatedAt.isBefore(startDate) ||
+          localUpdatedAt.isAfter(endDate)) {
         continue;
       }
 
@@ -6715,30 +6720,19 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
       final label = labels[i];
       final groupData = groupedData[label] ?? [];
 
-      int qualifiedLeadCount = groupData.length; // Count of Won leads
       double totalRevenue = 0;
 
       for (var record in groupData) {
         totalRevenue += (record['total_amount_gst'] ?? 0).toDouble();
       }
 
-      // Convert revenue to thousands for display
-      final revenueInK = totalRevenue / 1000;
-
       barGroups.add(
         BarChartGroupData(
           x: i,
           barRods: [
-            // Qualified Lead count bar (Teal color)
-            BarChartRodData(
-              toY: qualifiedLeadCount.toDouble(),
-              color: Colors.teal,
-              width: 20,
-              borderRadius: BorderRadius.circular(4),
-            ),
             // Revenue bar (Pink color)
             BarChartRodData(
-              toY: revenueInK,
+              toY: totalRevenue / 10000000, // Convert to Crore (Cr)
               color: Colors.pink,
               width: 20,
               borderRadius: BorderRadius.circular(4),
@@ -7057,9 +7051,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
               true ||
           lead['ms_weight']?.toString().toLowerCase().contains(searchQuery) ==
               true ||
-          lead['rate_per_sqm']?.toString().toLowerCase().contains(
-                searchQuery,
-              ) ==
+          lead['rate_sqm']?.toString().toLowerCase().contains(searchQuery) ==
               true ||
           lead['total_amount_gst']?.toString().toLowerCase().contains(
                 searchQuery,
@@ -7556,7 +7548,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                                 Expanded(
                                   child: _buildMetricCard(
                                     'Rate',
-                                    '₹${lead['rate_per_sqm']?.toString() ?? '0'}',
+                                    '₹${lead['rate_sqm']?.toString() ?? '0'}',
                                     Icons.attach_money,
                                     Colors.green,
                                   ),
@@ -7862,8 +7854,8 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     final aluminiumArea = lead['aluminium_area'] != null
         ? '${lead['aluminium_area'].toString()} m²'
         : 'N/A';
-    final rateSqm = lead['rate_per_sqm'] != null
-        ? '₹${lead['rate_per_sqm'].toString()}'
+    final rateSqm = lead['rate_sqm'] != null
+        ? '₹${lead['rate_sqm'].toString()}'
         : 'N/A';
     final totalAmount = lead['total_amount_gst'] != null
         ? '₹${lead['total_amount_gst'].toString()}'
@@ -8170,7 +8162,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
             1,
           ),
           _buildTableDataCell(lead['ms_weight']?.toString() ?? 'N/A', 1),
-          _buildTableDataCell('₹${lead['rate_per_sqm']?.toString() ?? '0'}', 1),
+          _buildTableDataCell('₹${lead['rate_sqm']?.toString() ?? '0'}', 1),
           _buildTableDataCell(
             '₹${lead['total_amount_gst']?.toString() ?? '0'}',
             1,
@@ -9091,7 +9083,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
               Icon(Icons.bar_chart, color: Colors.grey[800], size: 20),
               SizedBox(width: 8),
               Text(
-                'Qualified Lead vs Revenue',
+                'Revenue by Period',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -9163,9 +9155,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                                 ? labels[group.x.toInt()]
                                 : '';
                             final value = rod.toY.toStringAsFixed(1);
-                            final seriesName = rodIndex == 0
-                                ? 'Qualified Leads'
-                                : 'Revenue (K)';
+                            final seriesName = 'Revenue (Cr)';
 
                             return BarTooltipItem(
                               '$label\n',
@@ -9265,27 +9255,13 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                 width: 12,
                 height: 12,
                 decoration: BoxDecoration(
-                  color: Colors.teal,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              SizedBox(width: 8),
-              Text(
-                'Qualified Leads',
-                style: TextStyle(fontSize: 12, color: Colors.grey[700]),
-              ),
-              SizedBox(width: 24),
-              Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
                   color: Colors.pink,
                   shape: BoxShape.circle,
                 ),
               ),
               SizedBox(width: 8),
               Text(
-                'Revenue (K)',
+                'Revenue (Cr)',
                 style: TextStyle(fontSize: 12, color: Colors.grey[700]),
               ),
             ],
@@ -9326,14 +9302,13 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
 
   // Helper method to format Y-axis labels
   String _formatYAxisLabel(double value) {
-    if (value >= 1000000000) {
-      return '${(value / 1000000000).toStringAsFixed(1)}B';
-    } else if (value >= 1000000) {
-      return '${(value / 1000000).toStringAsFixed(1)}M';
-    } else if (value >= 1000) {
-      return '${(value / 1000).toStringAsFixed(0)}K';
+    // Since values are now in Crore, format accordingly
+    if (value >= 100) {
+      return '${(value / 100).toStringAsFixed(1)}Cr';
+    } else if (value >= 10) {
+      return '${value.toStringAsFixed(1)}Cr';
     } else {
-      return value.toStringAsFixed(0);
+      return '${value.toStringAsFixed(2)}Cr';
     }
   }
 

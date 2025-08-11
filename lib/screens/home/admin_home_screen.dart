@@ -8503,7 +8503,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               Icon(Icons.bar_chart, color: Colors.grey[800], size: 20),
               SizedBox(width: 8),
               Text(
-                'Qualified Lead vs Revenue',
+                'Revenue by Period',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
