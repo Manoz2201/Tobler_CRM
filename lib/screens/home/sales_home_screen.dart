@@ -7381,11 +7381,9 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     );
   }
 
-  // Get lead count by status
+  // Get lead count by status from lead status distribution data
   int _getLeadCountByStatus(String status) {
-    return _filteredLeadData
-        .where((lead) => lead['update_lead_status'] == status)
-        .length;
+    return _leadStatusDistribution[status] ?? 0;
   }
 
   // Build lead table

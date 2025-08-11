@@ -6226,6 +6226,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     _fetchLeadStatusData();
     _fetchChartData();
     _fetchLeadStatusDistributionData();
+    _fetchLeadPerformanceData();
   }
 
   // Refresh data when currency changes
@@ -6519,12 +6520,15 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
     try {
       final client = Supabase.instance.client;
+      final dateRange = _getDateRange(_selectedTimePeriod);
 
-      // Fetch data from admin_response table based on active tab
+      // Fetch data from admin_response table based on active tab and time period
       final response = await client
           .from('admin_response')
           .select('*')
           .eq('update_lead_status', _activeLeadTab)
+          .gte('updated_at', dateRange['start']!.toIso8601String())
+          .lte('updated_at', dateRange['end']!.toIso8601String())
           .order('updated_at', ascending: false)
           .timeout(const Duration(seconds: 10));
 
@@ -6548,6 +6552,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       _activeLeadTab = tabValue;
     });
     _fetchLeadPerformanceData();
+    // Refresh lead status distribution to update counts
+    _fetchLeadStatusDistributionData();
+  }
+
+  // Get lead count by status from lead status distribution data
+  int _getLeadCountByStatus(String status) {
+    return _leadStatusDistribution[status] ?? 0;
   }
 
   // Search and filter lead data
@@ -8877,78 +8888,79 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 
   Widget _buildLeadTabs() {
-    final tabs = [
-      {
-        'key': 'Won',
-        'label': 'Won Leads',
-        'count': _getLeadCountByStatus('Won'),
-      },
-      {
-        'key': 'Lost',
-        'label': 'Lost Leads',
-        'count': _getLeadCountByStatus('Lost'),
-      },
-      {
-        'key': 'Follow Up',
-        'label': 'Follow Up',
-        'count': _getLeadCountByStatus('Follow Up'),
-      },
-    ];
-
     return Row(
-      children: tabs.map((tab) {
-        final isActive = _activeLeadTab == tab['key'];
-        return Expanded(
-          child: GestureDetector(
-            onTap: () {
-              _onLeadTabChanged(tab['key'] as String);
-            },
-            child: Container(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(
-                    color: isActive ? Colors.blue : Colors.transparent,
-                    width: 2,
-                  ),
-                ),
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    tab['label'] as String,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: isActive ? Colors.blue : Colors.grey[600],
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    '${tab['count']}',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: isActive ? Colors.blue : Colors.grey[800],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      }).toList(),
+      children: [
+        _buildTab(
+          'Won Leads',
+          _activeLeadTab == 'Won',
+          'Won',
+          _getLeadCountByStatus('Won'),
+        ),
+        SizedBox(width: 24),
+        _buildTab(
+          'Lost Leads',
+          _activeLeadTab == 'Lost',
+          'Lost',
+          _getLeadCountByStatus('Lost'),
+        ),
+        SizedBox(width: 24),
+        _buildTab(
+          'Follow Up',
+          _activeLeadTab == 'Follow Up',
+          'Follow Up',
+          _getLeadCountByStatus('Follow Up'),
+        ),
+      ],
     );
   }
 
-  // Get lead count by status
-  int _getLeadCountByStatus(String status) {
-    return _filteredLeadData
-        .where((lead) => lead['update_lead_status'] == status)
-        .length;
+  Widget _buildTab(String title, bool isActive, String tabValue, int count) {
+    return GestureDetector(
+      onTap: () {
+        _onLeadTabChanged(tabValue);
+      },
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: isActive ? Colors.blue[600]! : Colors.transparent,
+              width: 2,
+            ),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                color: isActive ? Colors.blue[600] : Colors.grey[600],
+              ),
+            ),
+            SizedBox(height: 4),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: isActive ? Colors.blue[100] : Colors.grey[100],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: isActive ? Colors.blue[700] : Colors.grey[600],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
-
-
 
   Widget _buildLeadTable() {
     if (_isLoadingLeadData) {
