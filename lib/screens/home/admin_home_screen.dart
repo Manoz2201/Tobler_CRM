@@ -4832,7 +4832,9 @@ class _LeadTableState extends State<LeadTable> {
             })
             .eq('lead_id', leadId);
 
-        debugPrint('[APPROVAL] ✅ Successfully UPDATED existing admin_response record');
+        debugPrint(
+          '[APPROVAL] ✅ Successfully UPDATED existing admin_response record',
+        );
       } else {
         // Record doesn't exist, create new one
         debugPrint(
@@ -4860,7 +4862,9 @@ class _LeadTableState extends State<LeadTable> {
           'updated_at': DateTime.now().toIso8601String(),
         });
 
-        debugPrint('[APPROVAL] ✅ Successfully CREATED new admin_response record');
+        debugPrint(
+          '[APPROVAL] ✅ Successfully CREATED new admin_response record',
+        );
       }
 
       // Mark lead as approved in local state

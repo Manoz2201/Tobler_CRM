@@ -2457,7 +2457,9 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
               })
               .eq('lead_id', leadId);
 
-          debugPrint('[PROPOSAL] ✅ Successfully UPDATED existing admin_response record');
+          debugPrint(
+            '[PROPOSAL] ✅ Successfully UPDATED existing admin_response record',
+          );
         } catch (e) {
           debugPrint('[PROPOSAL] ❌ Error updating admin_response: $e');
           throw Exception('Failed to update admin_response - $e');
@@ -2491,7 +2493,9 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
             'updated_at': DateTime.now().toIso8601String(),
           });
 
-          debugPrint('[PROPOSAL] ✅ Successfully CREATED new admin_response record');
+          debugPrint(
+            '[PROPOSAL] ✅ Successfully CREATED new admin_response record',
+          );
         } catch (e) {
           debugPrint('[PROPOSAL] ❌ Error inserting admin_response: $e');
           throw Exception('Failed to insert admin_response - $e');
@@ -5070,7 +5074,9 @@ class _UpdateProposalDialogState extends State<UpdateProposalDialog> {
           })
           .eq('lead_id', leadId);
 
-      debugPrint('[UPDATE] ✅ Successfully UPDATED admin_response for lead_id: $leadId');
+      debugPrint(
+        '[UPDATE] ✅ Successfully UPDATED admin_response for lead_id: $leadId',
+      );
     } catch (e) {
       debugPrint('[UPDATE] ❌ Error updating admin_response: $e');
       throw Exception('Failed to update admin_response - $e');
@@ -5168,7 +5174,9 @@ class _UpdateProposalDialogState extends State<UpdateProposalDialog> {
         'updated_at': DateTime.now().toIso8601String(),
       });
 
-      debugPrint('[CREATE] ✅ Successfully CREATED new admin_response record for lead_id: $leadId');
+      debugPrint(
+        '[CREATE] ✅ Successfully CREATED new admin_response record for lead_id: $leadId',
+      );
     } catch (e) {
       debugPrint('[CREATE] ❌ Error creating admin_response: $e');
       throw Exception('Failed to create admin_response - $e');
