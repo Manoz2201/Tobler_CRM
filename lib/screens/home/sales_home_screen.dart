@@ -7000,13 +7000,11 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
       final response = await client
           .from('admin_response')
           .select('*')
-          .eq(
-            'sales_user',
-            _currentUsername,
-          ) // Only fetch rows where sales_user matches current username
+          .eq('sales_user', _currentUsername) // Only fetch rows where sales_user matches current username
           .gte('updated_at', dateRange['start']!.toIso8601String())
           .lte('updated_at', dateRange['end']!.toIso8601String())
-          .order('updated_at', ascending: false);
+          .order('updated_at', ascending: false)
+          .timeout(const Duration(seconds: 10));
 
       debugPrint(
         '[LEAD_PERFORMANCE] Fetched ${response.length} records for user: $_currentUsername',
@@ -7025,57 +7023,32 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     }
   }
 
+
+
   // Filter lead data based on search query
   void _filterLeadData(String query) {
     if (query.isEmpty) {
       setState(() {
-        _filteredLeadData = List<Map<String, dynamic>>.from(
-          _leadPerformanceData,
-        );
+        _filteredLeadData = List<Map<String, dynamic>>.from(_leadPerformanceData);
       });
       return;
     }
 
     final filtered = _leadPerformanceData.where((lead) {
       final searchQuery = query.toLowerCase();
-      return lead['project_id']?.toString().toLowerCase().contains(
-                searchQuery,
-              ) ==
-              true ||
-          lead['project_name']?.toString().toLowerCase().contains(
-                searchQuery,
-              ) ==
-              true ||
-          lead['client_name']?.toString().toLowerCase().contains(searchQuery) ==
-              true ||
-          lead['location']?.toString().toLowerCase().contains(searchQuery) ==
-              true ||
-          lead['aluminium_area']?.toString().toLowerCase().contains(
-                searchQuery,
-              ) ==
-              true ||
-          lead['ms_weight']?.toString().toLowerCase().contains(searchQuery) ==
-              true ||
-          lead['rate_per_sqm']?.toString().toLowerCase().contains(
-                searchQuery,
-              ) ==
-              true ||
-          lead['total_amount_gst']?.toString().toLowerCase().contains(
-                searchQuery,
-              ) ==
-              true ||
-          lead['sales_user']?.toString().toLowerCase().contains(searchQuery) ==
-              true ||
-          lead['update_lead_status']?.toString().toLowerCase().contains(
-                searchQuery,
-              ) ==
-              true ||
-          lead['remark']?.toString().toLowerCase().contains(searchQuery) ==
-              true ||
-          lead['created_at']?.toString().toLowerCase().contains(searchQuery) ==
-              true ||
-          lead['updated_at']?.toString().toLowerCase().contains(searchQuery) ==
-              true;
+      return lead['project_id']?.toString().toLowerCase().contains(searchQuery) == true ||
+             lead['project_name']?.toString().toLowerCase().contains(searchQuery) == true ||
+             lead['client_name']?.toString().toLowerCase().contains(searchQuery) == true ||
+             lead['location']?.toString().toLowerCase().contains(searchQuery) == true ||
+             lead['aluminium_area']?.toString().toLowerCase().contains(searchQuery) == true ||
+             lead['ms_weight']?.toString().toLowerCase().contains(searchQuery) == true ||
+             lead['rate_per_sqm']?.toString().toLowerCase().contains(searchQuery) == true ||
+             lead['total_amount_gst']?.toString().toLowerCase().contains(searchQuery) == true ||
+             lead['sales_user']?.toString().toLowerCase().contains(searchQuery) == true ||
+             lead['update_lead_status']?.toString().toLowerCase().contains(searchQuery) == true ||
+             lead['lead_status_remark']?.toString().toLowerCase().contains(searchQuery) == true ||
+             lead['created_at']?.toString().toLowerCase().contains(searchQuery) == true ||
+             lead['updated_at']?.toString().toLowerCase().contains(searchQuery) == true;
     }).toList();
 
     setState(() {
@@ -7301,6 +7274,10 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
 
           // Table
           _buildLeadTable(),
+
+          // Pagination
+          SizedBox(height: 16),
+          _buildPagination(),
         ],
       ),
     );
@@ -7425,8 +7402,10 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Mobile layout for screens smaller than 600px
-        if (constraints.maxWidth < 600) {
+        final isMobile = constraints.maxWidth < 600;
+        final isTablet = constraints.maxWidth >= 600 && constraints.maxWidth < 900;
+
+        if (isMobile) {
           // Mobile layout - interactive cards with dashboard style
           return ListView.builder(
             shrinkWrap: true,
@@ -7635,6 +7614,33 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
               );
             },
           );
+        } else if (isTablet) {
+          // Tablet layout - compact table with horizontal scrolling
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              columnSpacing: 12,
+              headingTextStyle: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+                fontSize: 11,
+              ),
+              dataTextStyle: TextStyle(fontSize: 11, color: Colors.grey[700]),
+              columns: [
+                DataColumn(label: SizedBox(width: 80, child: Text('PROJECT ID'))),
+                DataColumn(label: SizedBox(width: 100, child: Text('PROJECT NAME'))),
+                DataColumn(label: SizedBox(width: 90, child: Text('CLIENT NAME'))),
+                DataColumn(label: SizedBox(width: 70, child: Text('LOCATION'))),
+                DataColumn(label: SizedBox(width: 80, child: Text('AREA'))),
+                DataColumn(label: SizedBox(width: 70, child: Text('RATE'))),
+                DataColumn(label: SizedBox(width: 90, child: Text('TOTAL'))),
+                DataColumn(label: SizedBox(width: 100, child: Text('SALES USER'))),
+                DataColumn(label: SizedBox(width: 60, child: Text('STATUS'))),
+                DataColumn(label: SizedBox(width: 100, child: Text('CLOSED DATE'))),
+              ],
+              rows: filteredData.map((lead) => _buildTabletLeadRow(lead)).toList(),
+            ),
+          );
         } else {
           // Desktop layout - table with evenly distributed columns and vertical lines
           return Container(
@@ -7803,6 +7809,133 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
           ),
         ),
       ),
+    );
+  }
+
+  // Build tablet lead row
+  DataRow _buildTabletLeadRow(Map<String, dynamic> lead) {
+    final projectId = lead['project_id'] ?? 'N/A';
+    final projectName = lead['project_name'] ?? 'N/A';
+    final clientName = lead['client_name'] ?? 'N/A';
+    final location = lead['location'] ?? 'N/A';
+    final aluminiumArea = lead['aluminium_area'] != null
+        ? '${lead['aluminium_area'].toString()} m²'
+        : 'N/A';
+    final rateSqm = lead['rate_per_sqm'] != null
+        ? '₹${lead['rate_per_sqm'].toString()}'
+        : 'N/A';
+    final totalAmount = lead['total_amount_gst'] != null
+        ? '₹${lead['total_amount_gst'].toString()}'
+        : 'N/A';
+    final salesUser = lead['sales_user'] ?? 'N/A';
+    final status = lead['update_lead_status'] ?? 'N/A';
+    final closedDate = lead['updated_at'] != null
+        ? DateTime.parse(lead['updated_at']).toLocal().toString().split('.')[0]
+        : 'N/A';
+
+    return DataRow(
+      cells: [
+        DataCell(
+          SizedBox(
+            width: 80,
+            child: Text(
+              projectId,
+              style: TextStyle(fontSize: 9),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        DataCell(
+          SizedBox(
+            width: 100,
+            child: Text(
+              projectName,
+              style: TextStyle(fontSize: 10),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        DataCell(
+          SizedBox(
+            width: 90,
+            child: Text(
+              clientName,
+              style: TextStyle(fontSize: 10),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        DataCell(
+          SizedBox(
+            width: 70,
+            child: Text(
+              location,
+              style: TextStyle(fontSize: 9),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        DataCell(
+          SizedBox(
+            width: 80,
+            child: Text(
+              aluminiumArea,
+              style: TextStyle(fontSize: 9),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        DataCell(
+          SizedBox(
+            width: 70,
+            child: Text(
+              rateSqm,
+              style: TextStyle(fontSize: 9),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        DataCell(
+          SizedBox(
+            width: 90,
+            child: Text(
+              totalAmount,
+              style: TextStyle(fontSize: 9),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        DataCell(
+          SizedBox(
+            width: 100,
+            child: Text(
+              salesUser,
+              style: TextStyle(fontSize: 9),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        DataCell(
+          SizedBox(
+            width: 60,
+            child: Text(
+              status,
+              style: TextStyle(fontSize: 9),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        DataCell(
+          SizedBox(
+            width: 100,
+            child: Text(
+              closedDate,
+              style: TextStyle(fontSize: 9),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -8056,6 +8189,135 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                 ),
               ),
       ),
+    );
+  }
+
+  // Build pagination widget
+  Widget _buildPagination() {
+    final totalResults = _filteredLeadData.length;
+    final totalOriginalResults = _leadPerformanceData.length;
+    final showingText = totalResults > 0
+        ? 'Showing 1 to $totalResults of $totalOriginalResults results'
+        : 'No results found';
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 600;
+
+        if (isMobile) {
+          // Mobile layout - stacked vertically
+          return Column(
+            children: [
+              Text(
+                showingText,
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+              SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  TextButton(
+                    onPressed: null, // Disabled for first page
+                    child: Text(
+                      'Previous',
+                      style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                    ),
+                  ),
+                  SizedBox(width: 4),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.blue[600],
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '1',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 4),
+                  TextButton(
+                    onPressed: () {},
+                    child: Text('2', style: TextStyle(fontSize: 12)),
+                  ),
+                  SizedBox(width: 4),
+                  TextButton(
+                    onPressed: () {},
+                    child: Text('3', style: TextStyle(fontSize: 12)),
+                  ),
+                  SizedBox(width: 4),
+                  TextButton(
+                    onPressed: () {},
+                    child: Text('Next', style: TextStyle(fontSize: 12)),
+                  ),
+                ],
+              ),
+            ],
+          );
+        } else {
+          // Desktop layout - horizontal
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Flexible(
+                child: Text(
+                  showingText,
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              SizedBox(width: 16),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextButton(
+                    onPressed: null, // Disabled for first page
+                    child: Text(
+                      'Previous',
+                      style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.blue[600],
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '1',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  TextButton(
+                    onPressed: () {},
+                    child: Text('2', style: TextStyle(fontSize: 12)),
+                  ),
+                  SizedBox(width: 8),
+                  TextButton(
+                    onPressed: () {},
+                    child: Text('3', style: TextStyle(fontSize: 12)),
+                  ),
+                  SizedBox(width: 8),
+                  TextButton(
+                    onPressed: () {},
+                    child: Text('Next', style: TextStyle(fontSize: 12)),
+                  ),
+                ],
+              ),
+            ],
+          );
+        }
+      },
     );
   }
 
