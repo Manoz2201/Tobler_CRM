@@ -5936,23 +5936,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     'approved': {'value': '0', 'percentage': '+0.0%', 'isPositive': true},
   };
 
-  // Currency conversion rates (you can fetch these from an API)
-  final Map<String, double> _currencyRates = {
-    'INR': 1.0,
-    'USD': 0.012, // 1 INR = 0.012 USD (approximate)
-    'EUR': 0.011, // 1 INR = 0.011 EUR (approximate)
-    'CHF': 0.010, // 1 INR = 0.010 CHF (Swiss Franc, approximate)
-    'GBP': 0.009, // 1 INR = 0.009 GBP (approximate)
-  };
 
-  // Currency symbols
-  final Map<String, String> _currencySymbols = {
-    'INR': '₹',
-    'USD': '\$',
-    'EUR': '€',
-    'CHF': 'CHF ',
-    'GBP': '£',
-  };
 
   @override
   void initState() {
@@ -6196,25 +6180,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   double _calculatePercentage(double current, double previous) {
     if (previous == 0) return 0;
     return ((current - previous) / previous) * 100;
-  }
-
-  // Format currency with K, M, B, T suffixes
-  String _formatCurrency(double amount, String currency) {
-    final symbol = _currencySymbols[currency] ?? '₹';
-    final rate = _currencyRates[currency] ?? 1.0;
-    final convertedAmount = amount * rate;
-
-    if (convertedAmount < 1000) {
-      return '$symbol${convertedAmount.toStringAsFixed(0)}';
-    } else if (convertedAmount < 1000000) {
-      return '$symbol${(convertedAmount / 1000).toStringAsFixed(2)}K';
-    } else if (convertedAmount < 1000000000) {
-      return '$symbol${(convertedAmount / 1000000).toStringAsFixed(2)}M';
-    } else if (convertedAmount < 1000000000000) {
-      return '$symbol${(convertedAmount / 1000000000).toStringAsFixed(2)}B';
-    } else {
-      return '$symbol${(convertedAmount / 1000000000000).toStringAsFixed(2)}T';
-    }
   }
 
   // Format revenue in Crore (Cr) format
