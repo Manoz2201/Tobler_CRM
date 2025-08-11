@@ -6377,8 +6377,6 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
   bool _isLoadingLeadData = false;
   final TextEditingController _leadSearchController = TextEditingController();
 
-
-
   @override
   void initState() {
     super.initState();

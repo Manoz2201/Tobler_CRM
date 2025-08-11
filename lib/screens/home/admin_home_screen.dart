@@ -6114,7 +6114,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     setState(() {
       _dashboardData = {
         'totalRevenue': {
-          'value': _formatCurrency(totalRevenue, _selectedCurrency),
+          'value': _formatRevenueInCrore(totalRevenue),
           'percentage':
               '${revenuePercentage >= 0 ? '+' : ''}${revenuePercentage.toStringAsFixed(1)}%',
           'isPositive': revenuePercentage >= 0,
@@ -6214,6 +6214,37 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       return '$symbol${(convertedAmount / 1000000000).toStringAsFixed(2)}B';
     } else {
       return '$symbol${(convertedAmount / 1000000000000).toStringAsFixed(2)}T';
+    }
+  }
+
+  // Format revenue in Crore (Cr) format
+  String _formatRevenueInCrore(double amount) {
+    if (amount >= 10000000) {
+      // 1 Crore = 10,000,000
+      final croreValue = amount / 10000000;
+      if (croreValue >= 100) {
+        return '₹${croreValue.toStringAsFixed(0)} Cr';
+      } else if (croreValue >= 10) {
+        return '₹${croreValue.toStringAsFixed(1)} Cr';
+      } else {
+        return '₹${croreValue.toStringAsFixed(2)} Cr';
+      }
+    } else if (amount >= 100000) {
+      // 1 Lakh = 100,000
+      final lakhValue = amount / 100000;
+      if (lakhValue >= 100) {
+        return '₹${lakhValue.toStringAsFixed(0)} L';
+      } else if (lakhValue >= 10) {
+        return '₹${lakhValue.toStringAsFixed(1)} L';
+      } else {
+        return '₹${lakhValue.toStringAsFixed(2)} L';
+      }
+    } else if (amount >= 1000) {
+      // 1 Thousand = 1,000
+      final thousandValue = amount / 1000;
+      return '₹${thousandValue.toStringAsFixed(0)} K';
+    } else {
+      return '₹${amount.toStringAsFixed(0)}';
     }
   }
 
