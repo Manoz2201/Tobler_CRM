@@ -2420,17 +2420,17 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
       final leadIdShort = leadId.substring(0, 4).toUpperCase();
       final projectId = 'Tobler-$leadIdShort';
 
-      // Check if admin_response record exists for this lead_id
+      // Check if admin_response record exists for this lead_id to prevent duplicates
       final existingRecord = await client
           .from('admin_response')
-          .select('id')
+          .select('id, lead_id')
           .eq('lead_id', leadId)
           .maybeSingle();
 
       if (existingRecord != null) {
-        // Record exists, update it
+        // Record exists, update it to override existing values
         debugPrint(
-          '[PROPOSAL] Updating existing admin_response record for lead_id: $leadId',
+          '[PROPOSAL] ✅ Record exists for lead_id: $leadId - UPDATING existing admin_response',
         );
         debugPrint('[PROPOSAL] - Project: ${leadDetails['project_name']}');
         debugPrint('[PROPOSAL] - Client: ${leadDetails['client_name']}');
@@ -2457,15 +2457,15 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
               })
               .eq('lead_id', leadId);
 
-          debugPrint('[PROPOSAL] Successfully updated admin_response');
+          debugPrint('[PROPOSAL] ✅ Successfully UPDATED existing admin_response record');
         } catch (e) {
-          debugPrint('[PROPOSAL] Error updating admin_response: $e');
+          debugPrint('[PROPOSAL] ❌ Error updating admin_response: $e');
           throw Exception('Failed to update admin_response - $e');
         }
       } else {
         // Record doesn't exist, create new one
         debugPrint(
-          '[PROPOSAL] Creating new admin_response record for lead_id: $leadId',
+          '[PROPOSAL] ➕ No existing record found for lead_id: $leadId - CREATING new admin_response',
         );
         debugPrint('[PROPOSAL] - Project: ${leadDetails['project_name']}');
         debugPrint('[PROPOSAL] - Client: ${leadDetails['client_name']}');
@@ -2491,9 +2491,9 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
             'updated_at': DateTime.now().toIso8601String(),
           });
 
-          debugPrint('[PROPOSAL] Successfully inserted admin_response');
+          debugPrint('[PROPOSAL] ✅ Successfully CREATED new admin_response record');
         } catch (e) {
-          debugPrint('[PROPOSAL] Error inserting admin_response: $e');
+          debugPrint('[PROPOSAL] ❌ Error inserting admin_response: $e');
           throw Exception('Failed to insert admin_response - $e');
         }
       }
@@ -4973,23 +4973,23 @@ class _UpdateProposalDialogState extends State<UpdateProposalDialog> {
         });
       }
 
-      // Check if admin_response record exists for this lead_id
+      // Check if admin_response record exists for this lead_id to prevent duplicates
       final existingRecord = await client
           .from('admin_response')
-          .select('id')
+          .select('id, lead_id')
           .eq('lead_id', leadId)
           .maybeSingle();
 
       if (existingRecord != null) {
-        // Record exists, update it
+        // Record exists, update it to override existing values
         debugPrint(
-          '[UPDATE] Updating existing admin_response record for lead_id: $leadId',
+          '[UPDATE] ✅ Record exists for lead_id: $leadId - UPDATING existing admin_response',
         );
         await _updateAdminResponse();
       } else {
         // Record doesn't exist, create new one
         debugPrint(
-          '[UPDATE] Creating new admin_response record for lead_id: $leadId',
+          '[UPDATE] ➕ No existing record found for lead_id: $leadId - CREATING new admin_response',
         );
         await _createAdminResponse();
       }
@@ -5053,16 +5053,28 @@ class _UpdateProposalDialogState extends State<UpdateProposalDialog> {
 
     double msWeight = msWeightCount > 0 ? msWeightTotal / msWeightCount : 0.0;
 
-    // Update admin_response
-    await client
-        .from('admin_response')
-        .update({
-          'aluminium_area': aluminiumArea,
-          'ms_weight': msWeight,
-          'remark': remarkController.text.trim(),
-          'updated_at': DateTime.now().toIso8601String(),
-        })
-        .eq('lead_id', leadId);
+    debugPrint('[UPDATE] 📊 Calculated values for lead_id: $leadId');
+    debugPrint('[UPDATE] - Aluminium Area: $aluminiumArea');
+    debugPrint('[UPDATE] - MS Weight: $msWeight');
+    debugPrint('[UPDATE] - Remark: ${remarkController.text.trim()}');
+
+    try {
+      // Update admin_response to override existing values
+      await client
+          .from('admin_response')
+          .update({
+            'aluminium_area': aluminiumArea,
+            'ms_weight': msWeight,
+            'remark': remarkController.text.trim(),
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('lead_id', leadId);
+
+      debugPrint('[UPDATE] ✅ Successfully UPDATED admin_response for lead_id: $leadId');
+    } catch (e) {
+      debugPrint('[UPDATE] ❌ Error updating admin_response: $e');
+      throw Exception('Failed to update admin_response - $e');
+    }
   }
 
   Future<void> _createAdminResponse() async {
@@ -5129,21 +5141,38 @@ class _UpdateProposalDialogState extends State<UpdateProposalDialog> {
     final leadIdShort = leadId.substring(0, 4).toUpperCase();
     final projectId = 'Tobler-$leadIdShort';
 
-    // Insert new admin_response record
-    await client.from('admin_response').insert({
-      'lead_id': leadId,
-      'project_name': leadDetails['project_name'],
-      'client_name': leadDetails['client_name'],
-      'location': leadDetails['project_location'],
-      'aluminium_area': aluminiumArea,
-      'ms_weight': msWeight,
-      'remark': remarkController.text.trim(),
-      'project_id': projectId,
-      'sales_user': salesUserName,
-      'proposal_user': proposalUserName,
-      'created_at': DateTime.now().toIso8601String(),
-      'updated_at': DateTime.now().toIso8601String(),
-    });
+    debugPrint('[CREATE] 📊 Creating new admin_response for lead_id: $leadId');
+    debugPrint('[CREATE] - Project: ${leadDetails['project_name']}');
+    debugPrint('[CREATE] - Client: ${leadDetails['client_name']}');
+    debugPrint('[CREATE] - Location: ${leadDetails['project_location']}');
+    debugPrint('[CREATE] - Aluminium Area: $aluminiumArea');
+    debugPrint('[CREATE] - MS Weight: $msWeight');
+    debugPrint('[CREATE] - Project ID: $projectId');
+    debugPrint('[CREATE] - Sales User: $salesUserName');
+    debugPrint('[CREATE] - Proposal User: $proposalUserName');
+
+    try {
+      // Insert new admin_response record
+      await client.from('admin_response').insert({
+        'lead_id': leadId,
+        'project_name': leadDetails['project_name'],
+        'client_name': leadDetails['client_name'],
+        'location': leadDetails['project_location'],
+        'aluminium_area': aluminiumArea,
+        'ms_weight': msWeight,
+        'remark': remarkController.text.trim(),
+        'project_id': projectId,
+        'sales_user': salesUserName,
+        'proposal_user': proposalUserName,
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+
+      debugPrint('[CREATE] ✅ Successfully CREATED new admin_response record for lead_id: $leadId');
+    } catch (e) {
+      debugPrint('[CREATE] ❌ Error creating admin_response: $e');
+      throw Exception('Failed to create admin_response - $e');
+    }
   }
 
   @override

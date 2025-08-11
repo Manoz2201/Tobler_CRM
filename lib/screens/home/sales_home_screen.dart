@@ -7000,7 +7000,10 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
       final response = await client
           .from('admin_response')
           .select('*')
-          .eq('sales_user', _currentUsername) // Only fetch rows where sales_user matches current username
+          .eq(
+            'sales_user',
+            _currentUsername,
+          ) // Only fetch rows where sales_user matches current username
           .gte('updated_at', dateRange['start']!.toIso8601String())
           .lte('updated_at', dateRange['end']!.toIso8601String())
           .order('updated_at', ascending: false)
@@ -7023,32 +7026,59 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     }
   }
 
-
-
   // Filter lead data based on search query
   void _filterLeadData(String query) {
     if (query.isEmpty) {
       setState(() {
-        _filteredLeadData = List<Map<String, dynamic>>.from(_leadPerformanceData);
+        _filteredLeadData = List<Map<String, dynamic>>.from(
+          _leadPerformanceData,
+        );
       });
       return;
     }
 
     final filtered = _leadPerformanceData.where((lead) {
       final searchQuery = query.toLowerCase();
-      return lead['project_id']?.toString().toLowerCase().contains(searchQuery) == true ||
-             lead['project_name']?.toString().toLowerCase().contains(searchQuery) == true ||
-             lead['client_name']?.toString().toLowerCase().contains(searchQuery) == true ||
-             lead['location']?.toString().toLowerCase().contains(searchQuery) == true ||
-             lead['aluminium_area']?.toString().toLowerCase().contains(searchQuery) == true ||
-             lead['ms_weight']?.toString().toLowerCase().contains(searchQuery) == true ||
-             lead['rate_per_sqm']?.toString().toLowerCase().contains(searchQuery) == true ||
-             lead['total_amount_gst']?.toString().toLowerCase().contains(searchQuery) == true ||
-             lead['sales_user']?.toString().toLowerCase().contains(searchQuery) == true ||
-             lead['update_lead_status']?.toString().toLowerCase().contains(searchQuery) == true ||
-             lead['lead_status_remark']?.toString().toLowerCase().contains(searchQuery) == true ||
-             lead['created_at']?.toString().toLowerCase().contains(searchQuery) == true ||
-             lead['updated_at']?.toString().toLowerCase().contains(searchQuery) == true;
+      return lead['project_id']?.toString().toLowerCase().contains(
+                searchQuery,
+              ) ==
+              true ||
+          lead['project_name']?.toString().toLowerCase().contains(
+                searchQuery,
+              ) ==
+              true ||
+          lead['client_name']?.toString().toLowerCase().contains(searchQuery) ==
+              true ||
+          lead['location']?.toString().toLowerCase().contains(searchQuery) ==
+              true ||
+          lead['aluminium_area']?.toString().toLowerCase().contains(
+                searchQuery,
+              ) ==
+              true ||
+          lead['ms_weight']?.toString().toLowerCase().contains(searchQuery) ==
+              true ||
+          lead['rate_per_sqm']?.toString().toLowerCase().contains(
+                searchQuery,
+              ) ==
+              true ||
+          lead['total_amount_gst']?.toString().toLowerCase().contains(
+                searchQuery,
+              ) ==
+              true ||
+          lead['sales_user']?.toString().toLowerCase().contains(searchQuery) ==
+              true ||
+          lead['update_lead_status']?.toString().toLowerCase().contains(
+                searchQuery,
+              ) ==
+              true ||
+          lead['lead_status_remark']?.toString().toLowerCase().contains(
+                searchQuery,
+              ) ==
+              true ||
+          lead['created_at']?.toString().toLowerCase().contains(searchQuery) ==
+              true ||
+          lead['updated_at']?.toString().toLowerCase().contains(searchQuery) ==
+              true;
     }).toList();
 
     setState(() {
@@ -7403,7 +7433,8 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth < 600;
-        final isTablet = constraints.maxWidth >= 600 && constraints.maxWidth < 900;
+        final isTablet =
+            constraints.maxWidth >= 600 && constraints.maxWidth < 900;
 
         if (isMobile) {
           // Mobile layout - interactive cards with dashboard style
@@ -7627,18 +7658,30 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
               ),
               dataTextStyle: TextStyle(fontSize: 11, color: Colors.grey[700]),
               columns: [
-                DataColumn(label: SizedBox(width: 80, child: Text('PROJECT ID'))),
-                DataColumn(label: SizedBox(width: 100, child: Text('PROJECT NAME'))),
-                DataColumn(label: SizedBox(width: 90, child: Text('CLIENT NAME'))),
+                DataColumn(
+                  label: SizedBox(width: 80, child: Text('PROJECT ID')),
+                ),
+                DataColumn(
+                  label: SizedBox(width: 100, child: Text('PROJECT NAME')),
+                ),
+                DataColumn(
+                  label: SizedBox(width: 90, child: Text('CLIENT NAME')),
+                ),
                 DataColumn(label: SizedBox(width: 70, child: Text('LOCATION'))),
                 DataColumn(label: SizedBox(width: 80, child: Text('AREA'))),
                 DataColumn(label: SizedBox(width: 70, child: Text('RATE'))),
                 DataColumn(label: SizedBox(width: 90, child: Text('TOTAL'))),
-                DataColumn(label: SizedBox(width: 100, child: Text('SALES USER'))),
+                DataColumn(
+                  label: SizedBox(width: 100, child: Text('SALES USER')),
+                ),
                 DataColumn(label: SizedBox(width: 60, child: Text('STATUS'))),
-                DataColumn(label: SizedBox(width: 100, child: Text('CLOSED DATE'))),
+                DataColumn(
+                  label: SizedBox(width: 100, child: Text('CLOSED DATE')),
+                ),
               ],
-              rows: filteredData.map((lead) => _buildTabletLeadRow(lead)).toList(),
+              rows: filteredData
+                  .map((lead) => _buildTabletLeadRow(lead))
+                  .toList(),
             ),
           );
         } else {

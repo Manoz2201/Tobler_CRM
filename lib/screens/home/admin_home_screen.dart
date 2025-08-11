@@ -4796,21 +4796,72 @@ class _LeadTableState extends State<LeadTable> {
 
     try {
       final client = Supabase.instance.client;
+      final leadId = lead['lead_id'];
 
-      // Save to admin_response table
-      await client.from('admin_response').insert({
-        'lead_id': lead['lead_id'],
-        'date': lead['date'],
-        'project_name': lead['project_name'] ?? '',
-        'client_name': lead['client_name'] ?? '',
-        'location': lead['project_location'] ?? '',
-        'aluminium_area': aluminiumArea,
-        'ms_weight': msWeight,
-        'rate_sqm': rate,
-        'total_amount_gst': totalAmount,
-        'status': 'Approved',
-        'remark': remark,
-      });
+      // Check if admin_response record exists for this lead_id to prevent duplicates
+      final existingRecord = await client
+          .from('admin_response')
+          .select('id, lead_id')
+          .eq('lead_id', leadId)
+          .maybeSingle();
+
+      if (existingRecord != null) {
+        // Record exists, update it to override existing values
+        debugPrint(
+          '[APPROVAL] ✅ Record exists for lead_id: $leadId - UPDATING existing admin_response',
+        );
+        debugPrint('[APPROVAL] - Rate: $rate');
+        debugPrint('[APPROVAL] - Total Amount: $totalAmount');
+        debugPrint('[APPROVAL] - Status: Approved');
+        debugPrint('[APPROVAL] - Remark: $remark');
+
+        await client
+            .from('admin_response')
+            .update({
+              'date': lead['date'],
+              'project_name': lead['project_name'] ?? '',
+              'client_name': lead['client_name'] ?? '',
+              'location': lead['project_location'] ?? '',
+              'aluminium_area': aluminiumArea,
+              'ms_weight': msWeight,
+              'rate_sqm': rate,
+              'total_amount_gst': totalAmount,
+              'status': 'Approved',
+              'remark': remark,
+              'updated_at': DateTime.now().toIso8601String(),
+            })
+            .eq('lead_id', leadId);
+
+        debugPrint('[APPROVAL] ✅ Successfully UPDATED existing admin_response record');
+      } else {
+        // Record doesn't exist, create new one
+        debugPrint(
+          '[APPROVAL] ➕ No existing record found for lead_id: $leadId - CREATING new admin_response',
+        );
+        debugPrint('[APPROVAL] - Rate: $rate');
+        debugPrint('[APPROVAL] - Total Amount: $totalAmount');
+        debugPrint('[APPROVAL] - Status: Approved');
+        debugPrint('[APPROVAL] - Remark: $remark');
+
+        // Save to admin_response table
+        await client.from('admin_response').insert({
+          'lead_id': leadId,
+          'date': lead['date'],
+          'project_name': lead['project_name'] ?? '',
+          'client_name': lead['client_name'] ?? '',
+          'location': lead['project_location'] ?? '',
+          'aluminium_area': aluminiumArea,
+          'ms_weight': msWeight,
+          'rate_sqm': rate,
+          'total_amount_gst': totalAmount,
+          'status': 'Approved',
+          'remark': remark,
+          'created_at': DateTime.now().toIso8601String(),
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+
+        debugPrint('[APPROVAL] ✅ Successfully CREATED new admin_response record');
+      }
 
       // Mark lead as approved in local state
       setState(() {
