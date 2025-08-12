@@ -5871,7 +5871,13 @@ class _LeadTableState extends State<LeadTable> {
   }
 
   Widget _buildCompactStatItem(String label, String value, Color color) {
-    final isSelected = _getSelectedFilterFromLabel(label) == _selectedFilter;
+    // Special handling for Total card - only selected when no specific filter is active
+    bool isSelected;
+    if (label.toLowerCase() == 'total') {
+      isSelected = _selectedFilter == 'All';
+    } else {
+      isSelected = _getSelectedFilterFromLabel(label) == _selectedFilter;
+    }
 
     return InkWell(
       onTap: () => _onStatItemTap(label),
@@ -5923,6 +5929,8 @@ class _LeadTableState extends State<LeadTable> {
         return 'Waiting for Approval';
       case 'approved':
         return 'Approved';
+      case 'completed':
+        return 'Completed';
       default:
         return 'All';
     }
