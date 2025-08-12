@@ -210,6 +210,11 @@ class LeadUtils {
 
   /// Gets the status of a lead based on its data
   static String getLeadStatus(Map<String, dynamic> lead) {
+    // Check if lead is completed (found in admin_response table)
+    if (lead['admin_response_status'] == 'Completed') {
+      return 'Completed';
+    }
+
     // Check if lead is approved (found in admin_response table)
     if (lead['approved'] == true) {
       return 'Approved';
@@ -249,6 +254,8 @@ class LeadUtils {
         return 0xFF9C27B0; // Vibrant purple (matching Waiting Approval card icon)
       case 'Approved':
         return 0xFF4CAF50; // Vibrant green (matching Approved card icon)
+      case 'Completed':
+        return 0xFF009688; // Teal (matching Completed card icon)
       default:
         return 0xFF9E9E9E; // Grey
     }

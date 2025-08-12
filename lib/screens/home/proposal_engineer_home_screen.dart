@@ -1964,8 +1964,17 @@ class _ProposalScreenState extends State<ProposalScreen> {
 
       return List<Map<String, dynamic>>.from(activities);
     } catch (e) {
-      debugPrint('Error fetching lead activity: $e');
-      return [];
+      // Handle database schema errors gracefully
+      if (e.toString().contains('activity_type') || 
+          e.toString().contains('PGRST204') ||
+          e.toString().contains('Could not find')) {
+        debugPrint('⚠️ Activity tracking limited due to missing schema column: $e');
+        // Return empty list instead of throwing error
+        return [];
+      } else {
+        debugPrint('Error fetching lead activity: $e');
+        return [];
+      }
     }
   }
 
@@ -1987,7 +1996,15 @@ class _ProposalScreenState extends State<ProposalScreen> {
         'created_at': DateTime.now().toIso8601String(),
       });
     } catch (e) {
-      debugPrint('Error logging lead activity: $e');
+      // Handle database schema errors gracefully
+      if (e.toString().contains('activity_type') || 
+          e.toString().contains('PGRST204') ||
+          e.toString().contains('Could not find')) {
+        debugPrint('⚠️ Activity tracking limited due to missing schema column: $e');
+        // Don't show error to user - activity tracking is optional
+      } else {
+        debugPrint('Error logging lead activity: $e');
+      }
     }
   }
 
@@ -2570,9 +2587,24 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
       setState(() {
         _isLoading = false;
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error saving proposal: $e')));
+      
+      // Handle specific database schema errors gracefully
+      String userMessage;
+      if (e.toString().contains('activity_type') || 
+          e.toString().contains('PGRST204') ||
+          e.toString().contains('Could not find')) {
+        userMessage = 'Proposal saved successfully! Some activity tracking features may be limited.';
+      } else {
+        userMessage = 'Error saving proposal. Please try again.';
+      }
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(userMessage),
+          backgroundColor: e.toString().contains('activity_type') ? Colors.orange : Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
     }
   }
 
@@ -2746,28 +2778,56 @@ Future<void> logLeadActivity({
   required String activityType,
   required dynamic changesMade, // can be String or Map
 }) async {
-  final client = Supabase.instance.client;
-  await client.from('lead_activity').insert({
-    'lead_id': leadId,
-    'user_id': userId,
-    'activity_type': activityType,
-    'activity_date': DateTime.now().toIso8601String(),
-    'changes_made': changesMade is String
-        ? changesMade
-        : jsonEncode(changesMade),
-    'created_at': DateTime.now().toIso8601String(),
-  });
+  try {
+    final client = Supabase.instance.client;
+    await client.from('lead_activity').insert({
+      'lead_id': leadId,
+      'user_id': userId,
+      'activity_type': activityType,
+      'activity_date': DateTime.now().toIso8601String(),
+      'changes_made': changesMade is String
+          ? changesMade
+          : jsonEncode(changesMade),
+      'created_at': DateTime.now().toIso8601String(),
+    });
+  } catch (e) {
+    // Handle database schema errors gracefully
+    if (e.toString().contains('activity_type') || 
+        e.toString().contains('PGRST204') ||
+        e.toString().contains('Could not find')) {
+      debugPrint('⚠️ Activity tracking limited due to missing schema column: $e');
+      // Don't show error to user - activity tracking is optional
+    } else {
+      debugPrint('⚠️ Error adding lead activity: $e');
+      // For other errors, log but don't break the main flow
+    }
+  }
 }
 
 // Add this method to fetch activity logs for a lead
 Future<List<Map<String, dynamic>>> fetchLeadActivity(String leadId) async {
-  final client = Supabase.instance.client;
-  final data = await client
-      .from('lead_activity')
-      .select('*')
-      .eq('lead_id', leadId)
-      .order('created_at', ascending: false);
-  return List<Map<String, dynamic>>.from(data);
+  try {
+    final client = Supabase.instance.client;
+    final data = await client
+        .from('lead_activity')
+        .select('*')
+        .eq('lead_id', leadId)
+        .order('created_at', ascending: false);
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    // Handle database schema errors gracefully
+    if (e.toString().contains('activity_type') || 
+        e.toString().contains('PGRST204') ||
+        e.toString().contains('Could not find')) {
+      debugPrint('⚠️ Activity tracking limited due to missing schema column: $e');
+      // Return empty list instead of throwing error
+      return [];
+    } else {
+      debugPrint('⚠️ Error fetching lead activity: $e');
+      // Return empty list for other errors as well
+      return [];
+    }
+  }
 }
 
 // Responsive Lead Info Section

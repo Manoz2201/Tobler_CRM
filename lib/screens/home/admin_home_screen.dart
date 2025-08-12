@@ -14,6 +14,7 @@ import 'package:intl/intl.dart';
 import 'package:crm_app/widgets/profile_page.dart';
 import 'admin_user_management_page.dart';
 import '../settings/currency_settings_screen.dart';
+
 import '../../utils/navigation_utils.dart';
 import '../../utils/timezone_utils.dart';
 import '../auth/login_screen.dart';
@@ -493,6 +494,8 @@ class _AdminLeadsPageState extends State<_AdminLeadsPage> {
           'ms_weight': msWeightAverage,
           'rate_sqm': adminResponseData?['rate_sqm'] ?? 0,
           'approved': adminResponseData?['status'] == 'Approved',
+          'admin_response_status':
+              adminResponseData?['status'], // Add admin response status for proper lead categorization in AdminLeadsPage
         });
       }
 
@@ -542,10 +545,23 @@ class _AdminLeadsPageState extends State<_AdminLeadsPage> {
         _isActivityLoading = false;
       });
     } catch (e) {
-      setState(() {
-        _activityError = 'Failed to fetch activity: ${e.toString()}';
-        _isActivityLoading = false;
-      });
+      // Handle database schema errors gracefully
+      if (e.toString().contains('activity_type') ||
+          e.toString().contains('PGRST204') ||
+          e.toString().contains('Could not find')) {
+        debugPrint(
+          '⚠️ Activity tracking limited due to missing schema column: $e',
+        );
+        setState(() {
+          _activityError = 'Activity tracking not available';
+          _isActivityLoading = false;
+        });
+      } else {
+        setState(() {
+          _activityError = 'Failed to fetch activity: ${e.toString()}';
+          _isActivityLoading = false;
+        });
+      }
     }
   }
 
@@ -1349,7 +1365,11 @@ class _AdminLeadsPageState extends State<_AdminLeadsPage> {
   }
 
   String _getLeadStatus(Map<String, dynamic> lead) {
-    // Check if lead is approved first
+    // Check if lead is completed first
+    if (lead['admin_response_status'] == 'Completed') {
+      return 'Completed';
+    }
+    // Check if lead is approved
     if (lead['approved'] == true) {
       return 'Approved';
     }
@@ -2196,6 +2216,7 @@ class _LeadTableState extends State<LeadTable> {
     'Proposal Progress',
     'Waiting for Approval',
     'Approved',
+    'Completed',
   ];
 
   final List<String> _sortOptions = [
@@ -2331,6 +2352,8 @@ class _LeadTableState extends State<LeadTable> {
           'ms_weight': msWeightAverage,
           'rate_sqm': adminResponseData?['rate_sqm'] ?? 0,
           'approved': adminResponseData?['status'] == 'Approved',
+          'admin_response_status':
+              adminResponseData?['status'], // Add admin response status for proper lead categorization in LeadTable
         });
       }
 
@@ -3248,6 +3271,13 @@ class _LeadTableState extends State<LeadTable> {
           Icons.check_circle,
           Colors.green,
         ),
+        const SizedBox(width: 16),
+        _buildStatCard(
+          'Completed',
+          stats['completed'].toString(),
+          Icons.assignment_turned_in,
+          Colors.teal,
+        ),
       ],
     );
   }
@@ -3268,46 +3298,69 @@ class _LeadTableState extends State<LeadTable> {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
-            child: _buildCompactStatItem(
-              'Total',
-              stats['total'].toString(),
-              Colors.blue,
-            ),
+          // First row: Total, New, Proposal
+          Row(
+            children: [
+              Expanded(
+                child: _buildCompactStatItem(
+                  'Total',
+                  stats['total'].toString(),
+                  Colors.blue,
+                ),
+              ),
+              Container(width: 1, height: 30, color: Colors.grey[300]),
+              Expanded(
+                child: _buildCompactStatItem(
+                  'New',
+                  stats['new'].toString(),
+                  Colors.teal,
+                ),
+              ),
+              Container(width: 1, height: 30, color: Colors.grey[300]),
+              Expanded(
+                child: _buildCompactStatItem(
+                  'Proposal',
+                  stats['proposalProgress'].toString(),
+                  Colors.orange,
+                ),
+              ),
+            ],
           ),
-          Container(width: 1, height: 30, color: Colors.grey[300]),
-          Expanded(
-            child: _buildCompactStatItem(
-              'New',
-              stats['new'].toString(),
-              Colors.teal,
-            ),
+          Container(
+            width: double.infinity,
+            height: 1,
+            color: Colors.grey[300],
+            margin: EdgeInsets.symmetric(vertical: 8),
           ),
-          Container(width: 1, height: 30, color: Colors.grey[300]),
-          Expanded(
-            child: _buildCompactStatItem(
-              'Proposal',
-              stats['proposalProgress'].toString(),
-              Colors.orange,
-            ),
-          ),
-          Container(width: 1, height: 30, color: Colors.grey[300]),
-          Expanded(
-            child: _buildCompactStatItem(
-              'Waiting',
-              stats['waiting'].toString(),
-              Colors.purple,
-            ),
-          ),
-          Container(width: 1, height: 30, color: Colors.grey[300]),
-          Expanded(
-            child: _buildCompactStatItem(
-              'Approved',
-              stats['approved'].toString(),
-              Colors.green,
-            ),
+          // Second row: Waiting, Approved, Completed
+          Row(
+            children: [
+              Expanded(
+                child: _buildCompactStatItem(
+                  'Waiting',
+                  stats['waiting'].toString(),
+                  Colors.purple,
+                ),
+              ),
+              Container(width: 1, height: 30, color: Colors.grey[300]),
+              Expanded(
+                child: _buildCompactStatItem(
+                  'Approved',
+                  stats['approved'].toString(),
+                  Colors.green,
+                ),
+              ),
+              Container(width: 1, height: 30, color: Colors.grey[300]),
+              Expanded(
+                child: _buildCompactStatItem(
+                  'Completed',
+                  stats['completed'].toString(),
+                  Colors.teal,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -4582,6 +4635,7 @@ class _LeadTableState extends State<LeadTable> {
     int proposalProgressCount = 0;
     int waitingCount = 0;
     int approvedCount = 0;
+    int completedCount = 0;
 
     for (final lead in _leads) {
       final status = _getLeadStatus(lead);
@@ -4598,6 +4652,9 @@ class _LeadTableState extends State<LeadTable> {
         case 'Approved':
           approvedCount++;
           break;
+        case 'Completed':
+          completedCount++;
+          break;
       }
     }
 
@@ -4607,6 +4664,7 @@ class _LeadTableState extends State<LeadTable> {
       'proposalProgress': proposalProgressCount,
       'waiting': waitingCount,
       'approved': approvedCount,
+      'completed': completedCount,
     };
   }
 
@@ -5755,7 +5813,11 @@ class _LeadTableState extends State<LeadTable> {
   }
 
   String _getLeadStatus(Map<String, dynamic> lead) {
-    // Check if lead is approved first
+    // Check if lead is completed first
+    if (lead['admin_response_status'] == 'Completed') {
+      return 'Completed';
+    }
+    // Check if lead is approved
     if (lead['approved'] == true) {
       return 'Approved';
     }
@@ -5801,6 +5863,8 @@ class _LeadTableState extends State<LeadTable> {
         return Colors.purple;
       case 'Approved':
         return Colors.green;
+      case 'Completed':
+        return Colors.teal;
       default:
         return Colors.grey;
     }
@@ -5882,9 +5946,7 @@ class AdminDashboardPage extends StatefulWidget {
 }
 
 class _AdminDashboardPageState extends State<AdminDashboardPage> {
-  bool _isSearchExpanded = false;
   bool _isMenuExpanded = false;
-  final TextEditingController _searchController = TextEditingController();
   String _selectedTimePeriod = 'Quarter'; // Default selected time period
   String _selectedCurrency = 'INR'; // Default currency
 
@@ -5934,9 +5996,26 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       'isPositive': true,
     },
     'approved': {'value': '0', 'percentage': '+0.0%', 'isPositive': true},
+    'completed': {'value': '0', 'percentage': '+0.0%', 'isPositive': true},
   };
 
+  // Currency conversion rates (you can fetch these from an API)
+  final Map<String, double> _currencyRates = {
+    'INR': 1.0,
+    'USD': 0.012, // 1 INR = 0.012 USD (approximate)
+    'EUR': 0.011, // 1 INR = 0.011 EUR (approximate)
+    'CHF': 0.00923, // 1 INR = 0.00923 CHF (Swiss Franc, corrected rate)
+    'GBP': 0.009, // 1 INR = 0.009 GBP (approximate)
+  };
 
+  // Currency symbols
+  final Map<String, String> _currencySymbols = {
+    'INR': '₹',
+    'USD': '\$',
+    'EUR': '€',
+    'CHF': 'CHF ',
+    'GBP': '£',
+  };
 
   @override
   void initState() {
@@ -5968,7 +6047,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   @override
   void dispose() {
-    _searchController.dispose();
     _leadSearchController.dispose();
     super.dispose();
   }
@@ -6098,7 +6176,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     setState(() {
       _dashboardData = {
         'totalRevenue': {
-          'value': _formatRevenueInCrore(totalRevenue),
+          'value': _selectedCurrency == 'INR'
+              ? _formatRevenueInCrore(totalRevenue)
+              : _formatCurrency(totalRevenue, _selectedCurrency),
+          'rawAmount':
+              totalRevenue, // Store raw amount for currency calculations
           'percentage':
               '${revenuePercentage >= 0 ? '+' : ''}${revenuePercentage.toStringAsFixed(1)}%',
           'isPositive': revenuePercentage >= 0,
@@ -6230,7 +6312,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     setState(() {
       _selectedCurrency = newCurrency;
     });
+    // Refresh all data to update currency display across all components
     _fetchDashboardData();
+    _fetchChartData();
+    _fetchLeadPerformanceData();
   }
 
   // Navigate to Lead Management with specific filter
@@ -6294,6 +6379,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     int proposalProgress = 0;
     int waitingApproval = 0;
     int approved = 0;
+    int completed = 0;
 
     // Create lookup maps for efficient processing
     final Map<String, double> aluminiumAreaMap = {};
@@ -6335,7 +6421,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       final leadId = lead['id'];
       final adminResponseData = adminResponseMap[leadId];
 
-      // Check if lead is approved first
+      // Check if lead is completed first
+      if (adminResponseData?['status'] == 'Completed') {
+        completed++;
+        continue;
+      }
+      // Check if lead is approved
       if (adminResponseData?['status'] == 'Approved') {
         approved++;
         continue;
@@ -6377,6 +6468,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       approved.toDouble(),
       previousPeriodData['approved'] ?? 0,
     );
+    final completedPercentage = _calculatePercentage(
+      completed.toDouble(),
+      previousPeriodData['completed'] ?? 0,
+    );
 
     setState(() {
       _leadStatusData = {
@@ -6403,6 +6498,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           'percentage':
               '${approvedPercentage >= 0 ? '+' : ''}${approvedPercentage.toStringAsFixed(1)}%',
           'isPositive': approvedPercentage >= 0,
+        },
+        'completed': {
+          'value': completed.toString(),
+          'percentage':
+              '${completedPercentage >= 0 ? '+' : ''}${completedPercentage.toStringAsFixed(1)}%',
+          'isPositive': completedPercentage >= 0,
         },
       };
     });
@@ -6749,11 +6850,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         totalRevenue += (record['total_amount_gst'] ?? 0).toDouble();
       }
 
-      // Convert revenue to crores for display
-      final revenueInCr = totalRevenue / 10000000; // 1 crore = 10,000,000
+      // Convert revenue to selected currency for display using helper method
+      final currencyData = _convertToDisplayCurrency(totalRevenue);
+      final revenueInDisplayCurrency = currencyData['value'] as double;
+      final currencyLabel = currencyData['label'] as String;
 
       debugPrint(
-        '📊 [CHART] Label "$label": ₹${totalRevenue.toStringAsFixed(0)} (${revenueInCr.toStringAsFixed(2)} Cr)',
+        '📊 [CHART] Label "$label": ₹${totalRevenue.toStringAsFixed(0)} (${revenueInDisplayCurrency.toStringAsFixed(2)} $currencyLabel)',
       );
 
       barGroups.add(
@@ -6762,7 +6865,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           barRods: [
             // Revenue bar (Pink color) - only revenue bar
             BarChartRodData(
-              toY: revenueInCr,
+              toY: revenueInDisplayCurrency,
               color: Colors.pink,
               width: 20,
               borderRadius: BorderRadius.circular(4),
@@ -6802,6 +6905,48 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   String _getDayOfWeekName(int dayOfWeek) {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     return days[dayOfWeek - 1];
+  }
+
+  // Helper method to get chart legend text based on selected currency
+  String _getChartLegendText() {
+    if (_selectedCurrency == 'INR') {
+      return 'Revenue (Cr)';
+    } else {
+      final symbol = _currencySymbols[_selectedCurrency] ?? _selectedCurrency;
+      return 'Revenue ($symbol)';
+    }
+  }
+
+  // Helper method to convert amount to display currency with proper label
+  Map<String, dynamic> _convertToDisplayCurrency(double amountInINR) {
+    if (_selectedCurrency == 'INR') {
+      // For INR, show in Crores
+      final revenueInCrores = amountInINR / 10000000; // 1 crore = 10,000,000
+      return {'value': revenueInCrores, 'label': 'Cr'};
+    } else {
+      // For other currencies, convert from INR and show in appropriate units
+      final rate = _currencyRates[_selectedCurrency] ?? 1.0;
+      final convertedAmount = amountInINR * rate;
+
+      if (convertedAmount < 1000) {
+        return {'value': convertedAmount, 'label': _selectedCurrency};
+      } else if (convertedAmount < 1000000) {
+        return {
+          'value': convertedAmount / 1000,
+          'label': 'K $_selectedCurrency',
+        };
+      } else if (convertedAmount < 1000000000) {
+        return {
+          'value': convertedAmount / 1000000,
+          'label': 'M $_selectedCurrency',
+        };
+      } else {
+        return {
+          'value': convertedAmount / 1000000000,
+          'label': 'B $_selectedCurrency',
+        };
+      }
+    }
   }
 
   // Helper method to get chart labels based on time period
@@ -6982,18 +7127,162 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              // Header with Dashboard heading, search bar, notification and chat icons
-              _buildHeader(),
-              SizedBox(height: 24),
+        child: Stack(
+          children: [
+            // Main dashboard content
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  // Header with Dashboard heading, search bar, notification and chat icons
+                  _buildHeader(),
+                  SizedBox(height: 24),
 
-              // Dashboard content
-              Expanded(child: _buildDashboardContent()),
-            ],
-          ),
+                  // Dashboard content
+                  Expanded(child: _buildDashboardContent()),
+                ],
+              ),
+            ),
+            // Floating action buttons overlay (all screen sizes) with smooth animation
+            if (_isMenuExpanded)
+              Positioned(
+                top: 80, // Position below the header
+                right: 32, // Align with the three-dot button
+                child: AnimatedContainer(
+                  duration: Duration(milliseconds: 300),
+                  curve: Curves.easeOutBack,
+                  child: AnimatedOpacity(
+                    duration: Duration(milliseconds: 300),
+                    opacity: _isMenuExpanded ? 1.0 : 0.0,
+                    child: AnimatedSlide(
+                      duration: Duration(milliseconds: 300),
+                      curve: Curves.easeOutBack,
+                      offset: _isMenuExpanded ? Offset.zero : Offset(0, 0.3),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Currency floating button with staggered animation
+                          AnimatedContainer(
+                            duration: Duration(milliseconds: 300),
+                            curve: Curves.easeOutBack,
+                            transform: Matrix4.translationValues(
+                              0,
+                              _isMenuExpanded ? 0 : 20,
+                              0,
+                            ),
+                            child: _buildFloatingActionButton(
+                              Icons.attach_money,
+                              'Currency',
+                              Colors.blue,
+                              () {
+                                // Navigate to currency settings screen
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        CurrencySettingsScreen(
+                                          currentCurrency: _selectedCurrency,
+                                          onCurrencyChanged:
+                                              (String newCurrency) {
+                                                _onCurrencyChanged(newCurrency);
+                                                setState(() {
+                                                  _isMenuExpanded = false;
+                                                });
+                                              },
+                                        ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          // Time Period floating button with staggered animation
+                          AnimatedContainer(
+                            duration: Duration(milliseconds: 300),
+                            curve: Curves.easeOutBack,
+                            transform: Matrix4.translationValues(
+                              0,
+                              _isMenuExpanded ? 0 : 20,
+                              0,
+                            ),
+                            child: _buildFloatingActionButton(
+                              Icons.schedule,
+                              'Time Period',
+                              Colors.blue,
+                              () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Time Period Settings'),
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                                setState(() {
+                                  _isMenuExpanded = false;
+                                });
+                              },
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          // Notifications floating button with staggered animation
+                          AnimatedContainer(
+                            duration: Duration(milliseconds: 300),
+                            curve: Curves.easeOutBack,
+                            transform: Matrix4.translationValues(
+                              0,
+                              _isMenuExpanded ? 0 : 20,
+                              0,
+                            ),
+                            child: _buildFloatingActionButton(
+                              Icons.notifications,
+                              'Notifications',
+                              Colors.blue,
+                              () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Notifications'),
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                                setState(() {
+                                  _isMenuExpanded = false;
+                                });
+                              },
+                              hasBadge: true,
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          // Chat floating button with staggered animation
+                          AnimatedContainer(
+                            duration: Duration(milliseconds: 300),
+                            curve: Curves.easeOutBack,
+                            transform: Matrix4.translationValues(
+                              0,
+                              _isMenuExpanded ? 0 : 20,
+                              0,
+                            ),
+                            child: _buildFloatingActionButton(
+                              Icons.chat,
+                              'Chat',
+                              Colors.blue,
+                              () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Chat'),
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                                setState(() {
+                                  _isMenuExpanded = false;
+                                });
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -7005,7 +7294,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         final isMobile = constraints.maxWidth <= 600;
 
         if (isMobile) {
-          // Mobile layout - only search and three dots
+          // Mobile layout - only dashboard heading and three dots
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -7022,76 +7311,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                       fontSize: 18,
                     ),
                   ),
-                  SizedBox(width: 12),
-                  // Collapsible search bar in same place
-                  Expanded(
-                    child: AnimatedContainer(
-                      duration: Duration(milliseconds: 300),
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(18),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
-                            blurRadius: 4,
-                            offset: Offset(0, 1),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          if (_isSearchExpanded) ...[
-                            Expanded(
-                              child: Padding(
-                                padding: EdgeInsets.only(left: 12),
-                                child: TextField(
-                                  controller: _searchController,
-                                  decoration: InputDecoration(
-                                    hintText: 'Search...',
-                                    border: InputBorder.none,
-                                    hintStyle: TextStyle(
-                                      color: Colors.grey[400],
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                  style: TextStyle(fontSize: 12),
-                                ),
-                              ),
-                            ),
-                            IconButton(
-                              onPressed: () {
-                                setState(() {
-                                  _isSearchExpanded = false;
-                                  _searchController.clear();
-                                });
-                              },
-                              icon: Icon(Icons.close, color: Colors.grey[600]),
-                              iconSize: 14,
-                              padding: EdgeInsets.zero,
-                            ),
-                          ] else ...[
-                            Expanded(
-                              child: IconButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _isSearchExpanded = true;
-                                  });
-                                },
-                                icon: Icon(
-                                  Icons.search,
-                                  color: Colors.grey[600],
-                                ),
-                                iconSize: 16,
-                                padding: EdgeInsets.zero,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 8),
+                  Spacer(),
                   // Three dots menu button
                   Container(
                     width: 36,
@@ -7120,97 +7340,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   ),
                 ],
               ),
-              // Expanded menu (if expanded)
-              if (_isMenuExpanded)
-                Padding(
-                  padding: EdgeInsets.only(top: 8),
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: Container(
-                      width: 140,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.15),
-                            blurRadius: 8,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _buildMobileMenuItem(
-                            Icons.attach_money,
-                            'Currency',
-                            () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Currency Settings'),
-                                  duration: Duration(seconds: 2),
-                                ),
-                              );
-                              setState(() {
-                                _isMenuExpanded = false;
-                              });
-                            },
-                          ),
-                          _buildMobileMenuItem(
-                            Icons.schedule,
-                            'Time Period',
-                            () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Time Period Settings'),
-                                  duration: Duration(seconds: 2),
-                                ),
-                              );
-                              setState(() {
-                                _isMenuExpanded = false;
-                              });
-                            },
-                          ),
-                          _buildMobileMenuItem(
-                            Icons.notifications,
-                            'Notifications',
-                            () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Notifications'),
-                                  duration: Duration(seconds: 2),
-                                ),
-                              );
-                              setState(() {
-                                _isMenuExpanded = false;
-                              });
-                            },
-                            hasBadge: true,
-                          ),
-                          _buildMobileMenuItem(Icons.chat, 'Chat', () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Chat'),
-                                duration: Duration(seconds: 2),
-                              ),
-                            );
-                            setState(() {
-                              _isMenuExpanded = false;
-                            });
-                          }),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
             ],
           );
         } else {
-          // Desktop layout - original design
+          // Desktop and tablet layout - dashboard heading and three dots on right
           return Row(
             children: [
-              // Dashboard heading with icon (matching the image)
+              // Dashboard heading with icon
               Row(
                 children: [
                   Icon(Icons.dashboard, color: Colors.grey[800], size: 24),
@@ -7226,230 +7362,31 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 ],
               ),
 
-              Expanded(child: SizedBox()), // Flexible space
-              // Right side actions
-              Flexible(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Collapsible search bar on right top corner
-                    AnimatedContainer(
-                      duration: Duration(milliseconds: 300),
-                      width: _isSearchExpanded ? 300 : 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
-                            blurRadius: 8,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          if (_isSearchExpanded) ...[
-                            Expanded(
-                              child: Padding(
-                                padding: EdgeInsets.only(left: 16),
-                                child: TextField(
-                                  controller: _searchController,
-                                  decoration: InputDecoration(
-                                    hintText: 'Search...',
-                                    border: InputBorder.none,
-                                    hintStyle: TextStyle(
-                                      color: Colors.grey[400],
-                                    ),
-                                  ),
-                                  style: TextStyle(fontSize: 14),
-                                ),
-                              ),
-                            ),
-                            IconButton(
-                              onPressed: () {
-                                setState(() {
-                                  _isSearchExpanded = false;
-                                  _searchController.clear();
-                                });
-                              },
-                              icon: Icon(Icons.close, color: Colors.grey[600]),
-                              iconSize: 20,
-                            ),
-                          ] else ...[
-                            Expanded(
-                              child: IconButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _isSearchExpanded = true;
-                                  });
-                                },
-                                icon: Icon(
-                                  Icons.search,
-                                  color: Colors.grey[600],
-                                ),
-                                iconSize: 20,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-
-                    SizedBox(width: 12),
-
-                    // Currency icon button
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
-                            blurRadius: 8,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: IconButton(
-                        onPressed: () {
-                          // Navigate to currency settings screen
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => CurrencySettingsScreen(
-                                currentCurrency: _selectedCurrency,
-                                onCurrencyChanged: _onCurrencyChanged,
-                              ),
-                            ),
-                          );
-                        },
-                        icon: Icon(Icons.attach_money, color: Colors.grey[600]),
-                        iconSize: 20,
-                      ),
-                    ),
-
-                    SizedBox(width: 12),
-
-                    // Time period icon button
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
-                            blurRadius: 8,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: IconButton(
-                        onPressed: () {
-                          // Handle time period tap
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Time Period Settings'),
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
-                        },
-                        icon: Icon(Icons.schedule, color: Colors.grey[600]),
-                        iconSize: 20,
-                      ),
-                    ),
-
-                    SizedBox(width: 12),
-
-                    // Notification button icon
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
-                            blurRadius: 8,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Stack(
-                        children: [
-                          Center(
-                            child: IconButton(
-                              onPressed: () {
-                                // Handle notification tap
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Notifications'),
-                                    duration: Duration(seconds: 2),
-                                  ),
-                                );
-                              },
-                              icon: Icon(
-                                Icons.notifications,
-                                color: Colors.grey[600],
-                              ),
-                              iconSize: 20,
-                            ),
-                          ),
-                          // Notification badge
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: Colors.red,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    SizedBox(width: 12),
-
-                    // Chat button icon
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
-                            blurRadius: 8,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: IconButton(
-                        onPressed: () {
-                          // Handle chat tap
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Chat'),
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
-                        },
-                        icon: Icon(Icons.chat, color: Colors.grey[600]),
-                        iconSize: 20,
-                      ),
+              Spacer(), // Flexible space to push three dots to right
+              // Three dots menu button positioned on the right
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
                     ),
                   ],
+                ),
+                child: IconButton(
+                  onPressed: () {
+                    setState(() {
+                      _isMenuExpanded = !_isMenuExpanded;
+                    });
+                  },
+                  icon: Icon(Icons.more_vert, color: Colors.grey[600]),
+                  iconSize: 24,
+                  padding: EdgeInsets.zero,
                 ),
               ),
             ],
@@ -7491,15 +7428,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                       )
                     : Row(
                         children: [
-                          Expanded(
-                            child: _buildDashboardCard(
-                              'Total Revenue',
-                              _dashboardData['totalRevenue']['value'],
-                              _dashboardData['totalRevenue']['percentage'],
-                              Icons.attach_money,
-                              Colors.blue,
-                            ),
-                          ),
+                          Expanded(child: _buildTotalRevenueCard()),
                           SizedBox(width: 16),
                           Expanded(
                             child: _buildDashboardCard(
@@ -7577,6 +7506,16 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                             Colors.green,
                           ),
                         ),
+                        SizedBox(width: 16),
+                        Expanded(
+                          child: _buildLeadStatusCard(
+                            'Completed',
+                            _leadStatusData['completed']['value'],
+                            _leadStatusData['completed']['percentage'],
+                            Icons.assignment_turned_in,
+                            Colors.teal,
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -7648,13 +7587,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                           ),
                           SizedBox(height: 12),
                           // Second row with Total Revenue taking full width
-                          _buildDashboardCard(
-                            'Total Revenue',
-                            _dashboardData['totalRevenue']['value'],
-                            _dashboardData['totalRevenue']['percentage'],
-                            Icons.attach_money,
-                            Colors.blue,
-                          ),
+                          _buildTotalRevenueCard(),
                         ],
                       ),
                 SizedBox(height: 24),
@@ -7671,11 +7604,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                       ),
                     ),
                     SizedBox(height: 16),
-                    // First row: Total Leads and Proposal Progress
+                    // First row: Total Leads, Proposal Progress, Waiting Approval
                     Row(
                       children: [
                         Expanded(
-                          child: _buildDashboardCard(
+                          child: _buildLeadStatusCard(
                             'Total Leads',
                             _leadStatusData['totalLeads']['value'],
                             _leadStatusData['totalLeads']['percentage'],
@@ -7693,12 +7626,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                             Colors.teal,
                           ),
                         ),
-                      ],
-                    ),
-                    SizedBox(height: 12),
-                    // Second row: Waiting Approval and Approved
-                    Row(
-                      children: [
+                        SizedBox(width: 12),
                         Expanded(
                           child: _buildLeadStatusCard(
                             'Waiting Approval',
@@ -7708,7 +7636,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                             Colors.orange,
                           ),
                         ),
-                        SizedBox(width: 12),
+                      ],
+                    ),
+                    SizedBox(height: 12),
+                    // Second row: Approved and Completed
+                    Row(
+                      children: [
                         Expanded(
                           child: _buildLeadStatusCard(
                             'Approved',
@@ -7716,6 +7649,16 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                             _leadStatusData['approved']['percentage'],
                             Icons.check_circle,
                             Colors.green,
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: _buildLeadStatusCard(
+                            'Completed',
+                            _leadStatusData['completed']['value'],
+                            _leadStatusData['completed']['percentage'],
+                            Icons.assignment_turned_in,
+                            Colors.teal,
                           ),
                         ),
                       ],
@@ -8303,6 +8246,237 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     );
   }
 
+  // Build Total Revenue card with dual currency display
+  Widget _buildTotalRevenueCard() {
+    final isPositive = _dashboardData['totalRevenue']['percentage'].startsWith(
+      '+',
+    );
+    final percentageColor = isPositive ? Colors.green : Colors.red;
+
+    // Get the base revenue amount for calculations
+    final baseRevenue = _getBaseRevenueAmount();
+
+    // Responsive font sizes based on screen width
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 600;
+    final valueFontSize = isSmallScreen ? 16.0 : 18.0;
+    final currencyFontSize = isSmallScreen ? 9.0 : 10.0;
+    final titleFontSize = isSmallScreen ? 11.0 : 12.0;
+
+    // Left side: Selected currency value - Real-time conversion
+    final leftValue = _selectedCurrency == 'INR'
+        ? _formatRevenueInCrore(baseRevenue)
+        : _formatCurrency(baseRevenue, _selectedCurrency);
+
+    // Right side: Show opposite currency based on left side selection - Real-time conversion
+    String rightValue;
+    String rightCurrencyLabel;
+
+    if (_selectedCurrency == 'INR') {
+      // If left is INR, right shows CHF
+      rightValue = _formatCurrency(baseRevenue, 'CHF');
+      rightCurrencyLabel = 'CHF';
+    } else if (_selectedCurrency == 'CHF') {
+      // If left is CHF, right shows INR
+      rightValue = _formatRevenueInCrore(baseRevenue);
+      rightCurrencyLabel = 'INR';
+    } else {
+      // If left is any other currency (USD, EUR, GBP), right always shows INR
+      rightValue = _formatRevenueInCrore(baseRevenue);
+      rightCurrencyLabel = 'INR';
+    }
+
+    return InkWell(
+      onTap: () {
+        // Handle filter tap
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Filtered by: Total Revenue'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Top row: Icon + Title
+            Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Icon(Icons.attach_money, color: Colors.blue, size: 14),
+                ),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Total Revenue',
+                    style: TextStyle(
+                      fontSize: titleFontSize,
+                      color: Colors.grey[700],
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: isSmallScreen ? 10 : 12),
+            // Dual currency display with vertical divider
+            Row(
+              children: [
+                // Left side - Selected currency
+                Expanded(
+                  child: Column(
+                    children: [
+                      Text(
+                        leftValue,
+                        style: TextStyle(
+                          fontSize: valueFontSize,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[800],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        _selectedCurrency,
+                        style: TextStyle(
+                          fontSize: currencyFontSize,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+                // Vertical divider
+                Container(
+                  width: 1,
+                  height: isSmallScreen ? 36 : 40,
+                  color: Colors.grey[300],
+                  margin: EdgeInsets.symmetric(
+                    horizontal: isSmallScreen ? 6 : 8,
+                  ),
+                ),
+                // Right side - Dynamic currency based on left side selection
+                Expanded(
+                  child: Column(
+                    children: [
+                      Text(
+                        rightValue,
+                        style: TextStyle(
+                          fontSize: valueFontSize,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[800],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        rightCurrencyLabel,
+                        style: TextStyle(
+                          fontSize: currencyFontSize,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: isSmallScreen ? 4 : 6),
+            // Percentage with arrow - centered below values
+            SizedBox(
+              height: 28,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isPositive ? Icons.trending_up : Icons.trending_down,
+                    color: percentageColor,
+                    size: 12,
+                  ),
+                  SizedBox(width: 4),
+                  Text(
+                    _dashboardData['totalRevenue']['percentage'],
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: percentageColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 6),
+            // Footer: "From previous period" centered
+            Text(
+              'From previous period',
+              style: TextStyle(fontSize: 9, color: Colors.grey[500]),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Get base revenue amount for currency calculations
+  double _getBaseRevenueAmount() {
+    try {
+      // Get the raw revenue amount from dashboard data
+      if (_dashboardData.containsKey('totalRevenue') &&
+          _dashboardData['totalRevenue'].containsKey('rawAmount')) {
+        return _dashboardData['totalRevenue']['rawAmount'] ?? 0;
+      }
+      return 0;
+    } catch (e) {
+      debugPrint('Error getting base revenue amount: $e');
+      return 0;
+    }
+  }
+
+  // Format currency with K, M, B, T suffixes for other currencies
+  String _formatCurrency(double amount, String currency) {
+    final symbol = _currencySymbols[currency] ?? '₹';
+    final rate = _currencyRates[currency] ?? 1.0;
+    final convertedAmount = amount * rate;
+
+    if (convertedAmount < 1000) {
+      return '$symbol${convertedAmount.toStringAsFixed(0)}';
+    } else if (convertedAmount < 1000000) {
+      return '$symbol${(convertedAmount / 1000).toStringAsFixed(2)}K';
+    } else if (convertedAmount < 1000000000) {
+      return '$symbol${(convertedAmount / 1000000).toStringAsFixed(2)}M';
+    } else if (convertedAmount < 1000000000000) {
+      return '$symbol${(convertedAmount / 1000000000).toStringAsFixed(2)}B';
+    } else {
+      return '$symbol${(convertedAmount / 1000000000).toStringAsFixed(2)}T';
+    }
+  }
+
   // Build Lead Status card with navigation to Lead Management
   Widget _buildLeadStatusCard(
     String title,
@@ -8331,6 +8505,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             break;
           case 'Approved':
             filterValue = 'Approved';
+            break;
+          case 'Completed':
+            filterValue = 'Completed';
             break;
           default:
             filterValue = 'All';
@@ -8431,47 +8608,53 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     );
   }
 
-  Widget _buildMobileMenuItem(
+  // Build floating action button for mobile menu
+  Widget _buildFloatingActionButton(
     IconData icon,
     String label,
+    Color color,
     VoidCallback onTap, {
     bool hasBadge = false,
   }) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Row(
-          children: [
-            Stack(
-              children: [
-                Icon(icon, color: Colors.grey[600], size: 16),
-                if (hasBadge)
-                  Positioned(
-                    top: -2,
-                    right: -2,
-                    child: Container(
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-              ],
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.3),
+            blurRadius: 8,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Center(
+            child: IconButton(
+              onPressed: onTap,
+              icon: Icon(icon, color: Colors.white, size: 16),
+              iconSize: 16,
+              padding: EdgeInsets.zero,
             ),
-            SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[700],
-                fontWeight: FontWeight.w500,
+          ),
+          if (hasBadge)
+            Positioned(
+              top: 4,
+              right: 4,
+              child: Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 1),
+                ),
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -8581,7 +8764,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                               ),
                               children: <TextSpan>[
                                 TextSpan(
-                                  text: 'Revenue: $value Cr',
+                                  text:
+                                      'Revenue: $value ${_selectedCurrency == 'INR' ? 'Cr' : _selectedCurrency}',
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 14,
@@ -8676,7 +8860,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               ),
               SizedBox(width: 8),
               Text(
-                'Revenue (Cr)',
+                _getChartLegendText(),
                 style: TextStyle(fontSize: 12, color: Colors.grey[700]),
               ),
             ],
@@ -8718,15 +8902,29 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     return (maxY / 6).ceil().toDouble();
   }
 
-  // Helper method to format Y-axis labels in Crores
+  // Helper method to format Y-axis labels based on selected currency
   String _formatYAxisLabel(double value) {
-    // Since the data is already in crores, just format it properly
-    if (value >= 100) {
-      return '${value.toStringAsFixed(0)} Cr';
-    } else if (value >= 10) {
-      return '${value.toStringAsFixed(1)} Cr';
+    if (_selectedCurrency == 'INR') {
+      // For INR, show in Crores
+      if (value >= 100) {
+        return '${value.toStringAsFixed(0)} Cr';
+      } else if (value >= 10) {
+        return '${value.toStringAsFixed(1)} Cr';
+      } else {
+        return '${value.toStringAsFixed(2)} Cr';
+      }
     } else {
-      return '${value.toStringAsFixed(2)} Cr';
+      // For other currencies, show in appropriate units
+      final symbol = _currencySymbols[_selectedCurrency] ?? '';
+      if (value >= 1000) {
+        return '${(value / 1000).toStringAsFixed(1)}K $symbol';
+      } else if (value >= 100) {
+        return '${value.toStringAsFixed(0)} $symbol';
+      } else if (value >= 10) {
+        return '${value.toStringAsFixed(1)} $symbol';
+      } else {
+        return '${value.toStringAsFixed(2)} $symbol';
+      }
     }
   }
 
@@ -9163,7 +9361,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                           Expanded(
                             child: _buildEnhancedMetricCard(
                               'Rate',
-                              '₹${lead['rate_sqm']?.toString() ?? '0'}',
+                              _formatCurrencyForTable(
+                                lead['rate_sqm']?.toDouble() ?? 0,
+                                'rate_sqm',
+                              ),
                               Icons.attach_money,
                               Colors.green,
                             ),
@@ -9172,7 +9373,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                           Expanded(
                             child: _buildEnhancedMetricCard(
                               'Total',
-                              '₹${lead['total_amount_gst']?.toString() ?? '0'}',
+                              _formatCurrencyForTable(
+                                lead['total_amount_gst']?.toDouble() ?? 0,
+                                'total_amount',
+                              ),
                               Icons.account_balance_wallet,
                               Colors.purple,
                             ),
@@ -9450,11 +9654,17 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 ),
                 _buildDetailRow(
                   'Rate/SQM',
-                  '₹${lead['rate_sqm']?.toString() ?? '0'}',
+                  _formatCurrencyForTable(
+                    lead['rate_sqm']?.toDouble() ?? 0,
+                    'rate_sqm',
+                  ),
                 ),
                 _buildDetailRow(
                   'Total Amount',
-                  '₹${lead['total_amount_gst']?.toString() ?? '0'}',
+                  _formatCurrencyForTable(
+                    lead['total_amount_gst']?.toDouble() ?? 0,
+                    'total_amount',
+                  ),
                 ),
                 _buildDetailRow(
                   'Sales User',
@@ -9570,12 +9780,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     final aluminiumArea = lead['aluminium_area'] != null
         ? '${lead['aluminium_area'].toString()} m²'
         : 'N/A';
-    final rateSqm = lead['rate_sqm'] != null
-        ? '₹${lead['rate_sqm'].toString()}'
-        : 'N/A';
-    final totalAmount = lead['total_amount_gst'] != null
-        ? '₹${lead['total_amount_gst'].toString()}'
-        : 'N/A';
+    final rateSqm = _formatCurrencyForTable(
+      lead['rate_sqm']?.toDouble() ?? 0,
+      'rate_sqm',
+    );
+    final totalAmount = _formatCurrencyForTable(
+      lead['total_amount_gst']?.toDouble() ?? 0,
+      'total_amount',
+    );
     final salesUser = lead['sales_user'] ?? 'N/A';
     final status = lead['update_lead_status'] ?? 'N/A';
     final closedDate = lead['updated_at'] != null
@@ -9896,6 +10108,35 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     );
   }
 
+  // Format currency for table display based on selected currency
+  String _formatCurrencyForTable(double amount, String fieldType) {
+    if (_selectedCurrency == 'INR') {
+      // For INR, show with ₹ symbol
+      return '₹${amount.toStringAsFixed(0)}';
+    } else {
+      // For other currencies, convert and format
+      final rate = _currencyRates[_selectedCurrency] ?? 1.0;
+      final convertedAmount = amount * rate;
+      final symbol = _currencySymbols[_selectedCurrency] ?? '';
+
+      if (fieldType == 'rate_sqm') {
+        // For rate per sqm, show with 2 decimal places
+        return '$symbol${convertedAmount.toStringAsFixed(2)}';
+      } else {
+        // For total amount, show with appropriate units
+        if (convertedAmount < 1000) {
+          return '$symbol${convertedAmount.toStringAsFixed(0)}';
+        } else if (convertedAmount < 1000000) {
+          return '$symbol${(convertedAmount / 1000).toStringAsFixed(2)}K';
+        } else if (convertedAmount < 1000000000) {
+          return '$symbol${(convertedAmount / 1000000).toStringAsFixed(2)}M';
+        } else {
+          return '$symbol${(convertedAmount / 1000000).toStringAsFixed(2)}B';
+        }
+      }
+    }
+  }
+
   // Build table data row
   Widget _buildTableDataRow(Map<String, dynamic> lead) {
     return Container(
@@ -9913,9 +10154,18 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             1,
           ),
           _buildTableDataCell(lead['ms_weight']?.toString() ?? 'N/A', 1),
-          _buildTableDataCell('₹${lead['rate_sqm']?.toString() ?? '0'}', 1),
           _buildTableDataCell(
-            '₹${lead['total_amount_gst']?.toString() ?? '0'}',
+            _formatCurrencyForTable(
+              lead['rate_sqm']?.toDouble() ?? 0,
+              'rate_sqm',
+            ),
+            1,
+          ),
+          _buildTableDataCell(
+            _formatCurrencyForTable(
+              lead['total_amount_gst']?.toDouble() ?? 0,
+              'total_amount',
+            ),
             1,
           ),
           _buildTableDataCell(lead['sales_user']?.toString() ?? 'N/A', 1),
@@ -10401,7 +10651,7 @@ class AdminRoleManagementPage extends StatefulWidget {
 class _AdminRoleManagementPageState extends State<AdminRoleManagementPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  bool _isSearchExpanded = false;
+  bool _isMenuExpanded = false;
   final TextEditingController _searchController = TextEditingController();
 
   // User data state
@@ -10751,90 +11001,48 @@ class _AdminRoleManagementPageState extends State<AdminRoleManagementPage>
         final isMobile = constraints.maxWidth <= 600;
 
         if (isMobile) {
-          // Mobile layout
+          // Mobile layout - only dashboard heading and three dots
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Role Management heading with icon
+              // Dashboard heading with icon
               Row(
                 children: [
-                  Icon(Icons.security, color: Colors.grey[800], size: 20),
+                  Icon(Icons.dashboard, color: Colors.grey[800], size: 20),
                   SizedBox(width: 6),
                   Text(
-                    'Role Management',
+                    'Dashboard',
                     style: TextStyle(
                       color: Colors.grey[800],
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
                     ),
                   ),
-                  SizedBox(width: 12),
-                  // Collapsible search bar
-                  Expanded(
-                    child: AnimatedContainer(
-                      duration: Duration(milliseconds: 300),
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(18),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
-                            blurRadius: 4,
-                            offset: Offset(0, 1),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          if (_isSearchExpanded) ...[
-                            Expanded(
-                              child: Padding(
-                                padding: EdgeInsets.only(left: 12),
-                                child: TextField(
-                                  controller: _searchController,
-                                  decoration: InputDecoration(
-                                    hintText: 'Search roles...',
-                                    border: InputBorder.none,
-                                    hintStyle: TextStyle(
-                                      color: Colors.grey[400],
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                  style: TextStyle(fontSize: 12),
-                                ),
-                              ),
-                            ),
-                            IconButton(
-                              onPressed: () {
-                                setState(() {
-                                  _isSearchExpanded = false;
-                                  _searchController.clear();
-                                });
-                              },
-                              icon: Icon(Icons.close, color: Colors.grey[600]),
-                              iconSize: 14,
-                              padding: EdgeInsets.zero,
-                            ),
-                          ] else ...[
-                            Expanded(
-                              child: IconButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _isSearchExpanded = true;
-                                  });
-                                },
-                                icon: Icon(
-                                  Icons.search,
-                                  color: Colors.grey[600],
-                                ),
-                                iconSize: 14,
-                                padding: EdgeInsets.zero,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
+                  Spacer(),
+                  // Three dots menu button
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 4,
+                          offset: Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                    child: IconButton(
+                      onPressed: () {
+                        setState(() {
+                          _isMenuExpanded = !_isMenuExpanded;
+                        });
+                      },
+                      icon: Icon(Icons.more_vert, color: Colors.grey[600]),
+                      iconSize: 16,
+                      padding: EdgeInsets.zero,
                     ),
                   ),
                 ],
@@ -10842,16 +11050,16 @@ class _AdminRoleManagementPageState extends State<AdminRoleManagementPage>
             ],
           );
         } else {
-          // Desktop layout
+          // Desktop and tablet layout - dashboard heading and three dots on right
           return Row(
             children: [
-              // Role Management heading with icon
+              // Dashboard heading with icon
               Row(
                 children: [
-                  Icon(Icons.security, color: Colors.grey[800], size: 24),
+                  Icon(Icons.dashboard, color: Colors.grey[800], size: 24),
                   SizedBox(width: 8),
                   Text(
-                    'Role Management',
+                    'Dashboard',
                     style: TextStyle(
                       color: Colors.grey[800],
                       fontWeight: FontWeight.bold,
@@ -10861,129 +11069,31 @@ class _AdminRoleManagementPageState extends State<AdminRoleManagementPage>
                 ],
               ),
 
-              Expanded(child: SizedBox()), // Flexible space
-              // Right side actions
-              Flexible(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Collapsible search bar
-                    AnimatedContainer(
-                      duration: Duration(milliseconds: 300),
-                      width: _isSearchExpanded ? 300 : 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
-                            blurRadius: 8,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          if (_isSearchExpanded) ...[
-                            Expanded(
-                              child: Padding(
-                                padding: EdgeInsets.only(left: 16),
-                                child: TextField(
-                                  controller: _searchController,
-                                  decoration: InputDecoration(
-                                    hintText: 'Search roles...',
-                                    border: InputBorder.none,
-                                    hintStyle: TextStyle(
-                                      color: Colors.grey[400],
-                                    ),
-                                  ),
-                                  style: TextStyle(fontSize: 14),
-                                ),
-                              ),
-                            ),
-                            IconButton(
-                              onPressed: () {
-                                setState(() {
-                                  _isSearchExpanded = false;
-                                  _searchController.clear();
-                                });
-                              },
-                              icon: Icon(Icons.close, color: Colors.grey[600]),
-                              iconSize: 20,
-                            ),
-                          ] else ...[
-                            Expanded(
-                              child: IconButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _isSearchExpanded = true;
-                                  });
-                                },
-                                icon: Icon(
-                                  Icons.search,
-                                  color: Colors.grey[600],
-                                ),
-                                iconSize: 20,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-
-                    SizedBox(width: 12),
-
-                    // Refresh button
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: Colors.green,
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
-                            blurRadius: 8,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: IconButton(
-                        onPressed: () {
-                          _fetchUsersData();
-                        },
-                        icon: Icon(Icons.refresh, color: Colors.white),
-                        iconSize: 20,
-                      ),
-                    ),
-
-                    SizedBox(width: 12),
-
-                    // Add Role button
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: Colors.blue,
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
-                            blurRadius: 8,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: IconButton(
-                        onPressed: () {
-                          _showAddRoleDialog(context);
-                        },
-                        icon: Icon(Icons.add, color: Colors.white),
-                        iconSize: 20,
-                      ),
+              Spacer(), // Flexible space to push three dots to right
+              // Three dots menu button positioned on the right
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
                     ),
                   ],
+                ),
+                child: IconButton(
+                  onPressed: () {
+                    setState(() {
+                      _isMenuExpanded = !_isMenuExpanded;
+                    });
+                  },
+                  icon: Icon(Icons.more_vert, color: Colors.grey[600]),
+                  iconSize: 24,
+                  padding: EdgeInsets.zero,
                 ),
               ),
             ],
@@ -11597,54 +11707,6 @@ class _AdminRoleManagementPageState extends State<AdminRoleManagementPage>
           ),
         ],
       ),
-    );
-  }
-
-  void _showAddRoleDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Add New Role'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                decoration: InputDecoration(
-                  labelText: 'Role Name',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              SizedBox(height: 16),
-              TextField(
-                decoration: InputDecoration(
-                  labelText: 'Description',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 3,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Role added successfully!'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              },
-              child: Text('Add Role'),
-            ),
-          ],
-        );
-      },
     );
   }
 }

@@ -753,8 +753,12 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         // Determine dynamic status based on time and Supabase table checks
         String dynamicStatus = 'Proposal Progress'; // Default status
 
+        // Check if lead is completed (found in admin_response table)
+        if (adminResponseData?['status'] == 'Completed') {
+          dynamicStatus = 'Completed';
+        }
         // Check if lead is approved (found in admin_response table)
-        if (adminResponseData?['status'] == 'Approved') {
+        else if (adminResponseData?['status'] == 'Approved') {
           dynamicStatus = 'Approved';
         } else {
           // Check if lead is within 12 hours of creation
@@ -795,6 +799,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
               'N/A', // Add project_id from admin_response
           'approved': adminResponseData?['status'] == 'Approved',
           'status': dynamicStatus,
+          'admin_response_status':
+              adminResponseData?['status'], // Add admin response status for proper lead categorization
         });
       }
 
@@ -1115,6 +1121,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     final approved = _leads
         .where((lead) => _getLeadStatus(lead) == 'Approved')
         .length;
+    final completed = _leads
+        .where((lead) => _getLeadStatus(lead) == 'Completed')
+        .length;
 
     return Row(
       children: [
@@ -1165,6 +1174,16 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             Icons.check_circle,
             Colors.green,
             'Approved',
+          ),
+        ),
+        SizedBox(width: 16),
+        Expanded(
+          child: _buildStatCard(
+            'Completed',
+            completed.toString(),
+            Icons.assignment_turned_in,
+            Colors.teal,
+            'Completed',
           ),
         ),
       ],
@@ -1259,57 +1278,79 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     final approved = _leads
         .where((lead) => _getLeadStatus(lead) == 'Approved')
         .length;
+    final completed = _leads
+        .where((lead) => _getLeadStatus(lead) == 'Completed')
+        .length;
 
-    return Row(
+    // Create a list of all stat cards
+    final List<Widget> statCards = [
+      _buildMobileStatCard(
+        'Total',
+        totalLeads.toString(),
+        Icons.leaderboard,
+        Colors.blue,
+        null,
+      ),
+      _buildMobileStatCard(
+        'New',
+        newLeads.toString(),
+        Icons.new_releases,
+        Colors.green,
+        'New',
+      ),
+      _buildMobileStatCard(
+        'Progress',
+        proposalProgress.toString(),
+        Icons.pending,
+        Colors.orange,
+        'Proposal Progress',
+      ),
+      _buildMobileStatCard(
+        'Waiting',
+        waitingApproval.toString(),
+        Icons.schedule,
+        Colors.purple,
+        'Waiting for Approval',
+      ),
+      _buildMobileStatCard(
+        'Approved',
+        approved.toString(),
+        Icons.check_circle,
+        Colors.green,
+        'Approved',
+      ),
+      _buildMobileStatCard(
+        'Completed',
+        completed.toString(),
+        Icons.assignment_turned_in,
+        Colors.teal,
+        'Completed',
+      ),
+    ];
+
+    // Arrange in grid with 3 cards per row
+    return Column(
       children: [
-        Expanded(
-          child: _buildMobileStatCard(
-            'Total',
-            totalLeads.toString(),
-            Icons.leaderboard,
-            Colors.blue,
-            null,
-          ),
+        // First row: Total, New, Progress
+        Row(
+          children: [
+            Expanded(child: statCards[0]),
+            SizedBox(width: 8),
+            Expanded(child: statCards[1]),
+            SizedBox(width: 8),
+            Expanded(child: statCards[2]),
+          ],
         ),
-        SizedBox(width: 8),
-        Expanded(
-          child: _buildMobileStatCard(
-            'New',
-            newLeads.toString(),
-            Icons.new_releases,
-            Colors.green,
-            'New',
-          ),
-        ),
-        SizedBox(width: 8),
-        Expanded(
-          child: _buildMobileStatCard(
-            'Progress',
-            proposalProgress.toString(),
-            Icons.pending,
-            Colors.orange,
-            'Proposal Progress',
-          ),
-        ),
-        SizedBox(width: 8),
-        Expanded(
-          child: _buildMobileStatCard(
-            'Waiting',
-            waitingApproval.toString(),
-            Icons.schedule,
-            Colors.purple,
-            'Waiting for Approval',
-          ),
-        ),
-        SizedBox(width: 8),
-        Expanded(
-          child: _buildMobileStatCard(
-            'Approved',
-            approved.toString(),
-            Icons.check_circle,
-            Colors.green,
-            'Approved',
-          ),
+        SizedBox(height: 8),
+        // Second row: Waiting, Approved, Completed
+        Row(
+          children: [
+            Expanded(child: statCards[3]),
+            SizedBox(width: 8),
+            Expanded(child: statCards[4]),
+            SizedBox(width: 8),
+            Expanded(child: statCards[5]),
+          ],
         ),
       ],
     );
