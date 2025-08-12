@@ -625,12 +625,12 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
         if (useGrid) {
           return GridView.builder(
             controller: _scrollbarController,
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: isDesktop ? 4 : (isTablet ? 3 : 2),
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              childAspectRatio: 1.8,
-            ),
+                         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+               crossAxisCount: isDesktop ? 4 : (isTablet ? 3 : 2),
+               crossAxisSpacing: 12,
+               mainAxisSpacing: 12,
+               childAspectRatio: 2.0,
+             ),
             itemCount: filteredUsers.length,
             itemBuilder: (context, index) {
               final user = filteredUsers[index];
@@ -643,10 +643,10 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
             itemCount: filteredUsers.length,
             itemBuilder: (context, index) {
               final user = filteredUsers[index];
-              return Padding(
-                padding: EdgeInsets.only(bottom: 12),
-                child: _buildUserCard(user),
-              );
+                           return Padding(
+               padding: EdgeInsets.only(bottom: 8),
+               child: _buildUserCard(user),
+             );
             },
           );
         }
@@ -671,7 +671,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(12.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -681,7 +681,10 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                   Expanded(
                     child: Text(
                       user['username'] ?? '',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
                     ),
                   ),
                   if (user['user_type'] != null)
@@ -702,13 +705,13 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                     ),
                 ],
               ),
-              SizedBox(height: 8),
+              SizedBox(height: 6),
               // Email
               Text(
                 user['email'] ?? '',
                 style: TextStyle(fontSize: 14, color: Colors.grey[700]),
               ),
-              SizedBox(height: 8),
+              SizedBox(height: 6),
               // Status indicators
               Row(
                 children: [
@@ -762,23 +765,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                   ],
                 ],
               ),
-              SizedBox(height: 12),
-              // Action buttons
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.edit, color: Colors.blue, size: 20),
-                    onPressed: () => _showEditUserDialog(context, user),
-                    tooltip: 'Edit User',
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.delete, color: Colors.red, size: 20),
-                    onPressed: () => _showDeleteUserDialog(context, user),
-                    tooltip: 'Delete User',
-                  ),
-                ],
-              ),
+                             // Removed action buttons for cleaner, more compact design
             ],
           ),
         ),
@@ -849,7 +836,11 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                           color: Colors.blue,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Icon(Icons.person, color: Colors.white, size: 24),
+                        child: Icon(
+                          Icons.person,
+                          color: Colors.white,
+                          size: 24,
+                        ),
                       ),
                       SizedBox(width: 16),
                       Expanded(
@@ -895,9 +886,15 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                           Icons.info,
                           Colors.blue,
                           [
-                            _buildDetailRow('Username', user['username'] ?? 'N/A'),
+                            _buildDetailRow(
+                              'Username',
+                              user['username'] ?? 'N/A',
+                            ),
                             _buildDetailRow('Email', user['email'] ?? 'N/A'),
-                            _buildDetailRow('User Type', user['user_type'] ?? 'N/A'),
+                            _buildDetailRow(
+                              'User Type',
+                              user['user_type'] ?? 'N/A',
+                            ),
                             _buildDetailRow('Status', user['status'] ?? 'N/A'),
                           ],
                         ),
@@ -908,10 +905,22 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                           Icons.description,
                           Colors.green,
                           [
-                            _buildDetailRow('Screen Name', user['screen_name'] ?? 'N/A'),
-                            _buildDetailRow('Screen Type', user['screen_type'] ?? 'N/A'),
-                            _buildDetailRow('Description', user['description'] ?? 'N/A'),
-                            _buildDetailRow('User Target', _formatUserTarget(user['user_target'])),
+                            _buildDetailRow(
+                              'Screen Name',
+                              user['screen_name'] ?? 'N/A',
+                            ),
+                            _buildDetailRow(
+                              'Screen Type',
+                              user['screen_type'] ?? 'N/A',
+                            ),
+                            _buildDetailRow(
+                              'Description',
+                              user['description'] ?? 'N/A',
+                            ),
+                            _buildDetailRow(
+                              'User Target',
+                              _formatUserTarget(user['user_target']),
+                            ),
                           ],
                         ),
                         SizedBox(height: 24),
@@ -922,11 +931,26 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                           Colors.orange,
                           [
                             _buildDetailRow('User ID', user['id'] ?? 'N/A'),
-                            _buildDetailRow('Created At', _formatDate(user['created_at'])),
-                            _buildDetailRow('Last Updated', _formatDate(user['updated_at'])),
-                            _buildDetailRow('Session Active', user['session_active'] == true ? 'Yes' : 'No'),
-                            _buildDetailRow('User Online', user['is_user_online'] == true ? 'Yes' : 'No'),
-                            _buildDetailRow('Verified', user['verified'] == true ? 'Yes' : 'No'),
+                            _buildDetailRow(
+                              'Created At',
+                              _formatDate(user['created_at']),
+                            ),
+                            _buildDetailRow(
+                              'Last Updated',
+                              _formatDate(user['updated_at']),
+                            ),
+                            _buildDetailRow(
+                              'Session Active',
+                              user['session_active'] == true ? 'Yes' : 'No',
+                            ),
+                            _buildDetailRow(
+                              'User Online',
+                              user['is_user_online'] == true ? 'Yes' : 'No',
+                            ),
+                            _buildDetailRow(
+                              'Verified',
+                              user['verified'] == true ? 'Yes' : 'No',
+                            ),
                           ],
                         ),
                         SizedBox(height: 24),
@@ -943,7 +967,10 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                               label: Text('Edit User'),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.blue,
-                                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                  vertical: 12,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8),
                                 ),
@@ -958,7 +985,10 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                               label: Text('Delete User'),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.red,
-                                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                  vertical: 12,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8),
                                 ),
@@ -978,7 +1008,12 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
     );
   }
 
-  Widget _buildDetailSection(String title, IconData icon, Color color, List<Widget> children) {
+  Widget _buildDetailSection(
+    String title,
+    IconData icon,
+    Color color,
+    List<Widget> children,
+  ) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(16),
@@ -1031,10 +1066,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
           Expanded(
             child: Text(
               value,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[800],
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.grey[800]),
             ),
           ),
         ],
