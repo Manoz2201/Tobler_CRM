@@ -22,9 +22,10 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
   // User statistics data
   Map<String, dynamic> _userStats = {
     'totalUsers': {'value': '0', 'percentage': '+0.0%', 'isPositive': true},
-    'activeUsers': {'value': '0', 'percentage': '+0.0%', 'isPositive': true},
-    'verifiedUsers': {'value': '0', 'percentage': '+0.0%', 'isPositive': true},
-    'onlineUsers': {'value': '0', 'percentage': '+0.0%', 'isPositive': true},
+    'salesUsers': {'value': '0', 'percentage': '+0.0%', 'isPositive': true},
+    'proposalUsers': {'value': '0', 'percentage': '+0.0%', 'isPositive': true},
+    'adminUsers': {'value': '0', 'percentage': '+0.0%', 'isPositive': true},
+    'hrUsers': {'value': '0', 'percentage': '+0.0%', 'isPositive': true},
   };
 
   @override
@@ -53,12 +54,17 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
 
   void _calculateUserStats() {
     int totalUsers = users.length;
-    int activeUsers = users
-        .where((user) => user['session_active'] == true)
+    int salesUsers = users
+        .where((user) => (user['user_type'] ?? '').toString().toLowerCase() == 'sales')
         .length;
-    int verifiedUsers = users.where((user) => user['verified'] == true).length;
-    int onlineUsers = users
-        .where((user) => user['is_user_online'] == true)
+    int proposalUsers = users
+        .where((user) => (user['user_type'] ?? '').toString().toLowerCase() == 'proposal engineer')
+        .length;
+    int adminUsers = users
+        .where((user) => (user['user_type'] ?? '').toString().toLowerCase() == 'admin')
+        .length;
+    int hrUsers = users
+        .where((user) => (user['user_type'] ?? '').toString().toLowerCase() == 'hr')
         .length;
 
     setState(() {
@@ -68,18 +74,23 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
           'percentage': '+0.0%',
           'isPositive': true,
         },
-        'activeUsers': {
-          'value': activeUsers.toString(),
+        'salesUsers': {
+          'value': salesUsers.toString(),
           'percentage': '+0.0%',
           'isPositive': true,
         },
-        'verifiedUsers': {
-          'value': verifiedUsers.toString(),
+        'proposalUsers': {
+          'value': proposalUsers.toString(),
           'percentage': '+0.0%',
           'isPositive': true,
         },
-        'onlineUsers': {
-          'value': onlineUsers.toString(),
+        'adminUsers': {
+          'value': adminUsers.toString(),
+          'percentage': '+0.0%',
+          'isPositive': true,
+        },
+        'hrUsers': {
+          'value': hrUsers.toString(),
           'percentage': '+0.0%',
           'isPositive': true,
         },
@@ -89,7 +100,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
 
   List<Map<String, dynamic>> get filteredUsers {
     final lowerQuery = searchQuery.toLowerCase();
-    return users.where((user) {
+    List<Map<String, dynamic>> filtered = users.where((user) {
       return (user['username'] ?? '').toString().toLowerCase().contains(
             lowerQuery,
           ) ||
@@ -98,6 +109,65 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
             lowerQuery,
           );
     }).toList();
+
+    // Apply user type filter if active
+    if (selectedUserTypeFilter.isNotEmpty) {
+      filtered = filtered.where((user) {
+        final userType = (user['user_type'] ?? '').toString().toLowerCase();
+        return userType == selectedUserTypeFilter.toLowerCase();
+      }).toList();
+    }
+
+    return filtered;
+  }
+
+  String selectedUserTypeFilter = '';
+
+  void _filterUsersByType(String cardTitle) {
+    setState(() {
+      if (selectedUserTypeFilter == cardTitle) {
+        // If clicking the same card, clear the filter
+        selectedUserTypeFilter = '';
+      } else {
+        // Set the filter based on card title
+        switch (cardTitle) {
+          case 'Sales Users':
+            selectedUserTypeFilter = 'Sales';
+            break;
+          case 'Proposal Users':
+            selectedUserTypeFilter = 'Proposal Engineer';
+            break;
+          case 'Admin Users':
+            selectedUserTypeFilter = 'Admin';
+            break;
+          case 'HR Users':
+            selectedUserTypeFilter = 'HR';
+            break;
+          case 'Total Users':
+            selectedUserTypeFilter = '';
+            break;
+          default:
+            selectedUserTypeFilter = '';
+        }
+      }
+    });
+  }
+
+  bool _isCardSelected(String cardTitle) {
+    switch (cardTitle) {
+      case 'Sales Users':
+        return selectedUserTypeFilter == 'Sales';
+      case 'Proposal Users':
+        return selectedUserTypeFilter == 'Proposal Engineer';
+      case 'Admin Users':
+        return selectedUserTypeFilter == 'Admin';
+      case 'HR Users':
+        return selectedUserTypeFilter == 'HR';
+      case 'Total Users':
+        return selectedUserTypeFilter.isEmpty;
+      default:
+        return false;
+    }
   }
 
   @override
@@ -112,6 +182,48 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
               // Header with User Management heading, search bar, and menu
               _buildHeader(),
               SizedBox(height: 24),
+
+              // Filter status display
+              if (selectedUserTypeFilter.isNotEmpty) ...[
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue[200]!),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.filter_list, color: Colors.blue[600], size: 16),
+                          SizedBox(width: 8),
+                          Text(
+                            'Filtered by: $selectedUserTypeFilter',
+                            style: TextStyle(
+                              color: Colors.blue[700],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            selectedUserTypeFilter = '';
+                          });
+                        },
+                        child: Text(
+                          'Clear Filter',
+                          style: TextStyle(color: Colors.blue[600]),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 16),
+              ],
 
               // User Management content
               Expanded(child: _buildUserManagementContent()),
@@ -393,9 +505,9 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
         SizedBox(width: 16),
         Expanded(
           child: _buildUserStatCard(
-            'Active Users',
-            _userStats['activeUsers']['value'],
-            _userStats['activeUsers']['percentage'],
+            'Sales Users',
+            _userStats['salesUsers']['value'],
+            _userStats['salesUsers']['percentage'],
             Icons.person,
             Colors.green,
           ),
@@ -403,21 +515,31 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
         SizedBox(width: 16),
         Expanded(
           child: _buildUserStatCard(
-            'Verified Users',
-            _userStats['verifiedUsers']['value'],
-            _userStats['verifiedUsers']['percentage'],
-            Icons.verified,
+            'Proposal Users',
+            _userStats['proposalUsers']['value'],
+            _userStats['proposalUsers']['percentage'],
+            Icons.engineering,
             Colors.orange,
           ),
         ),
         SizedBox(width: 16),
         Expanded(
           child: _buildUserStatCard(
-            'Online Users',
-            _userStats['onlineUsers']['value'],
-            _userStats['onlineUsers']['percentage'],
-            Icons.online_prediction,
+            'Admin Users',
+            _userStats['adminUsers']['value'],
+            _userStats['adminUsers']['percentage'],
+            Icons.admin_panel_settings,
             Colors.purple,
+          ),
+        ),
+        SizedBox(width: 16),
+        Expanded(
+          child: _buildUserStatCard(
+            'HR Users',
+            _userStats['hrUsers']['value'],
+            _userStats['hrUsers']['percentage'],
+            Icons.work,
+            Colors.teal,
           ),
         ),
       ],
@@ -442,9 +564,9 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
             SizedBox(width: 12),
             Expanded(
               child: _buildUserStatCard(
-                'Active Users',
-                _userStats['activeUsers']['value'],
-                _userStats['activeUsers']['percentage'],
+                'Sales Users',
+                _userStats['salesUsers']['value'],
+                _userStats['salesUsers']['percentage'],
                 Icons.person,
                 Colors.green,
               ),
@@ -457,21 +579,36 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
           children: [
             Expanded(
               child: _buildUserStatCard(
-                'Verified Users',
-                _userStats['verifiedUsers']['value'],
-                _userStats['verifiedUsers']['percentage'],
-                Icons.verified,
+                'Proposal Users',
+                _userStats['proposalUsers']['value'],
+                _userStats['proposalUsers']['percentage'],
+                Icons.engineering,
                 Colors.orange,
               ),
             ),
             SizedBox(width: 12),
             Expanded(
               child: _buildUserStatCard(
-                'Online Users',
-                _userStats['onlineUsers']['value'],
-                _userStats['onlineUsers']['percentage'],
-                Icons.online_prediction,
+                'Admin Users',
+                _userStats['adminUsers']['value'],
+                _userStats['adminUsers']['percentage'],
+                Icons.admin_panel_settings,
                 Colors.purple,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 12),
+        // Third row
+        Row(
+          children: [
+            Expanded(
+              child: _buildUserStatCard(
+                'HR Users',
+                _userStats['hrUsers']['value'],
+                _userStats['hrUsers']['percentage'],
+                Icons.work,
+                Colors.teal,
               ),
             ),
           ],
@@ -489,38 +626,45 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
   ) {
     final isPositive = percentage.startsWith('+');
     final percentageColor = isPositive ? Colors.green : Colors.red;
+    final isSelected = _isCardSelected(title);
 
-    return Container(
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Top row: Icon + Title
-          Row(
-            children: [
-              Container(
-                padding: EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(6),
+    return InkWell(
+      onTap: () => _filterUsersByType(title),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withValues(alpha: 0.1) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: isSelected ? Border.all(color: color, width: 2) : null,
+          boxShadow: [
+            BoxShadow(
+              color: isSelected 
+                  ? color.withValues(alpha: 0.2)
+                  : Colors.black.withValues(alpha: 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Icon and Title row - centered
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Icon(icon, color: color, size: 14),
                 ),
-                child: Icon(icon, color: color, size: 14),
-              ),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
+                SizedBox(width: 8),
+                Text(
                   title,
                   style: TextStyle(
                     fontSize: 12,
@@ -528,25 +672,22 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-              ),
-            ],
-          ),
-          SizedBox(height: 12),
-          // Main value - centered
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[800],
+              ],
             ),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 6),
-          // Percentage with arrow - centered below value
-          SizedBox(
-            height: 28,
-            child: Row(
+            SizedBox(height: 8),
+            // Main value - centered
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 4),
+            // Percentage with arrow - centered
+            Row(
               mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -566,15 +707,8 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                 ),
               ],
             ),
-          ),
-          SizedBox(height: 6),
-          // Footer: "From previous period" centered
-          Text(
-            'From previous period',
-            style: TextStyle(fontSize: 9, color: Colors.grey[500]),
-            textAlign: TextAlign.center,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
