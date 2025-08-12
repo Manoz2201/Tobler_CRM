@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../user_management_service.dart';
 
 // Admin User Management Page with Dashboard-style UI/UX
@@ -654,128 +655,132 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
   }
 
   Widget _buildUserCard(Map<String, dynamic> user) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header row with username and user type
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    user['username'] ?? '',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                ),
-                if (user['user_type'] != null)
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.deepPurple[50],
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      user['user_type'].toString(),
-                      style: TextStyle(
-                        color: Colors.deepPurple,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            SizedBox(height: 8),
-            // Email
-            Text(
-              user['email'] ?? '',
-              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-            ),
-            SizedBox(height: 8),
-            // Status indicators
-            Row(
-              children: [
-                if (user['verified'] == true)
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.green[50],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.verified, color: Colors.green, size: 12),
-                        SizedBox(width: 4),
-                        Text(
-                          'Verified',
-                          style: TextStyle(
-                            color: Colors.green,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (user['is_user_online'] == true) ...[
-                  SizedBox(width: 8),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.blue[50],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.circle, color: Colors.blue, size: 8),
-                        SizedBox(width: 4),
-                        Text(
-                          'Online',
-                          style: TextStyle(
-                            color: Colors.blue,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ],
-            ),
-            SizedBox(height: 12),
-            // Action buttons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                IconButton(
-                  icon: Icon(Icons.edit, color: Colors.blue, size: 20),
-                  onPressed: () => _showEditUserDialog(context, user),
-                  tooltip: 'Edit User',
-                ),
-                IconButton(
-                  icon: Icon(Icons.delete, color: Colors.red, size: 20),
-                  onPressed: () => _showDeleteUserDialog(context, user),
-                  tooltip: 'Delete User',
-                ),
-              ],
+    return InkWell(
+      onTap: () => _showUserDetailDialog(context, user),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
           ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header row with username and user type
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      user['username'] ?? '',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                  ),
+                  if (user['user_type'] != null)
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.deepPurple[50],
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        user['user_type'].toString(),
+                        style: TextStyle(
+                          color: Colors.deepPurple,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              SizedBox(height: 8),
+              // Email
+              Text(
+                user['email'] ?? '',
+                style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+              ),
+              SizedBox(height: 8),
+              // Status indicators
+              Row(
+                children: [
+                  if (user['verified'] == true)
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.green[50],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.verified, color: Colors.green, size: 12),
+                          SizedBox(width: 4),
+                          Text(
+                            'Verified',
+                            style: TextStyle(
+                              color: Colors.green,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (user['is_user_online'] == true) ...[
+                    SizedBox(width: 8),
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.blue[50],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.circle, color: Colors.blue, size: 8),
+                          SizedBox(width: 8),
+                          Text(
+                            'Online',
+                            style: TextStyle(
+                              color: Colors.blue,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              SizedBox(height: 12),
+              // Action buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  IconButton(
+                    icon: Icon(Icons.edit, color: Colors.blue, size: 20),
+                    onPressed: () => _showEditUserDialog(context, user),
+                    tooltip: 'Edit User',
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.delete, color: Colors.red, size: 20),
+                    onPressed: () => _showDeleteUserDialog(context, user),
+                    tooltip: 'Delete User',
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -809,5 +814,254 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
         duration: Duration(seconds: 2),
       ),
     );
+  }
+
+  void _showUserDetailDialog(BuildContext context, Map<String, dynamic> user) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.9,
+            constraints: BoxConstraints(maxWidth: 600),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  padding: EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(16),
+                      topRight: Radius.circular(16),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(Icons.person, color: Colors.white, size: 24),
+                      ),
+                      SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'User Details',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue[800],
+                              ),
+                            ),
+                            Text(
+                              user['username'] ?? 'N/A',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.blue[600],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: Icon(Icons.close, color: Colors.blue[600]),
+                      ),
+                    ],
+                  ),
+                ),
+                // Content
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Basic Information Section
+                        _buildDetailSection(
+                          'Basic Information',
+                          Icons.info,
+                          Colors.blue,
+                          [
+                            _buildDetailRow('Username', user['username'] ?? 'N/A'),
+                            _buildDetailRow('Email', user['email'] ?? 'N/A'),
+                            _buildDetailRow('User Type', user['user_type'] ?? 'N/A'),
+                            _buildDetailRow('Status', user['status'] ?? 'N/A'),
+                          ],
+                        ),
+                        SizedBox(height: 24),
+                        // Additional Information Section
+                        _buildDetailSection(
+                          'Additional Information',
+                          Icons.description,
+                          Colors.green,
+                          [
+                            _buildDetailRow('Screen Name', user['screen_name'] ?? 'N/A'),
+                            _buildDetailRow('Screen Type', user['screen_type'] ?? 'N/A'),
+                            _buildDetailRow('Description', user['description'] ?? 'N/A'),
+                            _buildDetailRow('User Target', _formatUserTarget(user['user_target'])),
+                          ],
+                        ),
+                        SizedBox(height: 24),
+                        // System Information Section
+                        _buildDetailSection(
+                          'System Information',
+                          Icons.settings,
+                          Colors.orange,
+                          [
+                            _buildDetailRow('User ID', user['id'] ?? 'N/A'),
+                            _buildDetailRow('Created At', _formatDate(user['created_at'])),
+                            _buildDetailRow('Last Updated', _formatDate(user['updated_at'])),
+                            _buildDetailRow('Session Active', user['session_active'] == true ? 'Yes' : 'No'),
+                            _buildDetailRow('User Online', user['is_user_online'] == true ? 'Yes' : 'No'),
+                            _buildDetailRow('Verified', user['verified'] == true ? 'Yes' : 'No'),
+                          ],
+                        ),
+                        SizedBox(height: 24),
+                        // Action Buttons
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                                _showEditUserDialog(context, user);
+                              },
+                              icon: Icon(Icons.edit, color: Colors.white),
+                              label: Text('Edit User'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue,
+                                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            ),
+                            ElevatedButton.icon(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                                _showDeleteUserDialog(context, user);
+                              },
+                              icon: Icon(Icons.delete, color: Colors.white),
+                              label: Text('Delete User'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailSection(String title, IconData icon, Color color, List<Widget> children) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 20),
+              SizedBox(width: 8),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: color.withValues(alpha: 0.8),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              '$label:',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[700],
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[800],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatUserTarget(dynamic userTarget) {
+    if (userTarget == null) return 'Not Set';
+    if (userTarget is num) {
+      return '₹${NumberFormat('#,##0.00').format(userTarget)}';
+    }
+    return userTarget.toString();
+  }
+
+  String _formatDate(dynamic date) {
+    if (date == null) return 'N/A';
+    try {
+      if (date is String) {
+        final parsed = DateTime.parse(date);
+        return DateFormat('MMM dd, yyyy HH:mm').format(parsed);
+      } else if (date is DateTime) {
+        return DateFormat('MMM dd, yyyy HH:mm').format(date);
+      }
+      return 'N/A';
+    } catch (e) {
+      return 'N/A';
+    }
   }
 }
