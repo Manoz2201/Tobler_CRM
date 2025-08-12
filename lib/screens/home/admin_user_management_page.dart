@@ -625,12 +625,12 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
         if (useGrid) {
           return GridView.builder(
             controller: _scrollbarController,
-                         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-               crossAxisCount: isDesktop ? 4 : (isTablet ? 3 : 2),
-               crossAxisSpacing: 12,
-               mainAxisSpacing: 12,
-               childAspectRatio: 2.0,
-             ),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: isDesktop ? 4 : (isTablet ? 3 : 2),
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              childAspectRatio: isDesktop ? 3.5 : (isTablet ? 3.0 : 2.2),
+            ),
             itemCount: filteredUsers.length,
             itemBuilder: (context, index) {
               final user = filteredUsers[index];
@@ -643,10 +643,10 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
             itemCount: filteredUsers.length,
             itemBuilder: (context, index) {
               final user = filteredUsers[index];
-                           return Padding(
-               padding: EdgeInsets.only(bottom: 8),
-               child: _buildUserCard(user),
-             );
+              return Padding(
+                padding: EdgeInsets.only(bottom: 12),
+                child: _buildUserCard(user),
+              );
             },
           );
         }
@@ -671,7 +671,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.all(12.0),
+          padding: const EdgeInsets.all(10.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -683,35 +683,35 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                       user['username'] ?? '',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        fontSize: 15,
                       ),
                     ),
                   ),
                   if (user['user_type'] != null)
                     Container(
-                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
                         color: Colors.deepPurple[50],
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         user['user_type'].toString(),
                         style: TextStyle(
                           color: Colors.deepPurple,
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
                 ],
               ),
-              SizedBox(height: 6),
+              SizedBox(height: 4),
               // Email
               Text(
                 user['email'] ?? '',
-                style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                style: TextStyle(fontSize: 13, color: Colors.grey[700]),
               ),
-              SizedBox(height: 6),
+              SizedBox(height: 4),
               // Status indicators
               Row(
                 children: [
@@ -725,13 +725,13 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.verified, color: Colors.green, size: 12),
-                          SizedBox(width: 4),
+                          Icon(Icons.verified, color: Colors.green, size: 10),
+                          SizedBox(width: 3),
                           Text(
                             'Verified',
                             style: TextStyle(
                               color: Colors.green,
-                              fontSize: 10,
+                              fontSize: 9,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -741,21 +741,47 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                   if (user['is_user_online'] == true) ...[
                     SizedBox(width: 8),
                     Container(
-                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                       decoration: BoxDecoration(
                         color: Colors.blue[50],
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(6),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.circle, color: Colors.blue, size: 8),
-                          SizedBox(width: 8),
+                          Icon(Icons.circle, color: Colors.blue, size: 6),
+                          SizedBox(width: 3),
                           Text(
                             'Online',
                             style: TextStyle(
                               color: Colors.blue,
-                              fontSize: 10,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  // Show freeze status
+                  if (user['is_frozen'] == true) ...[
+                    SizedBox(width: 8),
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.red[50],
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.lock, color: Colors.red, size: 6),
+                          SizedBox(width: 3),
+                          Text(
+                            'Frozen',
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontSize: 9,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -765,7 +791,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                   ],
                 ],
               ),
-                             // Removed action buttons for cleaner, more compact design
+              SizedBox(height: 4),
             ],
           ),
         ),
@@ -784,22 +810,420 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
   }
 
   void _showEditUserDialog(BuildContext context, Map<String, dynamic> user) {
-    // Implementation for editing user
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Edit User functionality will be implemented'),
-        duration: Duration(seconds: 2),
-      ),
+    final TextEditingController usernameController = TextEditingController(
+      text: user['username'] ?? '',
+    );
+    final TextEditingController emailController = TextEditingController(
+      text: user['email'] ?? '',
+    );
+    final TextEditingController userTypeController = TextEditingController(
+      text: user['user_type'] ?? '',
+    );
+    final TextEditingController statusController = TextEditingController(
+      text: user['status'] ?? '',
+    );
+    final TextEditingController screenNameController = TextEditingController(
+      text: user['screen_name'] ?? '',
+    );
+    final TextEditingController screenTypeController = TextEditingController(
+      text: user['screen_type'] ?? '',
+    );
+    final TextEditingController descriptionController = TextEditingController(
+      text: user['description'] ?? '',
+    );
+    final TextEditingController userTargetController = TextEditingController(
+      text: user['user_target']?.toString() ?? '0',
+    );
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Container(
+                width: MediaQuery.of(context).size.width * 0.9,
+                constraints: BoxConstraints(
+                  maxWidth: 600,
+                  maxHeight: MediaQuery.of(context).size.height * 0.8,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Header
+                    Container(
+                      padding: EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.blue[50],
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(16),
+                          topRight: Radius.circular(16),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.blue,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              Icons.edit,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                          SizedBox(width: 16),
+                          Expanded(
+                            child: Text(
+                              'Edit User - ${user['username'] ?? 'N/A'}',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue[800],
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            icon: Icon(Icons.close, color: Colors.blue[600]),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Content
+                    Flexible(
+                      child: SingleChildScrollView(
+                        padding: EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Basic Information
+                            _buildEditSection('Basic Information', [
+                              _buildEditField(
+                                'Username',
+                                usernameController,
+                                Icons.person,
+                              ),
+                              _buildEditField(
+                                'Email',
+                                emailController,
+                                Icons.email,
+                              ),
+                              _buildEditField(
+                                'User Type',
+                                userTypeController,
+                                Icons.category,
+                              ),
+                              _buildEditField(
+                                'Status',
+                                statusController,
+                                Icons.info,
+                              ),
+                            ]),
+                            SizedBox(height: 24),
+                            // Additional Information
+                            _buildEditSection('Additional Information', [
+                              _buildEditField(
+                                'Screen Name',
+                                screenNameController,
+                                Icons.screen_share,
+                              ),
+                              _buildEditField(
+                                'Screen Type',
+                                screenTypeController,
+                                Icons.display_settings,
+                              ),
+                              _buildEditField(
+                                'Description',
+                                descriptionController,
+                                Icons.description,
+                              ),
+                              _buildEditField(
+                                'User Target',
+                                userTargetController,
+                                Icons.attach_money,
+                              ),
+                            ]),
+                            SizedBox(height: 24),
+                            // Action Buttons
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                ElevatedButton.icon(
+                                  onPressed: () => Navigator.of(context).pop(),
+                                  icon: Icon(Icons.cancel, color: Colors.white),
+                                  label: Text('Cancel'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.grey[600],
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 24,
+                                      vertical: 12,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                ),
+                                ElevatedButton.icon(
+                                  onPressed: () async {
+                                    try {
+                                      // Update user data
+                                      final updatedData = {
+                                        'user_name': usernameController.text,
+                                        'email': emailController.text,
+                                        'user_type': userTypeController.text,
+                                        'status': statusController.text,
+                                        'screen_name':
+                                            screenNameController.text,
+                                        'screen_type':
+                                            screenTypeController.text,
+                                        'description':
+                                            descriptionController.text,
+                                        'user_target':
+                                            double.tryParse(
+                                              userTargetController.text,
+                                            ) ??
+                                            0.0,
+                                      };
+
+                                      await UserManagementService.updateUserRaw(
+                                        user['id'],
+                                        updatedData,
+                                      );
+
+                                      if (context.mounted) {
+                                        Navigator.of(context).pop();
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'User updated successfully!',
+                                            ),
+                                            backgroundColor: Colors.green,
+                                            duration: Duration(seconds: 2),
+                                          ),
+                                        );
+                                      }
+
+                                      // Refresh the user list
+                                      setState(() {
+                                        fetchUsers();
+                                      });
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Failed to update user: $e',
+                                            ),
+                                            backgroundColor: Colors.red,
+                                            duration: Duration(seconds: 3),
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
+                                  icon: Icon(Icons.save, color: Colors.white),
+                                  label: Text('Save Changes'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.blue,
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 24,
+                                      vertical: 12,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showFreezeUserDialog(BuildContext context, Map<String, dynamic> user) {
+    final bool isCurrentlyFrozen = user['is_frozen'] == true;
+    final String actionText = isCurrentlyFrozen ? 'Unfreeze' : 'Freeze';
+    final String messageText = isCurrentlyFrozen
+        ? 'Are you sure you want to unfreeze user "${user['username'] ?? 'N/A'}"? They will be able to login again.'
+        : 'Are you sure you want to freeze user "${user['username'] ?? 'N/A'}"? They will not be able to login.';
+    final IconData actionIcon = isCurrentlyFrozen
+        ? Icons.lock_open
+        : Icons.lock;
+    final MaterialColor actionColor = isCurrentlyFrozen
+        ? Colors.orange
+        : Colors.grey;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(actionIcon, color: actionColor[600], size: 24),
+              SizedBox(width: 12),
+              Text('$actionText User'),
+            ],
+          ),
+          content: Text(messageText, style: TextStyle(fontSize: 16)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Cancel', style: TextStyle(color: Colors.grey[600])),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  // Update user freeze status
+                  final updatedData = {'is_frozen': !isCurrentlyFrozen};
+
+                  await UserManagementService.updateUserRaw(
+                    user['id'],
+                    updatedData,
+                  );
+
+                  if (context.mounted) {
+                    Navigator.of(context).pop(); // Close freeze dialog
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'User ${isCurrentlyFrozen ? 'unfrozen' : 'frozen'} successfully!',
+                        ),
+                        backgroundColor: Colors.green,
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  }
+
+                  // Refresh the user list and close user details dialog
+                  fetchUsers();
+                  if (context.mounted) {
+                    Navigator.of(context).pop(); // Close user details dialog
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    Navigator.of(context).pop(); // Close freeze dialog
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Failed to ${isCurrentlyFrozen ? 'unfreeze' : 'freeze'} user: $e',
+                        ),
+                        backgroundColor: Colors.red,
+                        duration: Duration(seconds: 3),
+                      ),
+                    );
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: actionColor[600],
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Text(actionText, style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
     );
   }
 
   void _showDeleteUserDialog(BuildContext context, Map<String, dynamic> user) {
-    // Implementation for deleting user
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Delete User functionality will be implemented'),
-        duration: Duration(seconds: 2),
-      ),
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.warning, color: Colors.red[600], size: 24),
+              SizedBox(width: 12),
+              Text('Delete User'),
+            ],
+          ),
+          content: Text(
+            'Are you sure you want to delete user "${user['username'] ?? 'N/A'}"? This action cannot be undone.',
+            style: TextStyle(fontSize: 16),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Cancel', style: TextStyle(color: Colors.grey[600])),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  // Delete user from database
+                  await UserManagementService.deleteUser(user['id']);
+
+                  if (context.mounted) {
+                    Navigator.of(context).pop(); // Close delete dialog
+                    Navigator.of(context).pop(); // Close user details dialog
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('User deleted successfully!'),
+                        backgroundColor: Colors.green,
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  }
+
+                  // Refresh the user list
+                  fetchUsers();
+                } catch (e) {
+                  if (context.mounted) {
+                    Navigator.of(context).pop(); // Close delete dialog
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to delete user: $e'),
+                        backgroundColor: Colors.red,
+                        duration: Duration(seconds: 3),
+                      ),
+                    );
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Text('Delete', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -866,9 +1290,57 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                           ],
                         ),
                       ),
-                      IconButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        icon: Icon(Icons.close, color: Colors.blue[600]),
+                      // Action icon buttons
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            onPressed: () {
+                              _showFreezeUserDialog(context, user);
+                            },
+                            icon: Icon(
+                              user['is_frozen'] == true
+                                  ? Icons.lock_open
+                                  : Icons.lock,
+                              color: user['is_frozen'] == true
+                                  ? Colors.orange[600]
+                                  : Colors.grey[600],
+                              size: 20,
+                            ),
+                            tooltip: user['is_frozen'] == true
+                                ? 'Unfreeze User'
+                                : 'Freeze User',
+                          ),
+                          IconButton(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                              _showEditUserDialog(context, user);
+                            },
+                            icon: Icon(
+                              Icons.edit,
+                              color: Colors.blue[600],
+                              size: 20,
+                            ),
+                            tooltip: 'Edit User',
+                          ),
+                          IconButton(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                              _showDeleteUserDialog(context, user);
+                            },
+                            icon: Icon(
+                              Icons.delete,
+                              color: Colors.red[600],
+                              size: 20,
+                            ),
+                            tooltip: 'Delete User',
+                          ),
+                          SizedBox(width: 8),
+                          IconButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            icon: Icon(Icons.close, color: Colors.blue[600]),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -881,29 +1353,23 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Basic Information Section
-                        _buildDetailSection(
-                          'Basic Information',
-                          Icons.info,
-                          Colors.blue,
-                          [
-                            _buildDetailRow(
-                              'Username',
-                              user['username'] ?? 'N/A',
-                            ),
-                            _buildDetailRow('Email', user['email'] ?? 'N/A'),
-                            _buildDetailRow(
-                              'User Type',
-                              user['user_type'] ?? 'N/A',
-                            ),
-                            _buildDetailRow('Status', user['status'] ?? 'N/A'),
-                          ],
-                        ),
+                        _buildDetailSection('Basic Information', Icons.info, [
+                          _buildDetailRow(
+                            'Username',
+                            user['username'] ?? 'N/A',
+                          ),
+                          _buildDetailRow('Email', user['email'] ?? 'N/A'),
+                          _buildDetailRow(
+                            'User Type',
+                            user['user_type'] ?? 'N/A',
+                          ),
+                          _buildDetailRow('Status', user['status'] ?? 'N/A'),
+                        ]),
                         SizedBox(height: 24),
                         // Additional Information Section
                         _buildDetailSection(
                           'Additional Information',
                           Icons.description,
-                          Colors.green,
                           [
                             _buildDetailRow(
                               'Screen Name',
@@ -928,7 +1394,6 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                         _buildDetailSection(
                           'System Information',
                           Icons.settings,
-                          Colors.orange,
                           [
                             _buildDetailRow('User ID', user['id'] ?? 'N/A'),
                             _buildDetailRow(
@@ -951,48 +1416,9 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                               'Verified',
                               user['verified'] == true ? 'Yes' : 'No',
                             ),
-                          ],
-                        ),
-                        SizedBox(height: 24),
-                        // Action Buttons
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            ElevatedButton.icon(
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                                _showEditUserDialog(context, user);
-                              },
-                              icon: Icon(Icons.edit, color: Colors.white),
-                              label: Text('Edit User'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue,
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 24,
-                                  vertical: 12,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                            ),
-                            ElevatedButton.icon(
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                                _showDeleteUserDialog(context, user);
-                              },
-                              icon: Icon(Icons.delete, color: Colors.white),
-                              label: Text('Delete User'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red,
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 24,
-                                  vertical: 12,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
+                            _buildDetailRow(
+                              'Account Status',
+                              user['is_frozen'] == true ? 'Frozen' : 'Active',
                             ),
                           ],
                         ),
@@ -1011,30 +1437,36 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
   Widget _buildDetailSection(
     String title,
     IconData icon,
-    Color color,
     List<Widget> children,
   ) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.05),
+        color: Colors.white.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, color: color, size: 20),
+              Icon(icon, color: Colors.grey[700], size: 20),
               SizedBox(width: 8),
               Text(
                 title,
                 style: TextStyle(
                   fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: color.withValues(alpha: 0.8),
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[800],
                 ),
               ),
             ],
@@ -1067,6 +1499,93 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
             child: Text(
               value,
               style: TextStyle(fontSize: 14, color: Colors.grey[800]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEditSection(String title, List<Widget> children) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[800],
+            ),
+          ),
+          SizedBox(height: 16),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEditField(
+    String label,
+    TextEditingController controller,
+    IconData icon,
+  ) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: Colors.grey[600], size: 18),
+              SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[700],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 8),
+          TextField(
+            controller: controller,
+            decoration: InputDecoration(
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.blue[600]!),
+              ),
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 12,
+              ),
+              filled: true,
+              fillColor: Colors.grey[50],
             ),
           ),
         ],

@@ -231,20 +231,35 @@ class _LoginScreenState extends State<LoginScreen> {
                             // Check users table
                             final userResult = await Supabase.instance.client
                                 .from('users')
-                                .select('id, verified, user_type')
+                                .select('id, verified, user_type, is_frozen')
                                 .eq('email', email)
                                 .eq('password_hash', hashedPassword)
                                 .maybeSingle();
                             // Check dev_user table
                             final devUserResult = await Supabase.instance.client
                                 .from('dev_user')
-                                .select('id, verified, user_type')
+                                .select('id, verified, user_type, is_frozen')
                                 .eq('email', email)
                                 .eq('password_hash', hashedPassword)
                                 .maybeSingle();
                             final result = userResult ?? devUserResult;
                             if (!context.mounted) return;
                             if (result != null && result['id'] != null) {
+                              // Check if user is frozen
+                              if (result['is_frozen'] == true) {
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Your account is Frozen. Please contact administrator.',
+                                    ),
+                                    backgroundColor: Colors.red,
+                                    duration: Duration(seconds: 4),
+                                  ),
+                                );
+                                return; // Prevent login for frozen users
+                              }
+                              
                               if (result['verified'] == true) {
                                 String userType = result['user_type'] ?? '';
                                 final session = Supabase
