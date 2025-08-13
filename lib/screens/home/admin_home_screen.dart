@@ -385,6 +385,7 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
     super.initState();
     _fetchSalesTeamMembers();
     _fetchChartData();
+    _fetchAchievementTrendData();
   }
 
   Future<void> _fetchSalesTeamMembers() async {
@@ -705,15 +706,96 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
     }
   }
 
-  // Sample data for achievement trend (keeping existing for now)
-  final List<Map<String, dynamic>> _achievementTrendData = [
-    {'month': 'Jul', 'target': 80.0, 'achievement': 70.0},
-    {'month': 'Aug', 'target': 85.0, 'achievement': 75.0},
-    {'month': 'Sep', 'target': 90.0, 'achievement': 78.0},
-    {'month': 'Oct', 'target': 95.0, 'achievement': 80.0},
-    {'month': 'Nov', 'target': 100.0, 'achievement': 0.0},
-    {'month': 'Dec', 'target': 100.0, 'achievement': 0.0},
-  ];
+  // Dynamic achievement trend data for all sales users
+  List<Map<String, dynamic>> _achievementTrendData = [];
+  bool _isLoadingTrendData = false;
+
+  // Fetch achievement trend data for all sales users
+  Future<void> _fetchAchievementTrendData() async {
+    try {
+      setState(() {
+        _isLoadingTrendData = true;
+      });
+
+      final client = Supabase.instance.client;
+
+      // Get all sales users
+      final usersResponse = await client
+          .from('users')
+          .select('username, user_target')
+          .eq('user_type', 'Sales')
+          .order('username');
+
+      List<Map<String, dynamic>> trendData = [];
+
+      for (final user in usersResponse) {
+        if (user['username'] != null) {
+          String username = user['username'] as String;
+          double target = user['user_target'] != null
+              ? (user['user_target'] as num).toDouble()
+              : 0.0;
+
+          // Fetch actual achievement from admin_response table
+          double achievement = await _fetchWonLeadsAmount(username);
+          double gap = target - achievement;
+
+          trendData.add({
+            'username': username,
+            'target': target,
+            'achievement': achievement,
+            'gap': gap,
+          });
+        }
+      }
+
+      setState(() {
+        _achievementTrendData = trendData;
+        _isLoadingTrendData = false;
+      });
+    } catch (e) {
+      debugPrint('Error fetching achievement trend data: $e');
+      setState(() {
+        _isLoadingTrendData = false;
+      });
+    }
+  }
+
+  // Refresh lead counts for currently selected salesperson
+  Future<void> _refreshLeadCountsForSelectedSalesPerson() async {
+    if (_selectedSalesPerson == 'All Sales Team') return;
+
+    try {
+      final client = Supabase.instance.client;
+
+      // Fetch data from admin_response table for selected salesperson
+      final response = await client
+          .from('admin_response')
+          .select('sales_user, update_lead_status, total_amount_gst')
+          .eq('sales_user', _selectedSalesPerson);
+
+      int totalLeads = 0;
+      int wonLeads = 0;
+
+      for (final row in response) {
+        totalLeads++;
+
+        // Check if lead status is "won" (case-insensitive)
+        if (row['update_lead_status'] != null &&
+            row['update_lead_status'].toString().toLowerCase() == 'won') {
+          wonLeads++;
+        }
+      }
+
+      // Update KPI data with lead counts for selected salesperson
+      _updateLeadCounts(totalLeads, wonLeads);
+
+      debugPrint('Refreshed Lead Counts for $_selectedSalesPerson');
+      debugPrint('Total Leads: $totalLeads');
+      debugPrint('Won Leads: $wonLeads');
+    } catch (e) {
+      debugPrint('Error refreshing lead counts: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -878,6 +960,11 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
                           });
                           // Refresh chart data when time period changes
                           _fetchChartData();
+                          _fetchAchievementTrendData();
+                          // Also refresh lead counts for currently selected salesperson
+                          if (_selectedSalesPerson != 'All Sales Team') {
+                            _refreshLeadCountsForSelectedSalesPerson();
+                          }
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(
@@ -1339,13 +1426,16 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
                 ),
               ),
               Text(
-                'Last 6 periods',
+                'All Sales Users',
                 style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          // Legend
+          // Chart
+          Expanded(child: _buildAchievementTrendBarChart()),
+          const SizedBox(height: 16),
+          // Legend at bottom
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -1373,105 +1463,180 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
               ),
               const SizedBox(width: 8),
               Text(
-                'Achievement',
+                'Achievement (₹ CR)',
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+              const SizedBox(width: 16),
+              Container(
+                width: 16,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Gap (₹ CR)',
                 style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          // Line Chart
-          Expanded(child: _buildLineChart()),
         ],
       ),
     );
   }
 
-  Widget _buildLineChart() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          // Simple bar representation for trend
-          Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: _achievementTrendData.map((data) {
-                return Column(
-                  children: [
-                    Expanded(
-                      child: Row(
-                        children: [
-                          // Target bar
-                          Container(
-                            width: 20,
-                            margin: const EdgeInsets.only(right: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.purple.withValues(alpha: 0.7),
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                          // Achievement bar
-                          Container(
-                            width: 20,
-                            decoration: BoxDecoration(
-                              color: Colors.green.withValues(alpha: 0.7),
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                        ],
-                      ),
+  Widget _buildAchievementTrendBarChart() {
+    if (_achievementTrendData.isEmpty) {
+      return Center(
+        child: _isLoadingTrendData
+            ? CircularProgressIndicator()
+            : Text('No data available'),
+      );
+    }
+
+    // Calculate max Y value for proper scaling
+    double maxYValue = 0.0;
+    for (final data in _achievementTrendData) {
+      double target = data['target'] as double;
+      if (target > maxYValue) maxYValue = target;
+    }
+    maxYValue = maxYValue * 1.2; // Add 20% buffer
+
+    return BarChart(
+      BarChartData(
+        alignment: BarChartAlignment.spaceAround,
+        maxY: maxYValue,
+        barTouchData: BarTouchData(
+          enabled: true,
+          touchTooltipData: BarTouchTooltipData(
+            getTooltipItem: (group, groupIndex, rod, rodIndex) {
+              final data = _achievementTrendData[group.x.toInt()];
+              final labels = ['Target', 'Achievement', 'Gap'];
+              final label = labels[rodIndex];
+              final value = rod.toY / 10000000; // Convert to Crores
+
+              return BarTooltipItem(
+                '${data['username']}\n',
+                const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+                children: <TextSpan>[
+                  TextSpan(
+                    text: '$label: ₹${value.toStringAsFixed(1)} CR',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      data['month'] as String,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey[700],
-                      ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+        titlesData: FlTitlesData(
+          show: true,
+          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 40,
+              getTitlesWidget: (double value, TitleMeta meta) {
+                if (value.toInt() < _achievementTrendData.length) {
+                  final username =
+                      _achievementTrendData[value.toInt()]['username']
+                          as String;
+                  // Truncate long usernames to prevent overflow
+                  final displayName = username.length > 8
+                      ? '${username.substring(0, 8)}...'
+                      : username;
+                  return Text(
+                    displayName,
+                    style: const TextStyle(
+                      color: Colors.grey,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
                     ),
-                  ],
+                  );
+                }
+                return const Text('');
+              },
+            ),
+          ),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 80,
+              getTitlesWidget: (double value, TitleMeta meta) {
+                // Convert to Crores (CR) format
+                final croreValue = value / 10000000;
+                return Text(
+                  '₹${croreValue.toStringAsFixed(1)} CR',
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                  ),
                 );
-              }).toList(),
+              },
             ),
           ),
-          // Legend
-          Container(
-            padding: const EdgeInsets.all(8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 16,
-                  height: 16,
-                  decoration: BoxDecoration(
-                    color: Colors.purple.withValues(alpha: 0.7),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Target (₹ CR)',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                ),
-                const SizedBox(width: 16),
-                Container(
-                  width: 16,
-                  height: 16,
-                  decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.7),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Achievement',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                ),
-              ],
-            ),
-          ),
-        ],
+        ),
+        borderData: FlBorderData(show: false),
+        barGroups: _achievementTrendData.asMap().entries.map((entry) {
+          final index = entry.key;
+          final data = entry.value;
+
+          return BarChartGroupData(
+            x: index,
+            groupVertically: false,
+            barRods: [
+              // Target bar (Purple)
+              BarChartRodData(
+                toY: data['target'] as double,
+                color: Colors.purple,
+                width: 20,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              // Achievement bar (Green)
+              BarChartRodData(
+                toY: data['achievement'] as double,
+                color: Colors.green,
+                width: 20,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              // Gap bar (Red)
+              BarChartRodData(
+                toY: data['gap'] as double,
+                color: Colors.red,
+                width: 20,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ],
+          );
+        }).toList(),
+        gridData: FlGridData(
+          show: true,
+          horizontalInterval: maxYValue / 6,
+          verticalInterval: 1,
+          getDrawingHorizontalLine: (value) {
+            return FlLine(
+              color: Colors.grey.withValues(alpha: 0.3),
+              strokeWidth: 1,
+            );
+          },
+          getDrawingVerticalLine: (value) {
+            return FlLine(
+              color: Colors.grey.withValues(alpha: 0.2),
+              strokeWidth: 1,
+            );
+          },
+        ),
       ),
     );
   }
