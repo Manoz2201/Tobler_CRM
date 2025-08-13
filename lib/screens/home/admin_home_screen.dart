@@ -3125,19 +3125,19 @@ class _LeadTableState extends State<LeadTable> {
             tooltip: 'Export Leads',
           ),
           const SizedBox(width: 8),
-          ElevatedButton.icon(
+          // Refresh button - icon only
+          IconButton(
             onPressed: _fetchLeads,
-            icon: Icon(Icons.refresh),
-            label: Text('Refresh'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue[600],
-              foregroundColor: Colors.white,
-              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            icon: Icon(Icons.refresh, color: Colors.blue[600]),
+            tooltip: 'Refresh',
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.blue[50],
+              padding: EdgeInsets.all(12),
             ),
           ),
           const SizedBox(width: 8),
-          // Toggle button for status cards visibility
-          ElevatedButton.icon(
+          // Toggle button for status cards visibility - icon only
+          IconButton(
             onPressed: () {
               setState(() {
                 _showStatusCards = !_showStatusCards;
@@ -3145,14 +3145,12 @@ class _LeadTableState extends State<LeadTable> {
             },
             icon: Icon(
               _showStatusCards ? Icons.visibility_off : Icons.visibility,
+              color: _showStatusCards ? Colors.orange[600] : Colors.green[600],
             ),
-            label: Text(_showStatusCards ? 'Hide Cards' : 'Show Cards'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _showStatusCards
-                  ? Colors.orange[600]
-                  : Colors.green[600],
-              foregroundColor: Colors.white,
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            tooltip: _showStatusCards ? 'Hide Status Cards' : 'Show Status Cards',
+            style: IconButton.styleFrom(
+              backgroundColor: _showStatusCards ? Colors.orange[50] : Colors.green[50],
+              padding: EdgeInsets.all(12),
             ),
           ),
         ],
