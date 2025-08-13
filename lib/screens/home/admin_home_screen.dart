@@ -2202,7 +2202,7 @@ class _LeadTableState extends State<LeadTable> {
   bool _isLoading = true;
 
   bool _showAdvancedFilters = false;
-  bool _showStatusCards = true; // Toggle for status cards visibility only
+  bool _showStatusCards = true; // Toggle for status cards visibility
   final Map<String, dynamic> _advancedFilters = {
     'dateRange': null,
     'salesPerson': 'All',
@@ -3064,8 +3064,8 @@ class _LeadTableState extends State<LeadTable> {
                 SizedBox(height: isWide ? 24 : 8),
 
                 // Stats Cards
-                if (isWide && _showStatusCards) _buildStatsCards(),
-                if (isWide && _showStatusCards) const SizedBox(height: 24),
+                if (isWide) _buildStatsCards(),
+                if (isWide) const SizedBox(height: 24),
 
                 // Search, Filter, and Actions Section
                 _buildSearchAndActions(isWide),
@@ -3119,22 +3119,6 @@ class _LeadTableState extends State<LeadTable> {
               ],
             ),
           ),
-          // Toggle button for status cards only
-          IconButton(
-            onPressed: () {
-              setState(() {
-                _showStatusCards = !_showStatusCards;
-              });
-            },
-            icon: Icon(
-              _showStatusCards ? Icons.visibility_off : Icons.visibility,
-              color: Colors.grey[600],
-            ),
-            tooltip: _showStatusCards
-                ? 'Hide Status Cards'
-                : 'Show Status Cards',
-          ),
-          const SizedBox(width: 8),
           IconButton(
             onPressed: _exportLeads,
             icon: Icon(Icons.download),
@@ -3149,6 +3133,22 @@ class _LeadTableState extends State<LeadTable> {
               backgroundColor: Colors.blue[600],
               foregroundColor: Colors.white,
               padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Toggle button for status cards visibility
+          ElevatedButton.icon(
+            onPressed: () {
+              setState(() {
+                _showStatusCards = !_showStatusCards;
+              });
+            },
+            icon: Icon(_showStatusCards ? Icons.visibility_off : Icons.visibility),
+            label: Text(_showStatusCards ? 'Hide Cards' : 'Show Cards'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _showStatusCards ? Colors.orange[600] : Colors.green[600],
+              foregroundColor: Colors.white,
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             ),
           ),
         ],
@@ -3173,41 +3173,6 @@ class _LeadTableState extends State<LeadTable> {
                   ),
                 ),
               ),
-              // Toggle button for mobile - status cards only
-              IconButton(
-                onPressed: () {
-                  setState(() {
-                    _showStatusCards = !_showStatusCards;
-                  });
-                },
-                icon: Icon(
-                  _showStatusCards ? Icons.visibility_off : Icons.visibility,
-                  color: Colors.grey[600],
-                  size: 20,
-                ),
-                tooltip: _showStatusCards ? 'Hide Status Cards' : 'Show Status Cards',
-                padding: EdgeInsets.all(8),
-                constraints: BoxConstraints(minWidth: 32, minHeight: 32),
-              ),
-              const SizedBox(width: 8),
-              // Export leads button for mobile
-              IconButton(
-                onPressed: _exportLeads,
-                icon: Icon(Icons.download, size: 20),
-                tooltip: 'Export Leads',
-                padding: EdgeInsets.all(8),
-                constraints: BoxConstraints(minWidth: 32, minHeight: 32),
-              ),
-              const SizedBox(width: 8),
-              // Refresh button for mobile
-              IconButton(
-                onPressed: _fetchLeads,
-                icon: Icon(Icons.refresh, size: 20),
-                tooltip: 'Refresh',
-                padding: EdgeInsets.all(8),
-                constraints: BoxConstraints(minWidth: 32, minHeight: 32),
-              ),
-              const SizedBox(width: 8),
               IconButton(
                 onPressed: () {
                   setState(() {
@@ -3223,6 +3188,23 @@ class _LeadTableState extends State<LeadTable> {
                 padding: EdgeInsets.all(8),
                 constraints: BoxConstraints(minWidth: 32, minHeight: 32),
               ),
+              const SizedBox(width: 8),
+              // Toggle button for status cards visibility (mobile)
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    _showStatusCards = !_showStatusCards;
+                  });
+                },
+                icon: Icon(
+                  _showStatusCards ? Icons.visibility_off : Icons.visibility,
+                  color: _showStatusCards ? Colors.orange[600] : Colors.green[600],
+                  size: 20,
+                ),
+                tooltip: _showStatusCards ? 'Hide Status Cards' : 'Show Status Cards',
+                padding: EdgeInsets.all(8),
+                constraints: BoxConstraints(minWidth: 32, minHeight: 32),
+              ),
             ],
           ),
           const SizedBox(height: 4),
@@ -3235,9 +3217,11 @@ class _LeadTableState extends State<LeadTable> {
             ),
           ),
           const SizedBox(height: 8),
-          // Mobile stats cards with sort functionality
-          if (_showStatusCards) _buildMobileStatsCards(),
-          if (_showStatusCards) const SizedBox(height: 8),
+          // Mobile stats cards with sort functionality - conditionally shown
+          if (_showStatusCards) ...[
+            _buildMobileStatsCards(),
+            const SizedBox(height: 8),
+          ],
           // Centered search box for mobile
           Center(
             child: SizedBox(
@@ -6009,6 +5993,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   bool _isMenuExpanded = false;
   String _selectedTimePeriod = 'Quarter'; // Default selected time period
   String _selectedCurrency = 'INR'; // Default currency
+  bool _showStatusCards = true; // Toggle for status cards visibility
 
   // Lead Performance state
   String _activeLeadTab = 'Won'; // 'Won', 'Lost', 'Follow Up'
@@ -7516,68 +7501,91 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Lead Status',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey[800],
-                      ),
-                    ),
-                    SizedBox(height: 16),
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Expanded(
-                          child: _buildLeadStatusCard(
-                            'Total Leads',
-                            _leadStatusData['totalLeads']['value'],
-                            _leadStatusData['totalLeads']['percentage'],
-                            Icons.people_outline,
-                            Colors.indigo,
+                        Text(
+                          'Lead Status',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[800],
                           ),
                         ),
-                        SizedBox(width: 16),
-                        Expanded(
-                          child: _buildLeadStatusCard(
-                            'Proposal Progress',
-                            _leadStatusData['proposalProgress']['value'],
-                            _leadStatusData['proposalProgress']['percentage'],
-                            Icons.description,
-                            Colors.teal,
-                          ),
-                        ),
-                        SizedBox(width: 16),
-                        Expanded(
-                          child: _buildLeadStatusCard(
-                            'Waiting Approval',
-                            _leadStatusData['waitingApproval']['value'],
-                            _leadStatusData['waitingApproval']['percentage'],
-                            Icons.pending,
-                            Colors.orange,
-                          ),
-                        ),
-                        SizedBox(width: 16),
-                        Expanded(
-                          child: _buildLeadStatusCard(
-                            'Approved',
-                            _leadStatusData['approved']['value'],
-                            _leadStatusData['approved']['percentage'],
-                            Icons.check_circle,
-                            Colors.green,
-                          ),
-                        ),
-                        SizedBox(width: 16),
-                        Expanded(
-                          child: _buildLeadStatusCard(
-                            'Completed',
-                            _leadStatusData['completed']['value'],
-                            _leadStatusData['completed']['percentage'],
-                            Icons.assignment_turned_in,
-                            Colors.teal,
+                        // Toggle button for status cards visibility (desktop dashboard)
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _showStatusCards = !_showStatusCards;
+                            });
+                          },
+                          icon: Icon(_showStatusCards ? Icons.visibility_off : Icons.visibility),
+                          label: Text(_showStatusCards ? 'Hide Cards' : 'Show Cards'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _showStatusCards ? Colors.orange[600] : Colors.green[600],
+                            foregroundColor: Colors.white,
+                            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            minimumSize: Size(0, 36),
                           ),
                         ),
                       ],
                     ),
+                    SizedBox(height: 16),
+                    // Conditionally show status cards based on toggle
+                    if (_showStatusCards)
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildLeadStatusCard(
+                              'Total Leads',
+                              _leadStatusData['totalLeads']['value'],
+                              _leadStatusData['totalLeads']['percentage'],
+                              Icons.people_outline,
+                              Colors.indigo,
+                            ),
+                          ),
+                          SizedBox(width: 16),
+                          Expanded(
+                            child: _buildLeadStatusCard(
+                              'Proposal Progress',
+                              _leadStatusData['proposalProgress']['value'],
+                              _leadStatusData['proposalProgress']['percentage'],
+                              Icons.description,
+                              Colors.teal,
+                            ),
+                          ),
+                          SizedBox(width: 16),
+                          Expanded(
+                            child: _buildLeadStatusCard(
+                              'Waiting Approval',
+                              _leadStatusData['waitingApproval']['value'],
+                              _leadStatusData['waitingApproval']['percentage'],
+                              Icons.pending,
+                              Colors.orange,
+                            ),
+                          ),
+                          SizedBox(width: 16),
+                          Expanded(
+                            child: _buildLeadStatusCard(
+                              'Approved',
+                              _leadStatusData['approved']['value'],
+                              _leadStatusData['approved']['percentage'],
+                              Icons.check_circle,
+                              Colors.green,
+                            ),
+                          ),
+                          SizedBox(width: 16),
+                          Expanded(
+                            child: _buildLeadStatusCard(
+                              'Completed',
+                              _leadStatusData['completed']['value'],
+                              _leadStatusData['completed']['percentage'],
+                              Icons.assignment_turned_in,
+                              Colors.teal,
+                            ),
+                          ),
+                        ],
+                      ),
                   ],
                 ),
                 SizedBox(height: 24),
