@@ -259,7 +259,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 );
                                 return; // Prevent login for frozen users
                               }
-                              
+
                               if (result['verified'] == true) {
                                 String userType = result['user_type'] ?? '';
                                 final session = Supabase

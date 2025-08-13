@@ -1965,10 +1965,12 @@ class _ProposalScreenState extends State<ProposalScreen> {
       return List<Map<String, dynamic>>.from(activities);
     } catch (e) {
       // Handle database schema errors gracefully
-      if (e.toString().contains('activity_type') || 
+      if (e.toString().contains('activity_type') ||
           e.toString().contains('PGRST204') ||
           e.toString().contains('Could not find')) {
-        debugPrint('⚠️ Activity tracking limited due to missing schema column: $e');
+        debugPrint(
+          '⚠️ Activity tracking limited due to missing schema column: $e',
+        );
         // Return empty list instead of throwing error
         return [];
       } else {
@@ -1997,10 +1999,12 @@ class _ProposalScreenState extends State<ProposalScreen> {
       });
     } catch (e) {
       // Handle database schema errors gracefully
-      if (e.toString().contains('activity_type') || 
+      if (e.toString().contains('activity_type') ||
           e.toString().contains('PGRST204') ||
           e.toString().contains('Could not find')) {
-        debugPrint('⚠️ Activity tracking limited due to missing schema column: $e');
+        debugPrint(
+          '⚠️ Activity tracking limited due to missing schema column: $e',
+        );
         // Don't show error to user - activity tracking is optional
       } else {
         debugPrint('Error logging lead activity: $e');
@@ -2587,21 +2591,24 @@ class _ProposalResponseDialogState extends State<ProposalResponseDialog> {
       setState(() {
         _isLoading = false;
       });
-      
+
       // Handle specific database schema errors gracefully
       String userMessage;
-      if (e.toString().contains('activity_type') || 
+      if (e.toString().contains('activity_type') ||
           e.toString().contains('PGRST204') ||
           e.toString().contains('Could not find')) {
-        userMessage = 'Proposal saved successfully! Some activity tracking features may be limited.';
+        userMessage =
+            'Proposal saved successfully! Some activity tracking features may be limited.';
       } else {
         userMessage = 'Error saving proposal. Please try again.';
       }
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(userMessage),
-          backgroundColor: e.toString().contains('activity_type') ? Colors.orange : Colors.red,
+          backgroundColor: e.toString().contains('activity_type')
+              ? Colors.orange
+              : Colors.red,
           duration: Duration(seconds: 3),
         ),
       );
@@ -2792,10 +2799,12 @@ Future<void> logLeadActivity({
     });
   } catch (e) {
     // Handle database schema errors gracefully
-    if (e.toString().contains('activity_type') || 
+    if (e.toString().contains('activity_type') ||
         e.toString().contains('PGRST204') ||
         e.toString().contains('Could not find')) {
-      debugPrint('⚠️ Activity tracking limited due to missing schema column: $e');
+      debugPrint(
+        '⚠️ Activity tracking limited due to missing schema column: $e',
+      );
       // Don't show error to user - activity tracking is optional
     } else {
       debugPrint('⚠️ Error adding lead activity: $e');
@@ -2816,10 +2825,12 @@ Future<List<Map<String, dynamic>>> fetchLeadActivity(String leadId) async {
     return List<Map<String, dynamic>>.from(data);
   } catch (e) {
     // Handle database schema errors gracefully
-    if (e.toString().contains('activity_type') || 
+    if (e.toString().contains('activity_type') ||
         e.toString().contains('PGRST204') ||
         e.toString().contains('Could not find')) {
-      debugPrint('⚠️ Activity tracking limited due to missing schema column: $e');
+      debugPrint(
+        '⚠️ Activity tracking limited due to missing schema column: $e',
+      );
       // Return empty list instead of throwing error
       return [];
     } else {

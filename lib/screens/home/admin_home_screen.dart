@@ -384,6 +384,7 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
   void initState() {
     super.initState();
     _fetchSalesTeamMembers();
+    _fetchChartData();
   }
 
   Future<void> _fetchSalesTeamMembers() async {
@@ -418,37 +419,293 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
     }
   }
 
-  // Sample data for KPIs
+  // Dynamic KPI data that updates with chart data
   final Map<String, dynamic> _kpiData = {
     'totalTarget': {
-      'value': '₹1,04,16,250',
-      'percentage': '+8.2%',
-      'label': 'Since last period',
+      'value': '₹0',
+      'percentage': '+0.0%',
+      'label': 'Target Amount',
     },
     'achievement': {
-      'value': '₹82,04,025',
-      'percentage': '78.7%',
-      'label': 'Completion',
+      'value': '₹0',
+      'percentage': '0.0%',
+      'label': 'Won Leads Amount',
     },
     'forecast': {
-      'value': '₹94,02,240',
-      'percentage': '90.2%',
-      'label': 'Projected completion',
+      'value': '₹0',
+      'percentage': '0.0%',
+      'label': 'Projected Amount',
     },
     'topPerformer': {
-      'value': 'Sarah Johnson',
-      'percentage': '115.5%',
-      'label': 'Completion',
+      'value': '0/0 Leads',
+      'percentage': '0.0%',
+      'label': 'Won/Total Leads',
     },
   };
 
-  // Sample data for charts
-  final List<Map<String, dynamic>> _targetVsAchievementData = [
-    {'category': 'Target', 'value': 104.0, 'color': Colors.purple},
-    {'category': 'Achievement', 'value': 82.0, 'color': Colors.green},
-    {'category': 'Gap', 'value': 22.0, 'color': Colors.red},
-  ];
+  // Chart data for Target vs Achievement
+  List<BarChartGroupData> _targetVsAchievementChartData = [];
+  double _maxYAxisValue = 0.0;
+  bool _isLoadingChartData = false;
 
+  Future<void> _fetchChartData() async {
+    try {
+      setState(() {
+        _isLoadingChartData = true;
+      });
+
+      final client = Supabase.instance.client;
+      double totalTarget = 0.0;
+      double achievement = 0.0;
+      double gap = 0.0;
+
+      if (_selectedSalesPerson == 'All Sales Team') {
+        // Get sum of all Sales user targets
+        final response = await client
+            .from('users')
+            .select('user_target')
+            .eq('user_type', 'Sales');
+
+        for (final user in response) {
+          if (user['user_target'] != null) {
+            totalTarget += (user['user_target'] as num).toDouble();
+          }
+        }
+
+        // Fetch actual won leads data from admin_response table for all sales team
+        achievement = await _fetchAllSalesTeamWonLeadsAmount();
+        gap = totalTarget - achievement;
+
+        // Set Y-axis max to sum + 30%
+        _maxYAxisValue = totalTarget * 1.3;
+      } else {
+        // Get specific user target
+        final response = await client
+            .from('users')
+            .select('user_target')
+            .eq('username', _selectedSalesPerson)
+            .single();
+
+        if (response['user_target'] != null) {
+          totalTarget = (response['user_target'] as num).toDouble();
+        }
+
+        // Fetch actual won leads data from admin_response table for selected salesperson
+        achievement = await _fetchWonLeadsAmount(_selectedSalesPerson);
+        gap = totalTarget - achievement;
+
+        // Set Y-axis max to user target + 30% (same as All Sales Team)
+        _maxYAxisValue = totalTarget * 1.3;
+      }
+
+      // Update KPI data with chart values
+      _updateKPIData(totalTarget, achievement);
+
+      // Generate chart data
+      _targetVsAchievementChartData = [
+        BarChartGroupData(
+          x: 0,
+          barRods: [
+            BarChartRodData(
+              toY: totalTarget,
+              color: Colors.purple,
+              width: 60,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ],
+        ),
+        BarChartGroupData(
+          x: 1,
+          barRods: [
+            BarChartRodData(
+              toY: achievement,
+              color: Colors.green,
+              width: 60,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ],
+        ),
+        BarChartGroupData(
+          x: 2,
+          barRods: [
+            BarChartRodData(
+              toY: gap,
+              color: Colors.red,
+              width: 60,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ],
+        ),
+      ];
+
+      setState(() {
+        _isLoadingChartData = false;
+      });
+    } catch (e) {
+      debugPrint('Error fetching chart data: $e');
+      setState(() {
+        _isLoadingChartData = false;
+      });
+    }
+  }
+
+  // Update KPI data with chart values
+  void _updateKPIData(double totalTarget, double achievement) {
+    // Format currency values
+    String formatCurrency(double value) {
+      if (value >= 10000000) {
+        // 1 Crore or more
+        return '₹${(value / 10000000).toStringAsFixed(1)} CR';
+      } else if (value >= 100000) {
+        // 1 Lakh or more
+        return '₹${(value / 100000).toStringAsFixed(1)} L';
+      } else {
+        return '₹${value.toStringAsFixed(0)}';
+      }
+    }
+
+    // Calculate percentage
+    double percentage = totalTarget > 0 ? (achievement / totalTarget) * 100 : 0;
+
+    // Calculate forecast based on time period
+    double forecastPercentage = 0.0;
+    switch (_selectedTimePeriod) {
+      case 'Month':
+        forecastPercentage = 0.85; // 85% forecast for month
+        break;
+      case 'Quarter':
+        forecastPercentage = 0.88; // 88% forecast for quarter
+        break;
+      case 'Semester':
+        forecastPercentage = 0.92; // 92% forecast for semester
+        break;
+      case 'Annual':
+        forecastPercentage = 0.95; // 95% forecast for annual
+        break;
+      default:
+        forecastPercentage = 0.85; // Default to month
+    }
+
+    double forecast = totalTarget * forecastPercentage;
+
+    setState(() {
+      _kpiData['totalTarget']['value'] = formatCurrency(totalTarget);
+      _kpiData['achievement']['value'] = formatCurrency(achievement);
+      _kpiData['achievement']['percentage'] =
+          '${percentage.toStringAsFixed(1)}%';
+
+      // Update forecast based on time period
+      _kpiData['forecast']['value'] = formatCurrency(forecast);
+      _kpiData['forecast']['percentage'] =
+          '${((forecast / totalTarget) * 100).toStringAsFixed(1)}%';
+    });
+  }
+
+  // Fetch won leads amount from admin_response table for selected salesperson
+  Future<double> _fetchWonLeadsAmount(String salesPersonName) async {
+    try {
+      final client = Supabase.instance.client;
+
+      // Fetch data from admin_response table where sales_user matches selected salesperson
+      final response = await client
+          .from('admin_response')
+          .select('sales_user, update_lead_status, total_amount_gst')
+          .eq('sales_user', salesPersonName);
+
+      double totalWonAmount = 0.0;
+      int totalLeads = 0;
+      int wonLeads = 0;
+
+      for (final row in response) {
+        totalLeads++;
+
+        // Check if lead status is "won" (case-insensitive)
+        if (row['update_lead_status'] != null &&
+            row['update_lead_status'].toString().toLowerCase() == 'won') {
+          wonLeads++;
+
+          // Add total_amount_gst to won amount if it exists
+          if (row['total_amount_gst'] != null) {
+            totalWonAmount += (row['total_amount_gst'] as num).toDouble();
+          }
+        }
+      }
+
+      // Update KPI data with lead counts
+      _updateLeadCounts(totalLeads, wonLeads);
+
+      debugPrint('Sales Person: $salesPersonName');
+      debugPrint('Total Leads: $totalLeads');
+      debugPrint('Won Leads: $wonLeads');
+      debugPrint('Total Won Amount: ₹${totalWonAmount.toStringAsFixed(2)}');
+
+      return totalWonAmount;
+    } catch (e) {
+      debugPrint('Error fetching won leads data: $e');
+      return 0.0;
+    }
+  }
+
+  // Update lead count information in KPI data
+  void _updateLeadCounts(int totalLeads, int wonLeads) {
+    setState(() {
+      // Update top performer with lead count information
+      _kpiData['topPerformer']['value'] = '$wonLeads/$totalLeads Leads';
+      _kpiData['topPerformer']['percentage'] =
+          '${totalLeads > 0 ? ((wonLeads / totalLeads) * 100).toStringAsFixed(1) : 0.0}%';
+      _kpiData['topPerformer']['label'] = 'Won/Total';
+    });
+  }
+
+  // Fetch won leads amount from admin_response table for all sales team
+  Future<double> _fetchAllSalesTeamWonLeadsAmount() async {
+    try {
+      final client = Supabase.instance.client;
+
+      // Fetch data from admin_response table for all sales users
+      final response = await client
+          .from('admin_response')
+          .select('sales_user, update_lead_status, total_amount_gst');
+
+      double totalWonAmount = 0.0;
+      int totalLeads = 0;
+      int wonLeads = 0;
+
+      for (final row in response) {
+        // Only count leads that have a sales_user (not null)
+        if (row['sales_user'] != null &&
+            row['sales_user'].toString().isNotEmpty) {
+          totalLeads++;
+
+          // Check if lead status is "won" (case-insensitive)
+          if (row['update_lead_status'] != null &&
+              row['update_lead_status'].toString().toLowerCase() == 'won') {
+            wonLeads++;
+
+            // Add total_amount_gst to won amount if it exists
+            if (row['total_amount_gst'] != null) {
+              totalWonAmount += (row['total_amount_gst'] as num).toDouble();
+            }
+          }
+        }
+      }
+
+      // Update KPI data with lead counts for all sales team
+      _updateLeadCounts(totalLeads, wonLeads);
+
+      debugPrint('All Sales Team');
+      debugPrint('Total Leads: $totalLeads');
+      debugPrint('Won Leads: $wonLeads');
+      debugPrint('Total Won Amount: ₹${totalWonAmount.toStringAsFixed(2)}');
+
+      return totalWonAmount;
+    } catch (e) {
+      debugPrint('Error fetching all sales team won leads data: $e');
+      return 0.0;
+    }
+  }
+
+  // Sample data for achievement trend (keeping existing for now)
   final List<Map<String, dynamic>> _achievementTrendData = [
     {'month': 'Jul', 'target': 80.0, 'achievement': 70.0},
     {'month': 'Aug', 'target': 85.0, 'achievement': 75.0},
@@ -582,6 +839,8 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
                               setState(() {
                                 _selectedSalesPerson = newValue;
                               });
+                              // Refresh chart data when sales person changes
+                              _fetchChartData();
                             }
                           },
                         ),
@@ -617,6 +876,8 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
                           setState(() {
                             _selectedTimePeriod = period;
                           });
+                          // Refresh chart data when time period changes
+                          _fetchChartData();
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(
@@ -740,7 +1001,7 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
         const SizedBox(width: 16),
         Expanded(
           child: _buildKPICard(
-            'Top Performer',
+            'Lead Performance',
             _kpiData['topPerformer']['value'],
             _kpiData['topPerformer']['percentage'],
             _kpiData['topPerformer']['label'],
@@ -871,111 +1132,181 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
                   color: Colors.grey[800],
                 ),
               ),
-              ElevatedButton(
-                onPressed: () {
-                  // Export functionality
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue[100],
-                  foregroundColor: Colors.blue[700],
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
+              // Color indicators moved to top right corner
+              Row(
+                children: [
+                  // Target
+                  Row(
+                    children: [
+                      Container(
+                        width: 16,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          color: Colors.purple,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Text(
+                        'Target',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                child: const Text('Export'),
+                  const SizedBox(width: 15), // 15px spacing
+                  // Achievement
+                  Row(
+                    children: [
+                      Container(
+                        width: 16,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          color: Colors.green,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Text(
+                        'Achievement',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 15), // 15px spacing
+                  // Gap
+                  Row(
+                    children: [
+                      Container(
+                        width: 16,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Text(
+                        'Gap',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ],
           ),
+          const SizedBox(
+            height: 24,
+          ), // Increased spacing between title and chart
           const SizedBox(height: 16),
-          Expanded(child: _buildBarChart()),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 20, left: 10, right: 10),
+              child: _buildBarChart(),
+            ),
+          ),
+          // Color indicators removed from bottom - now positioned in header
         ],
       ),
     );
   }
 
   Widget _buildBarChart() {
-    final maxValue = _targetVsAchievementData
-        .map((e) => e['value'] as double)
-        .reduce((a, b) => a > b ? a : b);
+    if (_targetVsAchievementChartData.isEmpty) {
+      return Center(
+        child: _isLoadingChartData
+            ? CircularProgressIndicator()
+            : Text('No data available'),
+      );
+    }
 
-    return Column(
-      children: [
-        // Y-axis labels
-        Expanded(
-          child: Row(
-            children: [
-              SizedBox(
-                width: 60,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: List.generate(7, (index) {
-                    final value = (maxValue / 6 * (6 - index));
-                    return Text(
-                      '₹${value.toStringAsFixed(1)} CR',
-                      style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-                    );
-                  }),
+    return BarChart(
+      BarChartData(
+        alignment: BarChartAlignment.spaceAround,
+        maxY: _maxYAxisValue,
+        barTouchData: BarTouchData(
+          enabled: true,
+          touchTooltipData: BarTouchTooltipData(
+            getTooltipItem: (group, groupIndex, rod, rodIndex) {
+              final value = rod.toY / 10000000;
+              final labels = ['Target', 'Achievement', 'Gap'];
+              final label = group.x.toInt() < labels.length
+                  ? labels[group.x.toInt()]
+                  : '';
+
+              return BarTooltipItem(
+                '$label\n',
+                const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
                 ),
-              ),
-              const SizedBox(width: 16),
-              // Bars
-              Expanded(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: _targetVsAchievementData.map((data) {
-                    return Column(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            width: 60,
-                            margin: const EdgeInsets.symmetric(horizontal: 8),
-                            decoration: BoxDecoration(
-                              color: data['color'] as Color,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          data['category'] as String,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.grey[700],
-                          ),
-                        ),
-                      ],
-                    );
-                  }).toList(),
-                ),
-              ),
-            ],
+                children: <TextSpan>[
+                  TextSpan(
+                    text: '₹${value.toStringAsFixed(1)} CR',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
-        // Legend
-        Container(
-          padding: const EdgeInsets.all(8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 16,
-                height: 16,
-                decoration: BoxDecoration(
-                  color: Colors.purple,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Amount (₹ CR)',
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-              ),
-            ],
+        titlesData: FlTitlesData(
+          show: true,
+          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize:
+                  120, // Increased to 120 for better spacing and prevent overlap
+              getTitlesWidget: (double value, TitleMeta meta) {
+                // Convert to Crores (CR) format
+                final croreValue = value / 10000000; // 1 Crore = 10,000,000
+                return Text(
+                  '₹${croreValue.toStringAsFixed(1)} CR',
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                  ),
+                );
+              },
+            ),
           ),
         ),
-      ],
+
+        borderData: FlBorderData(show: false),
+        barGroups: _targetVsAchievementChartData,
+        gridData: FlGridData(
+          show: true,
+          horizontalInterval:
+              _maxYAxisValue / 6, // Reduced from 7 to 6 for better spacing
+          getDrawingHorizontalLine: (value) {
+            return FlLine(
+              color: Colors.grey.withValues(alpha: 0.3),
+              strokeWidth: 1,
+            );
+          },
+        ),
+      ),
     );
   }
 
