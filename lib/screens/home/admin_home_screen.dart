@@ -372,6 +372,50 @@ class SalesPerformancePage extends StatefulWidget {
 }
 
 class _SalesPerformancePageState extends State<SalesPerformancePage> {
+  String _selectedSalesPerson = 'All Sales Team';
+  String _selectedTimePeriod = 'Month';
+  String _selectedDateRange = 'October, 2023';
+  
+  // Sample data for KPIs
+  final Map<String, dynamic> _kpiData = {
+    'totalTarget': {
+      'value': '₹1,04,16,250',
+      'percentage': '+8.2%',
+      'label': 'Since last period',
+    },
+    'achievement': {
+      'value': '₹82,04,025',
+      'percentage': '78.7%',
+      'label': 'Completion',
+    },
+    'forecast': {
+      'value': '₹94,02,240',
+      'percentage': '90.2%',
+      'label': 'Projected completion',
+    },
+    'topPerformer': {
+      'value': 'Sarah Johnson',
+      'percentage': '115.5%',
+      'label': 'Completion',
+    },
+  };
+
+  // Sample data for charts
+  final List<Map<String, dynamic>> _targetVsAchievementData = [
+    {'category': 'Target', 'value': 104.0, 'color': Colors.purple},
+    {'category': 'Achievement', 'value': 82.0, 'color': Colors.green},
+    {'category': 'Gap', 'value': 22.0, 'color': Colors.red},
+  ];
+
+  final List<Map<String, dynamic>> _achievementTrendData = [
+    {'month': 'Jul', 'target': 80.0, 'achievement': 70.0},
+    {'month': 'Aug', 'target': 85.0, 'achievement': 75.0},
+    {'month': 'Sep', 'target': 90.0, 'achievement': 78.0},
+    {'month': 'Oct', 'target': 95.0, 'achievement': 80.0},
+    {'month': 'Nov', 'target': 100.0, 'achievement': 0.0},
+    {'month': 'Dec', 'target': 100.0, 'achievement': 0.0},
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -380,6 +424,7 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header
               Row(
@@ -397,38 +442,642 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
                 ],
               ),
               const SizedBox(height: 24),
-              // Placeholder content
+              
+              // Filters Section
+              _buildFiltersSection(),
+              const SizedBox(height: 24),
+              
+              // KPI Cards Section
+              _buildKPICards(),
+              const SizedBox(height: 24),
+              
+              // Charts Section
               Expanded(
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.trending_up,
-                        size: 64,
-                        color: Colors.grey[400],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Sales Performance Dashboard',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey[600],
+                child: _buildChartsSection(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFiltersSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Sales Person Filter
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Select Sales Person',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[700],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey[300]!),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: DropdownButton<String>(
+                    value: _selectedSalesPerson,
+                    isExpanded: true,
+                    underline: Container(),
+                    items: ['All Sales Team', 'John Doe', 'Jane Smith', 'Sarah Johnson']
+                        .map((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(
+                          value,
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (String? newValue) {
+                      if (newValue != null) {
+                        setState(() {
+                          _selectedSalesPerson = newValue;
+                        });
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          
+          // Time Period Filter
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Time Period',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[700],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: ['Month', 'Quarter', 'Semester', 'Annual'].map((period) {
+                    final isSelected = _selectedTimePeriod == period;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: InkWell(
+                        onTap: () {
+                          setState(() {
+                            _selectedTimePeriod = period;
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: isSelected ? Colors.blue[100] : Colors.transparent,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: isSelected ? Colors.blue : Colors.grey[300]!,
+                              width: 1,
+                            ),
+                          ),
+                          child: Text(
+                            period,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: isSelected ? Colors.blue[700] : Colors.grey[600],
+                            ),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Coming Soon...',
-                        style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          
+          // Date Range Filter
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Select Date Range',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[700],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey[300]!),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _selectedDateRange,
+                          style: const TextStyle(fontSize: 14),
+                        ),
                       ),
+                      Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
                     ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildKPICards() {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildKPICard(
+            'Total Target',
+            _kpiData['totalTarget']['value'],
+            _kpiData['totalTarget']['percentage'],
+            _kpiData['totalTarget']['label'],
+            Icons.gps_fixed,
+            Colors.purple,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildKPICard(
+            'Achievement',
+            _kpiData['achievement']['value'],
+            _kpiData['achievement']['percentage'],
+            _kpiData['achievement']['label'],
+            Icons.check_circle,
+            Colors.green,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildKPICard(
+            'Forecast',
+            _kpiData['forecast']['value'],
+            _kpiData['forecast']['percentage'],
+            _kpiData['forecast']['label'],
+            Icons.trending_up,
+            Colors.blue,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildKPICard(
+            'Top Performer',
+            _kpiData['topPerformer']['value'],
+            _kpiData['topPerformer']['percentage'],
+            _kpiData['topPerformer']['label'],
+            Icons.star,
+            Colors.orange,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildKPICard(String title, String value, String percentage, String label, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[700],
                   ),
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 16),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Text(
+                percentage,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChartsSection() {
+    return Row(
+      children: [
+        // Target vs Achievement Chart
+        Expanded(
+          child: _buildTargetVsAchievementChart(),
         ),
+        const SizedBox(width: 16),
+        // Achievement Trend Chart
+        Expanded(
+          child: _buildAchievementTrendChart(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTargetVsAchievementChart() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Target vs Achievement',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  // Export functionality
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue[100],
+                  foregroundColor: Colors.blue[700],
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                ),
+                child: const Text('Export'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: _buildBarChart(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBarChart() {
+    final maxValue = _targetVsAchievementData.map((e) => e['value'] as double).reduce((a, b) => a > b ? a : b);
+    
+    return Column(
+      children: [
+        // Y-axis labels
+        Expanded(
+          child: Row(
+            children: [
+              SizedBox(
+                width: 60,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: List.generate(7, (index) {
+                    final value = (maxValue / 6 * (6 - index));
+                    return Text(
+                      '₹${value.toStringAsFixed(1)} CR',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey[600],
+                      ),
+                    );
+                  }),
+                ),
+              ),
+              const SizedBox(width: 16),
+              // Bars
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: _targetVsAchievementData.map((data) {
+                    return Column(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            width: 60,
+                            margin: const EdgeInsets.symmetric(horizontal: 8),
+                            decoration: BoxDecoration(
+                              color: data['color'] as Color,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          data['category'] as String,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      ],
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Legend
+        Container(
+          padding: const EdgeInsets.all(8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 16,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: Colors.purple,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Amount (₹ CR)',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAchievementTrendChart() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Achievement Trend',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+              ),
+              Text(
+                'Last 6 periods',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Legend
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 16,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: Colors.purple,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Target (₹ CR)',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Container(
+                width: 16,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Achievement',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Line Chart
+          Expanded(
+            child: _buildLineChart(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLineChart() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // Simple bar representation for trend
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: _achievementTrendData.map((data) {
+                return Column(
+                  children: [
+                    Expanded(
+                      child: Row(
+                        children: [
+                          // Target bar
+                          Container(
+                            width: 20,
+                            margin: const EdgeInsets.only(right: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.purple.withValues(alpha: 0.7),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          // Achievement bar
+                          Container(
+                            width: 20,
+                            decoration: BoxDecoration(
+                              color: Colors.green.withValues(alpha: 0.7),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      data['month'] as String,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+          // Legend
+          Container(
+            padding: const EdgeInsets.all(8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 16,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: Colors.purple.withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Target (₹ CR)',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Container(
+                  width: 16,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Achievement',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
