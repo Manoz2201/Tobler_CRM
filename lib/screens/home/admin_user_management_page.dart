@@ -55,16 +55,28 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
   void _calculateUserStats() {
     int totalUsers = users.length;
     int salesUsers = users
-        .where((user) => (user['user_type'] ?? '').toString().toLowerCase() == 'sales')
+        .where(
+          (user) =>
+              (user['user_type'] ?? '').toString().toLowerCase() == 'sales',
+        )
         .length;
     int proposalUsers = users
-        .where((user) => (user['user_type'] ?? '').toString().toLowerCase() == 'proposal engineer')
+        .where(
+          (user) =>
+              (user['user_type'] ?? '').toString().toLowerCase() ==
+              'proposal engineer',
+        )
         .length;
     int adminUsers = users
-        .where((user) => (user['user_type'] ?? '').toString().toLowerCase() == 'admin')
+        .where(
+          (user) =>
+              (user['user_type'] ?? '').toString().toLowerCase() == 'admin',
+        )
         .length;
     int hrUsers = users
-        .where((user) => (user['user_type'] ?? '').toString().toLowerCase() == 'hr')
+        .where(
+          (user) => (user['user_type'] ?? '').toString().toLowerCase() == 'hr',
+        )
         .length;
 
     setState(() {
@@ -197,7 +209,11 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.filter_list, color: Colors.blue[600], size: 16),
+                          Icon(
+                            Icons.filter_list,
+                            color: Colors.blue[600],
+                            size: 16,
+                          ),
                           SizedBox(width: 8),
                           Text(
                             'Filtered by: $selectedUserTypeFilter',
@@ -639,7 +655,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
           border: isSelected ? Border.all(color: color, width: 2) : null,
           boxShadow: [
             BoxShadow(
-              color: isSelected 
+              color: isSelected
                   ? color.withValues(alpha: 0.2)
                   : Colors.black.withValues(alpha: 0.05),
               blurRadius: 8,
