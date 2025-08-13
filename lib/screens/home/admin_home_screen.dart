@@ -374,7 +374,49 @@ class SalesPerformancePage extends StatefulWidget {
 class _SalesPerformancePageState extends State<SalesPerformancePage> {
   String _selectedSalesPerson = 'All Sales Team';
   String _selectedTimePeriod = 'Month';
-  String _selectedDateRange = 'October, 2023';
+  final String _selectedDateRange = 'October, 2023';
+  
+  // Sales team members from Supabase
+  List<String> _salesTeamMembers = ['All Sales Team'];
+  bool _isLoadingSalesTeam = true;
+  
+  @override
+  void initState() {
+    super.initState();
+    _fetchSalesTeamMembers();
+  }
+  
+  Future<void> _fetchSalesTeamMembers() async {
+    try {
+      setState(() {
+        _isLoadingSalesTeam = true;
+      });
+      
+      final client = Supabase.instance.client;
+      final response = await client
+          .from('users')
+          .select('username')
+          .eq('user_type', 'Sales')
+          .order('username');
+      
+      final List<String> salesMembers = ['All Sales Team'];
+      for (final user in response) {
+        if (user['username'] != null) {
+          salesMembers.add(user['username'] as String);
+        }
+      }
+      
+      setState(() {
+        _salesTeamMembers = salesMembers;
+        _isLoadingSalesTeam = false;
+      });
+    } catch (e) {
+      debugPrint('Error fetching sales team members: $e');
+      setState(() {
+        _isLoadingSalesTeam = false;
+      });
+    }
+  }
   
   // Sample data for KPIs
   final Map<String, dynamic> _kpiData = {
@@ -442,19 +484,17 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
                 ],
               ),
               const SizedBox(height: 24),
-              
+
               // Filters Section
               _buildFiltersSection(),
               const SizedBox(height: 24),
-              
+
               // KPI Cards Section
               _buildKPICards(),
               const SizedBox(height: 24),
-              
+
               // Charts Section
-              Expanded(
-                child: _buildChartsSection(),
-              ),
+              Expanded(child: _buildChartsSection()),
             ],
           ),
         ),
@@ -493,39 +533,64 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
                 ),
                 const SizedBox(height: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.grey[300]!),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: DropdownButton<String>(
-                    value: _selectedSalesPerson,
-                    isExpanded: true,
-                    underline: Container(),
-                    items: ['All Sales Team', 'John Doe', 'Jane Smith', 'Sarah Johnson']
-                        .map((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(
-                          value,
-                          style: const TextStyle(fontSize: 14),
+                  child: _isLoadingSalesTeam
+                      ? Row(
+                          children: [
+                            SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.grey[600]!,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Loading...',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        )
+                      : DropdownButton<String>(
+                          value: _selectedSalesPerson,
+                          isExpanded: true,
+                          underline: Container(),
+                          items: _salesTeamMembers.map((String value) {
+                            return DropdownMenuItem<String>(
+                              value: value,
+                              child: Text(
+                                value,
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (String? newValue) {
+                            if (newValue != null) {
+                              setState(() {
+                                _selectedSalesPerson = newValue;
+                              });
+                            }
+                          },
                         ),
-                      );
-                    }).toList(),
-                    onChanged: (String? newValue) {
-                      if (newValue != null) {
-                        setState(() {
-                          _selectedSalesPerson = newValue;
-                        });
-                      }
-                    },
-                  ),
                 ),
               ],
             ),
           ),
           const SizedBox(width: 16),
-          
+
           // Time Period Filter
           Expanded(
             child: Column(
@@ -541,7 +606,9 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
                 ),
                 const SizedBox(height: 8),
                 Row(
-                  children: ['Month', 'Quarter', 'Semester', 'Annual'].map((period) {
+                  children: ['Month', 'Quarter', 'Semester', 'Annual'].map((
+                    period,
+                  ) {
                     final isSelected = _selectedTimePeriod == period;
                     return Padding(
                       padding: const EdgeInsets.only(right: 8),
@@ -552,12 +619,19 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
                           });
                         },
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
-                            color: isSelected ? Colors.blue[100] : Colors.transparent,
+                            color: isSelected
+                                ? Colors.blue[100]
+                                : Colors.transparent,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: isSelected ? Colors.blue : Colors.grey[300]!,
+                              color: isSelected
+                                  ? Colors.blue
+                                  : Colors.grey[300]!,
                               width: 1,
                             ),
                           ),
@@ -566,7 +640,9 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
-                              color: isSelected ? Colors.blue[700] : Colors.grey[600],
+                              color: isSelected
+                                  ? Colors.blue[700]
+                                  : Colors.grey[600],
                             ),
                           ),
                         ),
@@ -578,7 +654,7 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
             ),
           ),
           const SizedBox(width: 16),
-          
+
           // Date Range Filter
           Expanded(
             child: Column(
@@ -594,7 +670,10 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
                 ),
                 const SizedBox(height: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.grey[300]!),
                     borderRadius: BorderRadius.circular(8),
@@ -607,7 +686,11 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
                           style: const TextStyle(fontSize: 14),
                         ),
                       ),
-                      Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
+                      Icon(
+                        Icons.calendar_today,
+                        size: 16,
+                        color: Colors.grey[600],
+                      ),
                     ],
                   ),
                 ),
@@ -669,7 +752,14 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
     );
   }
 
-  Widget _buildKPICard(String title, String value, String percentage, String label, IconData icon, Color color) {
+  Widget _buildKPICard(
+    String title,
+    String value,
+    String percentage,
+    String label,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -732,10 +822,7 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
               const SizedBox(width: 4),
               Text(
                 label,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
             ],
           ),
@@ -748,14 +835,10 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
     return Row(
       children: [
         // Target vs Achievement Chart
-        Expanded(
-          child: _buildTargetVsAchievementChart(),
-        ),
+        Expanded(child: _buildTargetVsAchievementChart()),
         const SizedBox(width: 16),
         // Achievement Trend Chart
-        Expanded(
-          child: _buildAchievementTrendChart(),
-        ),
+        Expanded(child: _buildAchievementTrendChart()),
       ],
     );
   }
@@ -795,24 +878,27 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue[100],
                   foregroundColor: Colors.blue[700],
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                 ),
                 child: const Text('Export'),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          Expanded(
-            child: _buildBarChart(),
-          ),
+          Expanded(child: _buildBarChart()),
         ],
       ),
     );
   }
 
   Widget _buildBarChart() {
-    final maxValue = _targetVsAchievementData.map((e) => e['value'] as double).reduce((a, b) => a > b ? a : b);
-    
+    final maxValue = _targetVsAchievementData
+        .map((e) => e['value'] as double)
+        .reduce((a, b) => a > b ? a : b);
+
     return Column(
       children: [
         // Y-axis labels
@@ -827,10 +913,7 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
                     final value = (maxValue / 6 * (6 - index));
                     return Text(
                       '₹${value.toStringAsFixed(1)} CR',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                     );
                   }),
                 ),
@@ -887,10 +970,7 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
               const SizedBox(width: 8),
               Text(
                 'Amount (₹ CR)',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
             ],
           ),
@@ -929,10 +1009,7 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
               ),
               Text(
                 'Last 6 periods',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
             ],
           ),
@@ -952,10 +1029,7 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
               const SizedBox(width: 8),
               Text(
                 'Target (₹ CR)',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
               const SizedBox(width: 16),
               Container(
@@ -969,18 +1043,13 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
               const SizedBox(width: 8),
               Text(
                 'Achievement',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
             ],
           ),
           const SizedBox(height: 16),
           // Line Chart
-          Expanded(
-            child: _buildLineChart(),
-          ),
+          Expanded(child: _buildLineChart()),
         ],
       ),
     );
@@ -1052,10 +1121,7 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
                 const SizedBox(width: 8),
                 Text(
                   'Target (₹ CR)',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                 ),
                 const SizedBox(width: 16),
                 Container(
@@ -1069,10 +1135,7 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
                 const SizedBox(width: 8),
                 Text(
                   'Achievement',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                 ),
               ],
             ),
