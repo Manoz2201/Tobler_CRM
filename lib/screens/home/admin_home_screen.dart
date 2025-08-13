@@ -375,37 +375,37 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
   String _selectedSalesPerson = 'All Sales Team';
   String _selectedTimePeriod = 'Month';
   final String _selectedDateRange = 'October, 2023';
-  
+
   // Sales team members from Supabase
   List<String> _salesTeamMembers = ['All Sales Team'];
   bool _isLoadingSalesTeam = true;
-  
+
   @override
   void initState() {
     super.initState();
     _fetchSalesTeamMembers();
   }
-  
+
   Future<void> _fetchSalesTeamMembers() async {
     try {
       setState(() {
         _isLoadingSalesTeam = true;
       });
-      
+
       final client = Supabase.instance.client;
       final response = await client
           .from('users')
           .select('username')
           .eq('user_type', 'Sales')
           .order('username');
-      
+
       final List<String> salesMembers = ['All Sales Team'];
       for (final user in response) {
         if (user['username'] != null) {
           salesMembers.add(user['username'] as String);
         }
       }
-      
+
       setState(() {
         _salesTeamMembers = salesMembers;
         _isLoadingSalesTeam = false;
@@ -417,7 +417,7 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
       });
     }
   }
-  
+
   // Sample data for KPIs
   final Map<String, dynamic> _kpiData = {
     'totalTarget': {

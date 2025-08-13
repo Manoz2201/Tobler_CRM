@@ -1069,7 +1069,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                                     try {
                                       // Update user data
                                       final updatedData = {
-                                        'user_name': usernameController.text,
+                                        'username': usernameController.text,
                                         'email': emailController.text,
                                         'user_type': userTypeController.text,
                                         'status': statusController.text,
