@@ -81,6 +81,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       onNavigateToLeadManagement: _navigateToLeadManagementWithFilter,
     ), // Dashboard
     LeadTable(initialFilter: _leadTableFilter), // Leads Management
+    SalesPerformancePage(), // Sales Performance
     AdminUserManagementPage(), // User Management
     AdminRoleManagementPage(), // Role Management
     AdminSettingsPage(), // Settings
@@ -361,6 +362,77 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 }
 
 // Using NavItem from navigation_utils.dart instead of _NavItem
+
+// Sales Performance Page
+class SalesPerformancePage extends StatefulWidget {
+  const SalesPerformancePage({super.key});
+
+  @override
+  State<SalesPerformancePage> createState() => _SalesPerformancePageState();
+}
+
+class _SalesPerformancePageState extends State<SalesPerformancePage> {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey[50],
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              // Header
+              Row(
+                children: [
+                  Icon(Icons.trending_up, color: Colors.grey[800], size: 24),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Sales Performance',
+                    style: TextStyle(
+                      color: Colors.grey[800],
+                      fontWeight: FontWeight.bold,
+                      fontSize: 24,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              // Placeholder content
+              Expanded(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.trending_up,
+                        size: 64,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Sales Performance Dashboard',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Coming Soon...',
+                        style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _AdminLeadsPage extends StatefulWidget {
   @override
@@ -3147,9 +3219,13 @@ class _LeadTableState extends State<LeadTable> {
               _showStatusCards ? Icons.visibility_off : Icons.visibility,
               color: _showStatusCards ? Colors.orange[600] : Colors.green[600],
             ),
-            tooltip: _showStatusCards ? 'Hide Status Cards' : 'Show Status Cards',
+            tooltip: _showStatusCards
+                ? 'Hide Status Cards'
+                : 'Show Status Cards',
             style: IconButton.styleFrom(
-              backgroundColor: _showStatusCards ? Colors.orange[50] : Colors.green[50],
+              backgroundColor: _showStatusCards
+                  ? Colors.orange[50]
+                  : Colors.green[50],
               padding: EdgeInsets.all(12),
             ),
           ),
@@ -5999,7 +6075,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   bool _isMenuExpanded = false;
   String _selectedTimePeriod = 'Quarter'; // Default selected time period
   String _selectedCurrency = 'INR'; // Default currency
-  bool _showStatusCards = true; // Toggle for status cards visibility
 
   // Lead Performance state
   String _activeLeadTab = 'Won'; // 'Won', 'Lost', 'Follow Up'
@@ -7507,102 +7582,69 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Text(
+                      'Lead Status',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                    // Status cards always visible
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'Lead Status',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[800],
+                        Expanded(
+                          child: _buildLeadStatusCard(
+                            'Total Leads',
+                            _leadStatusData['totalLeads']['value'],
+                            _leadStatusData['totalLeads']['percentage'],
+                            Icons.people_outline,
+                            Colors.indigo,
                           ),
                         ),
-                        // Toggle button for status cards visibility (desktop dashboard)
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            setState(() {
-                              _showStatusCards = !_showStatusCards;
-                            });
-                          },
-                          icon: Icon(
-                            _showStatusCards
-                                ? Icons.visibility_off
-                                : Icons.visibility,
+                        SizedBox(width: 16),
+                        Expanded(
+                          child: _buildLeadStatusCard(
+                            'Proposal Progress',
+                            _leadStatusData['proposalProgress']['value'],
+                            _leadStatusData['proposalProgress']['percentage'],
+                            Icons.description,
+                            Colors.teal,
                           ),
-                          label: Text(
-                            _showStatusCards ? 'Hide Cards' : 'Show Cards',
+                        ),
+                        SizedBox(width: 16),
+                        Expanded(
+                          child: _buildLeadStatusCard(
+                            'Waiting Approval',
+                            _leadStatusData['waitingApproval']['value'],
+                            _leadStatusData['waitingApproval']['percentage'],
+                            Icons.pending,
+                            Colors.orange,
                           ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _showStatusCards
-                                ? Colors.orange[600]
-                                : Colors.green[600],
-                            foregroundColor: Colors.white,
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            minimumSize: Size(0, 36),
+                        ),
+                        SizedBox(width: 16),
+                        Expanded(
+                          child: _buildLeadStatusCard(
+                            'Approved',
+                            _leadStatusData['approved']['value'],
+                            _leadStatusData['approved']['percentage'],
+                            Icons.check_circle,
+                            Colors.green,
+                          ),
+                        ),
+                        SizedBox(width: 16),
+                        Expanded(
+                          child: _buildLeadStatusCard(
+                            'Completed',
+                            _leadStatusData['completed']['value'],
+                            _leadStatusData['completed']['percentage'],
+                            Icons.assignment_turned_in,
+                            Colors.teal,
                           ),
                         ),
                       ],
                     ),
-                    SizedBox(height: 16),
-                    // Conditionally show status cards based on toggle
-                    if (_showStatusCards)
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildLeadStatusCard(
-                              'Total Leads',
-                              _leadStatusData['totalLeads']['value'],
-                              _leadStatusData['totalLeads']['percentage'],
-                              Icons.people_outline,
-                              Colors.indigo,
-                            ),
-                          ),
-                          SizedBox(width: 16),
-                          Expanded(
-                            child: _buildLeadStatusCard(
-                              'Proposal Progress',
-                              _leadStatusData['proposalProgress']['value'],
-                              _leadStatusData['proposalProgress']['percentage'],
-                              Icons.description,
-                              Colors.teal,
-                            ),
-                          ),
-                          SizedBox(width: 16),
-                          Expanded(
-                            child: _buildLeadStatusCard(
-                              'Waiting Approval',
-                              _leadStatusData['waitingApproval']['value'],
-                              _leadStatusData['waitingApproval']['percentage'],
-                              Icons.pending,
-                              Colors.orange,
-                            ),
-                          ),
-                          SizedBox(width: 16),
-                          Expanded(
-                            child: _buildLeadStatusCard(
-                              'Approved',
-                              _leadStatusData['approved']['value'],
-                              _leadStatusData['approved']['percentage'],
-                              Icons.check_circle,
-                              Colors.green,
-                            ),
-                          ),
-                          SizedBox(width: 16),
-                          Expanded(
-                            child: _buildLeadStatusCard(
-                              'Completed',
-                              _leadStatusData['completed']['value'],
-                              _leadStatusData['completed']['percentage'],
-                              Icons.assignment_turned_in,
-                              Colors.teal,
-                            ),
-                          ),
-                        ],
-                      ),
                   ],
                 ),
                 SizedBox(height: 24),

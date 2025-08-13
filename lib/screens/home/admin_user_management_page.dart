@@ -18,6 +18,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
   final ScrollController _scrollbarController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
   bool _isSearchExpanded = false;
+  bool _showStatusCards = true; // Toggle for status cards visibility
 
   // User statistics data
   Map<String, dynamic> _userStats = {
@@ -122,64 +123,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
           );
     }).toList();
 
-    // Apply user type filter if active
-    if (selectedUserTypeFilter.isNotEmpty) {
-      filtered = filtered.where((user) {
-        final userType = (user['user_type'] ?? '').toString().toLowerCase();
-        return userType == selectedUserTypeFilter.toLowerCase();
-      }).toList();
-    }
-
     return filtered;
-  }
-
-  String selectedUserTypeFilter = '';
-
-  void _filterUsersByType(String cardTitle) {
-    setState(() {
-      if (selectedUserTypeFilter == cardTitle) {
-        // If clicking the same card, clear the filter
-        selectedUserTypeFilter = '';
-      } else {
-        // Set the filter based on card title
-        switch (cardTitle) {
-          case 'Sales Users':
-            selectedUserTypeFilter = 'Sales';
-            break;
-          case 'Proposal Users':
-            selectedUserTypeFilter = 'Proposal Engineer';
-            break;
-          case 'Admin Users':
-            selectedUserTypeFilter = 'Admin';
-            break;
-          case 'HR Users':
-            selectedUserTypeFilter = 'HR';
-            break;
-          case 'Total Users':
-            selectedUserTypeFilter = '';
-            break;
-          default:
-            selectedUserTypeFilter = '';
-        }
-      }
-    });
-  }
-
-  bool _isCardSelected(String cardTitle) {
-    switch (cardTitle) {
-      case 'Sales Users':
-        return selectedUserTypeFilter == 'Sales';
-      case 'Proposal Users':
-        return selectedUserTypeFilter == 'Proposal Engineer';
-      case 'Admin Users':
-        return selectedUserTypeFilter == 'Admin';
-      case 'HR Users':
-        return selectedUserTypeFilter == 'HR';
-      case 'Total Users':
-        return selectedUserTypeFilter.isEmpty;
-      default:
-        return false;
-    }
   }
 
   @override
@@ -194,52 +138,6 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
               // Header with User Management heading, search bar, and menu
               _buildHeader(),
               SizedBox(height: 24),
-
-              // Filter status display
-              if (selectedUserTypeFilter.isNotEmpty) ...[
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.blue[50],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.blue[200]!),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.filter_list,
-                            color: Colors.blue[600],
-                            size: 16,
-                          ),
-                          SizedBox(width: 8),
-                          Text(
-                            'Filtered by: $selectedUserTypeFilter',
-                            style: TextStyle(
-                              color: Colors.blue[700],
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          setState(() {
-                            selectedUserTypeFilter = '';
-                          });
-                        },
-                        child: Text(
-                          'Clear Filter',
-                          style: TextStyle(color: Colors.blue[600]),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(height: 16),
-              ],
 
               // User Management content
               Expanded(child: _buildUserManagementContent()),
@@ -354,6 +252,32 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                         ),
                       ),
                       SizedBox(width: 8),
+                      // Toggle button for status cards visibility (mobile)
+                      IconButton(
+                        onPressed: () {
+                          setState(() {
+                            _showStatusCards = !_showStatusCards;
+                          });
+                        },
+                        icon: Icon(
+                          _showStatusCards
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                          color: _showStatusCards
+                              ? Colors.orange[600]
+                              : Colors.green[600],
+                        ),
+                        tooltip: _showStatusCards
+                            ? 'Hide Status Cards'
+                            : 'Show Status Cards',
+                        style: IconButton.styleFrom(
+                          backgroundColor: _showStatusCards
+                              ? Colors.orange[50]
+                              : Colors.green[50],
+                          padding: EdgeInsets.all(8),
+                        ),
+                      ),
+                      SizedBox(width: 8),
                       // Add user button
                       Container(
                         width: 36,
@@ -436,6 +360,30 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                 ),
               ),
               SizedBox(width: 16),
+              // Toggle button for status cards visibility
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    _showStatusCards = !_showStatusCards;
+                  });
+                },
+                icon: Icon(
+                  _showStatusCards ? Icons.visibility_off : Icons.visibility,
+                  color: _showStatusCards
+                      ? Colors.orange[600]
+                      : Colors.green[600],
+                ),
+                tooltip: _showStatusCards
+                    ? 'Hide Status Cards'
+                    : 'Show Status Cards',
+                style: IconButton.styleFrom(
+                  backgroundColor: _showStatusCards
+                      ? Colors.orange[50]
+                      : Colors.green[50],
+                  padding: EdgeInsets.all(12),
+                ),
+              ),
+              SizedBox(width: 8),
               // Add user button
               Container(
                 height: 36,
@@ -483,9 +431,11 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
           // Mobile layout
           return Column(
             children: [
-              // User statistics cards
-              _buildMobileUserStatsCards(),
-              SizedBox(height: 24),
+              // User statistics cards - conditionally shown
+              if (_showStatusCards) ...[
+                _buildMobileUserStatsCards(),
+                SizedBox(height: 24),
+              ],
               // Users list
               Expanded(child: _buildUsersList()),
             ],
@@ -494,9 +444,11 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
           // Desktop layout
           return Column(
             children: [
-              // User statistics cards
-              _buildDesktopUserStatsCards(),
-              SizedBox(height: 24),
+              // User statistics cards - conditionally shown
+              if (_showStatusCards) ...[
+                _buildDesktopUserStatsCards(),
+                SizedBox(height: 24),
+              ],
               // Users list
               Expanded(child: _buildUsersList()),
             ],
@@ -518,7 +470,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
             Colors.blue,
           ),
         ),
-        SizedBox(width: 16),
+        SizedBox(width: 12),
         Expanded(
           child: _buildUserStatCard(
             'Sales Users',
@@ -528,7 +480,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
             Colors.green,
           ),
         ),
-        SizedBox(width: 16),
+        SizedBox(width: 12),
         Expanded(
           child: _buildUserStatCard(
             'Proposal Users',
@@ -538,7 +490,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
             Colors.orange,
           ),
         ),
-        SizedBox(width: 16),
+        SizedBox(width: 12),
         Expanded(
           child: _buildUserStatCard(
             'Admin Users',
@@ -548,7 +500,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
             Colors.purple,
           ),
         ),
-        SizedBox(width: 16),
+        SizedBox(width: 12),
         Expanded(
           child: _buildUserStatCard(
             'HR Users',
@@ -577,7 +529,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                 Colors.blue,
               ),
             ),
-            SizedBox(width: 12),
+            SizedBox(width: 8),
             Expanded(
               child: _buildUserStatCard(
                 'Sales Users',
@@ -589,7 +541,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
             ),
           ],
         ),
-        SizedBox(height: 12),
+        SizedBox(height: 8),
         // Second row
         Row(
           children: [
@@ -602,7 +554,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                 Colors.orange,
               ),
             ),
-            SizedBox(width: 12),
+            SizedBox(width: 8),
             Expanded(
               child: _buildUserStatCard(
                 'Admin Users',
@@ -614,7 +566,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
             ),
           ],
         ),
-        SizedBox(height: 12),
+        SizedBox(height: 8),
         // Third row
         Row(
           children: [
@@ -642,89 +594,81 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
   ) {
     final isPositive = percentage.startsWith('+');
     final percentageColor = isPositive ? Colors.green : Colors.red;
-    final isSelected = _isCardSelected(title);
 
-    return InkWell(
-      onTap: () => _filterUsersByType(title),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isSelected ? color.withValues(alpha: 0.1) : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: isSelected ? Border.all(color: color, width: 2) : null,
-          boxShadow: [
-            BoxShadow(
-              color: isSelected
-                  ? color.withValues(alpha: 0.2)
-                  : Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Icon and Title row - centered
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Icon(icon, color: color, size: 14),
+    return Container(
+      padding: EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 6,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Icon and Title row - centered
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(4),
                 ),
-                SizedBox(width: 8),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[700],
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 8),
-            // Main value - centered
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[800],
+                child: Icon(icon, color: color, size: 12),
               ),
-              textAlign: TextAlign.center,
+              SizedBox(width: 6),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.grey[700],
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 6),
+          // Main value - centered
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
             ),
-            SizedBox(height: 4),
-            // Percentage with arrow - centered
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  isPositive ? Icons.trending_up : Icons.trending_down,
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 2),
+          // Percentage with arrow - centered
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isPositive ? Icons.trending_up : Icons.trending_down,
+                color: percentageColor,
+                size: 10,
+              ),
+              SizedBox(width: 2),
+              Text(
+                percentage,
+                style: TextStyle(
+                  fontSize: 9,
                   color: percentageColor,
-                  size: 12,
+                  fontWeight: FontWeight.w600,
                 ),
-                SizedBox(width: 4),
-                Text(
-                  percentage,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: percentageColor,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

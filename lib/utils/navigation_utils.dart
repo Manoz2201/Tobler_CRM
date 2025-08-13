@@ -7,6 +7,7 @@ class NavigationUtils {
         return [
           NavItem('Dashboard', Icons.dashboard),
           NavItem('Leads Management', Icons.leaderboard),
+          NavItem('Sales Performance', Icons.trending_up),
           NavItem('User Management', Icons.group),
           NavItem('Role Management', Icons.security),
           NavItem('Settings', Icons.settings),
