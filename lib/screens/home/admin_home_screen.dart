@@ -3063,9 +3063,9 @@ class _LeadTableState extends State<LeadTable> {
                 _buildHeader(isWide),
                 SizedBox(height: isWide ? 24 : 8),
 
-                // Stats Cards
-                if (isWide) _buildStatsCards(),
-                if (isWide) const SizedBox(height: 24),
+                // Stats Cards - conditionally shown based on toggle
+                if (isWide && _showStatusCards) _buildStatsCards(),
+                if (isWide && _showStatusCards) const SizedBox(height: 24),
 
                 // Search, Filter, and Actions Section
                 _buildSearchAndActions(isWide),
@@ -3143,10 +3143,14 @@ class _LeadTableState extends State<LeadTable> {
                 _showStatusCards = !_showStatusCards;
               });
             },
-            icon: Icon(_showStatusCards ? Icons.visibility_off : Icons.visibility),
+            icon: Icon(
+              _showStatusCards ? Icons.visibility_off : Icons.visibility,
+            ),
             label: Text(_showStatusCards ? 'Hide Cards' : 'Show Cards'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: _showStatusCards ? Colors.orange[600] : Colors.green[600],
+              backgroundColor: _showStatusCards
+                  ? Colors.orange[600]
+                  : Colors.green[600],
               foregroundColor: Colors.white,
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             ),
@@ -3198,10 +3202,14 @@ class _LeadTableState extends State<LeadTable> {
                 },
                 icon: Icon(
                   _showStatusCards ? Icons.visibility_off : Icons.visibility,
-                  color: _showStatusCards ? Colors.orange[600] : Colors.green[600],
+                  color: _showStatusCards
+                      ? Colors.orange[600]
+                      : Colors.green[600],
                   size: 20,
                 ),
-                tooltip: _showStatusCards ? 'Hide Status Cards' : 'Show Status Cards',
+                tooltip: _showStatusCards
+                    ? 'Hide Status Cards'
+                    : 'Show Status Cards',
                 padding: EdgeInsets.all(8),
                 constraints: BoxConstraints(minWidth: 32, minHeight: 32),
               ),
@@ -7519,12 +7527,23 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                               _showStatusCards = !_showStatusCards;
                             });
                           },
-                          icon: Icon(_showStatusCards ? Icons.visibility_off : Icons.visibility),
-                          label: Text(_showStatusCards ? 'Hide Cards' : 'Show Cards'),
+                          icon: Icon(
+                            _showStatusCards
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                          ),
+                          label: Text(
+                            _showStatusCards ? 'Hide Cards' : 'Show Cards',
+                          ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: _showStatusCards ? Colors.orange[600] : Colors.green[600],
+                            backgroundColor: _showStatusCards
+                                ? Colors.orange[600]
+                                : Colors.green[600],
                             foregroundColor: Colors.white,
-                            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
                             minimumSize: Size(0, 36),
                           ),
                         ),
