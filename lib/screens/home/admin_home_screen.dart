@@ -9082,7 +9082,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               children: [
                 // Time Period Filter and Action Buttons
                 _buildTimePeriodFilter(),
-                SizedBox(height: 24),
+                SizedBox(height: 16), // Reduced spacing for compact layout
                 _isLoading
                     ? Center(
                         child: Column(
@@ -9125,7 +9125,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                           ),
                         ],
                       ),
-                SizedBox(height: 24),
+                SizedBox(height: 16), // Reduced spacing for compact layout
                 // Lead Status Cards Section
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -9138,7 +9138,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         color: Colors.grey[800],
                       ),
                     ),
-                    SizedBox(height: 16),
+                    SizedBox(height: 12), // Reduced spacing for compact layout
                     // Status cards always visible
                     Row(
                       children: [
@@ -9195,7 +9195,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                     ),
                   ],
                 ),
-                SizedBox(height: 24),
+                SizedBox(height: 16), // Reduced spacing for compact layout
                 Row(
                   children: [
                     Expanded(child: _buildQualifiedAreaVsRevenueChart()),
@@ -9203,7 +9203,75 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                     Expanded(child: _buildLeadStatusDistributionChart()),
                   ],
                 ),
-                SizedBox(height: 24),
+                SizedBox(height: 16), // Reduced spacing for compact layout
+                
+                // Sales Performance KPI Cards Section
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Sales Performance',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    SizedBox(height: 12), // Reduced spacing for compact layout
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildSalesPerformanceKPICard(
+                            'Total Target',
+                            _getSalesPerformanceKPIValue('totalTarget'),
+                            _getSalesPerformanceKPIPercentage('totalTarget'),
+                            Icons.gps_fixed,
+                            Colors.purple,
+                          ),
+                        ),
+                        SizedBox(width: 12), // Reduced spacing for compact layout
+                        Expanded(
+                          child: _buildSalesPerformanceKPICard(
+                            'Achievement',
+                            _getSalesPerformanceKPIValue('achievement'),
+                            _getSalesPerformanceKPIPercentage('achievement'),
+                            Icons.check_circle,
+                            Colors.green,
+                          ),
+                        ),
+                        SizedBox(width: 12), // Reduced spacing for compact layout
+                        Expanded(
+                          child: _buildSalesPerformanceKPICard(
+                            'Forecast',
+                            _getSalesPerformanceKPIValue('forecast'),
+                            _getSalesPerformanceKPIPercentage('forecast'),
+                            Icons.trending_up,
+                            Colors.blue,
+                          ),
+                        ),
+                        SizedBox(width: 12), // Reduced spacing for compact layout
+                        Expanded(
+                          child: _buildSalesPerformanceKPICard(
+                            'Lead Count',
+                            _getSalesPerformanceKPIValue('leadCount'),
+                            _getSalesPerformanceKPIPercentage('leadCount'),
+                            Icons.star,
+                            Colors.orange,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                SizedBox(height: 16), // Reduced spacing for compact layout
+                
+                // Achievement Trend Chart Section
+                Row(
+                  children: [
+                    Expanded(child: _buildDashboardAchievementTrendChart()),
+                  ],
+                ),
+                SizedBox(height: 16), // Reduced spacing for compact layout
                 _buildLeadPerformanceTable(),
               ],
             ),
@@ -9216,7 +9284,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               children: [
                 // Mobile Time Period Filter
                 _buildMobileTimePeriodFilter(),
-                SizedBox(height: 16),
+                SizedBox(height: 12), // Reduced spacing for compact layout
                 _isLoading
                     ? Center(
                         child: Column(
@@ -9265,7 +9333,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                           _buildTotalRevenueCard(),
                         ],
                       ),
-                SizedBox(height: 24),
+                SizedBox(height: 16), // Reduced spacing for compact layout
                 // Lead Status Cards Section for Mobile
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -9830,9 +9898,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           ),
         );
       },
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(8), // Reduced radius for compact layout
       child: Container(
-        padding: EdgeInsets.all(16),
+        padding: EdgeInsets.all(12), // Reduced padding for compact layout
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
@@ -10841,6 +10909,224 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           ],
         ),
       ),
+    );
+  }
+
+  // Sales Performance KPI Card Builder
+  Widget _buildSalesPerformanceKPICard(
+    String title,
+    String value,
+    String percentage,
+    IconData icon,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(12), // Reduced padding for compact layout
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8), // Reduced radius for compact layout
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 4, // Reduced blur for compact layout
+            offset: const Offset(0, 1), // Reduced offset for compact layout
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 18), // Reduced icon size for compact layout
+              const SizedBox(width: 6), // Reduced spacing for compact layout
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12, // Reduced font size for compact layout
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[700],
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8), // Reduced spacing for compact layout
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 16, // Reduced font size for compact layout
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4), // Reduced spacing for compact layout
+          Text(
+            percentage,
+            style: TextStyle(
+              fontSize: 11, // Reduced font size for compact layout
+              color: Colors.grey[600],
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Get Sales Performance KPI Values
+  String _getSalesPerformanceKPIValue(String type) {
+    switch (type) {
+      case 'totalTarget':
+        return '₹30.0 CR'; // Sample data - replace with actual data
+      case 'achievement':
+        return '₹2.6 CR'; // Sample data - replace with actual data
+      case 'forecast':
+        return '₹25.5 CR'; // Sample data - replace with actual data
+      case 'leadCount':
+        return '2/7 Leads'; // Sample data - replace with actual data
+      default:
+        return 'N/A';
+    }
+  }
+
+  // Get Sales Performance KPI Percentages
+  String _getSalesPerformanceKPIPercentage(String type) {
+    switch (type) {
+      case 'totalTarget':
+        return '+0.0% Target Amount';
+      case 'achievement':
+        return '8.6% Won Leads Amount';
+      case 'forecast':
+        return '85.0% Projected Amount';
+      case 'leadCount':
+        return '28.6% Won/Total Leads';
+      default:
+        return 'N/A';
+    }
+  }
+
+  // Dashboard Achievement Trend Chart
+  Widget _buildDashboardAchievementTrendChart() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Sales Performance: Achievement Trend',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                  Text(
+                    'Time Period: $_selectedTimePeriod',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Chart placeholder - will be populated with actual data
+          Container(
+            height: 300,
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.bar_chart,
+                    size: 48,
+                    color: Colors.grey[400],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Achievement Trend Chart',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Showing Target vs Achievement vs Gap for all sales users',
+                    style: TextStyle(
+                      color: Colors.grey[500],
+                      fontSize: 14,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Legend
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildLegendItem('Target (₹ CR)', Colors.purple),
+              const SizedBox(width: 16),
+              _buildLegendItem('Achievement (₹ CR)', Colors.green),
+              const SizedBox(width: 16),
+              _buildLegendItem('Gap (₹ CR)', Colors.red),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Legend item builder
+  Widget _buildLegendItem(String label, Color color) {
+    return Row(
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[600],
+          ),
+        ),
+      ],
     );
   }
 
