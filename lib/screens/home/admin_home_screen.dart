@@ -9359,11 +9359,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   ],
                 ),
                 SizedBox(height: 16), // Reduced spacing for compact layout
-                
                 // Sales Analytics Chart for Mobile
                 _buildDashboardSalesAnalyticsChart(),
                 SizedBox(height: 16), // Reduced spacing for compact layout
-                
                 // Sales Performance KPI Cards Grid for Mobile
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -9381,7 +9379,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   ],
                 ),
                 SizedBox(height: 16), // Reduced spacing for compact layout
-                
+
                 _buildQualifiedAreaVsRevenueChart(),
                 SizedBox(height: 16),
                 _buildLeadStatusDistributionChart(),
@@ -10896,8 +10894,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     Color color,
   ) {
     return Container(
-      height: 150, // Fixed height to match chart proportions
-      padding: const EdgeInsets.all(16), // Increased padding for better proportions
+      height: 200, // Increased height for better visual balance with chart
+      padding: const EdgeInsets.all(
+        16,
+      ), // Increased padding for better proportions
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(
@@ -10913,7 +10913,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center, // Center content vertically
+        mainAxisAlignment:
+            MainAxisAlignment.center, // Center content vertically
         children: [
           Row(
             children: [
@@ -10922,12 +10923,15 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 color: color,
                 size: 20, // Slightly increased icon size for better proportions
               ),
-              const SizedBox(width: 8), // Increased spacing for better proportions
+              const SizedBox(
+                width: 8,
+              ), // Increased spacing for better proportions
               Expanded(
                 child: Text(
                   title,
                   style: TextStyle(
-                    fontSize: 13, // Slightly increased font size for better proportions
+                    fontSize:
+                        14, // Increased font size for better proportions with taller cards
                     fontWeight: FontWeight.w600,
                     color: Colors.grey[700],
                   ),
@@ -10936,17 +10940,19 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               ),
             ],
           ),
-          const SizedBox(height: 12), // Increased spacing for better proportions
+          const SizedBox(
+            height: 20,
+          ), // Increased spacing for better proportions with taller cards
           Text(
             value,
             style: TextStyle(
-              fontSize: 18, // Increased font size for better proportions
+              fontSize: 20, // Increased font size for better proportions with taller cards
               fontWeight: FontWeight.bold,
               color: Colors.grey[800],
             ),
             overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 8), // Increased spacing for better proportions
+          const SizedBox(height: 12), // Increased spacing for better proportions with taller cards
           Text(
             percentage,
             style: TextStyle(
@@ -11206,7 +11212,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 Colors.purple,
               ),
             ),
-            const SizedBox(width: 12), // Increased spacing for better grid layout
+            const SizedBox(
+              width: 16,
+            ), // Increased spacing for better grid layout with taller cards
             Expanded(
               child: _buildSalesPerformanceKPICard(
                 'Achievement',
@@ -11218,7 +11226,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             ),
           ],
         ),
-        const SizedBox(height: 12), // Increased spacing for better grid layout
+        const SizedBox(height: 16), // Increased spacing for better grid layout with taller cards
         // Bottom row: Forecast and Lead Count
         Row(
           children: [
@@ -11231,7 +11239,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 Colors.blue,
               ),
             ),
-            const SizedBox(width: 12), // Increased spacing for better grid layout
+            const SizedBox(
+              width: 12,
+            ), // Increased spacing for better grid layout
             Expanded(
               child: _buildSalesPerformanceKPICard(
                 'Lead Count',
