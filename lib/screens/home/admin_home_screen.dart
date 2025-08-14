@@ -10896,7 +10896,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     Color color,
   ) {
     return Container(
-      padding: const EdgeInsets.all(12), // Reduced padding for compact layout
+      height: 150, // Fixed height to match chart proportions
+      padding: const EdgeInsets.all(16), // Increased padding for better proportions
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(
@@ -10912,20 +10913,21 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center, // Center content vertically
         children: [
           Row(
             children: [
               Icon(
                 icon,
                 color: color,
-                size: 18,
-              ), // Reduced icon size for compact layout
-              const SizedBox(width: 6), // Reduced spacing for compact layout
+                size: 20, // Slightly increased icon size for better proportions
+              ),
+              const SizedBox(width: 8), // Increased spacing for better proportions
               Expanded(
                 child: Text(
                   title,
                   style: TextStyle(
-                    fontSize: 12, // Reduced font size for compact layout
+                    fontSize: 13, // Slightly increased font size for better proportions
                     fontWeight: FontWeight.w600,
                     color: Colors.grey[700],
                   ),
@@ -10934,21 +10936,21 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               ),
             ],
           ),
-          const SizedBox(height: 8), // Reduced spacing for compact layout
+          const SizedBox(height: 12), // Increased spacing for better proportions
           Text(
             value,
             style: TextStyle(
-              fontSize: 16, // Reduced font size for compact layout
+              fontSize: 18, // Increased font size for better proportions
               fontWeight: FontWeight.bold,
               color: Colors.grey[800],
             ),
             overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 4), // Reduced spacing for compact layout
+          const SizedBox(height: 8), // Increased spacing for better proportions
           Text(
             percentage,
             style: TextStyle(
-              fontSize: 11, // Reduced font size for compact layout
+              fontSize: 12, // Increased font size for better proportions
               color: Colors.grey[600],
             ),
             overflow: TextOverflow.ellipsis,
@@ -11204,7 +11206,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 Colors.purple,
               ),
             ),
-            const SizedBox(width: 8), // Reduced spacing for grid layout
+            const SizedBox(width: 12), // Increased spacing for better grid layout
             Expanded(
               child: _buildSalesPerformanceKPICard(
                 'Achievement',
@@ -11216,7 +11218,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             ),
           ],
         ),
-        const SizedBox(height: 8), // Reduced spacing for grid layout
+        const SizedBox(height: 12), // Increased spacing for better grid layout
         // Bottom row: Forecast and Lead Count
         Row(
           children: [
@@ -11229,7 +11231,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 Colors.blue,
               ),
             ),
-            const SizedBox(width: 8), // Reduced spacing for grid layout
+            const SizedBox(width: 12), // Increased spacing for better grid layout
             Expanded(
               child: _buildSalesPerformanceKPICard(
                 'Lead Count',
