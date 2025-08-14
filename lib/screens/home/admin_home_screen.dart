@@ -683,7 +683,11 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
   // Update lead count information in KPI data
   void _updateLeadCounts(int totalLeads, int wonLeads) {
     setState(() {
-      // Update top performer with lead count information
+      // Update lead count data for dashboard KPI cards
+      _leadCountData['total'] = totalLeads;
+      _leadCountData['won'] = wonLeads;
+
+      // Also update top performer with lead count information
       _kpiData['topPerformer']['value'] = '$wonLeads/$totalLeads Leads';
       _kpiData['topPerformer']['percentage'] =
           '${totalLeads > 0 ? ((wonLeads / totalLeads) * 100).toStringAsFixed(1) : 0.0}%';
@@ -750,6 +754,9 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
   // Dynamic achievement trend data for all sales users
   List<Map<String, dynamic>> _achievementTrendData = [];
   bool _isLoadingTrendData = false;
+
+  // Lead count data state for dashboard KPI cards
+  final Map<String, int> _leadCountData = {'total': 0, 'won': 0};
 
   // Fetch achievement trend data for all sales users
   Future<void> _fetchAchievementTrendData() async {
@@ -7515,6 +7522,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   List<BarChartGroupData> _barChartData = [];
   bool _isLoadingChartData = false;
 
+  // Achievement Trend data state for Sales Analytics
+  List<Map<String, dynamic>> _achievementTrendData = [];
+  bool _isLoadingTrendData = false;
+
+  // Lead count data state for dashboard KPI cards
+  final Map<String, int> _leadCountData = {'total': 0, 'won': 0};
+
   // Lead status distribution data state
   Map<String, int> _leadStatusDistribution = {
     'Won': 0,
@@ -7553,6 +7567,177 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     'completed': {'value': '0', 'percentage': '+0.0%', 'isPositive': true},
   };
 
+  // Fetch achievement trend data for all sales users
+  Future<void> _fetchAchievementTrendData() async {
+    try {
+      setState(() {
+        _isLoadingTrendData = true;
+      });
+
+      final client = Supabase.instance.client;
+
+      // Get all sales users
+      final usersResponse = await client
+          .from('users')
+          .select('username, user_target')
+          .eq('user_type', 'Sales')
+          .order('username');
+
+      List<Map<String, dynamic>> trendData = [];
+
+      for (final user in usersResponse) {
+        if (user['username'] != null) {
+          String username = user['username'] as String;
+          double target = user['user_target'] != null
+              ? (user['user_target'] as num).toDouble()
+              : 0.0;
+
+          // Fetch actual achievement from admin_response table based on time period
+          double achievement = await _fetchWonLeadsAmount(username);
+          double gap = target - achievement;
+
+          trendData.add({
+            'username': username,
+            'target': target,
+            'achievement': achievement,
+            'gap': gap,
+          });
+        }
+      }
+
+      setState(() {
+        _achievementTrendData = trendData;
+        _isLoadingTrendData = false;
+      });
+    } catch (e) {
+      debugPrint('Error fetching achievement trend data: $e');
+      setState(() {
+        _isLoadingTrendData = false;
+      });
+    }
+  }
+
+  // Fetch won leads amount for a specific sales user
+  Future<double> _fetchWonLeadsAmount(String username) async {
+    try {
+      final client = Supabase.instance.client;
+
+      // Get date range based on selected time period
+      final dateRange = _getDateRangeForTimePeriod();
+
+      // Fetch won leads for the specific user
+      final response = await client
+          .from('admin_response')
+          .select('total_amount_gst')
+          .eq('sales_user', username)
+          .eq('update_lead_status', 'Won')
+          .gte('updated_at', dateRange['start']!)
+          .lte('updated_at', dateRange['end']!);
+
+      double totalAmount = 0.0;
+      for (final record in response) {
+        if (record['total_amount_gst'] != null) {
+          totalAmount += (record['total_amount_gst'] as num).toDouble();
+        }
+      }
+
+      return totalAmount;
+    } catch (e) {
+      debugPrint('Error fetching won leads amount for $username: $e');
+      return 0.0;
+    }
+  }
+
+  // Get date range based on selected time period
+  Map<String, String> _getDateRangeForTimePeriod() {
+    final now = DateTime.now();
+    DateTime startDate;
+    DateTime endDate = now;
+
+    switch (_selectedTimePeriod) {
+      case 'Month':
+        startDate = DateTime(now.year, now.month - 1, 1);
+        break;
+      case 'Quarter':
+        startDate = DateTime(now.year, now.month - 3, 1);
+        break;
+      case 'Semester':
+        startDate = DateTime(now.year, now.month - 6, 1);
+        break;
+      case 'Annual':
+        startDate = DateTime(now.year, 1, 1);
+        break;
+      case 'Week':
+        final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+        startDate = DateTime(
+          startOfWeek.year,
+          startOfWeek.month,
+          startOfWeek.day,
+        );
+        endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+        break;
+      case 'Two Years':
+        startDate = DateTime(now.year - 2, 1, 1);
+        break;
+      case 'Three Years':
+        startDate = DateTime(now.year - 3, 1, 1);
+        break;
+      case 'Five Years':
+        startDate = DateTime(now.year - 5, 1, 1);
+        break;
+      default:
+        startDate = DateTime(now.year, now.month - 1, 1); // Default to Month
+    }
+
+    return {
+      'start': startDate.toIso8601String(),
+      'end': endDate.toIso8601String(),
+    };
+  }
+
+  // Fetch lead counts for all sales users based on selected time period
+  Future<void> _fetchLeadCounts() async {
+    try {
+      final client = Supabase.instance.client;
+
+      // Get date range based on selected time period
+      final dateRange = _getDateRangeForTimePeriod();
+
+      // Fetch all leads from admin_response table within the time period
+      final response = await client
+          .from('admin_response')
+          .select('sales_user, update_lead_status, created_at')
+          .gte('created_at', dateRange['start']!)
+          .lte('created_at', dateRange['end']!);
+
+      int totalLeads = 0;
+      int wonLeads = 0;
+
+      for (final row in response) {
+        // Only count leads that have a sales_user (not null)
+        if (row['sales_user'] != null &&
+            row['sales_user'].toString().isNotEmpty) {
+          totalLeads++;
+
+          // Check if lead status is "won" (case-insensitive)
+          if (row['update_lead_status'] != null &&
+              row['update_lead_status'].toString().toLowerCase() == 'won') {
+            wonLeads++;
+          }
+        }
+      }
+
+      setState(() {
+        _leadCountData['total'] = totalLeads;
+        _leadCountData['won'] = wonLeads;
+      });
+
+      debugPrint('Lead Counts Updated - Total: $totalLeads, Won: $wonLeads');
+    } catch (e) {
+      debugPrint('Error fetching lead counts: $e');
+    }
+  }
+
   // Currency conversion rates (you can fetch these from an API)
   final Map<String, double> _currencyRates = {
     'INR': 1.0,
@@ -7589,6 +7774,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       _fetchLeadPerformanceData();
       _fetchChartData();
       _fetchLeadStatusDistributionData();
+      _fetchAchievementTrendData(); // Add achievement trend data
+      _fetchLeadCounts(); // Fetch lead counts for KPI cards
     } catch (e) {
       // Fallback to fetching data without timezone
       _fetchDashboardData();
@@ -7596,6 +7783,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       _fetchLeadPerformanceData();
       _fetchChartData();
       _fetchLeadStatusDistributionData();
+      _fetchAchievementTrendData(); // Add achievement trend data
+      _fetchLeadCounts(); // Fetch lead counts for KPI cards
     }
   }
 
@@ -7869,6 +8058,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     _fetchChartData();
     _fetchLeadStatusDistributionData();
     _fetchLeadPerformanceData();
+    _fetchAchievementTrendData(); // Refresh achievement trend data
+    _fetchLeadCounts(); // Refresh lead counts for KPI cards
   }
 
   // Refresh data when currency changes
@@ -9077,154 +9268,159 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
         if (isWide) {
           // Desktop layout - horizontal row
-          return SingleChildScrollView(
-            child: Column(
-              children: [
-                // Time Period Filter and Action Buttons
-                _buildTimePeriodFilter(),
-                SizedBox(height: 16), // Reduced spacing for compact layout
-                _isLoading
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            CircularProgressIndicator(),
-                            SizedBox(height: 16),
-                            Text(
-                              'Loading dashboard data...',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 14,
+          return Column(
+            children: [
+              // Time Period Filter Section
+              _buildTimePeriodFilter(),
+              // Scrollable content below fixed header
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      SizedBox(
+                        height: 16,
+                      ), // Reduced spacing for compact layout
+                      _isLoading
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  CircularProgressIndicator(),
+                                  SizedBox(height: 16),
+                                  Text(
+                                    'Loading dashboard data...',
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
                               ),
+                            )
+                          : Column(
+                              children: [
+                                // Top row: Total Revenue, Aluminum Area, Qualified Leads
+                                Row(
+                                  children: [
+                                    Expanded(child: _buildTotalRevenueCard()),
+                                    SizedBox(width: 16),
+                                    Expanded(
+                                      child: _buildDashboardCard(
+                                        'Aluminum Area',
+                                        _dashboardData['aluminiumArea']['value'],
+                                        _dashboardData['aluminiumArea']['percentage'],
+                                        Icons.grid_on,
+                                        Colors.purple,
+                                      ),
+                                    ),
+                                    SizedBox(width: 16),
+                                    Expanded(
+                                      child: _buildDashboardCard(
+                                        'Qualified Leads',
+                                        _dashboardData['qualifiedLeads']['value'],
+                                        _dashboardData['qualifiedLeads']['percentage'],
+                                        Icons.people,
+                                        Colors.orange,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: 16),
+                                // Lead Status Cards Section (without title)
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _buildLeadStatusCard(
+                                        'Total Leads',
+                                        _leadStatusData['totalLeads']['value'],
+                                        _leadStatusData['totalLeads']['percentage'],
+                                        Icons.people_outline,
+                                        Colors.indigo,
+                                      ),
+                                    ),
+                                    SizedBox(width: 16),
+                                    Expanded(
+                                      child: _buildLeadStatusCard(
+                                        'Proposal Progress',
+                                        _leadStatusData['proposalProgress']['value'],
+                                        _leadStatusData['proposalProgress']['percentage'],
+                                        Icons.description,
+                                        Colors.teal,
+                                      ),
+                                    ),
+                                    SizedBox(width: 16),
+                                    Expanded(
+                                      child: _buildLeadStatusCard(
+                                        'Waiting Approval',
+                                        _leadStatusData['waitingApproval']['value'],
+                                        _leadStatusData['waitingApproval']['percentage'],
+                                        Icons.pending,
+                                        Colors.orange,
+                                      ),
+                                    ),
+                                    SizedBox(width: 16),
+                                    Expanded(
+                                      child: _buildLeadStatusCard(
+                                        'Approved',
+                                        _leadStatusData['approved']['value'],
+                                        _leadStatusData['approved']['percentage'],
+                                        Icons.check_circle,
+                                        Colors.green,
+                                      ),
+                                    ),
+                                    SizedBox(width: 16),
+                                    Expanded(
+                                      child: _buildLeadStatusCard(
+                                        'Completed',
+                                        _leadStatusData['completed']['value'],
+                                        _leadStatusData['completed']['percentage'],
+                                        Icons.assignment_turned_in,
+                                        Colors.teal,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      )
-                    : Row(
+                      SizedBox(
+                        height: 16,
+                      ), // Reduced spacing for compact layout
+                      Row(
                         children: [
-                          Expanded(child: _buildTotalRevenueCard()),
+                          Expanded(child: _buildQualifiedAreaVsRevenueChart()),
                           SizedBox(width: 16),
+                          Expanded(child: _buildLeadStatusDistributionChart()),
+                        ],
+                      ),
+                      SizedBox(
+                        height: 16,
+                      ), // Reduced spacing for compact layout
+                      // Sales Performance KPI Cards moved to grid layout next to Sales Analytics chart
+                      // Sales Analytics Chart and KPI Cards Section
+                      Row(
+                        children: [
+                          // Sales Analytics Chart (60% width)
                           Expanded(
-                            child: _buildDashboardCard(
-                              'Aluminum Area',
-                              _dashboardData['aluminiumArea']['value'],
-                              _dashboardData['aluminiumArea']['percentage'],
-                              Icons.grid_on,
-                              Colors.purple,
-                            ),
+                            flex: 6, // 60% of the row width
+                            child: _buildDashboardSalesAnalyticsChart(),
                           ),
                           SizedBox(width: 16),
+                          // Sales Performance KPI Cards Grid (40% width)
                           Expanded(
-                            child: _buildDashboardCard(
-                              'Qualified Leads',
-                              _dashboardData['qualifiedLeads']['value'],
-                              _dashboardData['qualifiedLeads']['percentage'],
-                              Icons.people,
-                              Colors.orange,
-                            ),
+                            flex: 4, // 40% of the row width
+                            child: _buildSalesPerformanceKPIGrid(),
                           ),
                         ],
                       ),
-                SizedBox(height: 16), // Reduced spacing for compact layout
-                // Lead Status Cards Section
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Lead Status',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey[800],
-                      ),
-                    ),
-                    SizedBox(height: 12), // Reduced spacing for compact layout
-                    // Status cards always visible
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildLeadStatusCard(
-                            'Total Leads',
-                            _leadStatusData['totalLeads']['value'],
-                            _leadStatusData['totalLeads']['percentage'],
-                            Icons.people_outline,
-                            Colors.indigo,
-                          ),
-                        ),
-                        SizedBox(width: 16),
-                        Expanded(
-                          child: _buildLeadStatusCard(
-                            'Proposal Progress',
-                            _leadStatusData['proposalProgress']['value'],
-                            _leadStatusData['proposalProgress']['percentage'],
-                            Icons.description,
-                            Colors.teal,
-                          ),
-                        ),
-                        SizedBox(width: 16),
-                        Expanded(
-                          child: _buildLeadStatusCard(
-                            'Waiting Approval',
-                            _leadStatusData['waitingApproval']['value'],
-                            _leadStatusData['waitingApproval']['percentage'],
-                            Icons.pending,
-                            Colors.orange,
-                          ),
-                        ),
-                        SizedBox(width: 16),
-                        Expanded(
-                          child: _buildLeadStatusCard(
-                            'Approved',
-                            _leadStatusData['approved']['value'],
-                            _leadStatusData['approved']['percentage'],
-                            Icons.check_circle,
-                            Colors.green,
-                          ),
-                        ),
-                        SizedBox(width: 16),
-                        Expanded(
-                          child: _buildLeadStatusCard(
-                            'Completed',
-                            _leadStatusData['completed']['value'],
-                            _leadStatusData['completed']['percentage'],
-                            Icons.assignment_turned_in,
-                            Colors.teal,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                      SizedBox(
+                        height: 16,
+                      ), // Reduced spacing for compact layout
+                      _buildLeadPerformanceTable(),
+                    ],
+                  ),
                 ),
-                SizedBox(height: 16), // Reduced spacing for compact layout
-                Row(
-                  children: [
-                    Expanded(child: _buildQualifiedAreaVsRevenueChart()),
-                    SizedBox(width: 16),
-                    Expanded(child: _buildLeadStatusDistributionChart()),
-                  ],
-                ),
-                SizedBox(height: 16), // Reduced spacing for compact layout
-                // Sales Performance KPI Cards moved to grid layout next to Sales Analytics chart
-                // Sales Analytics Chart and KPI Cards Section
-                Row(
-                  children: [
-                    // Sales Analytics Chart (60% width)
-                    Expanded(
-                      flex: 6, // 60% of the row width
-                      child: _buildDashboardSalesAnalyticsChart(),
-                    ),
-                    SizedBox(width: 16),
-                    // Sales Performance KPI Cards Grid (40% width)
-                    Expanded(
-                      flex: 4, // 40% of the row width
-                      child: _buildSalesPerformanceKPIGrid(),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 16), // Reduced spacing for compact layout
-                _buildLeadPerformanceTable(),
-              ],
-            ),
+              ),
+            ],
           );
         } else {
           // Mobile and tablet layout - custom layout
@@ -9873,7 +10069,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         8,
       ), // Reduced radius for compact layout
       child: Container(
-        padding: EdgeInsets.all(12), // Reduced padding for compact layout
+        height: 140, // Increased height to prevent content overlap
+        padding: EdgeInsets.all(16), // Increased padding for better spacing
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
@@ -9887,9 +10084,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
           children: [
-            // Top row: Icon + Title
+            // Title section at top
             Row(
               children: [
                 Container(
@@ -9898,36 +10094,37 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                     color: color.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: Icon(icon, color: color, size: 14),
+                  child: Icon(icon, color: color, size: 16),
                 ),
                 SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[700],
-                      fontWeight: FontWeight.bold,
-                    ),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[700],
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
             ),
-            SizedBox(height: 12),
-            // Main value - centered
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[800],
+            // Spacer to push value to center
+            Spacer(),
+            // Value section in center
+            Center(
+              child: Text(
+                value,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
             ),
-            SizedBox(height: 6),
-            // Percentage with arrow - centered below value
-            SizedBox(
-              height: 28, // Increased height by 16 (from 12 to 28)
+            // Spacer to push percentage to bottom
+            Spacer(),
+            // Percentage section at bottom
+            Center(
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
@@ -9935,26 +10132,19 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   Icon(
                     isPositive ? Icons.trending_up : Icons.trending_down,
                     color: percentageColor,
-                    size: 12,
+                    size: 14,
                   ),
-                  SizedBox(width: 4),
+                  SizedBox(width: 6),
                   Text(
                     percentage,
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 13,
                       color: percentageColor,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
               ),
-            ),
-            SizedBox(height: 6),
-            // Footer: "From previous period" centered
-            Text(
-              'From previous period',
-              style: TextStyle(fontSize: 9, color: Colors.grey[500]),
-              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -9977,7 +10167,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     final isSmallScreen = screenWidth < 600;
     final valueFontSize = isSmallScreen ? 16.0 : 18.0;
     final currencyFontSize = isSmallScreen ? 9.0 : 10.0;
-    final titleFontSize = isSmallScreen ? 11.0 : 12.0;
 
     // Left side: Selected currency value - Real-time conversion
     final leftValue = _selectedCurrency == 'INR'
@@ -10014,6 +10203,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       },
       borderRadius: BorderRadius.circular(12),
       child: Container(
+        height: 140, // Same height as other dashboard cards for visual balance
         padding: EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -10026,119 +10216,58 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             ),
           ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
+        child: Stack(
           children: [
             // Top row: Icon + Title
-            Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
+            Positioned(
+              top: 0,
+              left: 0,
+              child: Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Icon(
+                      Icons.attach_money,
+                      color: Colors.blue,
+                      size: 16,
+                    ), // Increased to match other dashboard cards
                   ),
-                  child: Icon(Icons.attach_money, color: Colors.blue, size: 14),
-                ),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
+                  SizedBox(width: 8),
+                  Text(
                     'Total Revenue',
                     style: TextStyle(
-                      fontSize: titleFontSize,
+                      fontSize:
+                          16, // Increased to match other dashboard cards for visual balance
                       color: Colors.grey[700],
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight
+                          .bold, // Changed to bold to match other cards
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-            SizedBox(height: isSmallScreen ? 10 : 12),
-            // Dual currency display with vertical divider
-            Row(
-              children: [
-                // Left side - Selected currency
-                Expanded(
-                  child: Column(
-                    children: [
-                      Text(
-                        leftValue,
-                        style: TextStyle(
-                          fontSize: valueFontSize,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey[800],
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        _selectedCurrency,
-                        style: TextStyle(
-                          fontSize: currencyFontSize,
-                          color: Colors.grey[600],
-                          fontWeight: FontWeight.w500,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-                // Vertical divider
-                Container(
-                  width: 1,
-                  height: isSmallScreen ? 36 : 40,
-                  color: Colors.grey[300],
-                  margin: EdgeInsets.symmetric(
-                    horizontal: isSmallScreen ? 6 : 8,
-                  ),
-                ),
-                // Right side - Dynamic currency based on left side selection
-                Expanded(
-                  child: Column(
-                    children: [
-                      Text(
-                        rightValue,
-                        style: TextStyle(
-                          fontSize: valueFontSize,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey[800],
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        rightCurrencyLabel,
-                        style: TextStyle(
-                          fontSize: currencyFontSize,
-                          color: Colors.grey[600],
-                          fontWeight: FontWeight.w500,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: isSmallScreen ? 4 : 6),
-            // Percentage with arrow - centered below values
-            SizedBox(
-              height: 28,
+            // Percentage positioned at top-right corner
+            Positioned(
+              top: 0,
+              right: 0,
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
                     isPositive ? Icons.trending_up : Icons.trending_down,
                     color: percentageColor,
-                    size: 12,
+                    size: 12, // Smaller icon size
                   ),
                   SizedBox(width: 4),
                   Text(
                     _dashboardData['totalRevenue']['percentage'],
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize:
+                          10, // Reduced font size for better visual balance
                       color: percentageColor,
                       fontWeight: FontWeight.w600,
                     ),
@@ -10146,12 +10275,87 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 ],
               ),
             ),
-            SizedBox(height: 6),
-            // Footer: "From previous period" centered
-            Text(
-              'From previous period',
-              style: TextStyle(fontSize: 9, color: Colors.grey[500]),
-              textAlign: TextAlign.center,
+            // Dual currency display with vertical divider - positioned in center
+            Positioned(
+              top: 50, // Position below title area
+              left: 0,
+              right: 0,
+              child: Row(
+                children: [
+                  // Left side - Selected currency
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Text(
+                          leftValue,
+                          style: TextStyle(
+                            fontSize: valueFontSize,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[800],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          _selectedCurrency,
+                          style: TextStyle(
+                            fontSize: currencyFontSize,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Vertical divider
+                  Container(
+                    width: 1,
+                    height: isSmallScreen ? 36 : 40,
+                    color: Colors.grey[300],
+                    margin: EdgeInsets.symmetric(
+                      horizontal: isSmallScreen ? 6 : 8,
+                    ),
+                  ),
+                  // Right side - Dynamic currency based on left side selection
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Text(
+                          rightValue,
+                          style: TextStyle(
+                            fontSize: valueFontSize,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[800],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          rightCurrencyLabel,
+                          style: TextStyle(
+                            fontSize: currencyFontSize,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Footer: "From previous period" positioned at bottom
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Text(
+                'From previous period',
+                style: TextStyle(fontSize: 9, color: Colors.grey[500]),
+                textAlign: TextAlign.center,
+              ),
             ),
           ],
         ),
@@ -10235,7 +10439,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       },
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: EdgeInsets.all(16),
+        height: 180, // Increased height by 40px more to eliminate all overlap
+        padding: EdgeInsets.all(20), // Increased padding for better spacing
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
@@ -10249,9 +10454,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
           children: [
-            // Top row: Icon + Title
+            // Title section at top
             Row(
               children: [
                 Container(
@@ -10260,36 +10464,37 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                     color: color.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: Icon(icon, color: color, size: 14),
+                  child: Icon(icon, color: color, size: 16),
                 ),
                 SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[700],
-                      fontWeight: FontWeight.bold,
-                    ),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[700],
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
             ),
-            SizedBox(height: 12),
-            // Main value - centered
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[800],
+            // Spacer to push value to center
+            Spacer(),
+            // Value section in center
+            Center(
+              child: Text(
+                value,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
             ),
-            SizedBox(height: 6),
-            // Percentage with arrow - centered below value
-            SizedBox(
-              height: 28,
+            // Spacer to push percentage to bottom
+            Spacer(),
+            // Percentage section at bottom
+            Center(
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
@@ -10297,26 +10502,19 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   Icon(
                     isPositive ? Icons.trending_up : Icons.trending_down,
                     color: percentageColor,
-                    size: 12,
+                    size: 16,
                   ),
-                  SizedBox(width: 4),
+                  SizedBox(width: 8),
                   Text(
                     percentage,
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 14,
                       color: percentageColor,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
               ),
-            ),
-            SizedBox(height: 6),
-            // Footer: "From previous period" centered
-            Text(
-              'From previous period',
-              style: TextStyle(fontSize: 9, color: Colors.grey[500]),
-              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -10911,55 +11109,55 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment:
-            MainAxisAlignment.center, // Center content vertically
+      child: Stack(
         children: [
-          Row(
-            children: [
-              Icon(
-                icon,
-                color: color,
-                size: 20, // Slightly increased icon size for better proportions
-              ),
-              const SizedBox(
-                width: 8,
-              ), // Increased spacing for better proportions
-              Expanded(
-                child: Text(
+          // Title positioned at top left corner
+          Positioned(
+            top: 0,
+            left: 0,
+            child: Row(
+              children: [
+                Icon(icon, color: color, size: 18),
+                const SizedBox(width: 8),
+                Text(
                   title,
                   style: TextStyle(
-                    fontSize:
-                        14, // Increased font size for better proportions with taller cards
+                    fontSize: 18, // Title font size as requested
                     fontWeight: FontWeight.w600,
                     color: Colors.grey[700],
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(
-            height: 20,
-          ), // Increased spacing for better proportions with taller cards
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 20, // Increased font size for better proportions with taller cards
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[800],
+              ],
             ),
-            overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 12), // Increased spacing for better proportions with taller cards
-          Text(
-            percentage,
-            style: TextStyle(
-              fontSize: 12, // Increased font size for better proportions
-              color: Colors.grey[600],
+          // Value and percentage centered in the card
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 16, // Value font size as requested
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  percentage,
+                  style: TextStyle(
+                    fontSize: 11, // Percentage font size as requested
+                    color: Colors.grey[600],
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
-            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -10968,15 +11166,48 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   // Get Sales Performance KPI Values
   String _getSalesPerformanceKPIValue(String type) {
+    if (_achievementTrendData.isEmpty) {
+      switch (type) {
+        case 'totalTarget':
+          return '₹0.0 CR';
+        case 'achievement':
+          return '₹0.0 CR';
+        case 'forecast':
+          return '₹0.0 CR';
+        case 'leadCount':
+          return '0/0 Leads';
+        default:
+          return 'N/A';
+      }
+    }
+
     switch (type) {
       case 'totalTarget':
-        return '₹30.0 CR'; // Sample data - replace with actual data
+        double totalTarget = 0.0;
+        for (final data in _achievementTrendData) {
+          totalTarget += data['target'] as double;
+        }
+        return '₹${(totalTarget / 10000000).toStringAsFixed(1)} CR';
       case 'achievement':
-        return '₹2.6 CR'; // Sample data - replace with actual data
+        double totalAchievement = 0.0;
+        for (final data in _achievementTrendData) {
+          totalAchievement += data['achievement'] as double;
+        }
+        return '₹${(totalAchievement / 10000000).toStringAsFixed(1)} CR';
       case 'forecast':
-        return '₹25.5 CR'; // Sample data - replace with actual data
+        double totalTarget = 0.0;
+        double totalAchievement = 0.0;
+        for (final data in _achievementTrendData) {
+          totalTarget += data['target'] as double;
+          totalAchievement += data['achievement'] as double;
+        }
+        double forecast = totalTarget - totalAchievement;
+        return '₹${(forecast / 10000000).toStringAsFixed(1)} CR';
       case 'leadCount':
-        return '2/7 Leads'; // Sample data - replace with actual data
+        // Return actual lead count data from admin_response table
+        final total = _leadCountData['total'] ?? 0;
+        final won = _leadCountData['won'] ?? 0;
+        return '$won/$total Leads';
       default:
         return 'N/A';
     }
@@ -10984,108 +11215,61 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   // Get Sales Performance KPI Percentages
   String _getSalesPerformanceKPIPercentage(String type) {
+    if (_achievementTrendData.isEmpty) {
+      switch (type) {
+        case 'totalTarget':
+          return '+0.0% Target Amount';
+        case 'achievement':
+          return '0.0% Won Leads Amount';
+        case 'forecast':
+          return '0.0% Projected Amount';
+        case 'leadCount':
+          return '0.0% Won/Total Leads';
+        default:
+          return 'N/A';
+      }
+    }
+
     switch (type) {
       case 'totalTarget':
         return '+0.0% Target Amount';
       case 'achievement':
-        return '8.6% Won Leads Amount';
+        double totalTarget = 0.0;
+        double totalAchievement = 0.0;
+        for (final data in _achievementTrendData) {
+          totalTarget += data['target'] as double;
+          totalAchievement += data['achievement'] as double;
+        }
+        if (totalTarget > 0) {
+          double percentage = (totalAchievement / totalTarget) * 100;
+          return '${percentage.toStringAsFixed(1)}% Won Leads Amount';
+        }
+        return '0.0% Won Leads Amount';
       case 'forecast':
-        return '85.0% Projected Amount';
+        double totalTarget = 0.0;
+        double totalAchievement = 0.0;
+        for (final data in _achievementTrendData) {
+          totalTarget += data['target'] as double;
+          totalAchievement += data['achievement'] as double;
+        }
+        if (totalTarget > 0) {
+          double percentage =
+              ((totalTarget - totalAchievement) / totalTarget) * 100;
+          return '${percentage.toStringAsFixed(1)}% Projected Amount';
+        }
+        return '0.0% Projected Amount';
       case 'leadCount':
-        return '28.6% Won/Total Leads';
+        // Calculate percentage based on stored lead count data
+        final total = _leadCountData['total'] ?? 0;
+        final won = _leadCountData['won'] ?? 0;
+        if (total > 0) {
+          final percentage = (won / total) * 100;
+          return '${percentage.toStringAsFixed(1)}% Won/Total Leads';
+        }
+        return '0.0% Won/Total Leads';
       default:
         return 'N/A';
     }
-  }
-
-  // Dashboard Achievement Trend Chart - Replaced by Sales Analytics Chart
-  Widget _buildDashboardAchievementTrendChart() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Sales Performance: Achievement Trend',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[800],
-                    ),
-                  ),
-                  Text(
-                    'Time Period: $_selectedTimePeriod',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          // Chart placeholder - will be populated with actual data
-          Container(
-            height: 300,
-            decoration: BoxDecoration(
-              color: Colors.grey[50],
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey[300]!),
-            ),
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.bar_chart, size: 48, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Achievement Trend Chart',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Showing Target vs Achievement vs Gap for all sales users',
-                    style: TextStyle(color: Colors.grey[500], fontSize: 14),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Legend
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _buildLegendItem('Target (₹ CR)', Colors.purple),
-              const SizedBox(width: 16),
-              _buildLegendItem('Achievement (₹ CR)', Colors.green),
-              const SizedBox(width: 16),
-              _buildLegendItem('Gap (₹ CR)', Colors.red),
-            ],
-          ),
-        ],
-      ),
-    );
   }
 
   // Legend item builder
@@ -11147,38 +11331,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             ],
           ),
           const SizedBox(height: 16),
-          // Chart placeholder - will be populated with actual data
-          Container(
-            height: 300,
-            decoration: BoxDecoration(
-              color: Colors.grey[50],
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey[300]!),
-            ),
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.bar_chart, size: 48, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Sales Analytics Chart',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Showing Target vs Achievement vs Gap for all sales users',
-                    style: TextStyle(color: Colors.grey[500], fontSize: 14),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          ),
+          // Actual Sales Analytics Chart
+          SizedBox(height: 300, child: _buildSalesAnalyticsBarChart()),
           const SizedBox(height: 16),
           // Legend
           Row(
@@ -11192,6 +11346,161 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  // Sales Analytics Bar Chart Builder
+  Widget _buildSalesAnalyticsBarChart() {
+    if (_achievementTrendData.isEmpty) {
+      return Center(
+        child: _isLoadingTrendData
+            ? CircularProgressIndicator()
+            : Text('No data available'),
+      );
+    }
+
+    // Calculate max Y value for proper scaling
+    double maxYValue = 0.0;
+    for (final data in _achievementTrendData) {
+      double target = data['target'] as double;
+      if (target > maxYValue) maxYValue = target;
+    }
+    maxYValue = maxYValue * 1.2; // Add 20% buffer
+
+    return BarChart(
+      BarChartData(
+        alignment: BarChartAlignment.spaceAround,
+        maxY: maxYValue,
+        barTouchData: BarTouchData(
+          enabled: true,
+          touchTooltipData: BarTouchTooltipData(
+            getTooltipItem: (group, groupIndex, rod, rodIndex) {
+              final data = _achievementTrendData[group.x.toInt()];
+              final labels = ['Target', 'Achievement', 'Gap'];
+              final label = labels[rodIndex];
+              final value = rod.toY / 10000000; // Convert to Crores
+
+              return BarTooltipItem(
+                '${data['username']}\n',
+                const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+                children: <TextSpan>[
+                  TextSpan(
+                    text: '$label: ₹${value.toStringAsFixed(1)} CR',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+        titlesData: FlTitlesData(
+          show: true,
+          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 40,
+              getTitlesWidget: (double value, TitleMeta meta) {
+                if (value.toInt() < _achievementTrendData.length) {
+                  final username =
+                      _achievementTrendData[value.toInt()]['username']
+                          as String;
+                  // Truncate long usernames to prevent overflow
+                  final displayName = username.length > 8
+                      ? '${username.substring(0, 8)}...'
+                      : username;
+                  return Text(
+                    displayName,
+                    style: const TextStyle(
+                      color: Colors.grey,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  );
+                }
+                return const Text('');
+              },
+            ),
+          ),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 80,
+              getTitlesWidget: (double value, TitleMeta meta) {
+                // Convert to Crores (CR) format
+                final croreValue = value / 10000000;
+                return Text(
+                  '₹${croreValue.toStringAsFixed(1)} CR',
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        borderData: FlBorderData(show: false),
+        barGroups: _achievementTrendData.asMap().entries.map((entry) {
+          final index = entry.key;
+          final data = entry.value;
+
+          return BarChartGroupData(
+            x: index,
+            groupVertically: false,
+            barRods: [
+              // Target bar (Purple)
+              BarChartRodData(
+                toY: data['target'] as double,
+                color: Colors.purple,
+                width: 20,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              // Achievement bar (Green)
+              BarChartRodData(
+                toY: data['achievement'] as double,
+                color: Colors.green,
+                width: 20,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              // Gap bar (Red)
+              BarChartRodData(
+                toY: data['gap'] as double,
+                color: Colors.red,
+                width: 20,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ],
+          );
+        }).toList(),
+        gridData: FlGridData(
+          show: true,
+          horizontalInterval: maxYValue / 6,
+          verticalInterval: 1,
+          getDrawingHorizontalLine: (value) {
+            return FlLine(
+              color: Colors.grey.withValues(alpha: 0.3),
+              strokeWidth: 1,
+            );
+          },
+          getDrawingVerticalLine: (value) {
+            return FlLine(
+              color: Colors.grey.withValues(alpha: 0.2),
+              strokeWidth: 1,
+            );
+          },
+        ),
       ),
     );
   }
@@ -11226,7 +11535,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             ),
           ],
         ),
-        const SizedBox(height: 16), // Increased spacing for better grid layout with taller cards
+        const SizedBox(
+          height: 16,
+        ), // Increased spacing for better grid layout with taller cards
         // Bottom row: Forecast and Lead Count
         Row(
           children: [
