@@ -386,6 +386,11 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
     _fetchSalesTeamMembers();
     _fetchChartData();
     _fetchAchievementTrendData();
+    
+    // Add debug check for admin_response table data
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _debugCheckAdminResponseTable();
+    });
   }
 
   Future<void> _fetchSalesTeamMembers() async {
@@ -828,6 +833,41 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
       'start': startDate.toIso8601String(),
       'end': endDate.toIso8601String(),
     };
+  }
+
+  // Debug method to check admin_response table data
+  Future<void> _debugCheckAdminResponseTable() async {
+    try {
+      final client = Supabase.instance.client;
+      
+      // Check sample records
+      final sampleResponse = await client
+          .from('admin_response')
+          .select('*')
+          .limit(3);
+      
+      debugPrint('🔍 [DEBUG] Sample admin_response records: ${sampleResponse.length}');
+      
+      if (sampleResponse.isNotEmpty) {
+        debugPrint('🔍 [DEBUG] Sample admin_response record: ${sampleResponse.first}');
+        
+        // Check what fields exist
+        final fields = sampleResponse.first.keys.toList();
+        debugPrint('🔍 [DEBUG] Available fields: $fields');
+        
+        // Check if update_lead_status field exists and what values it has
+        if (sampleResponse.first.containsKey('update_lead_status')) {
+          final statuses = sampleResponse
+              .map((record) => record['update_lead_status'])
+              .where((status) => status != null)
+              .toSet()
+              .toList();
+          debugPrint('🔍 [DEBUG] Available lead statuses: $statuses');
+        }
+      }
+    } catch (e) {
+      debugPrint('🔍 [DEBUG] Error checking admin_response table: $e');
+    }
   }
 
   // Update lead counts for All Sales Team
@@ -7569,7 +7609,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
     switch (timePeriod.toLowerCase()) {
       case 'week':
-        startDate = now.subtract(Duration(days: 7));
+        // Get the start of the current week (Monday)
+        final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+        startDate = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
         endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
         break;
       case 'month':
@@ -7810,6 +7852,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     setState(() {
       _selectedTimePeriod = newPeriod;
     });
+    
+    // Add debug logging for time period change
+    debugPrint('🔄 [TIME] Time period changed to: $newPeriod');
+    
     _fetchDashboardData();
     _fetchLeadStatusData();
     _fetchChartData();
@@ -8250,6 +8296,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       final client = Supabase.instance.client;
       final dateRange = _getDateRange(_selectedTimePeriod);
 
+      debugPrint('📊 [CHART] Fetching data for time period: $_selectedTimePeriod');
+      debugPrint('📊 [CHART] Date range: ${dateRange['start']} to ${dateRange['end']}');
+      debugPrint('📊 [CHART] Start ISO: ${dateRange['start']!.toIso8601String()}');
+      debugPrint('📊 [CHART] End ISO: ${dateRange['end']!.toIso8601String()}');
+
       // Fetch data from admin_response table where update_lead_status = 'Won'
       final response = await client
           .from('admin_response')
@@ -8259,6 +8310,61 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           .lte('updated_at', dateRange['end']!.toIso8601String())
           .order('updated_at', ascending: true)
           .timeout(const Duration(seconds: 10));
+
+      debugPrint('📊 [CHART] Raw response count: ${response.length}');
+      if (response.isNotEmpty) {
+        debugPrint('📊 [CHART] First record: ${response.first}');
+        debugPrint('📊 [CHART] Last record: ${response.last}');
+      } else {
+        debugPrint('📊 [CHART] No data found with status "Won" in date range');
+        
+        // Try to fetch any data in the date range to see if the issue is with status or date filtering
+        try {
+          final anyDataResponse = await client
+              .from('admin_response')
+              .select('aluminium_area, total_amount_gst, updated_at, update_lead_status')
+              .gte('updated_at', dateRange['start']!.toIso8601String())
+              .lte('updated_at', dateRange['end']!.toIso8601String())
+              .limit(5);
+          
+          debugPrint('📊 [CHART] Any data in date range (without status filter): ${anyDataResponse.length}');
+          if (anyDataResponse.isNotEmpty) {
+            debugPrint('📊 [CHART] Sample data without status filter: ${anyDataResponse.first}');
+          }
+        } catch (e) {
+          debugPrint('📊 [CHART] Error checking any data in date range: $e');
+        }
+      }
+
+      // Also check what lead statuses exist in the database for debugging
+      try {
+        final statusResponse = await client
+            .from('admin_response')
+            .select('update_lead_status')
+            .not('update_lead_status', 'is', null)
+            .limit(10);
+        
+        final uniqueStatuses = statusResponse
+            .map((record) => record['update_lead_status'])
+            .where((status) => status != null)
+            .toSet()
+            .toList();
+        
+        debugPrint('📊 [CHART] Available lead statuses in database: $uniqueStatuses');
+        
+        // Check what fields are available in admin_response table
+        final sampleRecord = await client
+            .from('admin_response')
+            .select('*')
+            .limit(1);
+        
+        if (sampleRecord.isNotEmpty) {
+          final fields = sampleRecord.first.keys.toList();
+          debugPrint('📊 [CHART] Available fields in admin_response: $fields');
+        }
+      } catch (e) {
+        debugPrint('📊 [CHART] Error checking lead statuses: $e');
+      }
 
       // Process the data to create chart spots
       await _processChartData(response);
@@ -8273,7 +8379,40 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   // Process chart data and create spots
   Future<void> _processChartData(List<dynamic> data) async {
+    debugPrint('📊 [PROCESS] Processing ${data.length} records');
+    
     if (data.isEmpty) {
+      debugPrint('📊 [PROCESS] No data to process, setting empty chart');
+      
+      // For week view, show sample data structure if no real data exists
+      if (_selectedTimePeriod.toLowerCase() == 'week') {
+        debugPrint('📊 [PROCESS] Showing sample week data structure');
+        final sampleData = <BarChartGroupData>[];
+        final labels = _getChartLabels();
+        
+        for (int i = 0; i < labels.length; i++) {
+          sampleData.add(
+            BarChartGroupData(
+              x: i,
+              barRods: [
+                BarChartRodData(
+                  toY: 0, // Zero revenue for sample data
+                  color: Colors.pink.withOpacity(0.3), // Semi-transparent
+                  width: 20,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ],
+            ),
+          );
+        }
+        
+        setState(() {
+          _barChartData = sampleData;
+          _isLoadingChartData = false;
+        });
+        return;
+      }
+      
       setState(() {
         _barChartData = [];
         _isLoadingChartData = false;
@@ -8349,6 +8488,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
     debugPrint('📊 [CHART] Chart labels: $labels');
     debugPrint('📊 [CHART] Grouped data keys: ${groupedData.keys.toList()}');
+    debugPrint('📊 [CHART] Grouped data counts: ${groupedData.map((key, value) => MapEntry(key, value.length))}');
 
     for (int i = 0; i < labels.length; i++) {
       final label = labels[i];
@@ -10242,12 +10382,25 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         ),
                         SizedBox(height: 8),
                         Text(
-                          'No won leads found for the selected period',
+                          _selectedTimePeriod.toLowerCase() == 'week' 
+                              ? 'No won leads found for this week'
+                              : 'No won leads found for the selected period',
                           style: TextStyle(
                             color: Colors.grey[500],
                             fontSize: 14,
                           ),
                         ),
+                        if (_selectedTimePeriod.toLowerCase() == 'week') ...[
+                          SizedBox(height: 8),
+                          Text(
+                            'Chart shows week structure (Mon-Sun)',
+                            style: TextStyle(
+                              color: Colors.grey[400],
+                              fontSize: 12,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   )
