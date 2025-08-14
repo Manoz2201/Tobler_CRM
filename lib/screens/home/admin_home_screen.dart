@@ -412,6 +412,12 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
         _salesTeamMembers = salesMembers;
         _isLoadingSalesTeam = false;
       });
+
+      // After sales team is loaded, initialize lead counts for All Sales Team
+      if (_selectedSalesPerson == 'All Sales Team') {
+        debugPrint('Initializing lead counts for All Sales Team...');
+        _updateLeadCountsForAllSalesTeam();
+      }
     } catch (e) {
       debugPrint('Error fetching sales team members: $e');
       setState(() {
@@ -455,6 +461,11 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
         _isLoadingChartData = true;
       });
 
+      // Wait for sales team to be loaded if it's still loading
+      if (_isLoadingSalesTeam) {
+        await Future.delayed(const Duration(milliseconds: 200));
+      }
+
       final client = Supabase.instance.client;
       double totalTarget = 0.0;
       double achievement = 0.0;
@@ -479,6 +490,8 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
 
         // Set Y-axis max to sum + 30%
         _maxYAxisValue = totalTarget * 1.3;
+
+        // Note: KPI data is updated at the end of this method
       } else {
         // Get specific user target
         final response = await client
@@ -502,7 +515,14 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
       // Update KPI data with chart values
       _updateKPIData(totalTarget, achievement);
 
-      // Generate chart data
+      // Also update lead counts based on current selection
+      if (_selectedSalesPerson == 'All Sales Team') {
+        await _updateLeadCountsForAllSalesTeam();
+      } else {
+        await _refreshLeadCountsForSelectedSalesPerson();
+      }
+
+      // Generate chart data with time period context
       _targetVsAchievementChartData = [
         BarChartGroupData(
           x: 0,
@@ -607,11 +627,19 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
     try {
       final client = Supabase.instance.client;
 
+      // Calculate date range based on selected time period
+      final dateRange = _getDateRangeForTimePeriod();
+
       // Fetch data from admin_response table where sales_user matches selected salesperson
+      // and date is within the selected time period
       final response = await client
           .from('admin_response')
-          .select('sales_user, update_lead_status, total_amount_gst')
-          .eq('sales_user', salesPersonName);
+          .select(
+            'sales_user, update_lead_status, total_amount_gst, created_at',
+          )
+          .eq('sales_user', salesPersonName)
+          .gte('created_at', dateRange['start']!)
+          .lte('created_at', dateRange['end']!);
 
       double totalWonAmount = 0.0;
       int totalLeads = 0;
@@ -632,8 +660,8 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
         }
       }
 
-      // Update KPI data with lead counts
-      _updateLeadCounts(totalLeads, wonLeads);
+      // Note: Lead counts are now updated separately in the dropdown and time period handlers
+      // to ensure immediate updates without waiting for chart data
 
       debugPrint('Sales Person: $salesPersonName');
       debugPrint('Total Leads: $totalLeads');
@@ -663,10 +691,18 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
     try {
       final client = Supabase.instance.client;
 
+      // Calculate date range based on selected time period
+      final dateRange = _getDateRangeForTimePeriod();
+
       // Fetch data from admin_response table for all sales users
+      // and date is within the selected time period
       final response = await client
           .from('admin_response')
-          .select('sales_user, update_lead_status, total_amount_gst');
+          .select(
+            'sales_user, update_lead_status, total_amount_gst, created_at',
+          )
+          .gte('created_at', dateRange['start']!)
+          .lte('created_at', dateRange['end']!);
 
       double totalWonAmount = 0.0;
       int totalLeads = 0;
@@ -691,8 +727,8 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
         }
       }
 
-      // Update KPI data with lead counts for all sales team
-      _updateLeadCounts(totalLeads, wonLeads);
+      // Note: Lead counts are now updated separately in the dropdown and time period handlers
+      // to ensure immediate updates without waiting for chart data
 
       debugPrint('All Sales Team');
       debugPrint('Total Leads: $totalLeads');
@@ -717,6 +753,11 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
         _isLoadingTrendData = true;
       });
 
+      // Wait for sales team to be loaded if it's still loading
+      if (_isLoadingSalesTeam) {
+        await Future.delayed(const Duration(milliseconds: 200));
+      }
+
       final client = Supabase.instance.client;
 
       // Get all sales users
@@ -735,7 +776,7 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
               ? (user['user_target'] as num).toDouble()
               : 0.0;
 
-          // Fetch actual achievement from admin_response table
+          // Fetch actual achievement from admin_response table based on time period
           double achievement = await _fetchWonLeadsAmount(username);
           double gap = target - achievement;
 
@@ -760,6 +801,84 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
     }
   }
 
+  // Get date range based on selected time period
+  Map<String, String> _getDateRangeForTimePeriod() {
+    final now = DateTime.now();
+    DateTime startDate;
+    DateTime endDate = now;
+
+    switch (_selectedTimePeriod) {
+      case 'Month':
+        startDate = DateTime(now.year, now.month - 1, 1);
+        break;
+      case 'Quarter':
+        startDate = DateTime(now.year, now.month - 3, 1);
+        break;
+      case 'Semester':
+        startDate = DateTime(now.year, now.month - 6, 1);
+        break;
+      case 'Annual':
+        startDate = DateTime(now.year, 1, 1);
+        break;
+      default:
+        startDate = DateTime(now.year, now.month - 1, 1); // Default to Month
+    }
+
+    return {
+      'start': startDate.toIso8601String(),
+      'end': endDate.toIso8601String(),
+    };
+  }
+
+  // Update lead counts for All Sales Team
+  Future<void> _updateLeadCountsForAllSalesTeam() async {
+    try {
+      debugPrint(
+        '_updateLeadCountsForAllSalesTeam called for time period: $_selectedTimePeriod',
+      );
+      final client = Supabase.instance.client;
+
+      // Calculate date range based on selected time period
+      final dateRange = _getDateRangeForTimePeriod();
+
+      // Fetch data from admin_response table for all sales users
+      // and date is within the selected time period
+      final response = await client
+          .from('admin_response')
+          .select(
+            'sales_user, update_lead_status, total_amount_gst, created_at',
+          )
+          .gte('created_at', dateRange['start']!)
+          .lte('created_at', dateRange['end']!);
+
+      int totalLeads = 0;
+      int wonLeads = 0;
+
+      for (final row in response) {
+        // Only count leads that have a sales_user (not null)
+        if (row['sales_user'] != null &&
+            row['sales_user'].toString().isNotEmpty) {
+          totalLeads++;
+
+          // Check if lead status is "won" (case-insensitive)
+          if (row['update_lead_status'] != null &&
+              row['update_lead_status'].toString().toLowerCase() == 'won') {
+            wonLeads++;
+          }
+        }
+      }
+
+      // Update KPI data with lead counts for all sales team
+      _updateLeadCounts(totalLeads, wonLeads);
+
+      debugPrint('All Sales Team Lead Counts Updated');
+      debugPrint('Total Leads: $totalLeads');
+      debugPrint('Won Leads: $wonLeads');
+    } catch (e) {
+      debugPrint('Error updating all sales team lead counts: $e');
+    }
+  }
+
   // Refresh lead counts for currently selected salesperson
   Future<void> _refreshLeadCountsForSelectedSalesPerson() async {
     if (_selectedSalesPerson == 'All Sales Team') return;
@@ -767,11 +886,19 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
     try {
       final client = Supabase.instance.client;
 
+      // Calculate date range based on selected time period
+      final dateRange = _getDateRangeForTimePeriod();
+
       // Fetch data from admin_response table for selected salesperson
+      // and date is within the selected time period
       final response = await client
           .from('admin_response')
-          .select('sales_user, update_lead_status, total_amount_gst')
-          .eq('sales_user', _selectedSalesPerson);
+          .select(
+            'sales_user, update_lead_status, total_amount_gst, created_at',
+          )
+          .eq('sales_user', _selectedSalesPerson)
+          .gte('created_at', dateRange['start']!)
+          .lte('created_at', dateRange['end']!);
 
       int totalLeads = 0;
       int wonLeads = 0;
@@ -916,12 +1043,20 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
                               ),
                             );
                           }).toList(),
-                          onChanged: (String? newValue) {
+                          onChanged: (String? newValue) async {
                             if (newValue != null) {
                               setState(() {
                                 _selectedSalesPerson = newValue;
                               });
-                              // Refresh chart data when sales person changes
+
+                              // Immediately fetch lead counts based on new selection and current time period
+                              if (newValue == 'All Sales Team') {
+                                await _updateLeadCountsForAllSalesTeam();
+                              } else {
+                                await _refreshLeadCountsForSelectedSalesPerson();
+                              }
+
+                              // Then refresh chart data
                               _fetchChartData();
                             }
                           },
@@ -954,17 +1089,21 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
                     return Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: InkWell(
-                        onTap: () {
+                        onTap: () async {
                           setState(() {
                             _selectedTimePeriod = period;
                           });
-                          // Refresh chart data when time period changes
+
+                          // Immediately refresh lead counts based on selected salesperson and new time period
+                          if (_selectedSalesPerson == 'All Sales Team') {
+                            await _updateLeadCountsForAllSalesTeam();
+                          } else {
+                            await _refreshLeadCountsForSelectedSalesPerson();
+                          }
+
+                          // Then refresh chart data
                           _fetchChartData();
                           _fetchAchievementTrendData();
-                          // Also refresh lead counts for currently selected salesperson
-                          if (_selectedSalesPerson != 'All Sales Team') {
-                            _refreshLeadCountsForSelectedSalesPerson();
-                          }
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(
@@ -1088,7 +1227,7 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
         const SizedBox(width: 16),
         Expanded(
           child: _buildKPICard(
-            'Lead Performance',
+            'Lead Count',
             _kpiData['topPerformer']['value'],
             _kpiData['topPerformer']['percentage'],
             _kpiData['topPerformer']['label'],
@@ -1211,13 +1350,22 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Target vs Achievement',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[800],
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Target vs Achievement',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                  Text(
+                    'Time Period: $_selectedTimePeriod',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                ],
               ),
               // Color indicators moved to top right corner
               Row(
@@ -1358,7 +1506,26 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
           show: true,
           rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
           topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 40,
+              getTitlesWidget: (double value, TitleMeta meta) {
+                final labels = ['Target', 'Achievement', 'Gap'];
+                if (value.toInt() < labels.length) {
+                  return Text(
+                    labels[value.toInt()],
+                    style: const TextStyle(
+                      color: Colors.grey,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  );
+                }
+                return const Text('');
+              },
+            ),
+          ),
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
@@ -1417,13 +1584,22 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Achievement Trend',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[800],
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Achievement Trend',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                  Text(
+                    'Time Period: $_selectedTimePeriod',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                ],
               ),
               Text(
                 'All Sales Users',
