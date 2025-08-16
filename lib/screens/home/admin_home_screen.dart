@@ -87,7 +87,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           _onItemTapped(4), // Role Management index
     ), // User Management
     AdminRoleManagementPage(), // Role Management
-    AdminSettingsPage(), // Settings
     ProfilePage(), // Profile
     // Logout is handled separately in _onItemTapped
   ];
@@ -3435,255 +3434,6 @@ class _LeadActionButton extends StatelessWidget {
         onPressed: onTap,
         style: TextButton.styleFrom(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-      ),
-    );
-  }
-}
-
-class AdminSettingsPage extends StatefulWidget {
-  const AdminSettingsPage({super.key});
-
-  @override
-  State<AdminSettingsPage> createState() => _AdminSettingsPageState();
-}
-
-class _AdminSettingsPageState extends State<AdminSettingsPage> {
-  final TextEditingController _projectCodeController = TextEditingController();
-  bool _isLoading = false;
-  String? _currentProjectCode;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadCurrentProjectCode();
-  }
-
-  @override
-  void dispose() {
-    _projectCodeController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadCurrentProjectCode() async {
-    try {
-      final client = Supabase.instance.client;
-      final response = await client
-          .from('settings')
-          .select('project_code')
-          .limit(1)
-          .single();
-
-      setState(() {
-        _currentProjectCode = response['project_code'];
-        _projectCodeController.text = _currentProjectCode ?? '';
-      });
-    } catch (e) {
-      // Handle error or no existing project code
-      setState(() {
-        _currentProjectCode = null;
-        _projectCodeController.text = '';
-      });
-    }
-  }
-
-  Future<void> _saveProjectCode() async {
-    if (_projectCodeController.text.trim().isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Please enter a project code')));
-      }
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final client = Supabase.instance.client;
-      final baseCode = _projectCodeController.text.trim();
-
-      // Get the next sequence number
-      final existingCodes = await client
-          .from('settings')
-          .select('project_code')
-          .like('project_code', '$baseCode-%');
-
-      int nextSequence = 1;
-      if (existingCodes.isNotEmpty) {
-        final sequences = existingCodes
-            .map((code) {
-              final parts = code['project_code'].split('-');
-              if (parts.length > 1) {
-                return int.tryParse(parts.last) ?? 0;
-              }
-              return 0;
-            })
-            .where((seq) => seq > 0)
-            .toList();
-
-        if (sequences.isNotEmpty) {
-          nextSequence = sequences.reduce((a, b) => a > b ? a : b) + 1;
-        }
-      }
-
-      final newProjectCode =
-          '$baseCode-${nextSequence.toString().padLeft(5, '0')}';
-
-      // Update all settings entries with the new project code
-      await client.from('settings').update({'project_code': newProjectCode});
-
-      if (mounted) {
-        setState(() {
-          _currentProjectCode = newProjectCode;
-          _isLoading = false;
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Project code saved: $newProjectCode')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving project code: ${e.toString()}')),
-        );
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[100],
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Admin Settings',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[800],
-                ),
-              ),
-              SizedBox(height: 32),
-              Card(
-                elevation: 4,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Project Code Configuration',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey[800],
-                        ),
-                      ),
-                      SizedBox(height: 16),
-                      Text(
-                        'Set the base project code. The system will automatically generate sequential codes like "Tobler-00001", "Tobler-00002", etc.',
-                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                      ),
-                      SizedBox(height: 24),
-                      TextField(
-                        controller: _projectCodeController,
-                        decoration: InputDecoration(
-                          labelText: 'Base Project Code',
-                          hintText: 'e.g., Tobler',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          prefixIcon: Icon(Icons.code),
-                        ),
-                      ),
-                      SizedBox(height: 16),
-                      if (_currentProjectCode != null)
-                        Container(
-                          padding: EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.blue[50],
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.blue[200]!),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.info, color: Colors.blue[700]),
-                              SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Current Project Code: $_currentProjectCode',
-                                  style: TextStyle(
-                                    color: Colors.blue[700],
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      SizedBox(height: 24),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _saveProjectCode,
-                          style: ElevatedButton.styleFrom(
-                            padding: EdgeInsets.symmetric(vertical: 16),
-                            backgroundColor: Colors.blue[600],
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          child: _isLoading
-                              ? Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor:
-                                            AlwaysStoppedAnimation<Color>(
-                                              Colors.white,
-                                            ),
-                                      ),
-                                    ),
-                                    SizedBox(width: 12),
-                                    Text('Saving...'),
-                                  ],
-                                )
-                              : Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.save),
-                                    SizedBox(width: 8),
-                                    Text('Save Project Code'),
-                                  ],
-                                ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -9329,59 +9079,73 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                   ],
                                 ),
                                 SizedBox(height: 16),
-                                // Lead Status Cards Section (without title)
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: _buildLeadStatusCard(
-                                        'Total Leads',
-                                        _leadStatusData['totalLeads']['value'],
-                                        _leadStatusData['totalLeads']['percentage'],
-                                        Icons.people_outline,
-                                        Colors.indigo,
+                                // Lead Status Cards Section (without title) - Merged with dividers
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.05),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
                                       ),
-                                    ),
-                                    SizedBox(width: 16),
-                                    Expanded(
-                                      child: _buildLeadStatusCard(
-                                        'Proposal Progress',
-                                        _leadStatusData['proposalProgress']['value'],
-                                        _leadStatusData['proposalProgress']['percentage'],
-                                        Icons.description,
-                                        Colors.teal,
+                                    ],
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: _buildMergedLeadStatusCard(
+                                          'Total Leads',
+                                          _leadStatusData['totalLeads']['value'],
+                                          _leadStatusData['totalLeads']['percentage'],
+                                          Icons.people_outline,
+                                          Colors.indigo,
+                                          showRightDivider: true,
+                                        ),
                                       ),
-                                    ),
-                                    SizedBox(width: 16),
-                                    Expanded(
-                                      child: _buildLeadStatusCard(
-                                        'Waiting Approval',
-                                        _leadStatusData['waitingApproval']['value'],
-                                        _leadStatusData['waitingApproval']['percentage'],
-                                        Icons.pending,
-                                        Colors.orange,
+                                      Expanded(
+                                        child: _buildMergedLeadStatusCard(
+                                          'Proposal Progress',
+                                          _leadStatusData['proposalProgress']['value'],
+                                          _leadStatusData['proposalProgress']['percentage'],
+                                          Icons.description,
+                                          Colors.teal,
+                                          showRightDivider: true,
+                                        ),
                                       ),
-                                    ),
-                                    SizedBox(width: 16),
-                                    Expanded(
-                                      child: _buildLeadStatusCard(
-                                        'Approved',
-                                        _leadStatusData['approved']['value'],
-                                        _leadStatusData['approved']['percentage'],
-                                        Icons.check_circle,
-                                        Colors.green,
+                                      Expanded(
+                                        child: _buildMergedLeadStatusCard(
+                                          'Waiting Approval',
+                                          _leadStatusData['waitingApproval']['value'],
+                                          _leadStatusData['waitingApproval']['percentage'],
+                                          Icons.pending,
+                                          Colors.orange,
+                                          showRightDivider: true,
+                                        ),
                                       ),
-                                    ),
-                                    SizedBox(width: 16),
-                                    Expanded(
-                                      child: _buildLeadStatusCard(
-                                        'Completed',
-                                        _leadStatusData['completed']['value'],
-                                        _leadStatusData['completed']['percentage'],
-                                        Icons.assignment_turned_in,
-                                        Colors.teal,
+                                      Expanded(
+                                        child: _buildMergedLeadStatusCard(
+                                          'Approved',
+                                          _leadStatusData['approved']['value'],
+                                          _leadStatusData['approved']['percentage'],
+                                          Icons.check_circle,
+                                          Colors.green,
+                                          showRightDivider: true,
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                      Expanded(
+                                        child: _buildMergedLeadStatusCard(
+                                          'Completed',
+                                          _leadStatusData['completed']['value'],
+                                          _leadStatusData['completed']['percentage'],
+                                          Icons.assignment_turned_in,
+                                          Colors.teal,
+                                          showRightDivider: false,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
@@ -9483,7 +9247,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         ],
                       ),
                 SizedBox(height: 16), // Reduced spacing for compact layout
-                // Lead Status Cards Section for Mobile
+                // Lead Status Cards Section for Mobile - Merged with dividers
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -9496,64 +9260,93 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                       ),
                     ),
                     SizedBox(height: 16),
-                    // First row: Total Leads, Proposal Progress, Waiting Approval
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildLeadStatusCard(
-                            'Total Leads',
-                            _leadStatusData['totalLeads']['value'],
-                            _leadStatusData['totalLeads']['percentage'],
-                            Icons.people_outline,
-                            Colors.indigo,
+                    // Merged container for all cards - Mobile responsive
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
                           ),
-                        ),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: _buildLeadStatusCard(
-                            'Proposal Progress',
-                            _leadStatusData['proposalProgress']['value'],
-                            _leadStatusData['proposalProgress']['percentage'],
-                            Icons.description,
-                            Colors.teal,
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          // First row: Total Leads, Proposal Progress, Waiting Approval
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildMobileMergedLeadStatusCard(
+                                  'Total Leads',
+                                  _leadStatusData['totalLeads']['value'],
+                                  _leadStatusData['totalLeads']['percentage'],
+                                  Icons.people_outline,
+                                  Colors.indigo,
+                                  showRightDivider: true,
+                                ),
+                              ),
+                              Expanded(
+                                child: _buildMobileMergedLeadStatusCard(
+                                  'Proposal Progress',
+                                  _leadStatusData['proposalProgress']['value'],
+                                  _leadStatusData['proposalProgress']['percentage'],
+                                  Icons.description,
+                                  Colors.teal,
+                                  showRightDivider: true,
+                                ),
+                              ),
+                              Expanded(
+                                child: _buildMobileMergedLeadStatusCard(
+                                  'Waiting Approval',
+                                  _leadStatusData['waitingApproval']['value'],
+                                  _leadStatusData['waitingApproval']['percentage'],
+                                  Icons.pending,
+                                  Colors.orange,
+                                  showRightDivider: false,
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: _buildLeadStatusCard(
-                            'Waiting Approval',
-                            _leadStatusData['waitingApproval']['value'],
-                            _leadStatusData['waitingApproval']['percentage'],
-                            Icons.pending,
-                            Colors.orange,
+                          // Horizontal divider
+                          Container(
+                            width: double.infinity,
+                            height: 1,
+                            color: Colors.grey[300],
                           ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 12),
-                    // Second row: Approved and Completed
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildLeadStatusCard(
-                            'Approved',
-                            _leadStatusData['approved']['value'],
-                            _leadStatusData['approved']['percentage'],
-                            Icons.check_circle,
-                            Colors.green,
+                          // Second row: Approved and Completed
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildMobileMergedLeadStatusCard(
+                                  'Approved',
+                                  _leadStatusData['approved']['value'],
+                                  _leadStatusData['approved']['percentage'],
+                                  Icons.check_circle,
+                                  Colors.green,
+                                  showRightDivider: true,
+                                ),
+                              ),
+                              Expanded(
+                                child: _buildMobileMergedLeadStatusCard(
+                                  'Completed',
+                                  _leadStatusData['completed']['value'],
+                                  _leadStatusData['completed']['percentage'],
+                                  Icons.assignment_turned_in,
+                                  Colors.teal,
+                                  showRightDivider: false,
+                                ),
+                              ),
+                              // Empty space for third column to maintain grid
+                              Expanded(
+                                child: Container(height: 60),
+                              ),
+                            ],
                           ),
-                        ),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: _buildLeadStatusCard(
-                            'Completed',
-                            _leadStatusData['completed']['value'],
-                            _leadStatusData['completed']['percentage'],
-                            Icons.assignment_turned_in,
-                            Colors.teal,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -10400,20 +10193,24 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     }
   }
 
-  // Build Lead Status card with navigation to Lead Management
-  Widget _buildLeadStatusCard(
+
+
+
+  // Build Merged Lead Status card without individual padding and with dividers
+  Widget _buildMergedLeadStatusCard(
     String title,
     String value,
     String percentage,
     IconData icon,
-    Color color,
-  ) {
+    Color color, {
+    required bool showRightDivider,
+  }) {
     final isPositive = percentage.startsWith('+');
     final percentageColor = isPositive ? Colors.green : Colors.red;
 
     return InkWell(
       onTap: () {
-        debugPrint('🔍 LeadStatusCard: Card clicked - $title');
+        debugPrint('🔍 MergedLeadStatusCard: Card clicked - $title');
         // Map card title to filter value
         String filterValue;
         switch (title) {
@@ -10435,83 +10232,213 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           default:
             filterValue = 'All';
         }
-        debugPrint('🔍 LeadStatusCard: Mapped to filter: $filterValue');
+        debugPrint('🔍 MergedLeadStatusCard: Mapped to filter: $filterValue');
 
         // Navigate to Lead Management with filter
         _navigateToLeadManagementWithFilter(filterValue);
       },
-      borderRadius: BorderRadius.circular(12),
       child: Container(
-        height: 180, // Increased height by 40px more to eliminate all overlap
-        padding: EdgeInsets.all(20), // Increased padding for better spacing
+        height: 70, // Further reduced height for compact merged design
+        padding: EdgeInsets.all(8), // Reduced padding for merged design
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          color: Colors.transparent, // No background for merged design
+          border: showRightDivider 
+            ? Border(right: BorderSide(color: Colors.grey[300]!, width: 1))
+            : null,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
           children: [
-            // Title section at top
-            Row(
+            // Main content
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Icon(icon, color: color, size: 16),
+                // Title section at top
+                Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                      child: Icon(icon, color: color, size: 12),
+                    ),
+                    SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[700],
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(width: 8),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey[700],
-                    fontWeight: FontWeight.bold,
+                SizedBox(height: 4),
+                // Value section below title - Center aligned
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
                 ),
               ],
             ),
-            // Spacer to push value to center
-            Spacer(),
-            // Value section in center
-            Center(
-              child: Text(
-                value,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[800],
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            // Spacer to push percentage to bottom
-            Spacer(),
-            // Percentage section at bottom
-            Center(
+            // Percentage section at top right corner (no padding)
+            Positioned(
+              top: 0,
+              right: 0,
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
                     isPositive ? Icons.trending_up : Icons.trending_down,
                     color: percentageColor,
-                    size: 16,
+                    size: 10,
                   ),
-                  SizedBox(width: 8),
+                  SizedBox(width: 2),
                   Text(
                     percentage,
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 10,
+                      color: percentageColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Build Mobile-specific Merged Lead Status card for better responsive design
+  Widget _buildMobileMergedLeadStatusCard(
+    String title,
+    String value,
+    String percentage,
+    IconData icon,
+    Color color, {
+    required bool showRightDivider,
+  }) {
+    final isPositive = percentage.startsWith('+');
+    final percentageColor = isPositive ? Colors.green : Colors.red;
+
+    return InkWell(
+      onTap: () {
+        debugPrint('🔍 MobileMergedLeadStatusCard: Card clicked - $title');
+        // Map card title to filter value
+        String filterValue;
+        switch (title) {
+          case 'Total Leads':
+            filterValue = 'All';
+            break;
+          case 'Proposal Progress':
+            filterValue = 'Proposal Progress';
+            break;
+          case 'Waiting Approval':
+            filterValue = 'Waiting for Approval';
+            break;
+          case 'Approved':
+            filterValue = 'Approved';
+            break;
+          case 'Completed':
+            filterValue = 'Completed';
+            break;
+          default:
+            filterValue = 'All';
+        }
+        debugPrint('🔍 MobileMergedLeadStatusCard: Mapped to filter: $filterValue');
+
+        // Navigate to Lead Management with filter
+        _navigateToLeadManagementWithFilter(filterValue);
+      },
+      child: Container(
+        height: 60, // Reduced height for mobile
+        padding: EdgeInsets.all(6), // Reduced padding for mobile
+        decoration: BoxDecoration(
+          color: Colors.transparent, // No background for merged design
+          border: showRightDivider 
+            ? Border(right: BorderSide(color: Colors.grey[300]!, width: 1))
+            : null,
+        ),
+        child: Stack(
+          children: [
+            // Main content
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Title section at top
+                Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                      child: Icon(icon, color: color, size: 10),
+                    ),
+                    SizedBox(width: 3),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey[700],
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 2),
+                // Value section below title - Center aligned
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            // Percentage section at top right corner (no padding)
+            Positioned(
+              top: 0,
+              right: 0,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isPositive ? Icons.trending_up : Icons.trending_down,
+                    color: percentageColor,
+                    size: 8,
+                  ),
+                  SizedBox(width: 1),
+                  Text(
+                    percentage,
+                    style: TextStyle(
+                      fontSize: 8,
                       color: percentageColor,
                       fontWeight: FontWeight.w600,
                     ),

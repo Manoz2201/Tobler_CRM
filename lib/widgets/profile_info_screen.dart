@@ -42,10 +42,22 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
   String? _updateMessage;
   bool _updateAvailable = false;
 
+  // Settings functionality
+  final TextEditingController _projectCodeController = TextEditingController();
+  bool _isSettingsLoading = false;
+  String? _currentProjectCode;
+
   @override
   void initState() {
     super.initState();
     _loadUserData();
+    _loadCurrentProjectCode(); // Load project code settings
+  }
+
+  @override
+  void dispose() {
+    _projectCodeController.dispose(); // Dispose the project code controller
+    super.dispose();
   }
 
   Future<void> _loadUserData() async {
@@ -193,6 +205,93 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Profile image removed')));
+    }
+  }
+
+  // Load current project code from settings
+  Future<void> _loadCurrentProjectCode() async {
+    try {
+      final client = Supabase.instance.client;
+      final response = await client
+          .from('settings')
+          .select('project_code')
+          .limit(1)
+          .single();
+
+      setState(() {
+        _currentProjectCode = response['project_code'];
+        _projectCodeController.text = _currentProjectCode ?? '';
+      });
+    } catch (e) {
+      // Handle error or no existing project code
+      setState(() {
+        _currentProjectCode = null;
+        _projectCodeController.text = '';
+      });
+    }
+  }
+
+  // Save project code to settings
+  Future<void> _saveProjectCode() async {
+    if (_projectCodeController.text.trim().isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Please enter a project code')));
+      }
+      return;
+    }
+
+    setState(() {
+      _isSettingsLoading = true;
+    });
+
+    try {
+      final client = Supabase.instance.client;
+      final baseCode = _projectCodeController.text.trim();
+
+      // Get the next sequence number
+      final response = await client
+          .from('settings')
+          .select('project_code')
+          .limit(1)
+          .maybeSingle();
+
+      int nextSequence = 1;
+      if (response != null && response['project_code'] != null) {
+        final currentCode = response['project_code'] as String;
+        final parts = currentCode.split('-');
+        if (parts.length > 1) {
+          final lastPart = int.tryParse(parts.last) ?? 0;
+          nextSequence = lastPart + 1;
+        }
+      }
+
+      final newProjectCode =
+          '$baseCode-${nextSequence.toString().padLeft(5, '0')}';
+
+      // Update or insert the project code
+      await client.from('settings').upsert({'project_code': newProjectCode});
+
+      if (mounted) {
+        setState(() {
+          _currentProjectCode = newProjectCode;
+          _isSettingsLoading = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Project code saved: $newProjectCode')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isSettingsLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving project code: ${e.toString()}')),
+        );
+      }
     }
   }
 
@@ -545,6 +644,183 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
     );
   }
 
+  // Build Profile Card with reduced padding
+  Widget _buildProfileCard(bool isMobile) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: EdgeInsets.all(isMobile ? 12.0 : 16.0), // Reduced padding
+        child: Column(
+          children: [
+            // Profile Image Section
+            Center(
+              child: Column(
+                children: [
+                  _buildProfileImage(),
+                  SizedBox(height: isMobile ? 8 : 12), // Reduced spacing
+                  Text(
+                    _userData?['username'] ?? 'Unknown User',
+                    style: TextStyle(
+                      fontSize: isMobile ? 18 : 22, // Slightly reduced font
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 4), // Reduced spacing
+                  Text(
+                    _userData?['user_type'] ?? 'Unknown Type',
+                    style: TextStyle(
+                      fontSize: isMobile ? 12 : 14, // Slightly reduced font
+                      color: Colors.grey[600],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: isMobile ? 16 : 20), // Reduced spacing
+            // User Info Section
+            const Divider(),
+            SizedBox(height: isMobile ? 8 : 12), // Reduced spacing
+
+            _buildInfoRow(
+              'Name',
+              _userData?['username'] ?? '',
+              isMobile: isMobile,
+            ),
+            _buildInfoRow(
+              'Employee Code',
+              _userData?['employee_code'] ?? '',
+              isMobile: isMobile,
+            ),
+            _buildInfoRow(
+              'Email ID',
+              _userData?['email'] ?? '',
+              isMobile: isMobile,
+            ),
+            _buildInfoRow(
+              'Device',
+              _userData?['device_type'] ?? '',
+              isMobile: isMobile,
+            ),
+            _buildInfoRow(
+              'User Type',
+              _userData?['user_type'] ?? '',
+              isMobile: isMobile,
+            ),
+            _buildInfoRow(
+              'Online Status',
+              _userData?['is_user_online']?.toString() ?? 'false',
+              isOnlineStatus: true,
+              isMobile: isMobile,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Build Settings Card with Project Code Configuration
+  Widget _buildSettingsCard(bool isMobile) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: EdgeInsets.all(isMobile ? 12.0 : 16.0), // Reduced padding
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Project Code Configuration',
+              style: TextStyle(
+                fontSize: isMobile ? 16 : 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
+            ),
+            SizedBox(height: 8), // Reduced spacing
+            Text(
+              'Set the base project code. The system will automatically generate sequential codes like "Tobler-00001", "Tobler-00002", etc.',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+            SizedBox(height: 16), // Reduced spacing
+            TextField(
+              controller: _projectCodeController,
+              decoration: InputDecoration(
+                labelText: 'Base Project Code',
+                hintText: 'e.g., Tobler',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                prefixIcon: Icon(Icons.code),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ), // Reduced padding
+              ),
+            ),
+            SizedBox(height: 12), // Reduced spacing
+            if (_currentProjectCode != null)
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue[200]!),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info, color: Colors.blue[700], size: 16),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Current: $_currentProjectCode',
+                        style: TextStyle(
+                          color: Colors.blue[700],
+                          fontWeight: FontWeight.w500,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            SizedBox(height: 12), // Reduced spacing
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isSettingsLoading ? null : _saveProjectCode,
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(
+                    vertical: 12,
+                  ), // Reduced padding
+                  backgroundColor: Colors.blue[600],
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: _isSettingsLoading
+                    ? SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
+                        ),
+                      )
+                    : Text('Save Project Code'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -657,83 +933,26 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                     ),
                   SizedBox(height: isMobile ? 20 : 30),
 
-                  // Profile Card
-                  Card(
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                  // Profile and Settings Cards Row
+                  if (isMobile)
+                    // Mobile: Stack cards vertically
+                    Column(
+                      children: [
+                        _buildProfileCard(isMobile),
+                        SizedBox(height: 16),
+                        _buildSettingsCard(isMobile),
+                      ],
+                    )
+                  else
+                    // Desktop: Side by side cards
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: _buildProfileCard(isMobile)),
+                        SizedBox(width: 16),
+                        Expanded(child: _buildSettingsCard(isMobile)),
+                      ],
                     ),
-                    child: Padding(
-                      padding: EdgeInsets.all(isMobile ? 16.0 : 24.0),
-                      child: Column(
-                        children: [
-                          // Profile Image Section
-                          Center(
-                            child: Column(
-                              children: [
-                                _buildProfileImage(),
-                                SizedBox(height: isMobile ? 12 : 16),
-                                Text(
-                                  _userData?['username'] ?? 'Unknown User',
-                                  style: TextStyle(
-                                    fontSize: isMobile ? 20 : 24,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                                SizedBox(height: isMobile ? 6 : 8),
-                                Text(
-                                  _userData?['user_type'] ?? 'Unknown Type',
-                                  style: TextStyle(
-                                    fontSize: isMobile ? 14 : 16,
-                                    color: Colors.grey[600],
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          ),
-                          SizedBox(height: isMobile ? 24 : 32),
-
-                          // User Info Section
-                          const Divider(),
-                          SizedBox(height: isMobile ? 12 : 16),
-
-                          _buildInfoRow(
-                            'Name',
-                            _userData?['username'] ?? '',
-                            isMobile: isMobile,
-                          ),
-                          _buildInfoRow(
-                            'Employee Code',
-                            _userData?['employee_code'] ?? '',
-                            isMobile: isMobile,
-                          ),
-                          _buildInfoRow(
-                            'Email ID',
-                            _userData?['email'] ?? '',
-                            isMobile: isMobile,
-                          ),
-                          _buildInfoRow(
-                            'Device',
-                            _userData?['device_type'] ?? '',
-                            isMobile: isMobile,
-                          ),
-                          _buildInfoRow(
-                            'User Type',
-                            _userData?['user_type'] ?? '',
-                            isMobile: isMobile,
-                          ),
-                          _buildInfoRow(
-                            'Online Status',
-                            _userData?['is_user_online']?.toString() ?? 'false',
-                            isOnlineStatus: true,
-                            isMobile: isMobile,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),

@@ -10,7 +10,6 @@ class NavigationUtils {
           NavItem('Sales Performance', Icons.trending_up),
           NavItem('User Management', Icons.group),
           NavItem('Role Management', Icons.security),
-          NavItem('Settings', Icons.settings),
           NavItem('Profile', Icons.person),
           NavItem('Logout', Icons.logout),
         ];
