@@ -4,7 +4,9 @@ import '../../user_management_service.dart';
 
 // Admin User Management Page with Dashboard-style UI/UX
 class AdminUserManagementPage extends StatefulWidget {
-  const AdminUserManagementPage({super.key});
+  final Function()? onNavigateToRoleManagement;
+
+  const AdminUserManagementPage({super.key, this.onNavigateToRoleManagement});
 
   @override
   State<AdminUserManagementPage> createState() =>
@@ -15,6 +17,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
   List<Map<String, dynamic>> users = [];
   bool isLoading = true;
   String searchQuery = '';
+  String _selectedFilter = 'All'; // Add filter state
   final ScrollController _scrollbarController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
   bool _isSearchExpanded = false;
@@ -111,19 +114,143 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
     });
   }
 
+  // Handle stat card taps for filtering
+  void _onStatCardTap(String title) {
+    debugPrint('🔍 UserManagement: Stat card tapped - $title');
+
+    setState(() {
+      switch (title) {
+        case 'Total Users':
+          _selectedFilter = 'All';
+          break;
+        case 'Sales Users':
+          _selectedFilter = 'Sales Users';
+          break;
+        case 'Proposal Users':
+          _selectedFilter = 'Proposal Users';
+          break;
+        case 'Admin Users':
+          _selectedFilter = 'Admin Users';
+          break;
+        case 'HR Users':
+          _selectedFilter = 'HR Users';
+          break;
+        default:
+          _selectedFilter = 'All';
+      }
+
+      // Clear search query when applying filter for better UX
+      if (_selectedFilter != 'All') {
+        searchQuery = '';
+        _searchController.clear();
+      }
+    });
+
+    debugPrint('🔍 UserManagement: Filter set to: $_selectedFilter');
+  }
+
+  // Helper method to get filter value from card title
+  String _getSelectedFilterFromTitle(String title) {
+    switch (title) {
+      case 'Total Users':
+        return 'All';
+      case 'Sales Users':
+        return 'Sales Users';
+      case 'Proposal Users':
+        return 'Proposal Users';
+      case 'Admin Users':
+        return 'Admin Users';
+      case 'HR Users':
+        return 'HR Users';
+      default:
+        return 'All';
+    }
+  }
+
+  // Build filter status indicator
+  Widget _buildFilterStatus() {
+    if (_selectedFilter == 'All') return SizedBox.shrink();
+
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.blue.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.filter_list, color: Colors.blue, size: 16),
+          SizedBox(width: 8),
+          Text(
+            'Filtered by: $_selectedFilter',
+            style: TextStyle(
+              color: Colors.blue[700],
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          SizedBox(width: 8),
+          InkWell(
+            onTap: () {
+              setState(() {
+                _selectedFilter = 'All';
+              });
+            },
+            child: Icon(Icons.close, color: Colors.blue, size: 16),
+          ),
+        ],
+      ),
+    );
+  }
+
   List<Map<String, dynamic>> get filteredUsers {
     final lowerQuery = searchQuery.toLowerCase();
     List<Map<String, dynamic>> filtered = users.where((user) {
-      return (user['username'] ?? '').toString().toLowerCase().contains(
+      // First apply search filter
+      bool matchesSearch =
+          (user['username'] ?? '').toString().toLowerCase().contains(
             lowerQuery,
           ) ||
           (user['email'] ?? '').toString().toLowerCase().contains(lowerQuery) ||
           (user['user_type'] ?? '').toString().toLowerCase().contains(
             lowerQuery,
           );
+
+      // Then apply category filter
+      if (!matchesSearch) return false;
+
+      if (_selectedFilter == 'All') return true;
+
+      // Map filter values to user types
+      switch (_selectedFilter) {
+        case 'Sales Users':
+          return (user['user_type'] ?? '').toString().toLowerCase() == 'sales';
+        case 'Proposal Users':
+          return (user['user_type'] ?? '').toString().toLowerCase() ==
+              'proposal engineer';
+        case 'Admin Users':
+          return (user['user_type'] ?? '').toString().toLowerCase() == 'admin';
+        case 'HR Users':
+          return (user['user_type'] ?? '').toString().toLowerCase() == 'hr';
+        default:
+          return true;
+      }
     }).toList();
 
     return filtered;
+  }
+
+  // Handle search query changes
+  void _onSearchChanged(String query) {
+    setState(() {
+      searchQuery = query;
+      // Clear filter when searching for better UX
+      if (query.isNotEmpty) {
+        _selectedFilter = 'All';
+      }
+    });
   }
 
   @override
@@ -199,11 +326,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                                   padding: EdgeInsets.only(left: 12),
                                   child: TextField(
                                     controller: _searchController,
-                                    onChanged: (val) {
-                                      setState(() {
-                                        searchQuery = val;
-                                      });
-                                    },
+                                    onChanged: _onSearchChanged,
                                     decoration: InputDecoration(
                                       hintText: 'Search users...',
                                       border: InputBorder.none,
@@ -313,14 +436,14 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
               // User Management heading with icon
               Row(
                 children: [
-                  Icon(Icons.people, color: Colors.grey[800], size: 20),
-                  SizedBox(width: 6),
+                  Icon(Icons.people, color: Colors.grey[800], size: 24),
+                  SizedBox(width: 8),
                   Text(
                     'User Management',
                     style: TextStyle(
                       color: Colors.grey[800],
                       fontWeight: FontWeight.bold,
-                      fontSize: 18,
+                      fontSize: 24,
                     ),
                   ),
                 ],
@@ -343,11 +466,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                 ),
                 child: TextField(
                   controller: _searchController,
-                  onChanged: (val) {
-                    setState(() {
-                      searchQuery = val;
-                    });
-                  },
+                  onChanged: _onSearchChanged,
                   decoration: InputDecoration(
                     hintText: 'Search Username / Email / User Type',
                     border: InputBorder.none,
@@ -436,6 +555,9 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                 _buildMobileUserStatsCards(),
                 SizedBox(height: 24),
               ],
+              // Filter status indicator
+              _buildFilterStatus(),
+              SizedBox(height: 16),
               // Users list
               Expanded(child: _buildUsersList()),
             ],
@@ -449,6 +571,9 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                 _buildDesktopUserStatsCards(),
                 SizedBox(height: 24),
               ],
+              // Filter status indicator
+              _buildFilterStatus(),
+              SizedBox(height: 16),
               // Users list
               Expanded(child: _buildUsersList()),
             ],
@@ -595,80 +720,88 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
     final isPositive = percentage.startsWith('+');
     final percentageColor = isPositive ? Colors.green : Colors.red;
 
-    return Container(
-      padding: EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Icon and Title row - centered
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Icon(icon, color: color, size: 12),
-              ),
-              SizedBox(width: 6),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Colors.grey[700],
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 6),
-          // Main value - centered
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[800],
+    // Check if this card is selected
+    bool isSelected = _getSelectedFilterFromTitle(title) == _selectedFilter;
+
+    return InkWell(
+      onTap: () => _onStatCardTap(title),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withValues(alpha: 0.1) : Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: isSelected ? Border.all(color: color, width: 2) : null,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 6,
+              offset: const Offset(0, 1),
             ),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 2),
-          // Percentage with arrow - centered
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                isPositive ? Icons.trending_up : Icons.trending_down,
-                color: percentageColor,
-                size: 10,
-              ),
-              SizedBox(width: 2),
-              Text(
-                percentage,
-                style: TextStyle(
-                  fontSize: 9,
-                  color: percentageColor,
-                  fontWeight: FontWeight.w600,
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Icon and Title row - centered
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Icon(icon, color: color, size: 12),
                 ),
+                SizedBox(width: 6),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: isSelected ? color : Colors.grey[700],
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 6),
+            // Main value - centered
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: isSelected ? color : Colors.grey[800],
               ),
-            ],
-          ),
-        ],
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 2),
+            // Percentage with arrow - centered
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  isPositive ? Icons.trending_up : Icons.trending_down,
+                  color: percentageColor,
+                  size: 10,
+                ),
+                SizedBox(width: 2),
+                Text(
+                  percentage,
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: percentageColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -894,13 +1027,33 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
   }
 
   void _showAddUserDialog(BuildContext context) {
-    // Implementation for adding user
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Add User functionality will be implemented'),
-        duration: Duration(seconds: 2),
-      ),
+    // Navigate to Role Management invite section when Add User button is clicked
+    debugPrint(
+      '🔍 Add User button clicked - navigating to Role Management invite section',
     );
+
+    if (widget.onNavigateToRoleManagement != null) {
+      // Use the callback to navigate to Role Management
+      widget.onNavigateToRoleManagement!();
+
+      // Show a helpful message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Redirected to Role Management - Invite section'),
+          backgroundColor: Colors.blue,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } else {
+      // Fallback if navigation fails
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Navigation failed. Please use the navigation menu.'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   void _showEditUserDialog(BuildContext context, Map<String, dynamic> user) {
@@ -913,18 +1066,7 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
     final TextEditingController userTypeController = TextEditingController(
       text: user['user_type'] ?? '',
     );
-    final TextEditingController statusController = TextEditingController(
-      text: user['status'] ?? '',
-    );
-    final TextEditingController screenNameController = TextEditingController(
-      text: user['screen_name'] ?? '',
-    );
-    final TextEditingController screenTypeController = TextEditingController(
-      text: user['screen_type'] ?? '',
-    );
-    final TextEditingController descriptionController = TextEditingController(
-      text: user['description'] ?? '',
-    );
+
     final TextEditingController userTargetController = TextEditingController(
       text: user['user_target']?.toString() ?? '0',
     );
@@ -1014,29 +1156,55 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                                 userTypeController,
                                 Icons.category,
                               ),
-                              _buildEditField(
-                                'Status',
-                                statusController,
-                                Icons.info,
-                              ),
-                            ]),
-                            SizedBox(height: 24),
-                            // Additional Information
-                            _buildEditSection('Additional Information', [
-                              _buildEditField(
-                                'Screen Name',
-                                screenNameController,
-                                Icons.screen_share,
-                              ),
-                              _buildEditField(
-                                'Screen Type',
-                                screenTypeController,
-                                Icons.display_settings,
-                              ),
-                              _buildEditField(
-                                'Description',
-                                descriptionController,
-                                Icons.description,
+                              Padding(
+                                padding: EdgeInsets.only(bottom: 16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.info,
+                                          color: Colors.grey[600],
+                                          size: 18,
+                                        ),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          'Status',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.grey[700],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    SizedBox(height: 8),
+                                    Container(
+                                      width: double.infinity,
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 12,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(
+                                          color: Colors.grey[300]!,
+                                        ),
+                                        borderRadius: BorderRadius.circular(8),
+                                        color: Colors.grey[100],
+                                      ),
+                                      child: Text(
+                                        user['is_user_online'] == true
+                                            ? 'Online'
+                                            : 'Offline',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.grey[700],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                               _buildEditField(
                                 'User Target',
@@ -1072,13 +1240,6 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                                         'username': usernameController.text,
                                         'email': emailController.text,
                                         'user_type': userTypeController.text,
-                                        'status': statusController.text,
-                                        'screen_name':
-                                            screenNameController.text,
-                                        'screen_type':
-                                            screenTypeController.text,
-                                        'description':
-                                            descriptionController.text,
                                         'user_target':
                                             double.tryParse(
                                               userTargetController.text,
@@ -1457,32 +1618,17 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                             'User Type',
                             user['user_type'] ?? 'N/A',
                           ),
-                          _buildDetailRow('Status', user['status'] ?? 'N/A'),
+                          _buildDetailRow(
+                            'Status',
+                            user['is_user_online'] == true
+                                ? 'Online'
+                                : 'Offline',
+                          ),
+                          _buildDetailRow(
+                            'User Target',
+                            _formatUserTarget(user['user_target']),
+                          ),
                         ]),
-                        SizedBox(height: 24),
-                        // Additional Information Section
-                        _buildDetailSection(
-                          'Additional Information',
-                          Icons.description,
-                          [
-                            _buildDetailRow(
-                              'Screen Name',
-                              user['screen_name'] ?? 'N/A',
-                            ),
-                            _buildDetailRow(
-                              'Screen Type',
-                              user['screen_type'] ?? 'N/A',
-                            ),
-                            _buildDetailRow(
-                              'Description',
-                              user['description'] ?? 'N/A',
-                            ),
-                            _buildDetailRow(
-                              'User Target',
-                              _formatUserTarget(user['user_target']),
-                            ),
-                          ],
-                        ),
                         SizedBox(height: 24),
                         // System Information Section
                         _buildDetailSection(

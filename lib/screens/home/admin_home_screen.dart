@@ -82,7 +82,10 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     ), // Dashboard
     LeadTable(initialFilter: _leadTableFilter), // Leads Management
     SalesPerformancePage(), // Sales Performance
-    AdminUserManagementPage(), // User Management
+    AdminUserManagementPage(
+      onNavigateToRoleManagement: () =>
+          _onItemTapped(4), // Role Management index
+    ), // User Management
     AdminRoleManagementPage(), // Role Management
     AdminSettingsPage(), // Settings
     ProfilePage(), // Profile
@@ -4605,16 +4608,16 @@ class _LeadTableState extends State<LeadTable> {
       // Desktop layout - original design
       return Row(
         children: [
-          Icon(Icons.leaderboard, size: 32, color: Colors.blue[700]),
+          Icon(Icons.leaderboard, size: 24, color: Colors.blue[700]),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Lead Management',
+                  'Leads Management',
                   style: TextStyle(
-                    fontSize: 32,
+                    fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: Colors.grey[800],
                   ),
@@ -4677,7 +4680,7 @@ class _LeadTableState extends State<LeadTable> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Lead Management',
+                  'Leads Management',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -11091,75 +11094,124 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     IconData icon,
     Color color,
   ) {
-    return Container(
-      height: 200, // Increased height for better visual balance with chart
-      padding: const EdgeInsets.all(
-        16,
-      ), // Increased padding for better proportions
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(
-          8,
-        ), // Reduced radius for compact layout
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 4, // Reduced blur for compact layout
-            offset: const Offset(0, 1), // Reduced offset for compact layout
+    // Determine background color based on card title for Dashboard section
+    Color backgroundColor;
+    Color textColor;
+
+    if (title == 'Total Target' || title == 'Lead Count') {
+      backgroundColor = const Color(0xFF1E4B8A); // Blue
+      textColor = Colors.white;
+    } else if (title == 'Achievement' || title == 'Forecast') {
+      backgroundColor = const Color(0xFFF2D400); // Bright Yellow
+      textColor = Colors.black87;
+    } else {
+      backgroundColor = Colors.white;
+      textColor = Colors.grey[800]!;
+    }
+
+    return InkWell(
+      onTap: () {
+        // Navigate to Sales Performance section when KPI card is clicked
+        debugPrint('🔍 Dashboard KPI Card clicked: $title');
+        // Navigate to Sales Performance section using the existing navigation system
+        if (mounted) {
+          // Find the parent AdminHomeScreen and update the selected index
+          final adminHomeScreen = context
+              .findAncestorStateOfType<_AdminHomeScreenState>();
+          if (adminHomeScreen != null) {
+            // Sales Performance is at index 2 in the _pages list
+            adminHomeScreen._onItemTapped(2);
+          }
+        }
+      },
+      borderRadius: BorderRadius.circular(8),
+      splashColor: title == 'Total Target' || title == 'Lead Count'
+          ? Colors.white.withValues(alpha: 0.3)
+          : Colors.black87.withValues(alpha: 0.1),
+      highlightColor: title == 'Total Target' || title == 'Lead Count'
+          ? Colors.white.withValues(alpha: 0.1)
+          : Colors.black87.withValues(alpha: 0.05),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: Container(
+          height: 200, // Increased height for better visual balance with chart
+          padding: const EdgeInsets.all(
+            16,
+          ), // Increased padding for better proportions
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            borderRadius: BorderRadius.circular(
+              8,
+            ), // Reduced radius for compact layout
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 4, // Reduced blur for compact layout
+                offset: const Offset(0, 1), // Reduced offset for compact layout
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          // Title positioned at top left corner
-          Positioned(
-            top: 0,
-            left: 0,
-            child: Row(
-              children: [
-                Icon(icon, color: color, size: 18),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 18, // Title font size as requested
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[700],
-                  ),
-                  overflow: TextOverflow.ellipsis,
+          child: Stack(
+            children: [
+              // Title positioned at top left corner
+              Positioned(
+                top: 0,
+                left: 0,
+                child: Row(
+                  children: [
+                    Icon(
+                      icon,
+                      color: title == 'Total Target' || title == 'Lead Count'
+                          ? Colors.white
+                          : title == 'Achievement' || title == 'Forecast'
+                          ? Colors.black87
+                          : color,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 18, // Title font size as requested
+                        fontWeight: FontWeight.w600,
+                        color: textColor,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              // Value and percentage centered in the card
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: 16, // Value font size as requested
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      percentage,
+                      style: TextStyle(
+                        fontSize: 11, // Percentage font size as requested
+                        color: textColor.withValues(alpha: 0.8),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          // Value and percentage centered in the card
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 16, // Value font size as requested
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[800],
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  percentage,
-                  style: TextStyle(
-                    fontSize: 11, // Percentage font size as requested
-                    color: Colors.grey[600],
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -11338,11 +11390,17 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _buildLegendItem('Target (₹ CR)', Colors.purple),
+              _buildLegendItem(
+                'Target (₹ CR)',
+                const Color(0xFF1E4B8A),
+              ), // Blue
               const SizedBox(width: 16),
               _buildLegendItem('Achievement (₹ CR)', Colors.green),
               const SizedBox(width: 16),
-              _buildLegendItem('Gap (₹ CR)', Colors.red),
+              _buildLegendItem(
+                'Gap (₹ CR)',
+                const Color(0xFFF2D400),
+              ), // Bright Yellow
             ],
           ),
         ],
@@ -11460,10 +11518,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             x: index,
             groupVertically: false,
             barRods: [
-              // Target bar (Purple)
+              // Target bar (Blue)
               BarChartRodData(
                 toY: data['target'] as double,
-                color: Colors.purple,
+                color: const Color(0xFF1E4B8A), // Blue
                 width: 20,
                 borderRadius: BorderRadius.circular(4),
               ),
@@ -11474,10 +11532,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 width: 20,
                 borderRadius: BorderRadius.circular(4),
               ),
-              // Gap bar (Red)
+              // Gap bar (Bright Yellow)
               BarChartRodData(
                 toY: data['gap'] as double,
-                color: Colors.red,
+                color: const Color(0xFFF2D400), // Bright Yellow
                 width: 20,
                 borderRadius: BorderRadius.circular(4),
               ),
@@ -13063,7 +13121,6 @@ class AdminRoleManagementPage extends StatefulWidget {
 class _AdminRoleManagementPageState extends State<AdminRoleManagementPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  bool _isMenuExpanded = false;
   final TextEditingController _searchController = TextEditingController();
 
   // User data state
@@ -13394,7 +13451,7 @@ class _AdminRoleManagementPageState extends State<AdminRoleManagementPage>
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
-              // Header with Role Management heading, search bar, and action buttons
+              // Header with Role Management heading
               _buildHeader(),
               SizedBox(height: 24),
 
@@ -13413,48 +13470,21 @@ class _AdminRoleManagementPageState extends State<AdminRoleManagementPage>
         final isMobile = constraints.maxWidth <= 600;
 
         if (isMobile) {
-          // Mobile layout - only dashboard heading and three dots
+          // Mobile layout - only Role Management heading (no three dots)
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Dashboard heading with icon
+              // Role Management heading with icon
               Row(
                 children: [
-                  Icon(Icons.dashboard, color: Colors.grey[800], size: 20),
+                  Icon(Icons.security, color: Colors.grey[800], size: 20),
                   SizedBox(width: 6),
                   Text(
-                    'Dashboard',
+                    'Role Management',
                     style: TextStyle(
                       color: Colors.grey[800],
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
-                    ),
-                  ),
-                  Spacer(),
-                  // Three dots menu button
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(18),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 4,
-                          offset: Offset(0, 1),
-                        ),
-                      ],
-                    ),
-                    child: IconButton(
-                      onPressed: () {
-                        setState(() {
-                          _isMenuExpanded = !_isMenuExpanded;
-                        });
-                      },
-                      icon: Icon(Icons.more_vert, color: Colors.grey[600]),
-                      iconSize: 16,
-                      padding: EdgeInsets.zero,
                     ),
                   ),
                 ],
@@ -13462,16 +13492,16 @@ class _AdminRoleManagementPageState extends State<AdminRoleManagementPage>
             ],
           );
         } else {
-          // Desktop and tablet layout - dashboard heading and three dots on right
+          // Desktop and tablet layout - Role Management heading only (no three dots)
           return Row(
             children: [
-              // Dashboard heading with icon
+              // Role Management heading with icon
               Row(
                 children: [
-                  Icon(Icons.dashboard, color: Colors.grey[800], size: 24),
+                  Icon(Icons.security, color: Colors.grey[800], size: 24),
                   SizedBox(width: 8),
                   Text(
-                    'Dashboard',
+                    'Role Management',
                     style: TextStyle(
                       color: Colors.grey[800],
                       fontWeight: FontWeight.bold,
@@ -13479,34 +13509,6 @@ class _AdminRoleManagementPageState extends State<AdminRoleManagementPage>
                     ),
                   ),
                 ],
-              ),
-
-              Spacer(), // Flexible space to push three dots to right
-              // Three dots menu button positioned on the right
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 8,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: IconButton(
-                  onPressed: () {
-                    setState(() {
-                      _isMenuExpanded = !_isMenuExpanded;
-                    });
-                  },
-                  icon: Icon(Icons.more_vert, color: Colors.grey[600]),
-                  iconSize: 24,
-                  padding: EdgeInsets.zero,
-                ),
               ),
             ],
           );
