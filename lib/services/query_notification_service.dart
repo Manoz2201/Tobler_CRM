@@ -5,6 +5,18 @@ import 'package:flutter/foundation.dart';
 class QueryNotificationService {
   static const String _unreadQueriesKey = 'unread_queries';
 
+  /// Validate if a string is a valid UUID
+  static bool _isValidUUID(String? uuid) {
+    if (uuid == null || uuid.isEmpty) return false;
+
+    // UUID regex pattern: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    final uuidPattern = RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+    );
+
+    return uuidPattern.hasMatch(uuid);
+  }
+
   /// Check if a lead has unread queries for the current user
   static Future<bool> hasUnreadQueries(String leadId, String userId) async {
     try {
@@ -22,11 +34,11 @@ class QueryNotificationService {
 
       // The leadId should be the actual UUID from the leads table
       // If it's not a valid UUID, we can't proceed
-      if (leadId.isEmpty || leadId == 'null') {
+      if (leadId.isEmpty || leadId == 'null' || !_isValidUUID(leadId)) {
         debugPrint('Invalid leadId: $leadId');
         return false;
       }
-      
+
       String actualLeadId = leadId;
 
       // Check if there are any queries for this lead where current user is the receiver
@@ -70,11 +82,11 @@ class QueryNotificationService {
 
       // The leadId should be the actual UUID from the leads table
       // If it's not a valid UUID, we can't proceed
-      if (leadId.isEmpty || leadId == 'null') {
+      if (leadId.isEmpty || leadId == 'null' || !_isValidUUID(leadId)) {
         debugPrint('Invalid leadId: $leadId');
         return 0;
       }
-      
+
       String actualLeadId = leadId;
 
       // Get unread queries for this lead where current user is the receiver

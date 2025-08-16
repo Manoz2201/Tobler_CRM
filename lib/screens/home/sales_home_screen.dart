@@ -394,6 +394,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
   final Map<String, bool> _hoveredRows = {}; // Track hover state for each row
   final Map<String, bool> _hoveredButtons = {}; // Track hover state for buttons
   String? _selectedStatusFilter; // Track selected status filter for sorting
+  bool _showStatusCards = true; // Toggle for status cards visibility
 
   // Add query count tracking
   final Map<String, int> _queryCounts = {};
@@ -427,7 +428,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     // Add sample data to match the admin interface image
     final sampleLeads = [
       {
-        'lead_id': '1',
+        'lead_id': 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
         'client_name': 'RK Construction',
         'project_name': 'Dahisar Project',
         'project_location': 'Mumbai',
@@ -440,7 +441,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         'status': 'Proposal Progress',
       },
       {
-        'lead_id': '2',
+        'lead_id': 'b2c3d4e5-f6g7-8901-bcde-f23456789012',
         'client_name': 'test',
         'project_name': 'test',
         'project_location': 'test',
@@ -453,7 +454,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         'status': 'Proposal Progress',
       },
       {
-        'lead_id': '3',
+        'lead_id': 'c3d4e5f6-g7h8-9012-cdef-345678901234',
         'client_name': 'JP Infra',
         'project_name': 'Thane Project',
         'project_location': 'Mumbai',
@@ -466,7 +467,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         'status': 'Proposal Progress',
       },
       {
-        'lead_id': '4',
+        'lead_id': 'd4e5f6g7-h8i9-0123-def0-456789012345',
         'client_name': 'IBCLLP',
         'project_name': 'IBCLLP',
         'project_location': 'Mumbai',
@@ -479,7 +480,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         'status': 'Proposal Progress',
       },
       {
-        'lead_id': '5',
+        'lead_id': 'e5f6g7h8-i9j0-1234-ef01-567890123456',
         'client_name': 'West Best Buildcon',
         'project_name': 'Spenta Housing',
         'project_location': 'Mumbai',
@@ -492,7 +493,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         'status': 'Proposal Progress',
       },
       {
-        'lead_id': '6',
+        'lead_id': 'f6g7h8i9-j0k1-2345-f012-678901234567',
         'client_name': 'Mehta Group',
         'project_name': 'Jogeshwari Project',
         'project_location': 'Mumbai',
@@ -850,7 +851,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         try {
           // The leadId should be the actual UUID from the leads table
           // If it's not a valid UUID, we can't proceed
-          if (leadId.isEmpty || leadId == 'null') {
+          if (leadId.isEmpty || leadId == 'null' || !_isValidUUID(leadId)) {
             debugPrint('Invalid leadId: $leadId');
             setState(() {
               _queryCounts[leadId] = 0;
@@ -877,6 +878,18 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     } catch (e) {
       debugPrint('Error fetching query counts: $e');
     }
+  }
+
+  /// Validate if a string is a valid UUID
+  bool _isValidUUID(String? uuid) {
+    if (uuid == null || uuid.isEmpty) return false;
+
+    // UUID regex pattern: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    final uuidPattern = RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+    );
+
+    return uuidPattern.hasMatch(uuid);
   }
 
   void _onSearch(String value) {
@@ -995,9 +1008,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                 _buildHeader(isWide),
                 SizedBox(height: isWide ? 24 : 8),
 
-                // Stats Cards
-                if (isWide) _buildStatsCards(),
-                if (isWide) const SizedBox(height: 24),
+                // Stats Cards - conditionally shown
+                if (isWide && _showStatusCards) _buildStatsCards(),
+                if (isWide && _showStatusCards) const SizedBox(height: 24),
 
                 // Search and Actions Section
                 _buildSearchAndActions(isWide),
@@ -1056,6 +1069,28 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             tooltip: 'Export Leads',
           ),
           const SizedBox(width: 8),
+          // Toggle button for status cards visibility
+          IconButton(
+            onPressed: () {
+              setState(() {
+                _showStatusCards = !_showStatusCards;
+              });
+            },
+            icon: Icon(
+              _showStatusCards ? Icons.visibility_off : Icons.visibility,
+              color: _showStatusCards ? Colors.orange[600] : Colors.green[600],
+            ),
+            tooltip: _showStatusCards
+                ? 'Hide Status Cards'
+                : 'Show Status Cards',
+            style: IconButton.styleFrom(
+              backgroundColor: _showStatusCards
+                  ? Colors.orange[50]
+                  : Colors.green[50],
+              padding: EdgeInsets.all(12),
+            ),
+          ),
+          const SizedBox(width: 8),
           ElevatedButton.icon(
             onPressed: _fetchLeads,
             icon: Icon(Icons.refresh),
@@ -1088,6 +1123,26 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                   ),
                 ),
               ),
+              // Toggle button for status cards visibility (mobile)
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    _showStatusCards = !_showStatusCards;
+                  });
+                },
+                icon: Icon(
+                  _showStatusCards ? Icons.visibility_off : Icons.visibility,
+                  color: _showStatusCards
+                      ? Colors.orange[600]
+                      : Colors.green[600],
+                  size: 20,
+                ),
+                tooltip: _showStatusCards
+                    ? 'Hide Status Cards'
+                    : 'Show Status Cards',
+                padding: EdgeInsets.all(8),
+                constraints: BoxConstraints(minWidth: 32, minHeight: 32),
+              ),
             ],
           ),
           const SizedBox(height: 4),
@@ -1100,8 +1155,11 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          // Mobile stats cards
-          _buildMobileStatsCards(),
+          // Mobile stats cards - conditionally shown
+          if (_showStatusCards) ...[
+            _buildMobileStatsCards(),
+            const SizedBox(height: 8),
+          ],
         ],
       );
     }
@@ -9946,68 +10004,71 @@ class _InitializeStatusDialogState extends State<InitializeStatusDialog> {
             'User not authorized to update this lead status. Expected: $salesUser, Current: $currentUsername',
           );
         }
+
+        // Step 6: Map status values according to requirements
+        String mappedStatus;
+        switch (_selectedStatus) {
+          case 'Follow Up':
+            mappedStatus = 'Negotiation';
+            break;
+          case 'Lost':
+            mappedStatus = 'Closed';
+            break;
+          case 'Won':
+            mappedStatus = 'Completed';
+            break;
+          default:
+            mappedStatus = _selectedStatus!;
+        }
+
+        // Step 7: Update the existing admin_response row using the record ID
+        if (recordId != null) {
+          debugPrint(
+            '[UPDATE] Updating existing record with ID: $recordId for lead_id: ${widget.leadId}',
+          );
+
+          await client
+              .from('admin_response')
+              .update({
+                'update_lead_status': _selectedStatus,
+                'status': mappedStatus,
+                'lead_status_remark': _remarkController.text.trim(),
+                'created_at': _listingDate?.toIso8601String(),
+                'updated_at': _qualifiedDate?.toIso8601String(),
+              })
+              .eq('id', recordId);
+
+          debugPrint('[UPDATE] ✅ Successfully updated existing record');
+
+          debugPrint('✅ Status updated successfully: $_selectedStatus');
+          debugPrint('✅ Mapped status: $mappedStatus');
+          debugPrint('✅ Remark: ${_remarkController.text.trim()}');
+          debugPrint(
+            '✅ Listing Date (created_at): ${_listingDate?.toIso8601String()}',
+          );
+          debugPrint(
+            '✅ Qualified Date (updated_at): ${_qualifiedDate?.toIso8601String()}',
+          );
+
+          if (mounted) {
+            Navigator.of(context).pop();
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Status updated successfully!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+
+            widget.onStatusUpdated();
+          }
+        } else {
+          throw Exception('Record ID is null, cannot update status');
+        }
       } else {
         throw Exception(
           'No existing admin_response record found for lead_id: ${widget.leadId}. Please ensure the lead has been processed first.',
         );
-      }
-
-      // Step 6: Map status values according to requirements
-      String mappedStatus;
-      switch (_selectedStatus) {
-        case 'Follow Up':
-          mappedStatus = 'Negotiation';
-          break;
-        case 'Lost':
-          mappedStatus = 'Closed';
-          break;
-        case 'Won':
-          mappedStatus = 'Completed';
-          break;
-        default:
-          mappedStatus = _selectedStatus!;
-      }
-
-      // Step 7: Update the existing admin_response row using the record ID
-      final recordId = leadResponse['id'] as String;
-      debugPrint(
-        '[UPDATE] Updating existing record with ID: $recordId for lead_id: ${widget.leadId}',
-      );
-
-      await client
-          .from('admin_response')
-          .update({
-            'update_lead_status': _selectedStatus,
-            'status': mappedStatus,
-            'lead_status_remark': _remarkController.text.trim(),
-            'created_at': _listingDate?.toIso8601String(),
-            'updated_at': _qualifiedDate?.toIso8601String(),
-          })
-          .eq('id', recordId);
-
-      debugPrint('[UPDATE] ✅ Successfully updated existing record');
-
-      debugPrint('✅ Status updated successfully: $_selectedStatus');
-      debugPrint('✅ Mapped status: $mappedStatus');
-      debugPrint('✅ Remark: ${_remarkController.text.trim()}');
-      debugPrint(
-        '✅ Listing Date (created_at): ${_listingDate?.toIso8601String()}',
-      );
-      debugPrint(
-        '✅ Qualified Date (updated_at): ${_qualifiedDate?.toIso8601String()}',
-      );
-
-      if (mounted) {
-        Navigator.of(context).pop();
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Status updated successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-
-        widget.onStatusUpdated();
       }
     } catch (e) {
       debugPrint('❌ Error updating status: $e');
