@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:crm_app/widgets/profile_page.dart';
+import 'package:crm_app/widgets/enhanced_floating_button.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../utils/lead_utils.dart';
@@ -3954,7 +3955,7 @@ class _AddLeadDialogState extends State<AddLeadDialog> {
         ],
       ),
       child: DropdownButtonFormField<String>(
-        value: value,
+        initialValue: value,
         decoration: InputDecoration(
           labelText: label,
           border: OutlineInputBorder(
@@ -5483,7 +5484,7 @@ class _EditLeadDialogState extends State<EditLeadDialog> {
         ],
       ),
       child: DropdownButtonFormField<String>(
-        value: value,
+        initialValue: value,
         decoration: InputDecoration(
           labelText: label,
           border: OutlineInputBorder(
@@ -8813,153 +8814,73 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
               SizedBox(width: 16),
 
               // Currency icon button
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 8,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: IconButton(
-                  onPressed: () {
-                    // Show currency selection dialog
-                    _showCurrencyDialog();
-                  },
-                  icon: Icon(Icons.attach_money, color: Colors.grey[600]),
-                  iconSize: 20,
-                ),
+              EnhancedFloatingButton(
+                icon: Icons.attach_money,
+                label: 'Currency',
+                color: Colors.blue,
+                size: 48,
+                iconSize: 20,
+                onTap: () {
+                  // Show currency selection dialog
+                  _showCurrencyDialog();
+                },
               ),
 
               SizedBox(width: 16),
 
               // Time period icon button
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 8,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: IconButton(
-                  onPressed: () {
-                    // Show time period selection dialog
-                    _showTimePeriodDialog();
-                  },
-                  icon: Icon(Icons.schedule, color: Colors.grey[600]),
-                  iconSize: 20,
-                ),
+              EnhancedFloatingButton(
+                icon: Icons.schedule,
+                label: 'Time Period',
+                color: Colors.blue,
+                size: 48,
+                iconSize: 20,
+                onTap: () {
+                  // Show time period selection dialog
+                  _showTimePeriodDialog();
+                },
               ),
 
               SizedBox(width: 16),
 
               // Notification button icon
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 8,
-                      offset: Offset(0, 2),
+              EnhancedFloatingButton(
+                icon: Icons.notifications,
+                label: 'Notifications',
+                color: Colors.blue,
+                size: 48,
+                iconSize: 20,
+                hasBadge: true,
+                onTap: () {
+                  // Handle notification tap
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Notifications'),
+                      duration: Duration(seconds: 2),
                     ),
-                  ],
-                ),
-                child: Stack(
-                  children: [
-                    IconButton(
-                      onPressed: () {
-                        // Handle notification tap
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Notifications'),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      },
-                      icon: Icon(Icons.notifications, color: Colors.grey[600]),
-                      iconSize: 20,
-                    ),
-                    // Notification badge
-                    Positioned(
-                      right: 8,
-                      top: 8,
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                  );
+                },
               ),
 
               SizedBox(width: 16),
 
               // Chat button icon
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 8,
-                      offset: Offset(0, 2),
+              EnhancedFloatingButton(
+                icon: Icons.chat,
+                label: 'Chat',
+                color: Colors.blue,
+                size: 48,
+                iconSize: 20,
+                hasBadge: true,
+                onTap: () {
+                  // Handle chat tap
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Chat'),
+                      duration: Duration(seconds: 2),
                     ),
-                  ],
-                ),
-                child: Stack(
-                  children: [
-                    IconButton(
-                      onPressed: () {
-                        // Handle chat tap
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Chat'),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      },
-                      icon: Icon(Icons.chat, color: Colors.grey[600]),
-                      iconSize: 20,
-                    ),
-                    // Chat badge
-                    Positioned(
-                      right: 8,
-                      top: 8,
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: Colors.green,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                  );
+                },
               ),
             ],
           );
@@ -10572,7 +10493,7 @@ class _QueryDialogState extends State<QueryDialog> {
               const Center(child: CircularProgressIndicator())
             else
               DropdownButtonFormField<String>(
-                value: _selectedUsername,
+                initialValue: _selectedUsername,
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
                   hintText: 'Select a user',

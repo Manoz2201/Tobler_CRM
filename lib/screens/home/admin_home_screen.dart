@@ -12,6 +12,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 
 import 'package:crm_app/widgets/profile_page.dart';
+import 'package:crm_app/widgets/enhanced_floating_button.dart';
+import 'package:crm_app/widgets/custom_radio_group.dart';
 import 'admin_user_management_page.dart';
 import '../settings/currency_settings_screen.dart';
 
@@ -3854,39 +3856,37 @@ class _LeadTableState extends State<LeadTable> {
                     style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                   ),
                   SizedBox(height: 16),
-                  RadioListTile<String>(
-                    title: Row(
-                      children: [
-                        Icon(Icons.table_chart, color: Colors.blue),
-                        SizedBox(width: 8),
-                        Text('CSV Format'),
-                      ],
-                    ),
-                    subtitle: Text('Comma-separated values'),
-                    value: 'CSV',
-                    groupValue: selectedFormat,
+                  CustomRadioGroup<String>(
+                    value: selectedFormat,
                     onChanged: (value) {
                       setState(() {
                         selectedFormat = value!;
                       });
                     },
-                  ),
-                  RadioListTile<String>(
-                    title: Row(
-                      children: [
-                        Icon(Icons.picture_as_pdf, color: Colors.red),
-                        SizedBox(width: 8),
-                        Text('PDF Format'),
-                      ],
-                    ),
-                    subtitle: Text('Portable document format'),
-                    value: 'PDF',
-                    groupValue: selectedFormat,
-                    onChanged: (value) {
-                      setState(() {
-                        selectedFormat = value!;
-                      });
-                    },
+                    options: [
+                      CustomRadioOption<String>(
+                        value: 'CSV',
+                        title: Row(
+                          children: [
+                            Icon(Icons.table_chart, color: Colors.blue),
+                            SizedBox(width: 8),
+                            Text('CSV Format'),
+                          ],
+                        ),
+                        subtitle: Text('Comma-separated values'),
+                      ),
+                      CustomRadioOption<String>(
+                        value: 'PDF',
+                        title: Row(
+                          children: [
+                            Icon(Icons.picture_as_pdf, color: Colors.red),
+                            SizedBox(width: 8),
+                            Text('PDF Format'),
+                          ],
+                        ),
+                        subtitle: Text('Portable document format'),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -7260,6 +7260,14 @@ class AdminDashboardPage extends StatefulWidget {
 }
 
 class _AdminDashboardPageState extends State<AdminDashboardPage> {
+  // Show amounts in Millions for non-INR currencies (e.g., CHF)
+  String _formatCurrencyInMillions(double amount, String currency) {
+    final symbol = _currencySymbols[currency] ?? '';
+    final rate = _currencyRates[currency] ?? 1.0;
+    final convertedAmount = amount * rate;
+    return '$symbol${(convertedAmount / 1000000).toStringAsFixed(2)}M';
+  }
+
   bool _isMenuExpanded = false;
   String _selectedTimePeriod = 'Quarter'; // Default selected time period
   String _selectedCurrency = 'INR'; // Default currency
@@ -7845,7 +7853,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     try {
       final client = Supabase.instance.client;
 
-      // Execute all queries in parallel for better performance - NO TIME FILTERING to match Lead Management
+      // Execute all queries in parallel for better performance with Time Period filtering for Leads Update
+      final dateRange = _getDateRange(_selectedTimePeriod);
       final futures = await Future.wait([
         client
             .from('leads')
@@ -7858,7 +7867,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             .timeout(const Duration(seconds: 10)),
         client
             .from('admin_response')
-            .select('lead_id, status, created_at, starred')
+            .select(
+              'lead_id, status, created_at, starred, update_lead_status, total_amount_gst',
+            )
+            .gte('updated_at', dateRange['start']!.toIso8601String())
+            .lte('updated_at', dateRange['end']!.toIso8601String())
             .timeout(const Duration(seconds: 10)),
       ]);
 
@@ -7890,6 +7903,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     int approved = 0;
     int completed = 0;
     int starredLeads = 0; // Count of leads where starred = true
+    double starredAmountGst = 0.0; // Sum of GST for starred leads
+    // Unique lead counts for Follow Up and Lost
+    final Set<String> followUpLeadIds = {};
+    final Set<String> lostLeadIds = {};
+    double followUpAmountGst = 0.0;
+    double lostAmountGst = 0.0;
 
     // Create lookup maps for efficient processing
     final Map<String, double> aluminiumAreaMap = {};
@@ -7917,7 +7936,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       }
     }
 
-    // Create admin response lookup map and count starred leads
+    // Create admin response lookup map and count starred/status buckets
     final Map<String, Map<String, dynamic>> adminResponseMap = {};
     for (final response in adminResponseData) {
       final leadId = response['lead_id'];
@@ -7927,12 +7946,28 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         // Count ALL leads where starred = true (regardless of status)
         if (response['starred'] == true) {
           starredLeads++;
+          final amt = (response['total_amount_gst'] as num?)?.toDouble() ?? 0.0;
+          starredAmountGst += amt;
           debugPrint('⭐ Found starred lead: $leadId');
+        }
+
+        // Track Follow Up and Lost counts by unique lead_id and sum GST amounts
+        final String bucket = (response['update_lead_status'] ?? '').toString();
+        if (bucket == 'Follow Up') {
+          followUpLeadIds.add(leadId.toString());
+          final amt = (response['total_amount_gst'] as num?)?.toDouble() ?? 0.0;
+          followUpAmountGst += amt;
+        } else if (bucket == 'Lost') {
+          lostLeadIds.add(leadId.toString());
+          final amt = (response['total_amount_gst'] as num?)?.toDouble() ?? 0.0;
+          lostAmountGst += amt;
         }
       }
     }
 
     debugPrint('📊 Total starred leads found: $starredLeads');
+    final int followUpLeads = followUpLeadIds.length;
+    final int lostLeads = lostLeadIds.length;
 
     // Calculate status for each lead using same logic as Leads Management
     for (final lead in leadsData) {
@@ -7994,6 +8029,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       starredLeads.toDouble(),
       previousPeriodData['starredLeads'] ?? 0,
     );
+    final followUpPercentage = _calculatePercentage(
+      followUpLeads.toDouble(),
+      previousPeriodData['followUpLeads'] ?? 0,
+    );
+    final lostPercentage = _calculatePercentage(
+      lostLeads.toDouble(),
+      previousPeriodData['lostLeads'] ?? 0,
+    );
 
     debugPrint(
       '🎯 Setting starred leads count: $starredLeads, percentage: $starredLeadsPercentage',
@@ -8033,9 +8076,24 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         },
         'starredLeads': {
           'value': starredLeads.toString(),
+          'amount': starredAmountGst,
           'percentage':
               '${starredLeadsPercentage >= 0 ? '+' : ''}${starredLeadsPercentage.toStringAsFixed(1)}%',
           'isPositive': starredLeadsPercentage >= 0,
+        },
+        'followUp': {
+          'value': followUpLeads.toString(),
+          'amount': followUpAmountGst,
+          'percentage':
+              '${followUpPercentage >= 0 ? '+' : ''}${followUpPercentage.toStringAsFixed(1)}%',
+          'isPositive': followUpPercentage >= 0,
+        },
+        'lost': {
+          'value': lostLeads.toString(),
+          'amount': lostAmountGst,
+          'percentage':
+              '${lostPercentage >= 0 ? '+' : ''}${lostPercentage.toStringAsFixed(1)}%',
+          'isPositive': lostPercentage >= 0,
         },
       };
     });
@@ -8055,7 +8113,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             .timeout(const Duration(seconds: 10)),
         client
             .from('admin_response')
-            .select('lead_id, status, starred')
+            .select('lead_id, status, starred, update_lead_status')
             .timeout(const Duration(seconds: 10)),
       ]);
 
@@ -8820,11 +8878,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                               _isMenuExpanded ? 0 : 20,
                               0,
                             ),
-                            child: _buildFloatingActionButton(
-                              Icons.attach_money,
-                              'Currency',
-                              Colors.blue,
-                              () {
+                            child: EnhancedFloatingButton(
+                              icon: Icons.attach_money,
+                              label: 'Currency',
+                              color: Colors.blue,
+                              onTap: () {
                                 // Navigate to currency settings screen
                                 Navigator.of(context).push(
                                   MaterialPageRoute(
@@ -8854,11 +8912,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                               _isMenuExpanded ? 0 : 20,
                               0,
                             ),
-                            child: _buildFloatingActionButton(
-                              Icons.schedule,
-                              'Time Period',
-                              Colors.blue,
-                              () {
+                            child: EnhancedFloatingButton(
+                              icon: Icons.schedule,
+                              label: 'Time Period',
+                              color: Colors.blue,
+                              onTap: () {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text('Time Period Settings'),
@@ -8881,11 +8939,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                               _isMenuExpanded ? 0 : 20,
                               0,
                             ),
-                            child: _buildFloatingActionButton(
-                              Icons.notifications,
-                              'Notifications',
-                              Colors.blue,
-                              () {
+                            child: EnhancedFloatingButton(
+                              icon: Icons.notifications,
+                              label: 'Notifications',
+                              color: Colors.blue,
+                              onTap: () {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text('Notifications'),
@@ -8909,11 +8967,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                               _isMenuExpanded ? 0 : 20,
                               0,
                             ),
-                            child: _buildFloatingActionButton(
-                              Icons.chat,
-                              'Chat',
-                              Colors.blue,
-                              () {
+                            child: EnhancedFloatingButton(
+                              icon: Icons.chat,
+                              label: 'Chat',
+                              color: Colors.blue,
+                              onTap: () {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text('Chat'),
@@ -9854,7 +9912,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     // Left side: Selected currency value - Real-time conversion
     final leftValue = _selectedCurrency == 'INR'
         ? _formatRevenueInCrore(baseRevenue)
-        : _formatCurrency(baseRevenue, _selectedCurrency);
+        : (_selectedCurrency == 'CHF'
+              ? _formatCurrencyInMillions(baseRevenue, 'CHF')
+              : _formatCurrency(baseRevenue, _selectedCurrency));
 
     // Right side: Show opposite currency based on left side selection - Real-time conversion
     String rightValue;
@@ -9862,7 +9922,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
     if (_selectedCurrency == 'INR') {
       // If left is INR, right shows CHF
-      rightValue = _formatCurrency(baseRevenue, 'CHF');
+      rightValue = _formatCurrencyInMillions(baseRevenue, 'CHF');
       rightCurrencyLabel = 'CHF';
     } else if (_selectedCurrency == 'CHF') {
       // If left is CHF, right shows INR
@@ -10420,6 +10480,22 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       ),
       child: Column(
         children: [
+          // Card header: Leads Update
+          Row(
+            children: [
+              Icon(Icons.update, color: Colors.grey[800], size: 16),
+              SizedBox(width: 6),
+              Text(
+                'Leads Update',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 8),
           // Top row: Total Inquiries and Expected to Close
           Expanded(
             child: Row(
@@ -10427,20 +10503,25 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 // Left side - Total Inquiries
                 Expanded(
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        '94',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey[800],
+                      // Value centered
+                      Center(
+                        child: Text(
+                          '94',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[800],
+                          ),
+                          textAlign: TextAlign.center,
                         ),
-                        textAlign: TextAlign.center,
                       ),
                       SizedBox(height: 4),
+                      // Label centered
                       Text(
-                        'Total Inquiries',
+                        'Inquiry Pipeline',
                         style: TextStyle(
                           fontSize: 10,
                           color: Colors.grey[600],
@@ -10449,6 +10530,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         textAlign: TextAlign.center,
                       ),
                       SizedBox(height: 4),
+                      // Percentage row
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         mainAxisSize: MainAxisSize.min,
@@ -10494,16 +10576,19 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 // Right side - Expected to Close
                 Expanded(
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        _leadStatusData['starredLeads']?['value'] ?? '0',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey[800],
+                      Center(
+                        child: Text(
+                          '${_leadStatusData['starredLeads']?['value'] ?? '0'} / ${_selectedCurrency == 'INR' ? _formatRevenueInCrore((_leadStatusData['starredLeads']?['amount'] ?? 0.0) as double) : _formatCurrencyInMillions((_leadStatusData['starredLeads']?['amount'] ?? 0.0) as double, 'CHF')}',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[800],
+                          ),
+                          textAlign: TextAlign.center,
                         ),
-                        textAlign: TextAlign.center,
                       ),
                       SizedBox(height: 4),
                       Text(
@@ -10554,13 +10639,16 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               ],
             ),
           ),
-          // Horizontal divider
-          Container(
-            width: double.infinity,
-            height: 1,
-            color: Colors.grey[300],
-            margin: EdgeInsets.symmetric(vertical: 8),
+          // Replace solid divider with two small grey lines under top labels
+          SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(width: 40, height: 1, color: Colors.grey[300]),
+              Container(width: 40, height: 1, color: Colors.grey[300]),
+            ],
           ),
+          SizedBox(height: 8),
           // Bottom row: Under Follow Up and Lost
           Expanded(
             child: Row(
@@ -10571,7 +10659,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        '39',
+                        '${_leadStatusData['followUp']?['value'] ?? '0'} / ${_selectedCurrency == 'INR' ? _formatRevenueInCrore((_leadStatusData['followUp']?['amount'] ?? 0.0) as double) : _formatCurrencyInMillions((_leadStatusData['followUp']?['amount'] ?? 0.0) as double, 'CHF')}',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -10595,16 +10683,27 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            Icons.trending_down,
-                            color: Colors.red,
+                            _leadStatusData['followUp']?['isPositive'] == true
+                                ? Icons.trending_up
+                                : Icons.trending_down,
+                            color:
+                                _leadStatusData['followUp']?['isPositive'] ==
+                                    true
+                                ? Colors.green
+                                : Colors.red,
                             size: 10,
                           ),
                           SizedBox(width: 2),
                           Text(
-                            '-15.2%',
+                            _leadStatusData['followUp']?['percentage'] ??
+                                '+0.0%',
                             style: TextStyle(
                               fontSize: 9,
-                              color: Colors.red,
+                              color:
+                                  _leadStatusData['followUp']?['isPositive'] ==
+                                      true
+                                  ? Colors.green
+                                  : Colors.red,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -10626,7 +10725,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        '7',
+                        '${_leadStatusData['lost']?['value'] ?? '0'} / ${_selectedCurrency == 'INR' ? _formatRevenueInCrore((_leadStatusData['lost']?['amount'] ?? 0.0) as double) : _formatCurrencyInMillions((_leadStatusData['lost']?['amount'] ?? 0.0) as double, 'CHF')}',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -10650,16 +10749,24 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            Icons.trending_up,
-                            color: Colors.green,
+                            _leadStatusData['lost']?['isPositive'] == true
+                                ? Icons.trending_up
+                                : Icons.trending_down,
+                            color:
+                                _leadStatusData['lost']?['isPositive'] == true
+                                ? Colors.green
+                                : Colors.red,
                             size: 10,
                           ),
                           SizedBox(width: 2),
                           Text(
-                            '+0.0%',
+                            _leadStatusData['lost']?['percentage'] ?? '+0.0%',
                             style: TextStyle(
                               fontSize: 9,
-                              color: Colors.green,
+                              color:
+                                  _leadStatusData['lost']?['isPositive'] == true
+                                  ? Colors.green
+                                  : Colors.red,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -10802,57 +10909,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  // Build floating action button for mobile menu
-  Widget _buildFloatingActionButton(
-    IconData icon,
-    String label,
-    Color color,
-    VoidCallback onTap, {
-    bool hasBadge = false,
-  }) {
-    return Container(
-      width: 36,
-      height: 36,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.3),
-            blurRadius: 8,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Center(
-            child: IconButton(
-              onPressed: onTap,
-              icon: Icon(icon, color: Colors.white, size: 16),
-              iconSize: 16,
-              padding: EdgeInsets.zero,
-            ),
-          ),
-          if (hasBadge)
-            Positioned(
-              top: 4,
-              right: 4,
-              child: Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: Colors.red,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 1),
-                ),
-              ),
-            ),
-        ],
       ),
     );
   }
@@ -13292,7 +13348,7 @@ class _QueryDialogState extends State<QueryDialog> {
               const Center(child: CircularProgressIndicator())
             else
               DropdownButtonFormField<String>(
-                value: _selectedUsername,
+                initialValue: _selectedUsername,
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
                   hintText: 'Select a user',
@@ -14012,7 +14068,7 @@ class _AdminRoleManagementPageState extends State<AdminRoleManagementPage>
                 SizedBox(width: 16),
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _selectedRole,
+                    initialValue: _selectedRole,
                     decoration: InputDecoration(
                       labelText: 'Role',
                       border: OutlineInputBorder(),

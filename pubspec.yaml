@@ -68,13 +68,13 @@ dev_dependencies:
 flutter_icons:
   android: true
   ios: true
-  image_path: "assets/Tobler_logo.png"
+  image_path: "assets/toblerIcon.png"
   windows:
     generate: true
-    image_path: "assets/Tobler_logo.png"
+    image_path: "assets/toblerIcon.png"
   macos:
     generate: true
-    image_path: "assets/Tobler_logo.png"
+    image_path: "assets/toblerIcon.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

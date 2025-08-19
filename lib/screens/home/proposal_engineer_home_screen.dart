@@ -3897,7 +3897,7 @@ class _QueryDialogState extends State<QueryDialog> {
               const Center(child: CircularProgressIndicator())
             else
               DropdownButtonFormField<String>(
-                value: _selectedUsername,
+                initialValue: _selectedUsername,
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
                   hintText: 'Select a user',

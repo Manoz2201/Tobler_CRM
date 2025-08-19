@@ -1119,7 +1119,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                                               return DropdownButtonFormField<
                                                                 String
                                                               >(
-                                                                value:
+                                                                initialValue:
                                                                     dropdownValue,
                                                                 decoration: InputDecoration(
                                                                   labelText:
@@ -1392,7 +1392,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                                               return DropdownButtonFormField<
                                                                 String
                                                               >(
-                                                                value:
+                                                                initialValue:
                                                                     dropdownValue,
                                                                 decoration: InputDecoration(
                                                                   labelText:
@@ -1926,7 +1926,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                                               return DropdownButtonFormField<
                                                                 String
                                                               >(
-                                                                value:
+                                                                initialValue:
                                                                     dropdownValue,
                                                                 decoration: InputDecoration(
                                                                   labelText:
@@ -2199,7 +2199,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                                               return DropdownButtonFormField<
                                                                 String
                                                               >(
-                                                                value:
+                                                                initialValue:
                                                                     dropdownValue,
                                                                 decoration: InputDecoration(
                                                                   labelText:
@@ -2856,7 +2856,7 @@ class _InviteUserTabState extends State<_InviteUserTab> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: _selectedRole,
+                  initialValue: _selectedRole,
                   items: _roles
                       .map(
                         (role) =>
