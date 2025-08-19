@@ -7318,6 +7318,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     },
     'approved': {'value': '0', 'percentage': '+0.0%', 'isPositive': true},
     'completed': {'value': '0', 'percentage': '+0.0%', 'isPositive': true},
+    'starredLeads': {'value': '0', 'percentage': '+0.0%', 'isPositive': true},
   };
 
   // Fetch achievement trend data for all sales users
@@ -7857,7 +7858,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             .timeout(const Duration(seconds: 10)),
         client
             .from('admin_response')
-            .select('lead_id, status, created_at')
+            .select('lead_id, status, created_at, starred')
             .timeout(const Duration(seconds: 10)),
       ]);
 
@@ -7888,6 +7889,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     int waitingApproval = 0;
     int approved = 0;
     int completed = 0;
+    int starredLeads = 0; // Count of leads where starred = true
 
     // Create lookup maps for efficient processing
     final Map<String, double> aluminiumAreaMap = {};
@@ -7915,14 +7917,22 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       }
     }
 
-    // Create admin response lookup map
+    // Create admin response lookup map and count starred leads
     final Map<String, Map<String, dynamic>> adminResponseMap = {};
     for (final response in adminResponseData) {
       final leadId = response['lead_id'];
       if (leadId != null) {
         adminResponseMap[leadId] = response;
+
+        // Count ALL leads where starred = true (regardless of status)
+        if (response['starred'] == true) {
+          starredLeads++;
+          debugPrint('⭐ Found starred lead: $leadId');
+        }
       }
     }
+
+    debugPrint('📊 Total starred leads found: $starredLeads');
 
     // Calculate status for each lead using same logic as Leads Management
     for (final lead in leadsData) {
@@ -7980,6 +7990,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       completed.toDouble(),
       previousPeriodData['completed'] ?? 0,
     );
+    final starredLeadsPercentage = _calculatePercentage(
+      starredLeads.toDouble(),
+      previousPeriodData['starredLeads'] ?? 0,
+    );
+
+    debugPrint(
+      '🎯 Setting starred leads count: $starredLeads, percentage: $starredLeadsPercentage',
+    );
 
     setState(() {
       _leadStatusData = {
@@ -8013,6 +8031,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               '${completedPercentage >= 0 ? '+' : ''}${completedPercentage.toStringAsFixed(1)}%',
           'isPositive': completedPercentage >= 0,
         },
+        'starredLeads': {
+          'value': starredLeads.toString(),
+          'percentage':
+              '${starredLeadsPercentage >= 0 ? '+' : ''}${starredLeadsPercentage.toStringAsFixed(1)}%',
+          'isPositive': starredLeadsPercentage >= 0,
+        },
       };
     });
   }
@@ -8031,7 +8055,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             .timeout(const Duration(seconds: 10)),
         client
             .from('admin_response')
-            .select('lead_id, status')
+            .select('lead_id, status, starred')
             .timeout(const Duration(seconds: 10)),
       ]);
 
@@ -8075,6 +8099,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       int previousProposalProgress = 0;
       int previousWaitingApproval = 0;
       int previousApproved = 0;
+      int previousStarredLeads = 0;
 
       // Calculate status for each lead
       for (final lead in previousLeadsResult) {
@@ -8084,6 +8109,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         if (adminResponseData?['status'] == 'Approved') {
           previousApproved++;
           continue;
+        }
+
+        // Count previous starred leads
+        if (adminResponseData?['starred'] == true) {
+          previousStarredLeads++;
         }
 
         final msWeights = msWeightMap[leadId] ?? [];
@@ -8105,6 +8135,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         'proposalProgress': previousProposalProgress.toDouble(),
         'waitingApproval': previousWaitingApproval.toDouble(),
         'approved': previousApproved.toDouble(),
+        'starredLeads': previousStarredLeads.toDouble(),
       };
     } catch (e) {
       debugPrint('Error fetching previous period lead status data: $e');
@@ -8113,6 +8144,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         'proposalProgress': 0.0,
         'waitingApproval': 0.0,
         'approved': 0.0,
+        'starredLeads': 0.0,
       };
     }
   }
@@ -10422,16 +10454,28 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            Icons.trending_up,
-                            color: Colors.green,
+                            _leadStatusData['starredLeads']?['isPositive'] ==
+                                    true
+                                ? Icons.trending_up
+                                : Icons.trending_down,
+                            color:
+                                _leadStatusData['starredLeads']?['isPositive'] ==
+                                    true
+                                ? Colors.green
+                                : Colors.red,
                             size: 10,
                           ),
                           SizedBox(width: 2),
                           Text(
-                            '+0.0%',
+                            _leadStatusData['starredLeads']?['percentage'] ??
+                                '+0.0%',
                             style: TextStyle(
                               fontSize: 9,
-                              color: Colors.green,
+                              color:
+                                  _leadStatusData['starredLeads']?['isPositive'] ==
+                                      true
+                                  ? Colors.green
+                                  : Colors.red,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -10453,7 +10497,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        '46',
+                        _leadStatusData['starredLeads']?['value'] ?? '0',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -10477,16 +10521,28 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            Icons.trending_up,
-                            color: Colors.green,
+                            _leadStatusData['starredLeads']?['isPositive'] ==
+                                    true
+                                ? Icons.trending_up
+                                : Icons.trending_down,
+                            color:
+                                _leadStatusData['starredLeads']?['isPositive'] ==
+                                    true
+                                ? Colors.green
+                                : Colors.red,
                             size: 10,
                           ),
                           SizedBox(width: 2),
                           Text(
-                            '+0.0%',
+                            _leadStatusData['starredLeads']?['percentage'] ??
+                                '+0.0%',
                             style: TextStyle(
                               fontSize: 9,
-                              color: Colors.green,
+                              color:
+                                  _leadStatusData['starredLeads']?['isPositive'] ==
+                                      true
+                                  ? Colors.green
+                                  : Colors.red,
                               fontWeight: FontWeight.w600,
                             ),
                           ),

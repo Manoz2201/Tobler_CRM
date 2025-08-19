@@ -599,7 +599,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       try {
         adminResponseResult = await client
             .from('admin_response')
-            .select('lead_id, rate_sqm, status, remark, project_id')
+            .select('lead_id, rate_sqm, status, remark, project_id, starred')
             .timeout(const Duration(seconds: 10));
       } catch (e) {
         debugPrint('⚠️ Error fetching admin_response: $e');
@@ -707,6 +707,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           'status': dynamicStatus,
           'admin_response_status':
               adminResponseData?['status'], // Add admin response status for proper lead categorization
+          'starred':
+              adminResponseData?['starred'] ??
+              false, // Add starred status from admin_response table
         });
       }
 
@@ -2594,11 +2597,11 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     try {
       final client = Supabase.instance.client;
 
-      // Update the starred status in the leads table
+      // Update the starred status in the admin_response table
       await client
-          .from('leads')
+          .from('admin_response')
           .update({'starred': !currentStarred})
-          .eq('id', leadId);
+          .eq('lead_id', leadId);
 
       // Update the local lead data
       lead['starred'] = !currentStarred;
@@ -3042,8 +3045,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           children: [
             IconButton(
               icon: Icon(
-                isStarred && tooltip.toLowerCase() == 'star lead'
-                    ? Icons.star
+                tooltip.toLowerCase() == 'star lead'
+                    ? (isStarred ? Icons.star : Icons.star_border)
                     : icon,
                 color: _hoveredButtons['$leadId-$tooltip'] == true
                     ? actionColor
@@ -3650,8 +3653,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         children: [
           IconButton(
             icon: Icon(
-              isStarred && tooltip.toLowerCase() == 'star lead'
-                  ? Icons.star
+              tooltip.toLowerCase() == 'star lead'
+                  ? (isStarred ? Icons.star : Icons.star_border)
                   : icon,
               color: _hoveredButtons['$leadId-$tooltip'] == true
                   ? actionColor
