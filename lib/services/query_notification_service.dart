@@ -5,6 +5,9 @@ import 'package:flutter/foundation.dart';
 class QueryNotificationService {
   static const String _unreadQueriesKey = 'unread_queries';
 
+  // Track logged invalid UUIDs to avoid spam logging
+  static final Set<String> _loggedInvalidUUIDs = {};
+
   /// Validate if a string is a valid UUID
   static bool _isValidUUID(String? uuid) {
     if (uuid == null || uuid.isEmpty) return false;
@@ -35,7 +38,11 @@ class QueryNotificationService {
       // The leadId should be the actual UUID from the leads table
       // If it's not a valid UUID, we can't proceed
       if (leadId.isEmpty || leadId == 'null' || !_isValidUUID(leadId)) {
-        debugPrint('Invalid leadId: $leadId');
+        // Only log invalid UUIDs once to avoid spam
+        if (!_loggedInvalidUUIDs.contains(leadId)) {
+          debugPrint('Invalid leadId detected: $leadId (will be skipped)');
+          _loggedInvalidUUIDs.add(leadId);
+        }
         return false;
       }
 
@@ -83,7 +90,11 @@ class QueryNotificationService {
       // The leadId should be the actual UUID from the leads table
       // If it's not a valid UUID, we can't proceed
       if (leadId.isEmpty || leadId == 'null' || !_isValidUUID(leadId)) {
-        debugPrint('Invalid leadId: $leadId');
+        // Only log invalid UUIDs once to avoid spam
+        if (!_loggedInvalidUUIDs.contains(leadId)) {
+          debugPrint('Invalid leadId detected: $leadId (will be skipped)');
+          _loggedInvalidUUIDs.add(leadId);
+        }
         return 0;
       }
 

@@ -399,6 +399,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
   // Add query count tracking
   final Map<String, int> _queryCounts = {};
 
+  // Track logged invalid UUIDs to avoid spam logging
+  final Set<String> _loggedInvalidUUIDs = {};
+
   String? _currentUserId;
   String? _currentUsername;
 
@@ -407,8 +410,6 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     super.initState();
     _getCurrentUser();
     _fetchLeads();
-    // Add sample data to match the image exactly
-    _addSampleData();
 
     // Set up periodic query count refresh
     _startQueryCountRefresh();
@@ -421,102 +422,6 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         _fetchQueryCounts();
         _startQueryCountRefresh(); // Schedule next refresh
       }
-    });
-  }
-
-  void _addSampleData() {
-    // Add sample data to match the admin interface image
-    final sampleLeads = [
-      {
-        'lead_id': 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
-        'client_name': 'RK Construction',
-        'project_name': 'Dahisar Project',
-        'project_location': 'Mumbai',
-        'aluminium_area': 0.0,
-        'ms_weight': 0.0,
-        'rate_sqm': 0,
-        'total_amount': 0.0,
-        'project_id': 'Tobler-A49B',
-        'date': '2025-07-30 12:00',
-        'status': 'Proposal Progress',
-      },
-      {
-        'lead_id': 'b2c3d4e5-f6g7-8901-bcde-f23456789012',
-        'client_name': 'test',
-        'project_name': 'test',
-        'project_location': 'test',
-        'aluminium_area': 0.0,
-        'ms_weight': 0.0,
-        'rate_sqm': 0,
-        'total_amount': 0.0,
-        'project_id': 'Tobler-B72C',
-        'date': '2025-07-30 12:00',
-        'status': 'Proposal Progress',
-      },
-      {
-        'lead_id': 'c3d4e5f6-g7h8-9012-cdef-345678901234',
-        'client_name': 'JP Infra',
-        'project_name': 'Thane Project',
-        'project_location': 'Mumbai',
-        'aluminium_area': 0.0,
-        'ms_weight': 0.0,
-        'rate_sqm': 0,
-        'total_amount': 0.0,
-        'project_id': 'Tobler-C91D',
-        'date': '2025-07-30 12:00',
-        'status': 'Proposal Progress',
-      },
-      {
-        'lead_id': 'd4e5f6g7-h8i9-0123-def0-456789012345',
-        'client_name': 'IBCLLP',
-        'project_name': 'IBCLLP',
-        'project_location': 'Mumbai',
-        'aluminium_area': 0.0,
-        'ms_weight': 0.0,
-        'rate_sqm': 0,
-        'total_amount': 0.0,
-        'project_id': 'Tobler-D34E',
-        'date': '2025-07-30 12:00',
-        'status': 'Proposal Progress',
-      },
-      {
-        'lead_id': 'e5f6g7h8-i9j0-1234-ef01-567890123456',
-        'client_name': 'West Best Buildcon',
-        'project_name': 'Spenta Housing',
-        'project_location': 'Mumbai',
-        'aluminium_area': 0.0,
-        'ms_weight': 0.0,
-        'rate_sqm': 0,
-        'total_amount': 0.0,
-        'project_id': 'Tobler-E56F',
-        'date': '2025-07-30 12:00',
-        'status': 'Proposal Progress',
-      },
-      {
-        'lead_id': 'f6g7h8i9-j0k1-2345-f012-678901234567',
-        'client_name': 'Mehta Group',
-        'project_name': 'Jogeshwari Project',
-        'project_location': 'Mumbai',
-        'aluminium_area': 0.0,
-        'ms_weight': 0.0,
-        'rate_sqm': 0,
-        'total_amount': 0.0,
-        'project_id': 'Tobler-F78G',
-        'date': '2025-07-30 12:00',
-        'status': 'Proposal Progress',
-      },
-    ];
-
-    // Initialize total amounts for sample data
-    for (final lead in sampleLeads) {
-      final leadId = lead['lead_id'].toString();
-      _totalAmounts[leadId] = (lead['total_amount'] as double?) ?? 0.0;
-    }
-
-    setState(() {
-      _leads = sampleLeads;
-      _filteredLeads = sampleLeads;
-      _isLoading = false;
     });
   }
 
@@ -820,6 +725,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         _isLoading = false;
       });
 
+      // Clean up and validate lead data after fetching real data
+      _cleanupInvalidLeadData();
+
       debugPrint(
         'Successfully loaded ${joinedLeads.length} leads for user $_currentUsername (ID: $_currentUserId)',
       );
@@ -852,7 +760,11 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           // The leadId should be the actual UUID from the leads table
           // If it's not a valid UUID, we can't proceed
           if (leadId.isEmpty || leadId == 'null' || !_isValidUUID(leadId)) {
-            debugPrint('Invalid leadId: $leadId');
+            // Only log invalid UUIDs once to avoid spam
+            if (!_loggedInvalidUUIDs.contains(leadId)) {
+              debugPrint('Invalid leadId detected: $leadId (will be skipped)');
+              _loggedInvalidUUIDs.add(leadId);
+            }
             setState(() {
               _queryCounts[leadId] = 0;
             });
@@ -890,6 +802,26 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     );
 
     return uuidPattern.hasMatch(uuid);
+  }
+
+  /// Clean up and validate lead data to identify invalid UUIDs
+  void _cleanupInvalidLeadData() {
+    final invalidLeads = <String>[];
+
+    for (final lead in _leads) {
+      final leadId = lead['lead_id']?.toString() ?? '';
+      if (!_isValidUUID(leadId)) {
+        invalidLeads.add(leadId);
+      }
+    }
+
+    if (invalidLeads.isNotEmpty) {
+      debugPrint('⚠️ Found ${invalidLeads.length} leads with invalid UUIDs:');
+      for (final invalidId in invalidLeads) {
+        debugPrint('   - $invalidId');
+      }
+      debugPrint('💡 Consider cleaning up these invalid UUIDs in the database');
+    }
   }
 
   void _onSearch(String value) {
