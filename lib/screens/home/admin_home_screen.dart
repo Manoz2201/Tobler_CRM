@@ -9052,29 +9052,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                             )
                           : Column(
                               children: [
-                                // Top row: Total Revenue, Aluminum Area, Qualified Leads
+                                // Top row: Order Received, Aluminum Area, Qualified Leads
                                 Row(
                                   children: [
                                     Expanded(child: _buildTotalRevenueCard()),
                                     SizedBox(width: 16),
                                     Expanded(
-                                      child: _buildDashboardCard(
-                                        'Aluminum Area',
-                                        _dashboardData['aluminiumArea']['value'],
-                                        _dashboardData['aluminiumArea']['percentage'],
-                                        Icons.grid_on,
-                                        Colors.purple,
-                                      ),
-                                    ),
-                                    SizedBox(width: 16),
-                                    Expanded(
-                                      child: _buildDashboardCard(
-                                        'Qualified Leads',
-                                        _dashboardData['qualifiedLeads']['value'],
-                                        _dashboardData['qualifiedLeads']['percentage'],
-                                        Icons.people,
-                                        Colors.orange,
-                                      ),
+                                      child: _buildMergedInquiriesCard(),
                                     ),
                                   ],
                                 ),
@@ -9086,7 +9070,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                     borderRadius: BorderRadius.circular(12),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.05),
+                                        color: Colors.black.withValues(
+                                          alpha: 0.05,
+                                        ),
                                         blurRadius: 8,
                                         offset: const Offset(0, 2),
                                       ),
@@ -9217,32 +9203,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                       )
                     : Column(
                         children: [
-                          // First row with Qualified Leads and Aluminum Area
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildDashboardCard(
-                                  'Qualified Leads',
-                                  _dashboardData['qualifiedLeads']['value'],
-                                  _dashboardData['qualifiedLeads']['percentage'],
-                                  Icons.people,
-                                  Colors.orange,
-                                ),
-                              ),
-                              SizedBox(width: 12),
-                              Expanded(
-                                child: _buildDashboardCard(
-                                  'Aluminum Area',
-                                  _dashboardData['aluminiumArea']['value'],
-                                  _dashboardData['aluminiumArea']['percentage'],
-                                  Icons.grid_on,
-                                  Colors.purple,
-                                ),
-                              ),
-                            ],
-                          ),
+                          // First row with merged inquiries card
+                          _buildMergedInquiriesCard(),
                           SizedBox(height: 12),
-                          // Second row with Total Revenue taking full width
+                          // Second row with Order Received taking full width
                           _buildTotalRevenueCard(),
                         ],
                       ),
@@ -9305,7 +9269,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                   _leadStatusData['waitingApproval']['percentage'],
                                   Icons.pending,
                                   Colors.orange,
-                                  showRightDivider: false,
+                                  showRightDivider: true,
                                 ),
                               ),
                             ],
@@ -9340,9 +9304,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                 ),
                               ),
                               // Empty space for third column to maintain grid
-                              Expanded(
-                                child: Container(height: 60),
-                              ),
+                              Expanded(child: Container(height: 60)),
                             ],
                           ),
                         ],
@@ -9841,114 +9803,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     );
   }
 
-  Widget _buildDashboardCard(
-    String title,
-    String value,
-    String percentage,
-    IconData icon,
-    Color color,
-  ) {
-    final isPositive = percentage.startsWith('+');
-    final percentageColor = isPositive ? Colors.green : Colors.red;
-
-    return InkWell(
-      onTap: () {
-        // Handle filter tap
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Filtered by: $title'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      },
-      borderRadius: BorderRadius.circular(
-        8,
-      ), // Reduced radius for compact layout
-      child: Container(
-        height: 140, // Increased height to prevent content overlap
-        padding: EdgeInsets.all(16), // Increased padding for better spacing
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Title section at top
-            Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Icon(icon, color: color, size: 16),
-                ),
-                SizedBox(width: 8),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey[700],
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            // Spacer to push value to center
-            Spacer(),
-            // Value section in center
-            Center(
-              child: Text(
-                value,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[800],
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            // Spacer to push percentage to bottom
-            Spacer(),
-            // Percentage section at bottom
-            Center(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    isPositive ? Icons.trending_up : Icons.trending_down,
-                    color: percentageColor,
-                    size: 14,
-                  ),
-                  SizedBox(width: 6),
-                  Text(
-                    percentage,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: percentageColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Build Total Revenue card with dual currency display
+  // Build Order Received card with dual currency display and integrated sections
   Widget _buildTotalRevenueCard() {
     final isPositive = _dashboardData['totalRevenue']['percentage'].startsWith(
       '+',
@@ -9992,14 +9847,15 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         // Handle filter tap
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Filtered by: Total Revenue'),
+            content: Text('Filtered by: Order Received'),
             duration: Duration(seconds: 2),
           ),
         );
       },
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        height: 140, // Same height as other dashboard cards for visual balance
+        height:
+            300, // Increased height by 80px to accommodate integrated sections
         padding: EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -10034,7 +9890,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   ),
                   SizedBox(width: 8),
                   Text(
-                    'Total Revenue',
+                    'Order Received',
                     style: TextStyle(
                       fontSize:
                           16, // Increased to match other dashboard cards for visual balance
@@ -10142,15 +9998,208 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 ],
               ),
             ),
-            // Footer: "From previous period" positioned at bottom
+            // Horizontal lines below currency types (50px below currency)
             Positioned(
-              bottom: 0,
+              top: 120, // Position 50px below currency section
               left: 0,
               right: 0,
-              child: Text(
-                'From previous period',
-                style: TextStyle(fontSize: 9, color: Colors.grey[500]),
-                textAlign: TextAlign.center,
+              child: Row(
+                children: [
+                  // Left side horizontal line
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 1,
+                          color: Colors.grey[300],
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Center space
+                  SizedBox(width: 16),
+                  // Right side horizontal line
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 1,
+                          color: Colors.grey[300],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Horizontal lines at the bottom of the card (300px from top)
+            Positioned(
+              top: 300, // Position at the bottom of the card
+              left: 0,
+              right: 0,
+              child: Row(
+                children: [
+                  // Left side horizontal line
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 1,
+                          color: Colors.grey[300],
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Center space
+                  SizedBox(width: 16),
+                  // Right side horizontal line
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 1,
+                          color: Colors.grey[300],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Integrated Aluminium Area section below currency
+            Positioned(
+              top: 150, // Position below currency section with equal spacing
+              left: 0,
+              right: 0,
+              child: Container(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  children: [
+                    // Left side - Aluminium Area
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            _dashboardData['aluminiumArea']['value'],
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey[800],
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Area Qualified',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _dashboardData['aluminiumArea']['isPositive']
+                                    ? Icons.trending_up
+                                    : Icons.trending_down,
+                                color:
+                                    _dashboardData['aluminiumArea']['isPositive']
+                                    ? Colors.green
+                                    : Colors.red,
+                                size: 10,
+                              ),
+                              SizedBox(width: 2),
+                              Text(
+                                _dashboardData['aluminiumArea']['percentage'],
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  color:
+                                      _dashboardData['aluminiumArea']['isPositive']
+                                      ? Colors.green
+                                      : Colors.red,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Vertical divider
+                    Container(
+                      width: 1,
+                      height: 50,
+                      color: Colors.grey[300],
+                      margin: EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    // Right side - Qualified Leads
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            _dashboardData['qualifiedLeads']['value'],
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey[800],
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Qualified Leads',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _dashboardData['qualifiedLeads']['isPositive']
+                                    ? Icons.trending_up
+                                    : Icons.trending_down,
+                                color:
+                                    _dashboardData['qualifiedLeads']['isPositive']
+                                    ? Colors.green
+                                    : Colors.red,
+                                size: 10,
+                              ),
+                              SizedBox(width: 2),
+                              Text(
+                                _dashboardData['qualifiedLeads']['percentage'],
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  color:
+                                      _dashboardData['qualifiedLeads']['isPositive']
+                                      ? Colors.green
+                                      : Colors.red,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -10192,9 +10241,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       return '$symbol${(convertedAmount / 1000000000).toStringAsFixed(2)}T';
     }
   }
-
-
-
 
   // Build Merged Lead Status card without individual padding and with dividers
   Widget _buildMergedLeadStatusCard(
@@ -10242,9 +10288,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         padding: EdgeInsets.all(8), // Reduced padding for merged design
         decoration: BoxDecoration(
           color: Colors.transparent, // No background for merged design
-          border: showRightDivider 
-            ? Border(right: BorderSide(color: Colors.grey[300]!, width: 1))
-            : null,
+          border: showRightDivider
+              ? Border(right: BorderSide(color: Colors.grey[300]!, width: 1))
+              : null,
         ),
         child: Stack(
           children: [
@@ -10324,6 +10370,256 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     );
   }
 
+  // Build Merged Inquiries Card with 4 sections
+  Widget _buildMergedInquiriesCard() {
+    return Container(
+      height: 300, // Same height as Order Received card
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Top row: Total Inquiries and Expected to Close
+          Expanded(
+            child: Row(
+              children: [
+                // Left side - Total Inquiries
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '94',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[800],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Total Inquiries',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 4),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.trending_up,
+                            color: Colors.green,
+                            size: 10,
+                          ),
+                          SizedBox(width: 2),
+                          Text(
+                            '+0.0%',
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.green,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                // Vertical divider
+                Container(
+                  width: 1,
+                  height: 50,
+                  color: Colors.grey[300],
+                  margin: EdgeInsets.symmetric(horizontal: 8),
+                ),
+                // Right side - Expected to Close
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '46',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[800],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Expected to Close',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 4),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.trending_up,
+                            color: Colors.green,
+                            size: 10,
+                          ),
+                          SizedBox(width: 2),
+                          Text(
+                            '+0.0%',
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.green,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Horizontal divider
+          Container(
+            width: double.infinity,
+            height: 1,
+            color: Colors.grey[300],
+            margin: EdgeInsets.symmetric(vertical: 8),
+          ),
+          // Bottom row: Under Follow Up and Lost
+          Expanded(
+            child: Row(
+              children: [
+                // Left side - Under Follow Up
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '39',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[800],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Under Follow Up',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 4),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.trending_down,
+                            color: Colors.red,
+                            size: 10,
+                          ),
+                          SizedBox(width: 2),
+                          Text(
+                            '-15.2%',
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.red,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                // Vertical divider
+                Container(
+                  width: 1,
+                  height: 50,
+                  color: Colors.grey[300],
+                  margin: EdgeInsets.symmetric(horizontal: 8),
+                ),
+                // Right side - Lost
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '7',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[800],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Lost',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 4),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.trending_up,
+                            color: Colors.green,
+                            size: 10,
+                          ),
+                          SizedBox(width: 2),
+                          Text(
+                            '+0.0%',
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.green,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // Build Mobile-specific Merged Lead Status card for better responsive design
   Widget _buildMobileMergedLeadStatusCard(
     String title,
@@ -10360,7 +10656,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           default:
             filterValue = 'All';
         }
-        debugPrint('🔍 MobileMergedLeadStatusCard: Mapped to filter: $filterValue');
+        debugPrint(
+          '🔍 MobileMergedLeadStatusCard: Mapped to filter: $filterValue',
+        );
 
         // Navigate to Lead Management with filter
         _navigateToLeadManagementWithFilter(filterValue);
@@ -10370,9 +10668,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         padding: EdgeInsets.all(6), // Reduced padding for mobile
         decoration: BoxDecoration(
           color: Colors.transparent, // No background for merged design
-          border: showRightDivider 
-            ? Border(right: BorderSide(color: Colors.grey[300]!, width: 1))
-            : null,
+          border: showRightDivider
+              ? Border(right: BorderSide(color: Colors.grey[300]!, width: 1))
+              : null,
         ),
         child: Stack(
           children: [

@@ -2108,6 +2108,14 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           _buildInteractiveIconButton(
+                            icon: Icons.star,
+                            onPressed: () => _toggleStarLead(lead),
+                            tooltip: 'Star Lead',
+                            leadId: leadId,
+                            isStarred: lead['starred'] ?? false,
+                          ),
+                          SizedBox(width: 4),
+                          _buildInteractiveIconButton(
                             icon: Icons.edit,
                             onPressed: () => _editLead(lead),
                             tooltip: 'Edit Lead',
@@ -2320,6 +2328,14 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                       Spacer(),
                       Row(
                         children: [
+                          _buildMobileInteractiveButton(
+                            icon: Icons.star,
+                            onPressed: () => _toggleStarLead(lead),
+                            tooltip: 'Star Lead',
+                            leadId: leadId,
+                            isStarred: lead['starred'] ?? false,
+                          ),
+                          SizedBox(width: 8),
                           _buildMobileInteractiveButton(
                             icon: Icons.edit,
                             onPressed: () => _editLead(lead),
@@ -2637,6 +2653,56 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         );
       },
     );
+  }
+
+  Future<void> _toggleStarLead(Map<String, dynamic> lead) async {
+    final leadId = lead['lead_id'].toString();
+    final currentStarred = lead['starred'] ?? false;
+
+    try {
+      final client = Supabase.instance.client;
+
+      // Update the starred status in the leads table
+      await client
+          .from('leads')
+          .update({'starred': !currentStarred})
+          .eq('id', leadId);
+
+      // Update the local lead data
+      lead['starred'] = !currentStarred;
+
+      // Refresh the leads list to show updated state
+      await _fetchLeads();
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              currentStarred
+                  ? 'Lead unstarred successfully'
+                  : 'Lead starred successfully',
+            ),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+
+      debugPrint('✅ Lead starred status toggled: ${!currentStarred}');
+    } catch (e) {
+      debugPrint('❌ Error toggling lead starred status: $e');
+
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating starred status: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 
   void _showAlertsDialog(
@@ -2996,12 +3062,14 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     bool isDestructive = false,
     bool isAlert = false,
     bool isQuery = false,
+    bool isStarred = false,
   }) {
     // Determine color based on action type
     Color getActionColor() {
       if (isDestructive) return Colors.red;
       if (isAlert) return Colors.red;
       if (isQuery) return Colors.orange;
+      if (isStarred) return Colors.amber;
 
       switch (tooltip.toLowerCase()) {
         case 'view details':
@@ -3016,6 +3084,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           return Colors.red;
         case 'query':
           return Colors.orange;
+        case 'star lead':
+          return Colors.amber;
         default:
           return Colors.grey;
       }
@@ -3040,7 +3110,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           children: [
             IconButton(
               icon: Icon(
-                icon,
+                isStarred && tooltip.toLowerCase() == 'star lead'
+                    ? Icons.star
+                    : icon,
                 color: _hoveredButtons['$leadId-$tooltip'] == true
                     ? actionColor
                     : actionColor.withValues(alpha: 0.7),
@@ -3602,12 +3674,14 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     bool isDestructive = false,
     bool isAlert = false,
     bool isQuery = false,
+    bool isStarred = false,
   }) {
     // Determine color based on action type
     Color getActionColor() {
       if (isDestructive) return Colors.red;
       if (isAlert) return Colors.red;
       if (isQuery) return Colors.orange;
+      if (isStarred) return Colors.amber;
 
       switch (tooltip.toLowerCase()) {
         case 'view':
@@ -3620,6 +3694,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           return Colors.red;
         case 'query':
           return Colors.orange;
+        case 'star lead':
+          return Colors.amber;
         default:
           return Colors.grey;
       }
@@ -3642,7 +3718,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         children: [
           IconButton(
             icon: Icon(
-              icon,
+              isStarred && tooltip.toLowerCase() == 'star lead'
+                  ? Icons.star
+                  : icon,
               color: _hoveredButtons['$leadId-$tooltip'] == true
                   ? actionColor
                   : actionColor.withValues(alpha: 0.7),
