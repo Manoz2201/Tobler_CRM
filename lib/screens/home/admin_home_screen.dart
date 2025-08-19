@@ -70,6 +70,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   int _selectedIndex = 0;
   bool _isCollapsed = false;
   final Map<int, bool> _hoveredItems = {};
+  // Link used to precisely anchor the quick-action menu under the three-dot button
+  final LayerLink _menuLink = LayerLink();
 
   List<NavItem> get _navItems {
     // Admin users get all navigation items including Leads Management
@@ -374,7 +376,6 @@ class SalesPerformancePage extends StatefulWidget {
   @override
   State<SalesPerformancePage> createState() => _SalesPerformancePageState();
 }
-
 class _SalesPerformancePageState extends State<SalesPerformancePage> {
   String _selectedSalesPerson = 'All Sales Team';
   String _selectedTimePeriod = 'Month';
@@ -1022,7 +1023,6 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
       ),
     );
   }
-
   Widget _buildFiltersSection() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1717,7 +1717,6 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
       ),
     );
   }
-
   Widget _buildAchievementTrendBarChart() {
     if (_achievementTrendData.isEmpty) {
       return Center(
@@ -2434,7 +2433,6 @@ class _AdminLeadsPageState extends State<_AdminLeadsPage> {
       }
     }
   }
-
   void _showComprehensiveLeadDetailsDialog(
     Map<String, dynamic> leadDetails,
     Map<String, dynamic> salesPersonDetails,
@@ -2915,7 +2913,6 @@ class _AdminLeadsPageState extends State<_AdminLeadsPage> {
       return 'Unknown';
     }
   }
-
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -3450,7 +3447,6 @@ class LeadTable extends StatefulWidget {
   @override
   State<LeadTable> createState() => _LeadTableState();
 }
-
 class _LeadTableState extends State<LeadTable> {
   List<Map<String, dynamic>> _leads = [];
   List<Map<String, dynamic>> _filteredLeads = [];
@@ -4226,7 +4222,6 @@ class _LeadTableState extends State<LeadTable> {
       },
     );
   }
-
   // Open the downloaded file
   Future<void> _openFile(File file) async {
     try {
@@ -5004,7 +4999,6 @@ class _LeadTableState extends State<LeadTable> {
       },
     );
   }
-
   Widget _buildWideTable() {
     return Container(
       decoration: BoxDecoration(
@@ -5644,7 +5638,6 @@ class _LeadTableState extends State<LeadTable> {
       },
     );
   }
-
   Widget _buildMobileCard(Map<String, dynamic> lead, int index) {
     final leadId = lead['lead_id'] ?? '';
     final formattedLeadId =
@@ -6273,7 +6266,6 @@ class _LeadTableState extends State<LeadTable> {
       }
     }
   }
-
   void _viewLeadDetails(Map<String, dynamic> lead) async {
     final leadId = lead['lead_id'];
 
@@ -7070,7 +7062,6 @@ class _LeadTableState extends State<LeadTable> {
       },
     );
   }
-
   void _queryLead(Map<String, dynamic> lead) {
     // Implement query lead functionality
     try {
@@ -7847,7 +7838,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       debugPrint('❌ AdminDashboardPage: No callback provided');
     }
   }
-
   // Fetch lead status data from leads, proposal_input, and admin_response tables
   Future<void> _fetchLeadStatusData() async {
     try {
@@ -8624,7 +8614,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       return 'Revenue ($symbol)';
     }
   }
-
   // Helper method to convert amount to display currency with proper label
   Map<String, dynamic> _convertToDisplayCurrency(double amountInINR) {
     if (_selectedCurrency == 'INR') {
@@ -8851,11 +8840,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 ],
               ),
             ),
-            // Floating action buttons overlay (all screen sizes) with smooth animation
-            if (_isMenuExpanded)
-              Positioned(
-                top: 80, // Position below the header
-                right: 32, // Align with the three-dot button
+            // Floating action buttons overlay anchored to the three-dot button
+            CompositedTransformFollower(
+              link: _menuLink,
+              showWhenUnlinked: false,
+              offset: const Offset(0, 56), // place directly below the 48px button (+ padding)
+              child: IgnorePointer(
+                ignoring: !_isMenuExpanded,
                 child: AnimatedContainer(
                   duration: Duration(milliseconds: 300),
                   curve: Curves.easeOutBack,
@@ -9021,29 +9012,32 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   ),
                   Spacer(),
                   // Three dots menu button
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(18),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 4,
-                          offset: Offset(0, 1),
-                        ),
-                      ],
-                    ),
-                    child: IconButton(
-                      onPressed: () {
-                        setState(() {
-                          _isMenuExpanded = !_isMenuExpanded;
-                        });
-                      },
-                      icon: Icon(Icons.more_vert, color: Colors.grey[600]),
-                      iconSize: 16,
-                      padding: EdgeInsets.zero,
+                  CompositedTransformTarget(
+                    link: _menuLink,
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 4,
+                            offset: Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                      child: IconButton(
+                        onPressed: () {
+                          setState(() {
+                            _isMenuExpanded = !_isMenuExpanded;
+                          });
+                        },
+                        icon: Icon(Icons.more_vert, color: Colors.grey[600]),
+                        iconSize: 16,
+                        padding: EdgeInsets.zero,
+                      ),
                     ),
                   ),
                 ],
@@ -9072,29 +9066,32 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
               Spacer(), // Flexible space to push three dots to right
               // Three dots menu button positioned on the right
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 8,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: IconButton(
-                  onPressed: () {
-                    setState(() {
-                      _isMenuExpanded = !_isMenuExpanded;
-                    });
-                  },
-                  icon: Icon(Icons.more_vert, color: Colors.grey[600]),
-                  iconSize: 24,
-                  padding: EdgeInsets.zero,
+              CompositedTransformTarget(
+                link: _menuLink,
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 8,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: IconButton(
+                    onPressed: () {
+                      setState(() {
+                        _isMenuExpanded = !_isMenuExpanded;
+                      });
+                    },
+                    icon: Icon(Icons.more_vert, color: Colors.grey[600]),
+                    iconSize: 24,
+                    padding: EdgeInsets.zero,
+                  ),
                 ),
               ),
             ],
@@ -9103,7 +9100,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       },
     );
   }
-
   Widget _buildDashboardContent() {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -9892,7 +9888,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       ],
     );
   }
-
   // Build Order Received card with dual currency display and integrated sections
   Widget _buildTotalRevenueCard() {
     final isPositive = _dashboardData['totalRevenue']['percentage'].startsWith(
@@ -10461,7 +10456,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       ),
     );
   }
-
   // Build Merged Inquiries Card with 4 sections
   Widget _buildMergedInquiriesCard() {
     return Container(
@@ -11199,7 +11193,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   List<BarChartGroupData> _buildBarGroups() {
     return _barChartData;
   }
-
   Widget _buildLeadPerformanceTable() {
     return Container(
       padding: EdgeInsets.all(16),
@@ -11962,7 +11955,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       ],
     );
   }
-
   Widget _buildLeadTable() {
     if (_isLoadingLeadData) {
       return Center(
@@ -12758,7 +12750,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         return Colors.grey[700]!;
     }
   }
-
   Widget _buildPagination() {
     final totalResults = _filteredLeadData.length;
     final totalOriginalResults = _leadPerformanceData.length;
@@ -13454,7 +13445,6 @@ class AdminRoleManagementPage extends StatefulWidget {
   State<AdminRoleManagementPage> createState() =>
       _AdminRoleManagementPageState();
 }
-
 class _AdminRoleManagementPageState extends State<AdminRoleManagementPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
@@ -14252,7 +14242,6 @@ class _AdminRoleManagementPageState extends State<AdminRoleManagementPage>
       ),
     );
   }
-
   Widget _buildActiveUsersList() {
     if (_isLoadingUsers) {
       return Container(
