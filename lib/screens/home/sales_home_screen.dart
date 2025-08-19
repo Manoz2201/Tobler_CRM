@@ -8,7 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
-import 'package:intl/intl.dart';
+// duplicate removed
 import '../../utils/navigation_utils.dart';
 import '../../utils/timezone_utils.dart';
 import '../auth/login_screen.dart';
@@ -19,6 +19,9 @@ import '../../main.dart'
         updateUserOnlineStatusMCP,
         updateUserOnlineStatusByEmailMCP,
         setUserOnlineStatus;
+import 'dart:math' as math;
+import 'package:intl/intl.dart';
+import 'dart:ui' as ui;
 
 // ChartData class for Syncfusion charts
 class ChartData {
@@ -60,9 +63,8 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
       currentUserEmail: widget.currentUserEmail,
     ),
     LeadManagementScreen(),
+    OffersManagementScreen(),
     const Center(child: Text('Customers Management')),
-    const Center(child: Text('Tasks Management')),
-    const Center(child: Text('Reports')),
     const Center(child: Text('Sales Settings')),
     ProfilePage(),
   ];
@@ -384,6 +386,1772 @@ class LeadManagementScreen extends StatefulWidget {
 
   @override
   State<LeadManagementScreen> createState() => _LeadManagementScreenState();
+}
+
+class OffersManagementScreen extends StatefulWidget {
+  const OffersManagementScreen({super.key});
+
+  @override
+  State<OffersManagementScreen> createState() => _OffersManagementScreenState();
+}
+
+class _OffersManagementScreenState extends State<OffersManagementScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  // No selectedTabIndex stored; tab changes rebuild through listener
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 4, vsync: this);
+    _tabController.addListener(() {
+      // Trigger rebuild on tab change if needed
+      setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth > 700;
+
+        return Scaffold(
+          backgroundColor: Colors.grey[50],
+          body: Padding(
+            padding: EdgeInsets.fromLTRB(
+              isWide ? 24.0 : 16.0,
+              isWide ? 24.0 : 12.0,
+              isWide ? 24.0 : 16.0,
+              isWide ? 24.0 : 8.0,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header Section
+                _buildHeader(isWide),
+                SizedBox(height: isWide ? 24 : 16),
+                
+                // Tab Bar
+                _buildTabBar(isWide),
+                SizedBox(height: isWide ? 16 : 8),
+                
+                // Tab Content
+                Expanded(
+                  child: _buildTabContent(isWide),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildHeader(bool isWide) {
+    if (isWide) {
+      return Row(
+        children: [
+          Icon(Icons.local_offer, size: 32, color: Colors.orange[700]),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Offers Management',
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                ),
+                Text(
+                  'Create, manage, and track customer offers',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => _showCreateOfferDialog(context),
+            icon: Icon(Icons.add),
+            label: Text('Create New Offer'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange[600],
+              foregroundColor: Colors.white,
+              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ),
+          ),
+        ],
+      );
+    } else {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.local_offer, size: 24, color: Colors.orange[700]),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Offers Management',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                    height: 1.2,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Create, manage, and track customer offers',
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey[600],
+              height: 1.2,
+            ),
+          ),
+        ],
+      );
+    }
+  }
+
+  Widget _buildTabBar(bool isWide) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.1),
+            spreadRadius: 1,
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: TabBar(
+        controller: _tabController,
+        labelColor: Colors.orange[700],
+        unselectedLabelColor: Colors.grey[600],
+        indicatorColor: Colors.orange[700],
+        indicatorWeight: 3,
+        labelStyle: TextStyle(
+          fontSize: isWide ? 14 : 12,
+          fontWeight: FontWeight.w600,
+        ),
+        unselectedLabelStyle: TextStyle(
+          fontSize: isWide ? 14 : 12,
+          fontWeight: FontWeight.w500,
+        ),
+        tabs: [
+          Tab(
+            icon: Icon(Icons.work, size: isWide ? 20 : 18),
+            text: 'Active Offers',
+          ),
+          Tab(
+            icon: Icon(Icons.edit_note, size: isWide ? 20 : 18),
+            text: 'Draft Offers',
+          ),
+          Tab(
+            icon: Icon(Icons.schedule, size: isWide ? 20 : 18),
+            text: 'Expired Offers',
+          ),
+          Tab(
+            icon: Icon(Icons.analytics, size: isWide ? 20 : 18),
+            text: 'Analytics',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabContent(bool isWide) {
+    return TabBarView(
+      controller: _tabController,
+      children: [
+        _buildActiveOffersTab(isWide),
+        _buildDraftOffersTab(isWide),
+        _buildExpiredOffersTab(isWide),
+        _buildAnalyticsTab(isWide),
+      ],
+    );
+  }
+
+  Widget _buildActiveOffersTab(bool isWide) {
+    return _buildOffersList(
+      isWide: isWide,
+      title: 'Active Offers',
+      subtitle: 'Currently active customer offers',
+      offers: _getMockActiveOffers(),
+      emptyMessage: 'No active offers found',
+      emptyIcon: Icons.work_outline,
+      showStatus: true,
+      statusColor: Colors.green,
+    );
+  }
+
+  Widget _buildDraftOffersTab(bool isWide) {
+    return _buildOffersList(
+      isWide: isWide,
+      title: 'Draft Offers',
+      subtitle: 'Offers in preparation',
+      offers: _getMockDraftOffers(),
+      emptyMessage: 'No draft offers found',
+      emptyIcon: Icons.edit_note_outlined,
+      showStatus: false,
+    );
+  }
+
+  Widget _buildExpiredOffersTab(bool isWide) {
+    return _buildOffersList(
+      isWide: isWide,
+      title: 'Expired Offers',
+      subtitle: 'Offers that have expired',
+      offers: _getMockExpiredOffers(),
+      emptyMessage: 'No expired offers found',
+      emptyIcon: Icons.schedule_outlined,
+      showStatus: true,
+      statusColor: Colors.red,
+      );
+  }
+
+  Widget _buildAnalyticsTab(bool isWide) {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Offers Analytics',
+            style: TextStyle(
+              fontSize: isWide ? 24 : 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+          ),
+          SizedBox(height: isWide ? 16 : 12),
+          Text(
+            'Track performance and insights',
+            style: TextStyle(
+              fontSize: isWide ? 16 : 14,
+              color: Colors.grey[600],
+            ),
+          ),
+          SizedBox(height: isWide ? 24 : 16),
+          
+          // Stats Cards
+          if (isWide)
+            Row(
+              children: [
+                Expanded(child: _buildStatCard('Total Offers', '24', Icons.local_offer, Colors.blue)),
+                SizedBox(width: 16),
+                Expanded(child: _buildStatCard('Active Offers', '8', Icons.work, Colors.green)),
+                SizedBox(width: 16),
+                Expanded(child: _buildStatCard('Conversion Rate', '12.5%', Icons.trending_up, Colors.orange)),
+                SizedBox(width: 16),
+                Expanded(child: _buildStatCard('Total Value', '\$45,200', Icons.attach_money, Colors.purple)),
+              ],
+            )
+          else
+            Column(
+              children: [
+                _buildStatCard('Total Offers', '24', Icons.local_offer, Colors.blue),
+                SizedBox(height: 12),
+                _buildStatCard('Active Offers', '8', Icons.work, Colors.green),
+                SizedBox(height: 12),
+                _buildStatCard('Conversion Rate', '12.5%', Icons.trending_up, Colors.orange),
+                SizedBox(height: 12),
+                _buildStatCard('Total Value', '\$45,200', Icons.attach_money, Colors.purple),
+              ],
+            ),
+          
+          SizedBox(height: isWide ? 32 : 24),
+          
+          // Coming Soon Message
+          Center(
+            child: Column(
+              children: [
+                Icon(
+                  Icons.analytics_outlined,
+                  size: isWide ? 64 : 48,
+                  color: Colors.blue[400],
+                ),
+                SizedBox(height: isWide ? 16 : 8),
+                Text(
+                  'Analytics Dashboard Coming Soon',
+                  style: TextStyle(
+                    fontSize: isWide ? 20 : 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                SizedBox(height: isWide ? 8 : 4),
+                Text(
+                  'Advanced reporting and insights will be available soon',
+                  style: TextStyle(
+                    color: Colors.grey[500],
+                    fontSize: isWide ? 14 : 12,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.1),
+            spreadRadius: 1,
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 24),
+              const Spacer(),
+              Icon(Icons.more_vert, color: Colors.grey[400], size: 20),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOffersList({
+    required bool isWide,
+    required String title,
+    required String subtitle,
+    required List<Map<String, dynamic>> offers,
+    required String emptyMessage,
+    required IconData emptyIcon,
+    bool showStatus = false,
+    Color? statusColor,
+  }) {
+    if (offers.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              emptyIcon,
+              size: isWide ? 64 : 48,
+              color: Colors.grey[400],
+            ),
+            SizedBox(height: isWide ? 16 : 8),
+            Text(
+              emptyMessage,
+              style: TextStyle(
+                fontSize: isWide ? 20 : 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[600],
+              ),
+            ),
+            SizedBox(height: isWide ? 8 : 4),
+            Text(
+              'Create your first offer to get started',
+              style: TextStyle(
+                color: Colors.grey[500],
+                fontSize: isWide ? 14 : 12,
+              ),
+            ),
+            SizedBox(height: isWide ? 24 : 16),
+            ElevatedButton.icon(
+              onPressed: () => _showCreateOfferDialog(context),
+              icon: Icon(Icons.add, size: isWide ? 20 : 16),
+              label: Text('Create New Offer'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange[600],
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(
+                  horizontal: isWide ? 20 : 16,
+                  vertical: isWide ? 12 : 8,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: isWide ? 24 : 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey[800],
+          ),
+        ),
+        SizedBox(height: isWide ? 8 : 4),
+        Text(
+          subtitle,
+          style: TextStyle(
+            fontSize: isWide ? 16 : 14,
+            color: Colors.grey[600],
+          ),
+        ),
+        SizedBox(height: isWide ? 24 : 16),
+        
+        if (isWide)
+          _buildWideOffersTable(offers, showStatus, statusColor)
+        else
+          _buildMobileOffersList(offers, showStatus, statusColor),
+      ],
+    );
+  }
+
+  Widget _buildWideOffersTable(List<Map<String, dynamic>> offers, bool showStatus, Color? statusColor) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.1),
+            spreadRadius: 1,
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          columns: [
+            DataColumn(label: Text('Customer')),
+            DataColumn(label: Text('Offer Title')),
+            DataColumn(label: Text('Value')),
+            DataColumn(label: Text('Created Date')),
+            if (showStatus) DataColumn(label: Text('Status')),
+            DataColumn(label: Text('Actions')),
+          ],
+          rows: offers.map((offer) {
+            return DataRow(
+              cells: [
+                DataCell(Text(offer['customer'] ?? '')),
+                DataCell(Text(offer['title'] ?? '')),
+                DataCell(Text(offer['value'] ?? '')),
+                DataCell(Text(offer['createdDate'] ?? '')),
+                if (showStatus)
+                  DataCell(
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: statusColor?.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: statusColor ?? Colors.grey),
+                      ),
+                      child: Text(
+                        offer['status'] ?? '',
+                        style: TextStyle(
+                          color: statusColor ?? Colors.grey,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                DataCell(
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.edit, size: 18),
+                        onPressed: () => _editOffer(offer),
+                        tooltip: 'Edit Offer',
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.visibility, size: 18),
+                        onPressed: () => _viewOffer(offer),
+                        tooltip: 'View Offer',
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.delete, size: 18),
+                        onPressed: () => _deleteOffer(offer),
+                        tooltip: 'Delete Offer',
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileOffersList(List<Map<String, dynamic>> offers, bool showStatus, Color? statusColor) {
+    return ListView.builder(
+      shrinkWrap: true,
+      itemCount: offers.length,
+      itemBuilder: (context, index) {
+        final offer = offers[index];
+        return Card(
+          margin: EdgeInsets.only(bottom: 12),
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        offer['title'] ?? '',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                    ),
+                    if (showStatus)
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: statusColor?.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: statusColor ?? Colors.grey),
+                        ),
+                        child: Text(
+                          offer['status'] ?? '',
+                          style: TextStyle(
+                            color: statusColor ?? Colors.grey,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Customer: ${offer['customer'] ?? ''}',
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Value: ${offer['value'] ?? ''}',
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Created: ${offer['createdDate'] ?? ''}',
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+                SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _editOffer(offer),
+                        icon: Icon(Icons.edit, size: 16),
+                        label: Text('Edit'),
+                        style: OutlinedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(vertical: 8),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _viewOffer(offer),
+                        icon: Icon(Icons.visibility, size: 16),
+                        label: Text('View'),
+                        style: OutlinedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(vertical: 8),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _deleteOffer(offer),
+                        icon: Icon(Icons.delete, size: 16),
+                        label: Text('Delete'),
+                        style: OutlinedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(vertical: 8),
+                          foregroundColor: Colors.red,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Mock data methods
+  List<Map<String, dynamic>> _getMockActiveOffers() {
+    return [
+      {
+        'customer': 'ABC Corporation',
+        'title': 'Enterprise Software License',
+        'value': '\$25,000',
+        'createdDate': '2024-01-15',
+        'status': 'Active',
+      },
+      {
+        'customer': 'XYZ Industries',
+        'title': 'Cloud Services Package',
+        'value': '\$12,500',
+        'createdDate': '2024-01-10',
+        'status': 'Active',
+      },
+    ];
+  }
+
+  List<Map<String, dynamic>> _getMockDraftOffers() {
+    return [
+      {
+        'customer': 'Tech Solutions Inc',
+        'title': 'Consulting Services',
+        'value': '\$8,000',
+        'createdDate': '2024-01-20',
+      },
+    ];
+  }
+
+  List<Map<String, dynamic>> _getMockExpiredOffers() {
+    return [
+      {
+        'customer': 'Old Company Ltd',
+        'title': 'Legacy System Upgrade',
+        'value': '\$15,000',
+        'createdDate': '2023-12-01',
+        'status': 'Expired',
+      },
+    ];
+  }
+
+  // Action methods
+  Future<void> _showCreateOfferDialog(BuildContext context) async {
+    final Map<String, dynamic>? selectedLead = await showDialog<Map<String, dynamic>>(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext dialogContext) {
+        return const OfferLeadSelectionDialog();
+      },
+    );
+
+    // After an async gap, guard the incoming BuildContext from this method
+    if (!context.mounted) return;
+
+    if (selectedLead != null) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => OfferEditorScreen(lead: selectedLead),
+        ),
+      );
+    }
+  }
+
+  void _editOffer(Map<String, dynamic> offer) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Edit offer: ${offer['title']}'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _viewOffer(Map<String, dynamic> offer) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('View offer: ${offer['title']}'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _deleteOffer(Map<String, dynamic> offer) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Delete Offer'),
+          content: Text('Are you sure you want to delete "${offer['title']}"? This action cannot be undone.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Offer deleted: ${offer['title']}'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+              child: Text('Delete', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class OfferEditorScreen extends StatefulWidget {
+  final Map<String, dynamic> lead;
+
+  const OfferEditorScreen({super.key, required this.lead});
+
+  @override
+  State<OfferEditorScreen> createState() => _OfferEditorScreenState();
+}
+
+class _OfferEditorScreenState extends State<OfferEditorScreen> {
+  static const double _a4WidthMm = 210.0;
+  static const double _a4HeightMm = 297.0;
+
+  bool _isEditing = false;
+
+  // Letter head editable fields
+  late final TextEditingController _refNoCtl;
+  late DateTime _offerDate;
+  late final TextEditingController _clientNameCtl;
+  late final TextEditingController _addressCtl;
+  late final TextEditingController _projectNameCtl;
+  late final TextEditingController _introNoteCtl;
+  late final TextEditingController _projectStatusCtl;
+  late final TextEditingController _descriptionCtl;
+
+  // Offer items
+  late List<_OfferItem> _items;
+
+  @override
+  void initState() {
+    super.initState();
+    _refNoCtl = TextEditingController(text: 'TSFPL/PC/25-26/001');
+    _offerDate = DateTime.now();
+    _clientNameCtl = TextEditingController(text: (widget.lead['client_name'] ?? 'Client').toString());
+    _addressCtl = TextEditingController(
+      text:
+          '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.',
+    );
+    _projectNameCtl = TextEditingController(text: (widget.lead['project_name'] ?? 'Project').toString());
+    _introNoteCtl = TextEditingController(
+      text:
+          'We thank you for inviting us to quote for the supply of our Tobler Monolithic Formwork System.\nOur proposal is set out in the attached document for your kind consideration.',
+    );
+    _projectStatusCtl = TextEditingController(text: 'PROPOSED');
+    _descriptionCtl = TextEditingController(text: '100% New Formwork Set');
+
+    _items = [
+      _OfferItem(srNo: 1, description: 'Supply of Aluminum formwork shuttering system.', qtySqm: 1238, rate: 9650),
+      _OfferItem(srNo: 2, description: 'Supply of Aluminum formwork shuttering for Cornice Area', qtySqm: 130, rate: 10800),
+    ];
+  }
+
+  @override
+  void dispose() {
+    _refNoCtl.dispose();
+    _clientNameCtl.dispose();
+    _addressCtl.dispose();
+    _projectNameCtl.dispose();
+    _introNoteCtl.dispose();
+    _projectStatusCtl.dispose();
+    _descriptionCtl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Offer Editor'),
+        actions: [
+          IconButton(
+            icon: Icon(_isEditing ? Icons.check : Icons.edit),
+            tooltip: _isEditing ? 'Finish Editing' : 'Edit',
+            onPressed: () => setState(() => _isEditing = !_isEditing),
+          ),
+          IconButton(
+            icon: const Icon(Icons.save),
+            tooltip: 'Save',
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Offer saved (placeholder)')),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf),
+            tooltip: 'Export PDF',
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('PDF export coming soon')),
+              );
+            },
+          ),
+        ],
+      ),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final double maxAvailableWidth = constraints.maxWidth;
+              final double targetWidth = math.min(maxAvailableWidth, 900);
+              final double aspect = _a4HeightMm / _a4WidthMm; // ~1.414
+              final double targetHeight = targetWidth * aspect;
+
+              final List<Widget> pageBodies = [
+                ..._buildOfferBodyPages(context, targetWidth, targetHeight),
+                _buildOfferTermsPage(context),
+                _buildOfferCommercialPage(context),
+                _buildOfferSignaturePage(context),
+              ];
+
+              return Column(
+                children: [
+                  for (final body in pageBodies)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: _buildA4Page(targetWidth, targetHeight, body),
+                    ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+      backgroundColor: Colors.grey[100],
+    );
+  }
+
+  List<Widget> _buildOfferBodyPages(BuildContext context, double targetWidth, double targetHeight) {
+    // Constants for header/footer height used for rough pagination budget
+    const double headerHeight = 120;
+    const double footerHeight = 70;
+    const double verticalPadding = 32; // from EdgeInsets.symmetric(vertical: 16)
+
+    final double bodyHeightBudget = targetHeight - headerHeight - footerHeight - verticalPadding;
+
+    // Measure dynamic text blocks to estimate heights
+    double measure(String text, TextStyle style, double maxWidth) {
+      final tp = TextPainter(
+        text: TextSpan(text: text, style: style),
+        textDirection: ui.TextDirection.ltr,
+        maxLines: null,
+      )..layout(maxWidth: maxWidth);
+      return tp.height;
+    }
+
+    final double contentWidth = targetWidth - 48; // 24 horizontal padding on both sides
+    const textStyle = TextStyle(fontSize: 12);
+
+    // Heights before the items table
+    double h = 0;
+    h += 20; // meta row approx
+    h += 12;
+    h += 18; // "To:" and client line
+    h += 4;
+    h += measure(_addressCtl.text, textStyle, contentWidth) + 6; // address + spacing
+    h += 12;
+    h += measure('RE: Sales Offer for Tobler Monolithic - Formwork System for "${_projectNameCtl.text}"', textStyle, contentWidth) + 12;
+    h += 8 + 18; // SALES OFFER title and spacing
+    h += measure('Project Reference ${_projectStatusCtl.text} – ${_projectNameCtl.text}.', textStyle, contentWidth) + 6;
+    h += measure('Description: ${_descriptionCtl.text}', textStyle, contentWidth);
+    h += 12;
+    h += measure(_introNoteCtl.text, textStyle, contentWidth) + 8 + 8; // note + padding + border fudge
+
+    // Table measurements
+    const double tableHeaderHeight = 40;
+    const double tableRowHeight = 40; // rough fixed row height for our cell style
+    const double tableFooterRowsHeight = 40 * 3; // Subtotal + GST + Grand Total
+
+    final int rowsThatFit = ((bodyHeightBudget - h - tableHeaderHeight - tableFooterRowsHeight) / tableRowHeight).floor();
+    final int safeRowsPerPage = rowsThatFit.clamp(0, _items.length);
+
+    List<Widget> pages = [];
+
+    // Build first page with all header blocks and first chunk of rows
+    List<_OfferItem> firstChunk = _items.take(safeRowsPerPage).toList();
+
+    pages.add(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildMetaRow(),
+          const SizedBox(height: 12),
+          _buildToBlock(),
+          const SizedBox(height: 12),
+          _buildReLine(),
+          const SizedBox(height: 12),
+          _buildIntroNote(),
+          const SizedBox(height: 16),
+          _buildSalesOfferTitle(),
+          const SizedBox(height: 8),
+          _buildProjectDetails(),
+          const SizedBox(height: 12),
+          _buildOfferTableSection(context, firstChunk, showEditorControls: true, showTotals: _items.length == firstChunk.length),
+        ],
+      ),
+    );
+
+    // Remaining pages with only table continuation (and totals on last page)
+    int index = firstChunk.length;
+    while (index < _items.length) {
+      // Rows available on continuation pages: full budget without static blocks
+      final int contRowsPerPage = ((bodyHeightBudget - tableHeaderHeight - tableFooterRowsHeight) / tableRowHeight).floor().clamp(1, _items.length);
+      final List<_OfferItem> chunk = _items.skip(index).take(contRowsPerPage).toList();
+      index += chunk.length;
+      final bool isLast = index >= _items.length;
+      pages.add(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildOfferTableSection(context, chunk, showEditorControls: false, showTotals: isLast),
+          ],
+        ),
+      );
+    }
+
+    return pages;
+  }
+
+  Widget _buildA4Page(double targetWidth, double targetHeight, Widget body) {
+    return Container(
+      width: targetWidth,
+      height: targetHeight,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: Colors.grey.shade300),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Image.asset('assets/Header.png', fit: BoxFit.fitWidth),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              child: body,
+            ),
+          ),
+          Image.asset('assets/Footer.png', fit: BoxFit.fitWidth),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOfferTermsPage(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Area Statement boxed with title badge
+        Stack(
+          children: [
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade500),
+              ),
+              padding: const EdgeInsets.fromLTRB(12, 18, 12, 12),
+              child: _buildBulletedList([
+                'Quantity mentioned above is only tentative and subject to change based on the final design.',
+                'The above-mentioned quantity is calculated for typical floor only.',
+                'Any extra accessories required like embedded ties will be charged extra.',
+                'The Monolithic formwork set will be manufactured and supplied from Tobler India factory in India.',
+                'The price quoted above is Inclusive of transportation charges from factory to site.',
+                'Unloading of the material at site is under the buyer’s scope.',
+              ]),
+            ),
+            Positioned(
+              left: 8,
+              top: -2,
+              child: Container(
+                color: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: const Text(
+                  'Area Statement:',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontStyle: FontStyle.italic),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+
+        const Text(
+          'NOTE :',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            decoration: TextDecoration.underline,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.only(left: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              _NoteParagraph(
+                textSpans: [
+                  TextSpan(text: 'Quantity quoted shall be '),
+                  TextSpan(text: 'PROVISIONAL', style: TextStyle(fontWeight: FontWeight.w700)),
+                  TextSpan(
+                    text:
+                        ' and is subject to final measurement of the formwork supplied to site. The formwork quantity shall be based on (sq.m.) of panels supplied. The raw material used for the aluminium formwork shall be aluminium alloy 6061-T6. All materials shall be 100% brand new.',
+                  ),
+                ],
+              ),
+              SizedBox(height: 8),
+              _NoteParagraph(
+                textSpans: [
+                  TextSpan(
+                    text:
+                        'This formwork system to be supplied shall include accessories such as reusable flat ties, PVC sleeves and reusable pins & wedges for the Construction of one typical floor unit as per current drawings furnished.',
+                  ),
+                ],
+              ),
+              SizedBox(height: 8),
+              _NoteParagraph(
+                textSpans: [
+                  TextSpan(
+                    text:
+                        'Embedded MS ties (more than 400mm, expansion joint, etc.) if required, shall be provided with extra charge. These accessories will have an additional allowance of ',
+                  ),
+                  TextSpan(text: 'Ten Percent (10%)', style: TextStyle(fontWeight: FontWeight.w700)),
+                  TextSpan(
+                    text:
+                        ' for site wastage. Kicker Soldier to be used for further ensuring the horizontality of the kicker and Waller (square pipe) to be used for further ensuring the horizontality of the wall shall be provided by Seller.',
+                  ),
+                ],
+              ),
+              SizedBox(height: 8),
+              _NoteParagraph(
+                textSpans: [
+                  TextSpan(
+                    text:
+                        'System formwork and its accessories, data sheets, relevant engineering drawing and design deliverable shall be supplied in accordance to specifications provided by us.',
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBulletedList(List<String> items) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final line in items) _bulletRow(line),
+      ],
+    );
+  }
+
+  Widget _bulletRow(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 4),
+            child: Text('•', style: TextStyle(fontSize: 14)),
+          ),
+          const SizedBox(width: 8),
+          Expanded(child: Text(text, style: const TextStyle(fontSize: 12))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOfferCommercialPage(BuildContext context) {
+    final String dateStr = DateFormat('dd/MM/yyyy').format(DateTime.now());
+    TextStyle labelStyle = const TextStyle(fontWeight: FontWeight.w700, fontSize: 12);
+    TextStyle valueStyle = const TextStyle(fontSize: 12, height: 1.4);
+
+    TableRow row(String label, Widget value) => TableRow(children: [
+          Container(
+            color: Colors.grey.shade200,
+            padding: const EdgeInsets.all(8),
+            child: Text(label, style: labelStyle),
+          ),
+          Container(
+            padding: const EdgeInsets.all(8),
+            child: value,
+          ),
+        ]);
+
+    Widget para(String text, {List<InlineSpan>? spans}) => RichText(
+          text: TextSpan(
+            style: valueStyle,
+            children: spans ?? [TextSpan(text: text)],
+          ),
+        );
+
+    return Table(
+      columnWidths: const {0: FixedColumnWidth(160), 1: FlexColumnWidth()},
+      border: TableBorder.all(color: Colors.grey.shade500, width: 1),
+      children: [
+        row(
+          'Delivery Date:',
+          para('The first shipment shall leave the factory within (08) working weeks from the date of shell drawing confirmation by client.'),
+        ),
+        row(
+          'Technical Services:',
+          para('', spans: const [
+            TextSpan(text: "Tobler’s shell drawings will be ready in two (02) weeks’ time (from date of receive full complete set of architectural and structural drawings for construction and full reply to our technical queries whichever is later) and will be sent to Client for verifying of all the dimensions, positioning, opening etc. Client shall sign and return to us after confirmation of acceptance of the shell drawings.")
+          ]),
+        ),
+        row(
+          'Setting Up Support:',
+          para('', spans: const [
+            TextSpan(text: 'Two (02) Supervisor per set will be provided '),
+            TextSpan(text: 'Free of charge', style: TextStyle(fontWeight: FontWeight.w700)),
+            TextSpan(text: ' by Tobler to assist in the first erection of the formwork equipment until 2 levels of casting or for a period of not exceeding Eight (08) weeks. The seller’s site engineer shall visit the site for site training prior to arrival of materials. The Client shall provide suitable local accommodation (at least 1 room per field specialist) and transportation for the field specialist during his course of work/stay. If the client cannot arrange the accommodation, Tobler will arrange the accommodation & shall be reimbursed or charged back to the client.'),
+          ]),
+        ),
+        row(
+          'Payment Terms:',
+          para('', spans: const [
+            TextSpan(text: '25% ', style: TextStyle(fontWeight: FontWeight.w700)),
+            TextSpan(text: 'Advance Along with Purchase Order\n'),
+            TextSpan(text: '25% ', style: TextStyle(fontWeight: FontWeight.w700)),
+            TextSpan(text: 'Payment after shell plan approval\n'),
+            TextSpan(text: '50% ', style: TextStyle(fontWeight: FontWeight.w700)),
+            TextSpan(text: 'Payment Before Dispatch of the material'),
+          ]),
+        ),
+        row(
+          'Nalco Rates:',
+          para('Rs. 267/kg Nalco has been considered of date: $dateStr.'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOfferSignaturePage(BuildContext context) {
+    const TextStyle smallEmph = TextStyle(fontSize: 12, fontStyle: FontStyle.italic);
+    const TextStyle emphBold = TextStyle(fontSize: 12, fontStyle: FontStyle.italic, fontWeight: FontWeight.w700);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Our offer is open for acceptance for a period of 7 days from the date of quotation.',
+          style: TextStyle(fontSize: 12, color: Color(0xFF215E79)),
+        ),
+        const SizedBox(height: 20),
+        // Prepared By
+        const Text('Prepared By:', style: emphBold),
+        const SizedBox(height: 4),
+        const Text('Vishwaranjan Singh (+91 8928301075)', style: smallEmph),
+        const Text('General Manager – Sales & Marketing', style: smallEmph),
+        const SizedBox(height: 24),
+        // Yours Faithfully
+        const Text('Yours Faithfully,', style: emphBold),
+        const SizedBox(height: 4),
+        const Text('Nitesh Sharma (+91 9136223366)', style: smallEmph),
+        const Text('Sr. Vice President', style: smallEmph),
+      ],
+    );
+  }
+
+  Widget _buildMetaRow() {
+    final String dateStr = DateFormat('dd MMMM yyyy').format(_offerDate);
+    return Row(
+      children: [
+        Expanded(
+          child: _isEditing
+              ? Row(
+                  children: [
+                    const Text('Ref: ', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                    SizedBox(
+                      width: 220,
+                      child: TextField(
+                        controller: _refNoCtl,
+                        decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                )
+              : RichText(
+                  text: TextSpan(
+                    style: const TextStyle(color: Colors.black, fontSize: 12),
+                    children: [
+                      const TextSpan(text: 'Ref: ', style: TextStyle(fontWeight: FontWeight.w700)),
+                      TextSpan(text: _refNoCtl.text),
+                    ],
+                  ),
+                ),
+        ),
+        _isEditing
+            ? Row(
+                children: [
+                  const Text('Date: ', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                  TextButton.icon(
+                    icon: const Icon(Icons.calendar_today, size: 14),
+                    label: Text(dateStr, style: const TextStyle(fontSize: 12)),
+                    onPressed: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: _offerDate,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime(2100),
+                      );
+                      if (picked != null) {
+                        setState(() => _offerDate = picked);
+                      }
+                    },
+                  ),
+                ],
+              )
+            : RichText(
+                text: TextSpan(
+                  style: const TextStyle(color: Colors.black, fontSize: 12),
+                  children: [
+                    const TextSpan(text: 'Date: ', style: TextStyle(fontWeight: FontWeight.w700)),
+                    TextSpan(text: dateStr),
+                  ],
+                ),
+              ),
+      ],
+    );
+  }
+
+  Widget _buildToBlock() {
+    TextStyle base = const TextStyle(fontSize: 12);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('To:', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+        const SizedBox(height: 4),
+        _isEditing
+            ? SizedBox(
+                width: 320,
+                child: TextField(
+                  controller: _clientNameCtl,
+                  decoration: const InputDecoration(isDense: true, border: OutlineInputBorder(), labelText: 'Client name (M/s ...)'),
+                  style: base.copyWith(fontWeight: FontWeight.w700),
+                ),
+              )
+            : Text('M/s ${_clientNameCtl.text}', style: base.copyWith(fontWeight: FontWeight.w700)),
+        const SizedBox(height: 4),
+        _isEditing
+            ? SizedBox(
+                width: 600,
+                child: TextField(
+                  controller: _addressCtl,
+                  maxLines: 4,
+                  decoration: const InputDecoration(isDense: true, border: OutlineInputBorder(), labelText: 'Address'),
+                  style: base,
+                ),
+              )
+            : Text(_addressCtl.text, style: base),
+      ],
+    );
+  }
+
+  Widget _buildReLine() {
+    final base = const TextStyle(color: Colors.black, fontSize: 12);
+    return _isEditing
+        ? Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const Text('RE: ', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+              const SizedBox(width: 6),
+              Expanded(
+                child: TextField(
+                  controller: _projectNameCtl,
+                  decoration: const InputDecoration(isDense: true, border: OutlineInputBorder(), labelText: 'Project name'),
+                  style: base,
+                ),
+              ),
+            ],
+          )
+        : RichText(
+            text: TextSpan(
+              style: base,
+              children: [
+                const TextSpan(text: 'RE: ', style: TextStyle(fontWeight: FontWeight.w700)),
+                TextSpan(text: 'Sales Offer for Tobler Monolithic - Formwork System for "${_projectNameCtl.text}"'),
+              ],
+            ),
+          );
+  }
+
+  Widget _buildIntroNote() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        border: Border.all(color: Colors.grey.shade400),
+      ),
+      padding: const EdgeInsets.all(8),
+      child: _isEditing
+          ? TextField(
+              controller: _introNoteCtl,
+              maxLines: 4,
+              decoration: const InputDecoration(border: InputBorder.none),
+              style: const TextStyle(fontSize: 12),
+            )
+          : Text(_introNoteCtl.text, style: const TextStyle(fontSize: 12)),
+    );
+  }
+
+  Widget _buildSalesOfferTitle() {
+    return const Text(
+      'SALES OFFER',
+      style: TextStyle(
+        fontWeight: FontWeight.w700,
+        fontStyle: FontStyle.italic,
+        decoration: TextDecoration.underline,
+      ),
+    );
+  }
+
+  Widget _buildProjectDetails() {
+    final base = const TextStyle(color: Colors.black, fontSize: 12);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _isEditing
+            ? Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 6,
+                children: [
+                  const Text('Project Reference', style: TextStyle(fontSize: 12)),
+                  SizedBox(
+                    width: 120,
+                    child: TextField(
+                      controller: _projectStatusCtl,
+                      decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
+                      style: base.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  const Text('–', style: TextStyle(fontSize: 12)),
+                  SizedBox(
+                    width: 260,
+                    child: TextField(
+                      controller: _projectNameCtl,
+                      decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
+                      style: base,
+                    ),
+                  ),
+                ],
+              )
+            : RichText(
+                text: TextSpan(
+                  style: base,
+                  children: [
+                    const TextSpan(text: 'Project Reference  '),
+                    TextSpan(text: _projectStatusCtl.text, style: const TextStyle(fontWeight: FontWeight.w700)),
+                    const TextSpan(text: ' – '),
+                    TextSpan(text: '${_projectNameCtl.text}.'),
+                  ],
+                ),
+              ),
+        const SizedBox(height: 6),
+        _isEditing
+            ? Row(
+                children: [
+                  const Text('Description:', style: TextStyle(fontSize: 12)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _descriptionCtl,
+                      decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
+                      style: base.copyWith(fontWeight: FontWeight.w700, decoration: TextDecoration.underline),
+                    ),
+                  ),
+                ],
+              )
+            : RichText(
+                text: TextSpan(
+                  style: base,
+                  children: [
+                    const TextSpan(text: 'Description: '),
+                    TextSpan(
+                      text: _descriptionCtl.text,
+                      style: const TextStyle(fontWeight: FontWeight.w700, decoration: TextDecoration.underline),
+                    ),
+                  ],
+                ),
+              ),
+      ],
+    );
+  }
+
+  // Internal: render a partial table section. If showTotals=false, omit totals rows.
+  Widget _buildOfferTableSection(BuildContext context, List<_OfferItem> items,
+      {required bool showEditorControls, required bool showTotals}) {
+    final int subTotal = _items.fold(0, (sum, i) => sum + i.amount);
+    final int gst = (subTotal * 0.18).round();
+    final int grandTotal = subTotal + gst;
+
+    final TextStyle cellStyle = const TextStyle(fontSize: 12);
+
+    Widget headerCell(String text, {TextAlign align = TextAlign.left}) =>
+        Container(color: Colors.grey.shade200, padding: const EdgeInsets.all(8), child: Text(text, textAlign: align, style: cellStyle));
+
+    Widget textCell(String text, {TextAlign align = TextAlign.left}) =>
+        Padding(padding: const EdgeInsets.all(8), child: Text(text, textAlign: align, style: cellStyle));
+
+    String n(int v) => v.toString();
+
+    List<TableRow> rows = [];
+
+    rows.add(TableRow(children: [
+      headerCell('Sr.No', align: TextAlign.center),
+      headerCell('Description'),
+      headerCell('Qty (sq.m)', align: TextAlign.center),
+      headerCell('Rate', align: TextAlign.center),
+      headerCell('Amount', align: TextAlign.center),
+    ]));
+
+    for (int idx = 0; idx < items.length; idx++) {
+      final item = items[idx];
+      final globalIndex = _items.indexOf(item);
+      rows.add(
+        TableRow(children: [
+          textCell(item.srNo.toString(), align: TextAlign.center),
+          (_isEditing && showEditorControls)
+              ? Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: TextField(
+                    controller: TextEditingController(text: item.description)
+                      ..selection = TextSelection.collapsed(offset: item.description.length),
+                    onChanged: (v) => _items[globalIndex] = _items[globalIndex].copyWith(description: v),
+                    style: cellStyle,
+                    maxLines: 2,
+                    decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
+                  ),
+                )
+              : textCell(item.description),
+          (_isEditing && showEditorControls)
+              ? Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: TextField(
+                    controller: TextEditingController(text: n(item.qtySqm))
+                      ..selection = TextSelection.collapsed(offset: n(item.qtySqm).length),
+                    keyboardType: TextInputType.number,
+                    onChanged: (v) => setState(() => _items[globalIndex] = _items[globalIndex].copyWith(qtySqm: int.tryParse(v) ?? item.qtySqm)),
+                    textAlign: TextAlign.center,
+                    style: cellStyle,
+                    decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
+                  ),
+                )
+              : textCell(n(item.qtySqm), align: TextAlign.center),
+          (_isEditing && showEditorControls)
+              ? Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: TextField(
+                    controller: TextEditingController(text: n(item.rate))
+                      ..selection = TextSelection.collapsed(offset: n(item.rate).length),
+                    keyboardType: TextInputType.number,
+                    onChanged: (v) => setState(() => _items[globalIndex] = _items[globalIndex].copyWith(rate: int.tryParse(v) ?? item.rate)),
+                    textAlign: TextAlign.center,
+                    style: cellStyle,
+                    decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
+                  ),
+                )
+              : textCell(n(item.rate), align: TextAlign.center),
+          textCell(n(item.amount), align: TextAlign.right),
+        ]),
+      );
+    }
+
+    if (showTotals) {
+      rows.add(TableRow(children: [
+        textCell(''),
+        textCell('Sub - Total', align: TextAlign.left),
+        textCell(''),
+        textCell(''),
+        textCell(n(subTotal), align: TextAlign.right),
+      ]));
+      rows.add(TableRow(children: [
+        textCell(''),
+        textCell('GST @ 18%', align: TextAlign.left),
+        textCell(''),
+        textCell(''),
+        textCell(n(gst), align: TextAlign.right),
+      ]));
+      rows.add(TableRow(children: [
+        Container(color: Colors.green.shade300, child: textCell('')),
+        Container(color: Colors.green.shade300, child: textCell('Grand Total', align: TextAlign.left)),
+        Container(color: Colors.green.shade300, child: textCell('')),
+        Container(color: Colors.green.shade300, child: textCell('')),
+        Container(color: Colors.green.shade300, child: textCell(n(grandTotal), align: TextAlign.right)),
+      ]));
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_isEditing && showEditorControls)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              children: [
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Row'),
+                  onPressed: () {
+                    setState(() {
+                      _items.add(_OfferItem(
+                        srNo: _items.length + 1,
+                        description: 'New item',
+                        qtySqm: 0,
+                        rate: 0,
+                      ));
+                    });
+                  },
+                ),
+                const SizedBox(width: 12),
+                if (_items.isNotEmpty)
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.remove),
+                    label: const Text('Remove Last'),
+                    onPressed: () {
+                      setState(() {
+                        _items.removeLast();
+                      });
+                    },
+                  ),
+              ],
+            ),
+          ),
+        Table(
+          columnWidths: const {
+            0: FixedColumnWidth(60),
+            1: FlexColumnWidth(),
+            2: FixedColumnWidth(90),
+            3: FixedColumnWidth(90),
+            4: FixedColumnWidth(120),
+          },
+          border: TableBorder.all(color: Colors.grey.shade400, width: 1),
+          children: rows,
+        ),
+      ],
+    );
+  }
+
+  // Backward-compatible wrapper kept intentionally removed to satisfy lints.
+}
+
+class _OfferItem {
+  final int srNo;
+  final String description;
+  final int qtySqm;
+  final int rate;
+
+  const _OfferItem({required this.srNo, required this.description, required this.qtySqm, required this.rate});
+
+  int get amount => qtySqm * rate;
+
+  _OfferItem copyWith({int? srNo, String? description, int? qtySqm, int? rate}) {
+    return _OfferItem(
+      srNo: srNo ?? this.srNo,
+      description: description ?? this.description,
+      qtySqm: qtySqm ?? this.qtySqm,
+      rate: rate ?? this.rate,
+    );
+  }
+}
+
+class _NoteParagraph extends StatelessWidget {
+  final List<TextSpan> textSpans;
+  const _NoteParagraph({required this.textSpans});
+
+  @override
+  Widget build(BuildContext context) {
+    return RichText(
+      text: TextSpan(style: const TextStyle(color: Colors.black, fontSize: 12, height: 1.4), children: textSpans),
+    );
+  }
+}
+
+// Removed old generic OfferField editor inputs in favor of structured offer layout
+
+class OfferLeadSelectionDialog extends StatefulWidget {
+  const OfferLeadSelectionDialog({super.key});
+
+  @override
+  State<OfferLeadSelectionDialog> createState() => _OfferLeadSelectionDialogState();
+}
+
+class _OfferLeadSelectionDialogState extends State<OfferLeadSelectionDialog> {
+  List<Map<String, dynamic>> _allLeads = [];
+  List<Map<String, dynamic>> _filteredLeads = [];
+  bool _loading = true;
+  String _query = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLeads();
+  }
+
+  Future<void> _loadLeads() async {
+    try {
+      // Try to fetch for active user; if fails, fallback to all leads
+      List<Map<String, dynamic>> leads = [];
+      try {
+        leads = await LeadUtils.fetchLeadsForActiveUser();
+      } catch (_) {
+        leads = await LeadUtils.fetchAllLeads();
+      }
+
+      // Ensure required fields present
+      setState(() {
+        _allLeads = leads;
+        _filteredLeads = leads;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load leads: $e')),
+      );
+    }
+  }
+
+  void _onSearchChanged(String value) {
+    setState(() {
+      _query = value.trim().toLowerCase();
+      if (_query.isEmpty) {
+        _filteredLeads = _allLeads;
+      } else {
+        _filteredLeads = _allLeads.where((lead) {
+          final project = (lead['project_name'] ?? '').toString().toLowerCase();
+          final client = (lead['client_name'] ?? '').toString().toLowerCase();
+          return project.contains(_query) || client.contains(_query);
+        }).toList();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Row(
+        children: [
+          Icon(Icons.local_offer, color: Colors.orange[700]),
+          const SizedBox(width: 8),
+          const Text('Select Lead for Offer'),
+        ],
+      ),
+      content: SizedBox(
+        width: 600,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              onChanged: _onSearchChanged,
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search),
+                hintText: 'Search by project name or client name',
+                isDense: true,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (_loading)
+              const SizedBox(height: 120, child: Center(child: CircularProgressIndicator()))
+            else
+              Flexible(
+                child: _filteredLeads.isEmpty
+                    ? const Center(child: Text('No leads found'))
+                    : ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: _filteredLeads.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final lead = _filteredLeads[index];
+                          return ListTile(
+                            title: Text(
+                              lead['project_name'] ?? '',
+                              style: const TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                            subtitle: Text(lead['client_name'] ?? ''),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: () => Navigator.of(context).pop(lead),
+                          );
+                        },
+                      ),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+      ],
+    );
+  }
 }
 
 class _LeadManagementScreenState extends State<LeadManagementScreen> {
@@ -2059,6 +3827,13 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                           ),
                           SizedBox(width: 4),
                           _buildInteractiveIconButton(
+                            icon: Icons.local_offer,
+                            onPressed: () => _createOffer(lead),
+                            tooltip: 'Create Offer',
+                            leadId: leadId,
+                          ),
+                          SizedBox(width: 4),
+                          _buildInteractiveIconButton(
                             icon: Icons.notifications,
                             onPressed: () => _showAlertsDialog(context, lead),
                             tooltip: 'Alert',
@@ -2280,6 +4055,13 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                           ),
                           SizedBox(width: 8),
                           _buildMobileInteractiveButton(
+                            icon: Icons.local_offer,
+                            onPressed: () => _createOffer(lead),
+                            tooltip: 'Create Offer',
+                            leadId: leadId,
+                          ),
+                          SizedBox(width: 8),
+                          _buildMobileInteractiveButton(
                             icon: Icons.notifications,
                             onPressed: () => _showAlertsDialog(context, lead),
                             tooltip: 'Alert',
@@ -2363,6 +4145,20 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           },
         );
       },
+    );
+  }
+
+  void _createOffer(Map<String, dynamic> lead) {
+    debugPrint('Create offer called with data: $lead');
+    debugPrint('Lead ID: ${lead['lead_id']}');
+
+    // Navigate to the Offer Editor screen with A4 preview
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => OfferEditorScreen(
+          lead: lead,
+        ),
+      ),
     );
   }
 

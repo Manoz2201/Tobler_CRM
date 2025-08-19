@@ -90,6 +90,8 @@ flutter:
   assets:
     - assets/Tobler_logo.png
     - assets/toblerIcon.png
+    - assets/Header.png
+    - assets/Footer.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:
