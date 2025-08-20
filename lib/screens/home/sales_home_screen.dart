@@ -1504,8 +1504,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     _descriptionCtl = TextEditingController(text: '100% New Formwork Set');
 
     _items = [
-      _OfferItem(srNo: 1, description: 'Supply of Aluminum formwork shuttering system.', qtySqm: 1238, rate: 9650),
-          _OfferItem(srNo: 2, description: 'Supply of Aluminum formwork shuttering for Cornice Area', qtySqm: 130, rate: 10800),
+      _OfferItem(srNo: 1, description: 'Supply of Aluminium formwork shuttering system.', qtySqm: 1238, rate: 9650),
   ];
   
   // Initialize sidebar controllers
@@ -1528,93 +1527,124 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     _fetchAdminResponseData();
   }
   
-  /// Fetches admin_response data to get the location/address and update offer items
+  /// Fetches admin_response data to get the location/address
   Future<void> _fetchAdminResponseData() async {
     setState(() {
       _isLoadingAddress = true;
     });
     
     try {
-      final leadId = widget.lead['id']?.toString();
+      // Log the lead data passed to the dialog
+      debugPrint('DEBUG: _fetchAdminResponseData called. Lead data: ${widget.lead}');
+      debugPrint('DEBUG: Lead data keys: ${widget.lead.keys.toList()}');
+      debugPrint('DEBUG: Lead data types: ${widget.lead.map((k, v) => MapEntry(k, v.runtimeType))}');
+      
+      final String? leadId = (widget.lead['lead_id'] ?? widget.lead['id'])?.toString();
+      debugPrint('DEBUG: Extracted leadId: $leadId');
+      debugPrint('DEBUG: Lead ID type: ${leadId.runtimeType}');
+
       if (leadId != null) {
+        debugPrint('DEBUG: About to call LeadUtils.fetchAdminResponseByLeadId with leadId: $leadId');
         final adminResponse = await LeadUtils.fetchAdminResponseByLeadId(leadId);
+        debugPrint('DEBUG: Admin response for leadId $leadId: $adminResponse');
+        debugPrint('DEBUG: Admin response type: ${adminResponse.runtimeType}');
+        
         if (adminResponse != null) {
+          debugPrint('DEBUG: Admin response keys: ${adminResponse.keys.toList()}');
+          debugPrint('DEBUG: Admin response values: ${adminResponse.values.toList()}');
+          
           setState(() {
             _adminResponseData = adminResponse;
-            
             // Update address from location column
             final location = adminResponse['location']?.toString();
+            debugPrint('DEBUG: Fetched location: $location');
+            debugPrint('DEBUG: Location type: ${location.runtimeType}');
+            debugPrint('DEBUG: Location is empty: ${location?.isEmpty}');
+            debugPrint('DEBUG: Location is null: ${location == null}');
+            
             if (location != null && location.isNotEmpty) {
               _addressCtl.text = location;
+              debugPrint('DEBUG: Address controller updated to: $location');
             } else {
               // Fallback to hardcoded address if location is empty
               _addressCtl.text = '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
+              debugPrint('DEBUG: Location is empty or null, using fallback address.');
             }
-            
-            // Update first offer item with aluminium_area and rate_sqm from admin_response
-            if (_items.isNotEmpty) {
-              final aluminiumAreaRaw = adminResponse['aluminium_area'];
-              final rateSqmRaw = adminResponse['rate_sqm'];
-              
-              debugPrint('🔍 Fetched admin_response data:');
-              debugPrint('  - aluminium_area (raw): $aluminiumAreaRaw (${aluminiumAreaRaw.runtimeType})');
-              debugPrint('  - rate_sqm (raw): $rateSqmRaw (${rateSqmRaw.runtimeType})');
-              
-              // Convert to integers, handling both string and numeric types
-              int? aluminiumArea;
-              int? rateSqm;
-              
-              if (aluminiumAreaRaw != null) {
-                if (aluminiumAreaRaw is int) {
-                  aluminiumArea = aluminiumAreaRaw;
-                } else if (aluminiumAreaRaw is double) {
-                  aluminiumArea = aluminiumAreaRaw.round();
-                } else {
-                  aluminiumArea = int.tryParse(aluminiumAreaRaw.toString());
-                }
-              }
-              
-              if (rateSqmRaw != null) {
-                if (rateSqmRaw is int) {
-                  rateSqm = rateSqmRaw;
-                } else if (rateSqmRaw is double) {
-                  rateSqm = rateSqmRaw.round();
-                } else {
-                  rateSqm = int.tryParse(rateSqmRaw.toString());
-                }
-              }
-              
-              debugPrint('  - aluminium_area (converted): $aluminiumArea');
-              debugPrint('  - rate_sqm (converted): $rateSqm');
-              
-              if (aluminiumArea != null || rateSqm != null) {
-                // Create a new item with updated values, preserving existing values if not available
-                final oldItem = _items[0];
-                _items[0] = _items[0].copyWith(
-                  qtySqm: aluminiumArea ?? _items[0].qtySqm,
-                  rate: rateSqm ?? _items[0].rate,
-                );
-                
-                debugPrint('✅ Updated first offer item:');
-                debugPrint('  - Old: qtySqm=${oldItem.qtySqm}, rate=${oldItem.rate}');
-                debugPrint('  - New: qtySqm=${_items[0].qtySqm}, rate=${_items[0].rate}');
-              } else {
-                debugPrint('⚠️ No valid aluminium_area or rate_sqm found, keeping existing values');
-              }
+
+            // Update first "Sales Offer" row values from admin_response
+            final dynamic aluminiumAreaRaw = adminResponse['aluminium_area'];
+            final dynamic rateSqmRaw = adminResponse['rate_sqm'];
+            debugPrint('DEBUG: Raw aluminium_area: $aluminiumAreaRaw, Raw rate_sqm: $rateSqmRaw');
+            debugPrint('DEBUG: aluminium_area type: ${aluminiumAreaRaw.runtimeType}, rate_sqm type: ${rateSqmRaw.runtimeType}');
+
+            int? qtySqm;
+            if (aluminiumAreaRaw is int) {
+              qtySqm = aluminiumAreaRaw;
+            } else if (aluminiumAreaRaw is double) {
+              qtySqm = aluminiumAreaRaw.round();
+            } else if (aluminiumAreaRaw is String) {
+              final parsed = double.tryParse(aluminiumAreaRaw);
+              if (parsed != null) qtySqm = parsed.round();
             }
+            debugPrint('DEBUG: Parsed qtySqm: $qtySqm');
+
+            int? rate;
+            if (rateSqmRaw is int) {
+              rate = rateSqmRaw;
+            } else if (rateSqmRaw is double) {
+              rate = rateSqmRaw.round();
+            } else if (rateSqmRaw is String) {
+              final parsed = double.tryParse(rateSqmRaw);
+              if (parsed != null) rate = parsed.round();
+            }
+            debugPrint('DEBUG: Parsed rate: $rate');
+
+            debugPrint('DEBUG: Current _items list: ${_items.map((i) => '${i.srNo}: ${i.description}').toList()}');
+            int targetIndex = _items.indexWhere((i) {
+              final d = i.description.toLowerCase();
+              return d.contains('supply of aluminium formwork shuttering system') ||
+                  d.contains('supply of aluminum formwork shuttering system') ||
+                  i.srNo == 1;
+            });
+            debugPrint('DEBUG: Target item index: $targetIndex');
             
+            if (targetIndex < 0 && _items.isNotEmpty) {
+              targetIndex = 0;
+              debugPrint('DEBUG: Target index was -1, setting to 0');
+            }
+
+            if (targetIndex >= 0 && targetIndex < _items.length) {
+              final current = _items[targetIndex];
+              debugPrint('DEBUG: Current item at index $targetIndex: ${current.description}, qtySqm: ${current.qtySqm}, rate: ${current.rate}');
+              _items[targetIndex] = current.copyWith(
+                description: 'Supply of Aluminium formwork shuttering system.',
+                qtySqm: qtySqm ?? current.qtySqm,
+                rate: rate ?? current.rate,
+              );
+              debugPrint('DEBUG: First offer item updated. New qtySqm: ${_items[targetIndex].qtySqm}, New rate: ${_items[targetIndex].rate}');
+            } else {
+              debugPrint('DEBUG: Could not find target item to update or _items list is empty.');
+            }
             _isLoadingAddress = false;
           });
         } else {
+          debugPrint('DEBUG: No admin_response found for leadId $leadId. Using fallback address and default item values.');
           // Fallback to hardcoded address if no admin_response found
           setState(() {
             _addressCtl.text = '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
             _isLoadingAddress = false;
           });
         }
+      } else {
+        debugPrint('DEBUG: Lead ID is null. Cannot fetch admin_response. Using fallback address and default item values.');
+        setState(() {
+          _addressCtl.text = '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
+          _isLoadingAddress = false;
+        });
       }
     } catch (e) {
-      debugPrint('Error fetching admin_response data: $e');
+      debugPrint('ERROR: Error fetching admin_response data: $e');
+      debugPrint('ERROR: Error stack trace: ${StackTrace.current}');
       // Fallback to hardcoded address on error
       setState(() {
         _addressCtl.text = '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
@@ -2355,7 +2385,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
       pages.add(_buildOfferSignaturePage(context));
     }
     // Append Technical Specification pages as the last pages
-    pages.addAll(_buildTechnicalSpecificationPages(context));
+    pages.addAll(_buildTechnicalSpecificationPages(context, maxWidth: contentWidth));
 
     return pages;
   }
@@ -2854,7 +2884,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
   }
 
   // Technical Specification pages: paginate rows (25 per page) with repeated header
-  List<Widget> _buildTechnicalSpecificationPages(BuildContext context, {int rowsPerPage = 25}) {
+  List<Widget> _buildTechnicalSpecificationPages(BuildContext context, {int rowsPerPage = 25, double? maxWidth}) {
     TextStyle headStyle = _baseTextStyle.copyWith(fontWeight: FontWeight.w800);
     TextStyle cellStyle = _baseTextStyle;
 
@@ -2863,7 +2893,17 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
             Container(
               color: Colors.grey.shade300,
               padding: const EdgeInsets.all(6),
-              child: Text(c, style: headStyle),
+              constraints: const BoxConstraints(
+                minHeight: 40,
+                maxHeight: 60,
+              ),
+              child: Text(
+                c, 
+                style: headStyle,
+                softWrap: true,
+                overflow: TextOverflow.visible,
+                maxLines: null,
+              ),
             ),
         ]);
 
@@ -2871,7 +2911,17 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
           for (final c in cols)
             Container(
               padding: const EdgeInsets.all(6),
-              child: Text(c, style: cellStyle),
+              constraints: const BoxConstraints(
+                minHeight: 40,
+                maxHeight: 80,
+              ),
+              child: Text(
+                c, 
+                style: cellStyle,
+                softWrap: true,
+                overflow: TextOverflow.visible,
+                maxLines: null,
+              ),
             ),
         ]);
 
@@ -2939,14 +2989,19 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
           children: [
             Center(child: Text('TECHNICAL SPECIFICATION SHEET', style: _baseTextStyle.copyWith(fontWeight: FontWeight.w800))),
             const SizedBox(height: 12),
-            Table(
-              columnWidths: const {
-                0: FixedColumnWidth(70),
-                1: FixedColumnWidth(220),
-                2: FlexColumnWidth(),
-              },
-              border: TableBorder.all(color: Colors.grey.shade600, width: 1),
-              children: tableRows,
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: maxWidth ?? double.infinity,
+              ),
+              child: Table(
+                columnWidths: const {
+                  0: FixedColumnWidth(70),
+                  1: FixedColumnWidth(200),
+                  2: FlexColumnWidth(),
+                },
+                border: TableBorder.all(color: Colors.grey.shade600, width: 1),
+                children: tableRows,
+              ),
             ),
           ],
         ),
