@@ -2883,8 +2883,8 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     );
   }
 
-  // Technical Specification pages: paginate rows (25 per page) with repeated header
-  List<Widget> _buildTechnicalSpecificationPages(BuildContext context, {int rowsPerPage = 25, double? maxWidth}) {
+  // Technical Specification pages: paginate rows (19 per page) with repeated header
+  List<Widget> _buildTechnicalSpecificationPages(BuildContext context, {int rowsPerPage = 19, double? maxWidth}) {
     TextStyle headStyle = _baseTextStyle.copyWith(fontWeight: FontWeight.w800);
     TextStyle cellStyle = _baseTextStyle;
 
@@ -2895,7 +2895,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
               padding: const EdgeInsets.all(6),
               constraints: const BoxConstraints(
                 minHeight: 40,
-                maxHeight: 60,
+                maxHeight: 80,
               ),
               child: Text(
                 c, 
@@ -2913,7 +2913,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
               padding: const EdgeInsets.all(6),
               constraints: const BoxConstraints(
                 minHeight: 40,
-                maxHeight: 80,
+                maxHeight: 100,
               ),
               child: Text(
                 c, 
@@ -2993,14 +2993,16 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
               constraints: BoxConstraints(
                 maxWidth: maxWidth ?? double.infinity,
               ),
-              child: Table(
-                columnWidths: const {
-                  0: FixedColumnWidth(70),
-                  1: FixedColumnWidth(200),
-                  2: FlexColumnWidth(),
-                },
-                border: TableBorder.all(color: Colors.grey.shade600, width: 1),
-                children: tableRows,
+              child: SingleChildScrollView(
+                child: Table(
+                  columnWidths: const {
+                    0: FixedColumnWidth(70),
+                    1: FixedColumnWidth(200),
+                    2: FlexColumnWidth(),
+                  },
+                  border: TableBorder.all(color: Colors.grey.shade600, width: 1),
+                  children: tableRows,
+                ),
               ),
             ),
           ],
