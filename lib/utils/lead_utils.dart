@@ -266,6 +266,24 @@ class LeadUtils {
     return aluminiumArea * rate * 1.18; // Including GST
   }
 
+  /// Fetches admin_response data for a specific lead
+  static Future<Map<String, dynamic>?> fetchAdminResponseByLeadId(String leadId) async {
+    try {
+      final client = Supabase.instance.client;
+      
+      final result = await client
+          .from('admin_response')
+          .select('*')
+          .eq('lead_id', leadId)
+          .single();
+      
+      return result;
+    } catch (e) {
+      debugPrint('Error fetching admin_response for lead $leadId: $e');
+      return null;
+    }
+  }
+
   /// Fetches leads for the active user from cache memory
   /// This function gets the user_id from SharedPreferences cache and fetches their leads
   static Future<List<Map<String, dynamic>>> fetchLeadsForActiveUser() async {

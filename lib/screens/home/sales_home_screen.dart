@@ -22,6 +22,12 @@ import '../../main.dart'
 import 'dart:math' as math;
 import 'package:intl/intl.dart';
 import 'dart:ui' as ui;
+import 'dart:convert';
+import 'package:flutter/rendering.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:pdf/pdf.dart';
+import 'package:printing/printing.dart';
+import '../../utils/save_file.dart';
 
 // ChartData class for Syncfusion charts
 class ChartData {
@@ -1088,10 +1094,13 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
     if (!context.mounted) return;
 
     if (selectedLead != null) {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => OfferEditorScreen(lead: selectedLead),
-        ),
+      // Show Offer Editor as a responsive dialog instead of full screen
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext dialogContext) {
+          return OfferEditorDialog(lead: selectedLead);
+        },
       );
     }
   }
@@ -1145,20 +1154,320 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
   }
 }
 
-class OfferEditorScreen extends StatefulWidget {
+class OfferEditorDialog extends StatefulWidget {
   final Map<String, dynamic> lead;
 
-  const OfferEditorScreen({super.key, required this.lead});
+  const OfferEditorDialog({super.key, required this.lead});
 
   @override
-  State<OfferEditorScreen> createState() => _OfferEditorScreenState();
+  State<OfferEditorDialog> createState() => _OfferEditorDialogState();
 }
 
-class _OfferEditorScreenState extends State<OfferEditorScreen> {
+class _OfferEditorDialogState extends State<OfferEditorDialog> {
   static const double _a4WidthMm = 210.0;
   static const double _a4HeightMm = 297.0;
+  final List<GlobalKey> _pageKeys = <GlobalKey>[];
 
   bool _isEditing = false;
+  
+  // Text formatting controls
+  double _textHeight = 1.4;
+  Color _textColor = Colors.black;
+  TextAlign _textAlignment = TextAlign.left;
+  
+  // Sidebar input controllers
+  late final TextEditingController _deliveryTimeCtl;
+  late final TextEditingController _nalcoPriceCtl;
+  late final List<TextEditingController> _paymentTermControllers;
+  int _paymentTermCount = 3; // Default count
+  
+  // Helper method to get consistent text style
+  TextStyle get _baseTextStyle => TextStyle(
+    fontSize: 12,
+    height: _textHeight,
+    color: _textColor,
+  );
+
+  /// Builds the left sidebar with input fields for project details
+  Widget _buildLeftSidebar() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.orange[50],
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.orange.shade200),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.settings, color: Colors.orange[700], size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Project Details',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange[700],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        
+        // Project Name
+        _buildInputField(
+          label: 'Project Name',
+          controller: _projectNameCtl,
+          icon: Icons.business,
+        ),
+        const SizedBox(height: 16),
+        
+        // Location/Address
+        _buildInputField(
+          label: 'Location/Address',
+          controller: _addressCtl,
+          icon: Icons.location_on,
+          maxLines: 3,
+        ),
+        const SizedBox(height: 16),
+        
+        // Delivery Time
+        _buildInputField(
+          label: 'Delivery Time',
+          controller: _deliveryTimeCtl,
+          icon: Icons.schedule,
+        ),
+        const SizedBox(height: 16),
+        
+        // Payment Terms Section
+        _buildPaymentTermsSection(),
+        const SizedBox(height: 16),
+        
+        // Nalco Price
+        _buildInputField(
+          label: 'Nalco Price',
+          controller: _nalcoPriceCtl,
+          icon: Icons.attach_money,
+        ),
+        const SizedBox(height: 20),
+        
+        // Save Button
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: () {
+              // Update offer content with new sidebar values
+              setState(() {
+                // Trigger rebuild to update commercial rows and other content
+              });
+              
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Project details saved! Offer content updated.'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            icon: const Icon(Icons.save),
+            label: const Text('Save Details'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange[600],
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Builds a reusable input field
+  Widget _buildInputField({
+    required String label,
+    required TextEditingController controller,
+    required IconData icon,
+    int maxLines = 1,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 16, color: Colors.grey[600]),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[700],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: controller,
+          maxLines: maxLines,
+          decoration: InputDecoration(
+            isDense: true,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6),
+              borderSide: BorderSide(color: Colors.orange.shade400),
+            ),
+            filled: true,
+            fillColor: Colors.grey[50],
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          ),
+          style: _textFieldStyle,
+        ),
+      ],
+    );
+  }
+
+  /// Builds the payment terms section with dynamic count
+  Widget _buildPaymentTermsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.payment, size: 16, color: Colors.grey[600]),
+            const SizedBox(width: 8),
+            Text(
+              'Payment Terms',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[700],
+              ),
+            ),
+            const Spacer(),
+            // Count selector
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  onPressed: () {
+                    if (_paymentTermCount > 1) {
+                      setState(() {
+                        _paymentTermCount--;
+                        _paymentTermControllers.removeLast();
+                      });
+                    }
+                  },
+                  icon: Icon(Icons.remove_circle_outline, size: 18, color: Colors.grey[600]),
+                  tooltip: 'Remove term',
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.orange[100],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.orange.shade300),
+                  ),
+                  child: Text(
+                    '$_paymentTermCount',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange[700],
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () {
+                    if (_paymentTermCount < 5) {
+                      setState(() {
+                        _paymentTermCount++;
+                        _paymentTermControllers.add(TextEditingController(text: ''));
+                      });
+                    }
+                  },
+                  icon: Icon(Icons.add_circle_outline, size: 18, color: Colors.grey[600]),
+                  tooltip: 'Add term',
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        // Payment term input fields
+        ...List.generate(_paymentTermCount, (index) {
+          return Padding(
+            padding: EdgeInsets.only(bottom: index < _paymentTermCount - 1 ? 8 : 0),
+            child: Row(
+              children: [
+                Container(
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: Colors.orange[100],
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.orange.shade300),
+                  ),
+                  child: Center(
+                    child: Text(
+                      '${index + 1}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange[700],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _paymentTermControllers[index],
+                    decoration: InputDecoration(
+                      isDense: true,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: BorderSide(color: Colors.orange.shade400),
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                    style: _textFieldStyle,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+  
+  // Helper method for TextField styles (TextFields handle height differently)
+  TextStyle get _textFieldStyle => TextStyle(
+    fontSize: 12,
+    color: _textColor,
+    height: _textHeight,
+  );
 
   // Letter head editable fields
   late final TextEditingController _refNoCtl;
@@ -1172,6 +1481,10 @@ class _OfferEditorScreenState extends State<OfferEditorScreen> {
 
   // Offer items
   late List<_OfferItem> _items;
+  
+  // Admin response data
+  Map<String, dynamic>? _adminResponseData;
+  bool _isLoadingAddress = true;
 
   @override
   void initState() {
@@ -1180,8 +1493,7 @@ class _OfferEditorScreenState extends State<OfferEditorScreen> {
     _offerDate = DateTime.now();
     _clientNameCtl = TextEditingController(text: (widget.lead['client_name'] ?? 'Client').toString());
     _addressCtl = TextEditingController(
-      text:
-          '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.',
+      text: 'Loading address...',
     );
     _projectNameCtl = TextEditingController(text: (widget.lead['project_name'] ?? 'Project').toString());
     _introNoteCtl = TextEditingController(
@@ -1193,8 +1505,385 @@ class _OfferEditorScreenState extends State<OfferEditorScreen> {
 
     _items = [
       _OfferItem(srNo: 1, description: 'Supply of Aluminum formwork shuttering system.', qtySqm: 1238, rate: 9650),
-      _OfferItem(srNo: 2, description: 'Supply of Aluminum formwork shuttering for Cornice Area', qtySqm: 130, rate: 10800),
-    ];
+          _OfferItem(srNo: 2, description: 'Supply of Aluminum formwork shuttering for Cornice Area', qtySqm: 130, rate: 10800),
+  ];
+  
+  // Initialize sidebar controllers
+  _deliveryTimeCtl = TextEditingController(text: '8 weeks from shell drawing confirmation');
+  _nalcoPriceCtl = TextEditingController(text: 'Rs. 267/kg');
+  _paymentTermControllers = List.generate(_paymentTermCount, (index) {
+    switch (index) {
+      case 0:
+        return TextEditingController(text: '25% Advance with Purchase Order');
+      case 1:
+        return TextEditingController(text: '25% after shell plan approval');
+      case 2:
+        return TextEditingController(text: '50% before dispatch');
+      default:
+        return TextEditingController(text: '');
+    }
+  });
+  
+  // Fetch admin_response data for address
+    _fetchAdminResponseData();
+  }
+  
+  /// Fetches admin_response data to get the location/address and update offer items
+  Future<void> _fetchAdminResponseData() async {
+    setState(() {
+      _isLoadingAddress = true;
+    });
+    
+    try {
+      final leadId = widget.lead['id']?.toString();
+      if (leadId != null) {
+        final adminResponse = await LeadUtils.fetchAdminResponseByLeadId(leadId);
+        if (adminResponse != null) {
+          setState(() {
+            _adminResponseData = adminResponse;
+            
+            // Update address from location column
+            final location = adminResponse['location']?.toString();
+            if (location != null && location.isNotEmpty) {
+              _addressCtl.text = location;
+            } else {
+              // Fallback to hardcoded address if location is empty
+              _addressCtl.text = '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
+            }
+            
+            // Update first offer item with aluminium_area and rate_sqm from admin_response
+            if (_items.isNotEmpty) {
+              final aluminiumAreaRaw = adminResponse['aluminium_area'];
+              final rateSqmRaw = adminResponse['rate_sqm'];
+              
+              debugPrint('🔍 Fetched admin_response data:');
+              debugPrint('  - aluminium_area (raw): $aluminiumAreaRaw (${aluminiumAreaRaw.runtimeType})');
+              debugPrint('  - rate_sqm (raw): $rateSqmRaw (${rateSqmRaw.runtimeType})');
+              
+              // Convert to integers, handling both string and numeric types
+              int? aluminiumArea;
+              int? rateSqm;
+              
+              if (aluminiumAreaRaw != null) {
+                if (aluminiumAreaRaw is int) {
+                  aluminiumArea = aluminiumAreaRaw;
+                } else if (aluminiumAreaRaw is double) {
+                  aluminiumArea = aluminiumAreaRaw.round();
+                } else {
+                  aluminiumArea = int.tryParse(aluminiumAreaRaw.toString());
+                }
+              }
+              
+              if (rateSqmRaw != null) {
+                if (rateSqmRaw is int) {
+                  rateSqm = rateSqmRaw;
+                } else if (rateSqmRaw is double) {
+                  rateSqm = rateSqmRaw.round();
+                } else {
+                  rateSqm = int.tryParse(rateSqmRaw.toString());
+                }
+              }
+              
+              debugPrint('  - aluminium_area (converted): $aluminiumArea');
+              debugPrint('  - rate_sqm (converted): $rateSqm');
+              
+              if (aluminiumArea != null || rateSqm != null) {
+                // Create a new item with updated values, preserving existing values if not available
+                final oldItem = _items[0];
+                _items[0] = _items[0].copyWith(
+                  qtySqm: aluminiumArea ?? _items[0].qtySqm,
+                  rate: rateSqm ?? _items[0].rate,
+                );
+                
+                debugPrint('✅ Updated first offer item:');
+                debugPrint('  - Old: qtySqm=${oldItem.qtySqm}, rate=${oldItem.rate}');
+                debugPrint('  - New: qtySqm=${_items[0].qtySqm}, rate=${_items[0].rate}');
+              } else {
+                debugPrint('⚠️ No valid aluminium_area or rate_sqm found, keeping existing values');
+              }
+            }
+            
+            _isLoadingAddress = false;
+          });
+        } else {
+          // Fallback to hardcoded address if no admin_response found
+          setState(() {
+            _addressCtl.text = '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
+            _isLoadingAddress = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching admin_response data: $e');
+      // Fallback to hardcoded address on error
+      setState(() {
+        _addressCtl.text = '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
+        _isLoadingAddress = false;
+      });
+    }
+  }
+
+  void _showTextFormattingDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Text Formatting'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Text Height
+                  Row(
+                    children: [
+                      const Text('Text Height: '),
+                      Expanded(
+                        child: Slider(
+                          value: _textHeight,
+                          min: 1.0,
+                          max: 2.5,
+                          divisions: 15,
+                          label: _textHeight.toStringAsFixed(1),
+                          onChanged: (value) {
+                            setDialogState(() {
+                              _textHeight = value;
+                            });
+                            setState(() {});
+                          },
+                        ),
+                      ),
+                      Text('${_textHeight.toStringAsFixed(1)}x'),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // Preview text with current height
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      'Sample text to preview line height\nSecond line to show spacing\nThird line for demonstration',
+                      style: TextStyle(
+                        fontSize: 12,
+                        height: _textHeight,
+                        color: _textColor,
+                      ),
+                      textAlign: _textAlignment,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Text Color
+                  Row(
+                    children: [
+                      const Text('Text Color: '),
+                      const SizedBox(width: 8),
+                      DropdownButton<Color>(
+                        value: _textColor,
+                        items: [
+                          DropdownMenuItem(
+                            value: Colors.black,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(width: 16, height: 16, color: Colors.black),
+                                const SizedBox(width: 8),
+                                const Text('Black'),
+                              ],
+                            ),
+                          ),
+                          DropdownMenuItem(
+                            value: Colors.blue,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(width: 16, height: 16, color: Colors.blue),
+                                const SizedBox(width: 8),
+                                const Text('Blue'),
+                              ],
+                            ),
+                          ),
+                          DropdownMenuItem(
+                            value: Colors.red,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(width: 16, height: 16, color: Colors.red),
+                                const SizedBox(width: 8),
+                                const Text('Red'),
+                              ],
+                            ),
+                          ),
+                          DropdownMenuItem(
+                            value: Colors.green,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(width: 16, height: 16, color: Colors.green),
+                                const SizedBox(width: 8),
+                                const Text('Green'),
+                              ],
+                            ),
+                          ),
+                        ],
+                        onChanged: (Color? value) {
+                          if (value != null) {
+                            setDialogState(() {
+                              _textColor = value;
+                            });
+                            setState(() {});
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  // Text Alignment
+                  Row(
+                    children: [
+                      const Text('Alignment: '),
+                      const SizedBox(width: 8),
+                      DropdownButton<TextAlign>(
+                        value: _textAlignment,
+                        items: const [
+                          DropdownMenuItem(
+                            value: TextAlign.left,
+                            child: Text('Left'),
+                          ),
+                          DropdownMenuItem(
+                            value: TextAlign.center,
+                            child: Text('Center'),
+                          ),
+                          DropdownMenuItem(
+                            value: TextAlign.right,
+                            child: Text('Right'),
+                          ),
+                        ],
+                        onChanged: (TextAlign? value) {
+                          if (value != null) {
+                            setDialogState(() {
+                              _textAlignment = value;
+                            });
+                            setState(() {});
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Close'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// Export offer to PDF using the pdf/printing packages with pagination
+  Future<void> _exportToPDF() async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Generating PDF...')),
+      );
+      // Capture on-screen pages as images for WYSIWYG PDF
+      final captured = <Uint8List>[];
+      for (final key in _pageKeys) {
+        final boundary = key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+        if (boundary == null) continue;
+        final image = await boundary.toImage(pixelRatio: 2.0);
+        final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+        if (byteData != null) {
+          captured.add(byteData.buffer.asUint8List());
+        }
+      }
+
+      final pdf = pw.Document();
+      for (final img in captured) {
+        final pwImage = pw.MemoryImage(img);
+        pdf.addPage(
+          pw.Page(
+            pageFormat: PdfPageFormat.a4,
+            margin: pw.EdgeInsets.zero,
+            build: (context) => pw.Center(child: pw.Image(pwImage, fit: pw.BoxFit.contain)),
+          ),
+        );
+      }
+
+      final bytes = await pdf.save();
+      final fileName = 'Offer_${_refNoCtl.text}_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      await Printing.sharePdf(bytes: bytes, filename: fileName);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('PDF generated: $fileName'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error generating document: $e')),
+        );
+      }
+    }
+  }
+
+  /// Export offer to Word document using docx_template
+  Future<void> _exportToWord() async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Generating Word document...')),
+      );
+
+      // Capture current A4 pages as images and embed in a .doc (HTML) for WYSIWYG export
+      final images = <Uint8List>[];
+      for (final key in _pageKeys) {
+        final boundary = key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+        if (boundary == null) continue;
+        final image = await boundary.toImage(pixelRatio: 2.0);
+        final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+        if (byteData != null) {
+          images.add(byteData.buffer.asUint8List());
+        }
+      }
+
+      // Build a simple HTML-based .doc with each page as an <img>
+      final buffer = StringBuffer();
+      buffer.writeln('<html><head><meta charset="utf-8"></head><body style="margin:0;">');
+      for (final bytes in images) {
+        final base64 = base64Encode(bytes);
+        buffer.writeln('<div style="page-break-after:always;">');
+        buffer.writeln('<img src="data:image/png;base64,$base64" style="width:100%;" />');
+        buffer.writeln('</div>');
+      }
+      buffer.writeln('</body></html>');
+
+      final fileName = 'Offer_${_refNoCtl.text}_${DateTime.now().millisecondsSinceEpoch}.doc';
+      // Save bytes with appropriate mime
+      // ignore: undefined_function
+      await saveBytes(fileName: fileName, bytes: utf8.encode(buffer.toString()),);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Word document generated: $fileName')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error generating document: $e')),
+        );
+      }
+    }
   }
 
   @override
@@ -1206,71 +1895,233 @@ class _OfferEditorScreenState extends State<OfferEditorScreen> {
     _introNoteCtl.dispose();
     _projectStatusCtl.dispose();
     _descriptionCtl.dispose();
+    _deliveryTimeCtl.dispose();
+    _nalcoPriceCtl.dispose();
+    for (final controller in _paymentTermControllers) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Offer Editor'),
-        actions: [
-          IconButton(
-            icon: Icon(_isEditing ? Icons.check : Icons.edit),
-            tooltip: _isEditing ? 'Finish Editing' : 'Edit',
-            onPressed: () => setState(() => _isEditing = !_isEditing),
-          ),
-          IconButton(
-            icon: const Icon(Icons.save),
-            tooltip: 'Save',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Offer saved (placeholder)')),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.picture_as_pdf),
-            tooltip: 'Export PDF',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('PDF export coming soon')),
-              );
-            },
-          ),
-        ],
-      ),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final double maxAvailableWidth = constraints.maxWidth;
-              final double targetWidth = math.min(maxAvailableWidth, 900);
-              final double aspect = _a4HeightMm / _a4WidthMm; // ~1.414
-              final double targetHeight = targetWidth * aspect;
-
-              final List<Widget> pageBodies = [
-                ..._buildOfferBodyPages(context, targetWidth, targetHeight),
-                _buildOfferTermsPage(context),
-                _buildOfferCommercialPage(context),
-                _buildOfferSignaturePage(context),
-              ];
-
-              return Column(
-                children: [
-                  for (final body in pageBodies)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: _buildA4Page(targetWidth, targetHeight, body),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = constraints.maxWidth;
+        final screenHeight = constraints.maxHeight;
+        
+        // Responsive sizing for different screen types
+        double dialogWidth, dialogHeight;
+        bool isMobile = screenWidth < 600;
+        bool isTablet = screenWidth >= 600 && screenWidth < 1200;
+        
+        if (isMobile) {
+          // Mobile: Full screen dialog
+          dialogWidth = screenWidth;
+          dialogHeight = screenHeight;
+        } else if (isTablet) {
+          // Tablet: Large dialog with some margins
+          dialogWidth = screenWidth * 0.9;
+          dialogHeight = screenHeight * 0.9;
+        } else {
+          // Desktop/Web: Large dialog with margins
+          dialogWidth = math.min(screenWidth * 0.8, 1200);
+          dialogHeight = screenHeight * 0.85;
+        }
+        
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: EdgeInsets.zero,
+          child: Container(
+            width: dialogWidth,
+            height: dialogHeight,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(isMobile ? 0 : 12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                // Header with close button
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.orange[600],
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(isMobile ? 0 : 12),
+                      topRight: Radius.circular(isMobile ? 0 : 12),
                     ),
-                ],
-              );
-            },
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.local_offer, color: Colors.white, size: 24),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Row(
+                          children: [
+                            const Text(
+                              'Offer Editor',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            if (_isEditing) ...[
+                              const SizedBox(width: 16),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 12, 
+                                      height: 12, 
+                                      color: _textColor,
+                                      margin: const EdgeInsets.only(right: 4),
+                                    ),
+                                    Text(
+                                      'H:${_textHeight.toStringAsFixed(1)}',
+                                      style: const TextStyle(fontSize: 10, color: Colors.white),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      _textAlignment == TextAlign.left ? 'L' : 
+                                      _textAlignment == TextAlign.center ? 'C' : 'R',
+                                      style: const TextStyle(fontSize: 10, color: Colors.white),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: Icon(_isEditing ? Icons.visibility : Icons.edit, color: Colors.white),
+                            tooltip: _isEditing ? 'Preview Mode' : 'Edit Mode',
+                            onPressed: () {
+                              setState(() {
+                                _isEditing = !_isEditing;
+                              });
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.format_size, color: Colors.white),
+                            tooltip: 'Text Formatting',
+                            onPressed: () => _showTextFormattingDialog(),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.save, color: Colors.white),
+                            tooltip: 'Save',
+                            onPressed: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Offer saved (placeholder)')),
+                              );
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
+                            tooltip: 'Export PDF',
+                            onPressed: () => _exportToPDF(),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.description, color: Colors.white),
+                            tooltip: 'Export Word',
+                            onPressed: () => _exportToWord(),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close, color: Colors.white),
+                            tooltip: 'Close',
+                            onPressed: () => Navigator.of(context).pop(),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                // Content area
+                Expanded(
+                  child: Container(
+                    color: Colors.grey[100],
+                    child: Row(
+                      children: [
+                        // Left sidebar with input fields
+                        Container(
+                          width: 300,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border(
+                              right: BorderSide(color: Colors.grey.shade300, width: 1),
+                            ),
+                          ),
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.all(16),
+                            child: _buildLeftSidebar(),
+                          ),
+                        ),
+                        // Offer content area
+                        Expanded(
+                          child: Center(
+                            child: SingleChildScrollView(
+                              padding: const EdgeInsets.all(16),
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final double maxAvailableWidth = constraints.maxWidth;
+                                  final double targetWidth = math.min(maxAvailableWidth, 900);
+                                  final double aspect = _a4HeightMm / _a4WidthMm; // ~1.414
+                                  final double targetHeight = targetWidth * aspect;
+
+                                  final List<Widget> pageBodies = [
+                                    ..._buildOfferBodyPages(context, targetWidth, targetHeight),
+                                  ];
+
+                                  // Ensure keys list matches number of pages
+                                  if (_pageKeys.length != pageBodies.length) {
+                                    _pageKeys
+                                      ..clear()
+                                      ..addAll(List.generate(pageBodies.length, (_) => GlobalKey()));
+                                  }
+
+                                  return Column(
+                                    children: [
+                                      for (int i = 0; i < pageBodies.length; i++)
+                                        Padding(
+                                          padding: const EdgeInsets.only(bottom: 16),
+                                          child: RepaintBoundary(
+                                            key: _pageKeys[i],
+                                            child: _buildA4Page(targetWidth, targetHeight, pageBodies[i]),
+                                          ),
+                                        ),
+                                    ],
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-      ),
-      backgroundColor: Colors.grey[100],
+        );
+      },
     );
   }
 
@@ -1292,8 +2143,12 @@ class _OfferEditorScreenState extends State<OfferEditorScreen> {
       return tp.height;
     }
 
-    final double contentWidth = targetWidth - 48; // 24 horizontal padding on both sides
-    const textStyle = TextStyle(fontSize: 12);
+    // Match content width to mm-based content padding used in _buildA4Page
+    final double pxPerMm = targetWidth / _a4WidthMm;
+    final double contentLeft = 14 * pxPerMm; // must mirror _buildA4Page
+    final double contentRight = 10 * pxPerMm; // must mirror _buildA4Page
+    final double contentWidth = targetWidth - contentLeft - contentRight;
+    final textStyle = _baseTextStyle;
 
     // Heights before the items table
     double h = 0;
@@ -1315,57 +2170,207 @@ class _OfferEditorScreenState extends State<OfferEditorScreen> {
     const double tableRowHeight = 40; // rough fixed row height for our cell style
     const double tableFooterRowsHeight = 40 * 3; // Subtotal + GST + Grand Total
 
-    final int rowsThatFit = ((bodyHeightBudget - h - tableHeaderHeight - tableFooterRowsHeight) / tableRowHeight).floor();
-    final int safeRowsPerPage = rowsThatFit.clamp(0, _items.length);
+    // Smarter capacity: only reserve footer rows height on the last table page
+    int remainingRows = _items.length;
+    final int firstRowsCapNoTotals = ((bodyHeightBudget - h - tableHeaderHeight) / tableRowHeight).floor().clamp(0, remainingRows);
+    int firstRowsCapacity = firstRowsCapNoTotals;
+    if (firstRowsCapacity >= remainingRows) {
+      final int withTotals = ((bodyHeightBudget - h - tableHeaderHeight - tableFooterRowsHeight) / tableRowHeight).floor();
+      firstRowsCapacity = withTotals.clamp(0, remainingRows);
+    }
 
     List<Widget> pages = [];
+    bool areaStatementShifted = false;
 
     // Build first page with all header blocks and first chunk of rows
-    List<_OfferItem> firstChunk = _items.take(safeRowsPerPage).toList();
+    List<_OfferItem> firstChunk = _items.take(firstRowsCapacity).toList();
+
+    // Build first page content; optionally append Area Statement if everything fits and space allows
+    final List<Widget> firstPageChildren = [
+      _buildMetaRow(),
+      const SizedBox(height: 12),
+      _buildToBlock(),
+      const SizedBox(height: 12),
+      _buildReLine(),
+      const SizedBox(height: 12),
+      _buildIntroNote(),
+      const SizedBox(height: 16),
+      _buildSalesOfferTitle(),
+      const SizedBox(height: 8),
+      _buildProjectDetails(),
+      const SizedBox(height: 12),
+      _buildOfferTableSection(context, firstChunk, showEditorControls: true, showTotals: _items.length == firstChunk.length),
+    ];
+
+    if (firstChunk.length == _items.length) {
+      // All rows on first page. Compute leftover and try shifting Area Statement here.
+      final double areaHeight = _measureAreaStatementHeight(contentWidth);
+      final double usedByTable = tableHeaderHeight + (tableRowHeight * firstChunk.length) + tableFooterRowsHeight;
+      final double usedBeforeTable = h; // dynamic header blocks height
+      final double leftover = bodyHeightBudget - usedBeforeTable - usedByTable;
+      if (leftover >= areaHeight) {
+        firstPageChildren.add(const SizedBox(height: 16));
+        firstPageChildren.add(_buildAreaStatementSection());
+        areaStatementShifted = true;
+      }
+    }
 
     pages.add(
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildMetaRow(),
-          const SizedBox(height: 12),
-          _buildToBlock(),
-          const SizedBox(height: 12),
-          _buildReLine(),
-          const SizedBox(height: 12),
-          _buildIntroNote(),
-          const SizedBox(height: 16),
-          _buildSalesOfferTitle(),
-          const SizedBox(height: 8),
-          _buildProjectDetails(),
-          const SizedBox(height: 12),
-          _buildOfferTableSection(context, firstChunk, showEditorControls: true, showTotals: _items.length == firstChunk.length),
-        ],
+        children: firstPageChildren,
       ),
     );
 
     // Remaining pages with only table continuation (and totals on last page)
     int index = firstChunk.length;
     while (index < _items.length) {
-      // Rows available on continuation pages: full budget without static blocks
-      final int contRowsPerPage = ((bodyHeightBudget - tableHeaderHeight - tableFooterRowsHeight) / tableRowHeight).floor().clamp(1, _items.length);
-      final List<_OfferItem> chunk = _items.skip(index).take(contRowsPerPage).toList();
+      final int remaining = _items.length - index;
+      // Capacity without reserving totals space
+      final int contCapNoTotals = ((bodyHeightBudget - tableHeaderHeight) / tableRowHeight).floor().clamp(1, remaining);
+      bool isLast = false;
+      int takeCount;
+      if (contCapNoTotals >= remaining) {
+        // This page can be the last: reserve space for totals
+        final int contCapWithTotals = ((bodyHeightBudget - tableHeaderHeight - tableFooterRowsHeight) / tableRowHeight).floor().clamp(1, remaining);
+        takeCount = contCapWithTotals;
+        isLast = true;
+      } else {
+        takeCount = contCapNoTotals;
+      }
+
+      final List<_OfferItem> chunk = _items.skip(index).take(takeCount).toList();
       index += chunk.length;
-      final bool isLast = index >= _items.length;
+      if (index >= _items.length) {
+        isLast = true;
+      }
+
+      final List<Widget> children = [
+        _buildOfferTableSection(context, chunk, showEditorControls: false, showTotals: isLast),
+      ];
+
+      if (isLast && !areaStatementShifted) {
+        // Try to shift Area Statement into the remaining space of this last table page
+        final double usedByTable = tableHeaderHeight + (tableRowHeight * chunk.length) + tableFooterRowsHeight;
+        final double leftover = bodyHeightBudget - usedByTable; // continuation pages have no dynamic pre-table blocks
+        final double areaHeight = _measureAreaStatementHeight(contentWidth);
+        if (leftover >= areaHeight) {
+          children.add(const SizedBox(height: 16));
+          children.add(_buildAreaStatementSection());
+          areaStatementShifted = true;
+        }
+      }
+
       pages.add(
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildOfferTableSection(context, chunk, showEditorControls: false, showTotals: isLast),
-          ],
+          children: children,
         ),
       );
     }
 
+    // Flow-pack Terms, Commercial, Signature after table pages
+    final List<_CommercialRow> commercialRows = _commercialRows();
+    int commercialStart = 0;
+    bool signaturePlaced = false;
+
+    // Build the first flow page, starting with Terms (or its remainder)
+    {
+      final double termsHeight = areaStatementShifted
+          ? _measureTermsRemainderHeight(contentWidth)
+          : _measureTermsFullHeight(contentWidth);
+
+      List<Widget> children = [];
+      double leftover = bodyHeightBudget;
+
+      if (areaStatementShifted) {
+        children.add(_buildTermsRemainderSection());
+      } else {
+        children.add(_buildOfferTermsPage(context));
+      }
+      leftover -= termsHeight;
+
+      // Try to pack initial Commercial rows on this Terms page
+      while (commercialStart < commercialRows.length) {
+        final rowHeight = _measureCommercialRowHeight(contentWidth, commercialRows[commercialStart]);
+        if (rowHeight <= leftover) {
+          children.add(const SizedBox(height: 12));
+          children.add(_buildCommercialRowsTable(commercialStart, 1));
+          leftover -= (rowHeight + 12);
+          commercialStart++;
+        } else {
+          break;
+        }
+      }
+
+      // If all commercial rows consumed, try to place Signature too
+      if (commercialStart >= commercialRows.length) {
+        final double sigHeight = _measureSignatureHeight(contentWidth);
+        if (sigHeight <= leftover) {
+          children.add(const SizedBox(height: 16));
+          children.add(_buildOfferSignaturePage(context));
+          leftover -= (sigHeight + 16);
+          signaturePlaced = true;
+        }
+      }
+
+      pages.add(Column(crossAxisAlignment: CrossAxisAlignment.start, children: children));
+    }
+
+    // Remaining Commercial rows on new pages; put Signature on the last where possible
+    while (commercialStart < commercialRows.length) {
+      double leftover = bodyHeightBudget;
+      List<Widget> children = [];
+
+      int taken = 0;
+      while (commercialStart + taken < commercialRows.length) {
+        final rowHeight = _measureCommercialRowHeight(contentWidth, commercialRows[commercialStart + taken]);
+        if (rowHeight <= leftover) {
+          children.add(taken == 0 ? _buildCommercialRowsTable(commercialStart + taken, 1) : _buildCommercialRowsTable(commercialStart + taken, 1));
+          leftover -= rowHeight + 12;
+          if (commercialStart + taken < commercialRows.length - 1) {
+            children.add(const SizedBox(height: 12));
+          }
+          taken++;
+        } else {
+          break;
+        }
+      }
+      commercialStart += taken;
+
+      // If this was the last chunk of commercial rows, try to place signature
+      if (commercialStart >= commercialRows.length && !signaturePlaced) {
+        final double sigHeight = _measureSignatureHeight(contentWidth);
+        if (sigHeight <= leftover) {
+          children.add(const SizedBox(height: 16));
+          children.add(_buildOfferSignaturePage(context));
+          signaturePlaced = true;
+        }
+      }
+
+      pages.add(Column(crossAxisAlignment: CrossAxisAlignment.start, children: children));
+    }
+
+    if (!signaturePlaced) {
+      pages.add(_buildOfferSignaturePage(context));
+    }
+    // Append Technical Specification pages as the last pages
+    pages.addAll(_buildTechnicalSpecificationPages(context));
+
     return pages;
   }
 
+
+
+
+
   Widget _buildA4Page(double targetWidth, double targetHeight, Widget body) {
+    final double pxPerMm = targetWidth / _a4WidthMm;
+    final double headerMargin = 5 * pxPerMm; // 5mm from left/top/right
+    final double footerMargin = 3 * pxPerMm; // 3mm from left/bottom/right
+    final double contentLeft = 14 * pxPerMm; // 14mm from left
+    final double contentRight = 10 * pxPerMm; // 10mm from right
+
     return Container(
       width: targetWidth,
       height: targetHeight,
@@ -1383,14 +2388,28 @@ class _OfferEditorScreenState extends State<OfferEditorScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Image.asset('assets/Header.png', fit: BoxFit.fitWidth),
+          Padding(
+            padding: EdgeInsets.fromLTRB(headerMargin, headerMargin, headerMargin, 0),
+            child: Image.asset(
+              'assets/Header.png',
+              fit: BoxFit.fitWidth,
+              width: targetWidth - (2 * headerMargin),
+            ),
+          ),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              padding: EdgeInsets.fromLTRB(contentLeft, 16, contentRight, 16),
               child: body,
             ),
           ),
-          Image.asset('assets/Footer.png', fit: BoxFit.fitWidth),
+          Padding(
+            padding: EdgeInsets.fromLTRB(footerMargin, 0, footerMargin, footerMargin),
+            child: Image.asset(
+              'assets/Footer.png',
+              fit: BoxFit.fitWidth,
+              width: targetWidth - (2 * footerMargin),
+            ),
+          ),
         ],
       ),
     );
@@ -1409,14 +2428,7 @@ class _OfferEditorScreenState extends State<OfferEditorScreen> {
                 border: Border.all(color: Colors.grey.shade500),
               ),
               padding: const EdgeInsets.fromLTRB(12, 18, 12, 12),
-              child: _buildBulletedList([
-                'Quantity mentioned above is only tentative and subject to change based on the final design.',
-                'The above-mentioned quantity is calculated for typical floor only.',
-                'Any extra accessories required like embedded ties will be charged extra.',
-                'The Monolithic formwork set will be manufactured and supplied from Tobler India factory in India.',
-                'The price quoted above is Inclusive of transportation charges from factory to site.',
-                'Unloading of the material at site is under the buyer’s scope.',
-              ]),
+              child: _buildBulletedList(_areaStatementItems()),
             ),
             Positioned(
               left: 8,
@@ -1446,7 +2458,7 @@ class _OfferEditorScreenState extends State<OfferEditorScreen> {
           padding: const EdgeInsets.only(left: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
+            children: [
               _NoteParagraph(
                 textSpans: [
                   TextSpan(text: 'Quantity quoted shall be '),
@@ -1456,8 +2468,11 @@ class _OfferEditorScreenState extends State<OfferEditorScreen> {
                         ' and is subject to final measurement of the formwork supplied to site. The formwork quantity shall be based on (sq.m.) of panels supplied. The raw material used for the aluminium formwork shall be aluminium alloy 6061-T6. All materials shall be 100% brand new.',
                   ),
                 ],
+                textHeight: _textHeight,
+                textColor: _textColor,
+                textAlignment: _textAlignment,
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               _NoteParagraph(
                 textSpans: [
                   TextSpan(
@@ -1465,8 +2480,11 @@ class _OfferEditorScreenState extends State<OfferEditorScreen> {
                         'This formwork system to be supplied shall include accessories such as reusable flat ties, PVC sleeves and reusable pins & wedges for the Construction of one typical floor unit as per current drawings furnished.',
                   ),
                 ],
+                textHeight: _textHeight,
+                textColor: _textColor,
+                textAlignment: _textAlignment,
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               _NoteParagraph(
                 textSpans: [
                   TextSpan(
@@ -1479,8 +2497,11 @@ class _OfferEditorScreenState extends State<OfferEditorScreen> {
                         ' for site wastage. Kicker Soldier to be used for further ensuring the horizontality of the kicker and Waller (square pipe) to be used for further ensuring the horizontality of the wall shall be provided by Seller.',
                   ),
                 ],
+                textHeight: _textHeight,
+                textColor: _textColor,
+                textAlignment: _textAlignment,
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               _NoteParagraph(
                 textSpans: [
                   TextSpan(
@@ -1488,12 +2509,154 @@ class _OfferEditorScreenState extends State<OfferEditorScreen> {
                         'System formwork and its accessories, data sheets, relevant engineering drawing and design deliverable shall be supplied in accordance to specifications provided by us.',
                   ),
                 ],
+                textHeight: _textHeight,
+                textColor: _textColor,
+                textAlignment: _textAlignment,
               ),
             ],
           ),
         ),
       ],
     );
+  }
+
+  // Helper: the Area Statement bullet list items used in Terms section
+  List<String> _areaStatementItems() => [
+        'Quantity mentioned above is only tentative and subject to change based on the final design.',
+        'The above-mentioned quantity is calculated for typical floor only.',
+        'Any extra accessories required like embedded ties will be charged extra.',
+        'The Monolithic formwork set will be manufactured and supplied from Tobler India factory in India.',
+        'The price quoted above is Inclusive of transportation charges from factory to site.',
+        'Unloading of the material at site is under the buyer’s scope.',
+      ];
+
+  // Helper: a standalone Area Statement section for shifting into leftover space
+  Widget _buildAreaStatementSection() {
+    return Stack(
+      children: [
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade500),
+          ),
+          padding: const EdgeInsets.fromLTRB(12, 18, 12, 12),
+          child: _buildBulletedList(_areaStatementItems()),
+        ),
+        Positioned(
+          left: 8,
+          top: -2,
+          child: Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: const Text(
+              'Area Statement:',
+              style: TextStyle(fontWeight: FontWeight.w700, fontStyle: FontStyle.italic),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Helper: the remainder of Terms page when Area Statement is moved elsewhere
+  Widget _buildTermsRemainderSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'NOTE :',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            decoration: TextDecoration.underline,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.only(left: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _NoteParagraph(
+                textSpans: [
+                  TextSpan(text: 'Quantity quoted shall be '),
+                  TextSpan(text: 'PROVISIONAL', style: TextStyle(fontWeight: FontWeight.w700)),
+                  TextSpan(
+                    text:
+                        ' and is subject to final measurement of the formwork supplied to site. The formwork quantity shall be based on (sq.m.) of panels supplied. The raw material used for the aluminium formwork shall be aluminium alloy 6061-T6. All materials shall be 100% brand new.',
+                  ),
+                ],
+                textHeight: _textHeight,
+                textColor: _textColor,
+                textAlignment: _textAlignment,
+              ),
+              const SizedBox(height: 8),
+              _NoteParagraph(
+                textSpans: [
+                  TextSpan(
+                    text:
+                        'This formwork system to be supplied shall include accessories such as reusable flat ties, PVC sleeves and reusable pins & wedges for the Construction of one typical floor unit as per current drawings furnished.',
+                  ),
+                ],
+                textHeight: _textHeight,
+                textColor: _textColor,
+                textAlignment: _textAlignment,
+              ),
+              const SizedBox(height: 8),
+              _NoteParagraph(
+                textSpans: [
+                  TextSpan(
+                    text:
+                        'Embedded MS ties (more than 400mm, expansion joint, etc.) if required, shall be provided with extra charge. These accessories will have an additional allowance of ',
+                  ),
+                  TextSpan(text: 'Ten Percent (10%)', style: TextStyle(fontWeight: FontWeight.w700)),
+                  TextSpan(
+                    text:
+                        ' for site wastage. Kicker Soldier to be used for further ensuring the horizontality of the kicker and Waller (square pipe) to be used for further ensuring the horizontality of the wall shall be provided by Seller.',
+                  ),
+                ],
+                textHeight: _textHeight,
+                textColor: _textColor,
+                textAlignment: _textAlignment,
+              ),
+              const SizedBox(height: 8),
+              _NoteParagraph(
+                textSpans: [
+                  TextSpan(
+                    text:
+                        'System formwork and its accessories, data sheets, relevant engineering drawing and design deliverable shall be supplied in accordance to specifications provided by us.',
+                  ),
+                ],
+                textHeight: _textHeight,
+                textColor: _textColor,
+                textAlignment: _textAlignment,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Helper: estimate the rendered height of the Area Statement block for pagination decisions
+  double _measureAreaStatementHeight(double maxContentWidth) {
+    // Container horizontal padding is 12 on each side
+    final double innerWidth = (maxContentWidth - 24).clamp(0, double.infinity);
+    // Bullet row reserves a bullet (approx 14px) + 8 spacing before text
+    final double textWidth = (innerWidth - 22).clamp(0, double.infinity);
+
+    double total = 0;
+    for (final line in _areaStatementItems()) {
+      final tp = TextPainter(
+        text: TextSpan(text: line, style: _baseTextStyle),
+        textDirection: ui.TextDirection.ltr,
+        maxLines: null,
+      )..layout(maxWidth: textWidth);
+      final rowHeight = math.max(tp.height, 14) + 8; // bullet font 14, vertical padding 4*2
+      total += rowHeight;
+    }
+    // Add container paddings top 18 + bottom 12
+    total += 18 + 12;
+    return total;
   }
 
   Widget _buildBulletedList(List<String> items) {
@@ -1516,102 +2679,281 @@ class _OfferEditorScreenState extends State<OfferEditorScreen> {
             child: Text('•', style: TextStyle(fontSize: 14)),
           ),
           const SizedBox(width: 8),
-          Expanded(child: Text(text, style: const TextStyle(fontSize: 12))),
+          Expanded(
+            child: Text(
+              text, 
+              style: _baseTextStyle,
+              textAlign: _textAlignment,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildOfferCommercialPage(BuildContext context) {
+  
+
+  // Commercial rows abstraction for granular measurement/packing
+
+  /// Builds payment terms spans from sidebar controllers
+  List<InlineSpan> _buildPaymentTermsSpans() {
+    InlineSpan span(String text, {bool bold = false}) => TextSpan(text: text, style: bold ? const TextStyle(fontWeight: FontWeight.w700) : null);
+    
+    List<InlineSpan> paymentTermsSpans = [];
+    for (int i = 0; i < _paymentTermControllers.length; i++) {
+      final controller = _paymentTermControllers[i];
+      if (controller.text.isNotEmpty) {
+        if (i > 0) paymentTermsSpans.add(const TextSpan(text: '\n'));
+        paymentTermsSpans.add(span(controller.text, bold: true));
+      }
+    }
+    
+    // Return default terms if no custom terms are set
+    if (paymentTermsSpans.isEmpty) {
+      return [
+        span('25% ', bold: true), 
+        const TextSpan(text: 'Advance Along with Purchase Order\n'), 
+        span('25% ', bold: true), 
+        const TextSpan(text: 'Payment after shell plan approval\n'), 
+        span('50% ', bold: true), 
+        const TextSpan(text: 'Payment Before Dispatch of the material')
+      ];
+    }
+    
+    return paymentTermsSpans;
+  }
+
+  List<_CommercialRow> _commercialRows() {
     final String dateStr = DateFormat('dd/MM/yyyy').format(DateTime.now());
-    TextStyle labelStyle = const TextStyle(fontWeight: FontWeight.w700, fontSize: 12);
-    TextStyle valueStyle = const TextStyle(fontSize: 12, height: 1.4);
+    InlineSpan span(String text, {bool bold = false}) => TextSpan(text: text, style: bold ? const TextStyle(fontWeight: FontWeight.w700) : null);
+    return [
+      _CommercialRow('Delivery Date:', TextSpan(text: _deliveryTimeCtl.text.isNotEmpty ? _deliveryTimeCtl.text : 'The first shipment shall leave the factory within (08) working weeks from the date of shell drawing confirmation by client.')),
+      _CommercialRow('Technical Services:', TextSpan(text: "Tobler’s shell drawings will be ready in two (02) weeks’ time (from date of receive full complete set of architectural and structural drawings for construction and full reply to our technical queries whichever is later) and will be sent to Client for verifying of all the dimensions, positioning, opening etc. Client shall sign and return to us after confirmation of acceptance of the shell drawings.")),
+      _CommercialRow('Setting Up Support:', TextSpan(children: [span('Two (02) Supervisor per set will be provided '), span('Free of charge', bold: true), span(' by Tobler to assist in the first erection of the formwork equipment until 2 levels of casting or for a period of not exceeding Eight (08) weeks. The seller’s site engineer shall visit the site for site training prior to arrival of materials. The Client shall provide suitable local accommodation (at least 1 room per field specialist) and transportation for the field specialist during his course of work/stay. If the client cannot arrange the accommodation, Tobler will arrange the accommodation & shall be reimbursed or charged back to the client.')])) ,
+      _CommercialRow('Payment Terms:', TextSpan(children: _buildPaymentTermsSpans())),
+      _CommercialRow('Nalco Rates:', TextSpan(text: '${_nalcoPriceCtl.text.isNotEmpty ? _nalcoPriceCtl.text : 'Rs. 267/kg'} Nalco has been considered of date: $dateStr.')),
+    ];
+  }
 
-    TableRow row(String label, Widget value) => TableRow(children: [
-          Container(
-            color: Colors.grey.shade200,
-            padding: const EdgeInsets.all(8),
-            child: Text(label, style: labelStyle),
-          ),
-          Container(
-            padding: const EdgeInsets.all(8),
-            child: value,
-          ),
+  double _measureCommercialRowHeight(double maxContentWidth, _CommercialRow row) {
+    // Table has two columns: label fixed 160, value flexible, 1 px borders approximated ignored for height
+    const double labelWidth = 160;
+    final double valueWidth = (maxContentWidth - labelWidth).clamp(0, double.infinity);
+    final tp = TextPainter(
+      text: TextSpan(style: _baseTextStyle, children: [row.content]),
+      textDirection: ui.TextDirection.ltr,
+      maxLines: null,
+    )..layout(maxWidth: valueWidth - 16 /* cell padding */);
+    final double textHeight = tp.height;
+    final double cellVerticalPadding = 16; // 8 top + 8 bottom
+    return textHeight + cellVerticalPadding;
+  }
+
+  double _measureTermsFullHeight(double maxContentWidth) {
+    return _measureAreaStatementHeight(maxContentWidth) + 20 + _measureTermsRemainderHeight(maxContentWidth);
+  }
+
+  double _measureTermsRemainderHeight(double maxContentWidth) {
+    // Approximate paragraphs similar to _NoteParagraph layout with left padding 16 and inter-paragraph spacing
+    final double innerWidth = (maxContentWidth - 16).clamp(0, double.infinity);
+    final List<List<InlineSpan>> paras = [
+      [
+        const TextSpan(text: 'Quantity quoted shall be '),
+        const TextSpan(text: 'PROVISIONAL', style: TextStyle(fontWeight: FontWeight.w700)),
+        const TextSpan(text: ' and is subject to final measurement of the formwork supplied to site. The formwork quantity shall be based on (sq.m.) of panels supplied. The raw material used for the aluminium formwork shall be aluminium alloy 6061-T6. All materials shall be 100% brand new.'),
+      ],
+      [
+        const TextSpan(text: 'This formwork system to be supplied shall include accessories such as reusable flat ties, PVC sleeves and reusable pins & wedges for the Construction of one typical floor unit as per current drawings furnished.'),
+      ],
+      [
+        const TextSpan(text: 'Embedded MS ties (more than 400mm, expansion joint, etc.) if required, shall be provided with extra charge. These accessories will have an additional allowance of '),
+        const TextSpan(text: 'Ten Percent (10%)', style: TextStyle(fontWeight: FontWeight.w700)),
+        const TextSpan(text: ' for site wastage. Kicker Soldier to be used for further ensuring the horizontality of the kicker and Waller (square pipe) to be used for further ensuring the horizontality of the wall shall be provided by Seller.'),
+      ],
+      [
+        const TextSpan(text: 'System formwork and its accessories, data sheets, relevant engineering drawing and design deliverable shall be supplied in accordance to specifications provided by us.'),
+      ],
+    ];
+
+    double total = 0;
+    // Title NOTE :
+    total += _textHeight * 16 /* approx line height */ + 8; // title + spacing
+    for (int i = 0; i < paras.length; i++) {
+      final tp = TextPainter(
+        text: TextSpan(style: _baseTextStyle, children: paras[i]),
+        textDirection: ui.TextDirection.ltr,
+        maxLines: null,
+      )..layout(maxWidth: innerWidth);
+      total += tp.height;
+      total += 8; // spacing between paragraphs
+    }
+    return total;
+  }
+
+  double _measureSignatureHeight(double maxContentWidth) {
+    final tp = TextPainter(
+      text: TextSpan(
+        style: _baseTextStyle,
+        children: const [
+          TextSpan(text: 'Our offer is open for acceptance for a period of 7 days from the date of quotation.\n\n'),
+          TextSpan(text: 'Prepared By:\nVishwaranjan Singh (+91 8928301075)\nGeneral Manager – Sales & Marketing\n\n'),
+          TextSpan(text: 'Yours Faithfully,\nNitesh Sharma (+91 9136223366)\nSr. Vice President'),
+        ],
+      ),
+      textDirection: ui.TextDirection.ltr,
+      maxLines: null,
+    )..layout(maxWidth: maxContentWidth);
+    return tp.height + 24; // include headings spacing
+  }
+
+  // Build a small 1-row table slice starting at index with count rows
+  Widget _buildCommercialRowsTable(int startIndex, int count) {
+    final rows = _commercialRows().skip(startIndex).take(count).toList();
+    TextStyle labelStyle = _baseTextStyle.copyWith(fontWeight: FontWeight.w700);
+    TextStyle valueStyle = _baseTextStyle;
+    TableRow row(_CommercialRow r) => TableRow(children: [
+          Container(color: Colors.grey.shade200, padding: const EdgeInsets.all(8), child: Text(r.label, style: labelStyle)),
+          Container(padding: const EdgeInsets.all(8), child: RichText(text: TextSpan(style: valueStyle, children: [r.content]))),
         ]);
-
-    Widget para(String text, {List<InlineSpan>? spans}) => RichText(
-          text: TextSpan(
-            style: valueStyle,
-            children: spans ?? [TextSpan(text: text)],
-          ),
-        );
-
     return Table(
       columnWidths: const {0: FixedColumnWidth(160), 1: FlexColumnWidth()},
       border: TableBorder.all(color: Colors.grey.shade500, width: 1),
-      children: [
-        row(
-          'Delivery Date:',
-          para('The first shipment shall leave the factory within (08) working weeks from the date of shell drawing confirmation by client.'),
-        ),
-        row(
-          'Technical Services:',
-          para('', spans: const [
-            TextSpan(text: "Tobler’s shell drawings will be ready in two (02) weeks’ time (from date of receive full complete set of architectural and structural drawings for construction and full reply to our technical queries whichever is later) and will be sent to Client for verifying of all the dimensions, positioning, opening etc. Client shall sign and return to us after confirmation of acceptance of the shell drawings.")
-          ]),
-        ),
-        row(
-          'Setting Up Support:',
-          para('', spans: const [
-            TextSpan(text: 'Two (02) Supervisor per set will be provided '),
-            TextSpan(text: 'Free of charge', style: TextStyle(fontWeight: FontWeight.w700)),
-            TextSpan(text: ' by Tobler to assist in the first erection of the formwork equipment until 2 levels of casting or for a period of not exceeding Eight (08) weeks. The seller’s site engineer shall visit the site for site training prior to arrival of materials. The Client shall provide suitable local accommodation (at least 1 room per field specialist) and transportation for the field specialist during his course of work/stay. If the client cannot arrange the accommodation, Tobler will arrange the accommodation & shall be reimbursed or charged back to the client.'),
-          ]),
-        ),
-        row(
-          'Payment Terms:',
-          para('', spans: const [
-            TextSpan(text: '25% ', style: TextStyle(fontWeight: FontWeight.w700)),
-            TextSpan(text: 'Advance Along with Purchase Order\n'),
-            TextSpan(text: '25% ', style: TextStyle(fontWeight: FontWeight.w700)),
-            TextSpan(text: 'Payment after shell plan approval\n'),
-            TextSpan(text: '50% ', style: TextStyle(fontWeight: FontWeight.w700)),
-            TextSpan(text: 'Payment Before Dispatch of the material'),
-          ]),
-        ),
-        row(
-          'Nalco Rates:',
-          para('Rs. 267/kg Nalco has been considered of date: $dateStr.'),
-        ),
-      ],
+      children: [for (final r in rows) row(r)],
     );
   }
 
   Widget _buildOfferSignaturePage(BuildContext context) {
-    const TextStyle smallEmph = TextStyle(fontSize: 12, fontStyle: FontStyle.italic);
-    const TextStyle emphBold = TextStyle(fontSize: 12, fontStyle: FontStyle.italic, fontWeight: FontWeight.w700);
+    TextStyle smallEmph = _baseTextStyle.copyWith(fontStyle: FontStyle.italic);
+    TextStyle emphBold = _baseTextStyle.copyWith(
+      fontStyle: FontStyle.italic, 
+      fontWeight: FontWeight.w700,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Our offer is open for acceptance for a period of 7 days from the date of quotation.',
-          style: TextStyle(fontSize: 12, color: Color(0xFF215E79)),
+          style: _baseTextStyle,
+          textAlign: _textAlignment,
         ),
         const SizedBox(height: 20),
         // Prepared By
-        const Text('Prepared By:', style: emphBold),
+        Text('Prepared By:', style: emphBold, textAlign: _textAlignment),
         const SizedBox(height: 4),
-        const Text('Vishwaranjan Singh (+91 8928301075)', style: smallEmph),
-        const Text('General Manager – Sales & Marketing', style: smallEmph),
+        Text('Vishwaranjan Singh (+91 8928301075)', style: smallEmph, textAlign: _textAlignment),
+        Text('General Manager – Sales & Marketing', style: smallEmph, textAlign: _textAlignment),
         const SizedBox(height: 24),
         // Yours Faithfully
-        const Text('Yours Faithfully,', style: emphBold),
+        Text('Yours Faithfully,', style: emphBold, textAlign: _textAlignment),
         const SizedBox(height: 4),
-        const Text('Nitesh Sharma (+91 9136223366)', style: smallEmph),
-        const Text('Sr. Vice President', style: smallEmph),
+        Text('Nitesh Sharma (+91 9136223366)', style: smallEmph, textAlign: _textAlignment),
+        Text('Sr. Vice President', style: smallEmph, textAlign: _textAlignment),
       ],
     );
+  }
+
+  // Technical Specification pages: paginate rows (25 per page) with repeated header
+  List<Widget> _buildTechnicalSpecificationPages(BuildContext context, {int rowsPerPage = 25}) {
+    TextStyle headStyle = _baseTextStyle.copyWith(fontWeight: FontWeight.w800);
+    TextStyle cellStyle = _baseTextStyle;
+
+    TableRow header(List<String> cols) => TableRow(children: [
+          for (final c in cols)
+            Container(
+              color: Colors.grey.shade300,
+              padding: const EdgeInsets.all(6),
+              child: Text(c, style: headStyle),
+            ),
+        ]);
+
+    TableRow row(List<String> cols) => TableRow(children: [
+          for (final c in cols)
+            Container(
+              padding: const EdgeInsets.all(6),
+              child: Text(c, style: cellStyle),
+            ),
+        ]);
+
+    final List<List<String>> data = [
+      ['1', 'Load calculation details of Aluform panels', 'Wall Panel-65KN/Sqm, Deck Panel-15KN/Sqm'],
+      ['2', 'Load calculation details of MS Bracket', 'SWL-343 kg with FOS 2:1'],
+      ['3', 'Load calculation details of MS props/Powder Coated', '15 KN/Sqm'],
+      ['4', 'Aluminium Grade & skin thickness', '6061 T6, 4mm±0.2mm'],
+      ['5', 'Std Wall Panel Weight 600x2400mm', '27 Kg / M²'],
+      ['6', 'Stiffener in Std wall Panels (Heavy 55x75mm)', '8 Nos'],
+      ['7', 'Modulation Drawing Timeline', '15 Working Days after Shell Plan Approval'],
+      ['8', 'Material Dispatch Timeline After Completion of Modulation Drawings', '30 Days'],
+      ['9', 'Aluminium average weight', '22–23 Kg'],
+      ['10', 'Standers panel sizes (Wall/Deck/DP width/Kicker width)', '600*2400mm/600*1200mm/150*300mm/150mm'],
+      ['11', 'Spacing of stiffeners', 'Wall Panel-225-325mm c/c, Deck Panel- 300mm c/c'],
+      ['12', 'Material Repitation', '150 Nos'],
+      ['13', 'Mode of Measurement', 'Concrete surface area, contact with formwork panels.'],
+      ['14', 'Stiffeners in Beam Panels, T-Panels', 'U-Stiffener'],
+      ['15', 'Stiffeners in Deck Panels', 'I-stiffener'],
+      ['16', 'Stiffener Placing', 'Mandatory wherever FSW.'],
+      ['17', 'Double set items', 'Kicker, Brackets, Prop Head, Props, CP components, Staircase Starting Panels'],
+      ['18', 'Chajja Top Panels', 'Single stiffener by using lazer cutting in 8mm'],
+      ['19', 'Slab Attached Brackets', 'As per design requirements'],
+      ['20', 'Panel replacement in case of design failure', 'Free of cost'],
+      ['21', 'Site Support Strength per tower', 'Per tower-2 representative till the completion of three floors'],
+      ['22', 'Usage of MS items', 'As per usage shown in offer pages'],
+      ['23', 'Accessories quantities calculation Factors consideration', 'As per site requirement and design'],
+      ['24', 'Aluform Plumbing groove with screw/nuts & diverter box screw/nuts consideration (Yes/No)', 'Yes'],
+      ['25', 'Aluform Drip mould–any Elevation groove consideration (Yes/No)', 'Yes'],
+      ['26', 'MS stool per Tower Qty.', '2 Nos/ 500 Sqm'],
+      ['27', 'Pin wedge qty. Factor per Sq.m', '15 Nos/ Sqm (Additional-10%)'],
+      ['28', 'Props MS or GI coated', 'Powder coated'],
+      ['29', 'Wall attached MS Bracket size', '350*1000 mm'],
+      ['30', 'MS Bracket Spacing', 'Max- 1200 mm c/c'],
+      ['31', 'Hard pvc sleeves or PP corrugated sheets', 'PP corrugated sheets'],
+      ['32', 'Consumables items quantity for how many floors considering', '1st Floor'],
+      ['33', '3rd Party Checks for Aluform material & all MS accessories testing reports (Yes/No)', 'Yes'],
+      ['34', 'C or SL making with (Extrusion/Panel Sheet)', 'Extrusion'],
+      ['35', 'Beam Bottom panel making with (Extrusion/Panel Sheet)', 'Extrusion'],
+      ['36', 'Waller/Tie rod provisions for staircase & any special areas', 'Yes'],
+      ['37', 'Chajja top closing (Yes/No)', 'Yes'],
+      ['38', 'Staircase mid-landing top closing (Yes/No)', 'Yes'],
+      ['39', 'Right Angle Alignment Pipe Consideration for Lifts', 'Yes'],
+      ['40', 'Riv welded or Bolted', 'Bolted'],
+      ['41', 'SL cap with hole (Yes/No)', 'Yes'],
+      ['42', 'Sunken material (Aluform/MS)', 'Upto 50 mm providing in MS, above 50mm in providing Aluminium'],
+      ['43', '75mm & above height Rocker stiffeners provision (Yes/No)', 'Yes'],
+      ['44', 'Beam side panel (If beam panel height is 600mm and above) 2 wall ties provision (Yes/No)', 'Yes'],
+      ['45', 'Panel edges Copeing, (Yes/No) of sets?', '2 Set'],
+      ['46', 'Hard degreased design, laminated?', '2 Set'],
+      ['47', 'Remark on design', 'No escalation or de-escalation after PO confirmation'],
+    ];
+
+    final List<Widget> pages = [];
+    for (int start = 0; start < data.length; start += rowsPerPage) {
+      final chunk = data.skip(start).take(rowsPerPage).toList();
+      final List<TableRow> tableRows = [
+        header(['Sr. No', 'PARAMETERS', 'SPECIFICATIONS']),
+        for (final r in chunk) row(r),
+      ];
+
+      pages.add(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(child: Text('TECHNICAL SPECIFICATION SHEET', style: _baseTextStyle.copyWith(fontWeight: FontWeight.w800))),
+            const SizedBox(height: 12),
+            Table(
+              columnWidths: const {
+                0: FixedColumnWidth(70),
+                1: FixedColumnWidth(220),
+                2: FlexColumnWidth(),
+              },
+              border: TableBorder.all(color: Colors.grey.shade600, width: 1),
+              children: tableRows,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return pages;
   }
 
   Widget _buildMetaRow() {
@@ -1622,22 +2964,25 @@ class _OfferEditorScreenState extends State<OfferEditorScreen> {
           child: _isEditing
               ? Row(
                   children: [
-                    const Text('Ref: ', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                    Text('Ref: ', style: _baseTextStyle.copyWith(fontWeight: FontWeight.w700)),
                     SizedBox(
                       width: 220,
                       child: TextField(
                         controller: _refNoCtl,
                         decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
-                        style: const TextStyle(fontSize: 12),
+                        style: _textFieldStyle,
                       ),
                     ),
                   ],
                 )
               : RichText(
                   text: TextSpan(
-                    style: const TextStyle(color: Colors.black, fontSize: 12),
+                    style: _baseTextStyle,
                     children: [
-                      const TextSpan(text: 'Ref: ', style: TextStyle(fontWeight: FontWeight.w700)),
+                      TextSpan(
+                        text: 'Ref: ', 
+                        style: TextStyle(fontWeight: FontWeight.w700)
+                      ),
                       TextSpan(text: _refNoCtl.text),
                     ],
                   ),
@@ -1646,10 +2991,10 @@ class _OfferEditorScreenState extends State<OfferEditorScreen> {
         _isEditing
             ? Row(
                 children: [
-                  const Text('Date: ', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                  Text('Date: ', style: _baseTextStyle.copyWith(fontWeight: FontWeight.w700)),
                   TextButton.icon(
                     icon: const Icon(Icons.calendar_today, size: 14),
-                    label: Text(dateStr, style: const TextStyle(fontSize: 12)),
+                    label: Text(dateStr, style: _baseTextStyle),
                     onPressed: () async {
                       final picked = await showDatePicker(
                         context: context,
@@ -1666,9 +3011,12 @@ class _OfferEditorScreenState extends State<OfferEditorScreen> {
               )
             : RichText(
                 text: TextSpan(
-                  style: const TextStyle(color: Colors.black, fontSize: 12),
+                  style: _baseTextStyle,
                   children: [
-                    const TextSpan(text: 'Date: ', style: TextStyle(fontWeight: FontWeight.w700)),
+                    TextSpan(
+                      text: 'Date: ', 
+                      style: TextStyle(fontWeight: FontWeight.w700)
+                    ),
                     TextSpan(text: dateStr),
                   ],
                 ),
@@ -1678,11 +3026,11 @@ class _OfferEditorScreenState extends State<OfferEditorScreen> {
   }
 
   Widget _buildToBlock() {
-    TextStyle base = const TextStyle(fontSize: 12);
+    TextStyle base = _baseTextStyle;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('To:', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+        Text('To:', style: _baseTextStyle.copyWith(fontWeight: FontWeight.w700)),
         const SizedBox(height: 4),
         _isEditing
             ? SizedBox(
@@ -1696,16 +3044,61 @@ class _OfferEditorScreenState extends State<OfferEditorScreen> {
             : Text('M/s ${_clientNameCtl.text}', style: base.copyWith(fontWeight: FontWeight.w700)),
         const SizedBox(height: 4),
         _isEditing
-            ? SizedBox(
-                width: 600,
-                child: TextField(
-                  controller: _addressCtl,
-                  maxLines: 4,
-                  decoration: const InputDecoration(isDense: true, border: OutlineInputBorder(), labelText: 'Address'),
-                  style: base,
-                ),
+            ? Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _addressCtl,
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        isDense: true, 
+                        border: const OutlineInputBorder(), 
+                        labelText: 'Address',
+                        suffixIcon: _isLoadingAddress 
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: Padding(
+                                padding: EdgeInsets.all(8.0),
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            )
+                          : IconButton(
+                              icon: const Icon(Icons.refresh, size: 20),
+                              tooltip: 'Refresh address from database',
+                              onPressed: _fetchAdminResponseData,
+                            ),
+                      ),
+                      style: base,
+                    ),
+                  ),
+                ],
               )
-            : Text(_addressCtl.text, style: base),
+            : Row(
+                children: [
+                  Expanded(child: Text(_addressCtl.text, style: base)),
+                  if (_isLoadingAddress)
+                    const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: Padding(
+                        padding: EdgeInsets.all(8.0),
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                ],
+              ),
+        if (_isEditing && _adminResponseData != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            'Address fetched from admin_response.location',
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.grey[600],
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -1716,7 +3109,7 @@ class _OfferEditorScreenState extends State<OfferEditorScreen> {
         ? Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Text('RE: ', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+              Text('RE: ', style: _baseTextStyle.copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(width: 6),
               Expanded(
                 child: TextField(
@@ -1778,7 +3171,7 @@ class _OfferEditorScreenState extends State<OfferEditorScreen> {
                 crossAxisAlignment: WrapCrossAlignment.center,
                 spacing: 6,
                 children: [
-                  const Text('Project Reference', style: TextStyle(fontSize: 12)),
+                  Text('Project Reference', style: _baseTextStyle),
                   SizedBox(
                     width: 120,
                     child: TextField(
@@ -1813,7 +3206,7 @@ class _OfferEditorScreenState extends State<OfferEditorScreen> {
         _isEditing
             ? Row(
                 children: [
-                  const Text('Description:', style: TextStyle(fontSize: 12)),
+                  Text('Description:', style: _baseTextStyle),
                   const SizedBox(width: 8),
                   Expanded(
                     child: TextField(
@@ -1847,7 +3240,7 @@ class _OfferEditorScreenState extends State<OfferEditorScreen> {
     final int gst = (subTotal * 0.18).round();
     final int grandTotal = subTotal + gst;
 
-    final TextStyle cellStyle = const TextStyle(fontSize: 12);
+            final TextStyle cellStyle = _baseTextStyle;
 
     Widget headerCell(String text, {TextAlign align = TextAlign.left}) =>
         Container(color: Colors.grey.shade200, padding: const EdgeInsets.all(8), child: Text(text, textAlign: align, style: cellStyle));
@@ -1997,6 +3390,13 @@ class _OfferEditorScreenState extends State<OfferEditorScreen> {
   // Backward-compatible wrapper kept intentionally removed to satisfy lints.
 }
 
+// Top-level helper type for commercial rows packing
+class _CommercialRow {
+  final String label;
+  final InlineSpan content;
+  const _CommercialRow(this.label, this.content);
+}
+
 class _OfferItem {
   final int srNo;
   final String description;
@@ -2019,12 +3419,29 @@ class _OfferItem {
 
 class _NoteParagraph extends StatelessWidget {
   final List<TextSpan> textSpans;
-  const _NoteParagraph({required this.textSpans});
+  final double textHeight;
+  final Color textColor;
+  final TextAlign textAlignment;
+  
+  const _NoteParagraph({
+    required this.textSpans,
+    required this.textHeight,
+    required this.textColor,
+    required this.textAlignment,
+  });
 
   @override
   Widget build(BuildContext context) {
     return RichText(
-      text: TextSpan(style: const TextStyle(color: Colors.black, fontSize: 12, height: 1.4), children: textSpans),
+      textAlign: textAlignment,
+      text: TextSpan(
+        style: TextStyle(
+          color: textColor, 
+          fontSize: 12, 
+          height: textHeight
+        ), 
+        children: textSpans
+      ),
     );
   }
 }
@@ -4152,13 +5569,13 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     debugPrint('Create offer called with data: $lead');
     debugPrint('Lead ID: ${lead['lead_id']}');
 
-    // Navigate to the Offer Editor screen with A4 preview
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => OfferEditorScreen(
-          lead: lead,
-        ),
-      ),
+    // Show Offer Editor as a responsive dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return OfferEditorDialog(lead: lead);
+      },
     );
   }
 
@@ -10617,9 +12034,9 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                 size: 48,
                 iconSize: 20,
                 onTap: () {
-                  // Show currency selection dialog
-                  _showCurrencyDialog();
-                },
+                    // Show currency selection dialog
+                    _showCurrencyDialog();
+                  },
               ),
 
               SizedBox(width: 16),
@@ -10632,9 +12049,9 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                 size: 48,
                 iconSize: 20,
                 onTap: () {
-                  // Show time period selection dialog
-                  _showTimePeriodDialog();
-                },
+                    // Show time period selection dialog
+                    _showTimePeriodDialog();
+                  },
               ),
 
               SizedBox(width: 16),
@@ -10648,14 +12065,14 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                 iconSize: 20,
                 hasBadge: true,
                 onTap: () {
-                  // Handle notification tap
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Notifications'),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                },
+                        // Handle notification tap
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Notifications'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      },
               ),
 
               SizedBox(width: 16),
@@ -10669,14 +12086,14 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                 iconSize: 20,
                 hasBadge: true,
                 onTap: () {
-                  // Handle chat tap
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Chat'),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                },
+                        // Handle chat tap
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Chat'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      },
               ),
             ],
           );
