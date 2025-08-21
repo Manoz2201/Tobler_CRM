@@ -839,6 +839,17 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Realtime search input
+        TextField(
+          decoration: InputDecoration(
+            hintText: 'Search by Project, Client, or Ref',
+            prefixIcon: const Icon(Icons.search),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            isDense: true,
+          ),
+          onChanged: (value) => setState(() => _offersSearch = value),
+        ),
+        SizedBox(height: isWide ? 12 : 8),
         Text(
           title,
           style: TextStyle(
@@ -900,6 +911,7 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
         scrollDirection: Axis.horizontal,
         child: DataTable(
           columns: [
+            DataColumn(label: Text('Reference')),
             DataColumn(label: Text('Client Name')),
             DataColumn(label: Text('Project Name')),
             DataColumn(label: Text('Value')),
@@ -910,6 +922,7 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
           rows: offers.map((offer) {
             return DataRow(
               cells: [
+                DataCell(Text(offer['ref'] ?? '')),
                 DataCell(Text(offer['client_name'] ?? '')),
                 DataCell(Text(offer['project_name'] ?? '')),
                 DataCell(Text('₹${offer['grand_total']?.toString() ?? '0'}')),
@@ -1007,6 +1020,13 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
                       ),
                   ],
                 ),
+                if ((offer['ref'] ?? '').toString().isNotEmpty) ...[
+                  SizedBox(height: 6),
+                  Text(
+                    'Ref: ${offer['ref']}',
+                    style: TextStyle(fontWeight: FontWeight.w600, color: Colors.blue),
+                  ),
+                ],
                 SizedBox(height: 8),
                 Text(
                   'Client: ${offer['client_name'] ?? ''}',
@@ -1072,6 +1092,7 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
   // Real data methods for offers
   List<Map<String, dynamic>> _offers = [];
   bool _isLoadingOffers = false;
+  String _offersSearch = '';
 
   Future<void> _loadOffers() async {
     setState(() {
@@ -1138,7 +1159,17 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
   }
 
   List<Map<String, dynamic>> _getOffersByStatus(String status) {
-    return _offers.where((offer) => offer['offer_status'] == status).toList();
+    final query = _offersSearch.trim().toLowerCase();
+    Iterable<Map<String, dynamic>> filtered = _offers.where((offer) => offer['offer_status'] == status);
+    if (query.isNotEmpty) {
+      filtered = filtered.where((o) {
+        final pn = (o['project_name'] ?? '').toString().toLowerCase();
+        final cn = (o['client_name'] ?? '').toString().toLowerCase();
+        final rf = (o['ref'] ?? '').toString().toLowerCase();
+        return pn.contains(query) || cn.contains(query) || rf.contains(query);
+      });
+    }
+    return filtered.toList();
   }
 
   String _formatDate(String? dateString) {
@@ -1187,7 +1218,6 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
       );
     }
   }
-
   void _editOffer(Map<String, dynamic> offer) {
     // Show Offer Editor with the selected offer data in edit mode
     // Lead information will be fetched dynamically in the OfferEditorDialog
@@ -1197,6 +1227,7 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
       builder: (BuildContext dialogContext) {
         return OfferEditorDialog(lead: {
           'lead_id': offer['lead_id'],
+          'ref': offer['ref'],
           'id': offer['lead_id'], // For backward compatibility
         });
       },
@@ -1212,6 +1243,7 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
       builder: (BuildContext dialogContext) {
         return OfferEditorDialog(lead: {
           'lead_id': offer['lead_id'],
+          'ref': offer['ref'],
           'id': offer['lead_id'], // For backward compatibility
         });
       },
@@ -1312,6 +1344,49 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
   // Offer status
   String _offerStatus = 'Draft Offer'; // Default status
   
+  // Convert integer amount to Indian Rupees in words for display
+  String _toIndianRupeesWords(int amount) {
+    if (amount == 0) return 'Zero Rupees Only';
+    final List<String> units = ['', 'Thousand', 'Lakh', 'Crore'];
+    final List<String> belowTwenty = [
+      'Zero','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'
+    ];
+    final List<String> tensNames = ['', '', 'Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+    String twoDigits(int n) {
+      if (n < 20) return belowTwenty[n];
+      final int t = n ~/ 10;
+      final int r = n % 10;
+      return r == 0 ? tensNames[t] : '${tensNames[t]} ${belowTwenty[r]}';
+    }
+    String threeDigits(int n) {
+      final int h = n ~/ 100;
+      final int r = n % 100;
+      if (h == 0) return twoDigits(r);
+      final String head = '${belowTwenty[h]} Hundred';
+      if (r == 0) return head;
+      return '$head ${twoDigits(r)}';
+    }
+    final int hundreds = amount % 1000;
+    int rest = amount ~/ 1000;
+    final List<int> parts = [hundreds];
+    while (rest > 0) {
+      parts.add(rest % 100);
+      rest = rest ~/ 100;
+    }
+    final List<String> words = [];
+    for (int i = parts.length - 1; i >= 0; i--) {
+      final int part = parts[i];
+      if (part == 0) continue;
+      if (i == 0) {
+        words.add(threeDigits(part));
+      } else {
+        words.add('${twoDigits(part)} ${units[i]}');
+      }
+    }
+    final String result = words.join(' ').replaceAll(RegExp(' +'), ' ').trim();
+    return '$result Rupees Only';
+  }
+
   // Helper method to get consistent text style
   TextStyle get _baseTextStyle => TextStyle(
     fontSize: 12,
@@ -1325,16 +1400,57 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     final int next = (year + 1) % 100;
     final String yy = year.toString().padLeft(2, '0');
     final String nn = next.toString().padLeft(2, '0');
-    return '$yy-$nn';
+    final result = '$yy-$nn';
+    debugPrint('DEBUG: Session calculation - year: ${date.year}, year%100: $year, next: $next, result: $result');
+    return result;
   }
 
-  // Extracts project code from project_id like "Tobler-8224" -> "8224"
+  // Extracts project code from project_id like "Tobler-8224" -> "8224" or "Tobler-ADE1" -> "ADE1"
   String _extractProjectCode() {
-    final String raw = (widget.lead['project_id'] ?? '').toString();
+    // First try to get project_id from admin_response data if available
+    String? raw;
+    
+    if (_adminResponseData != null && _adminResponseData!['project_id'] != null) {
+      raw = _adminResponseData!['project_id'].toString();
+      debugPrint('DEBUG: Using project_id from admin_response: $raw');
+    } else if (widget.lead['project_id'] != null) {
+      raw = widget.lead['project_id'].toString();
+      debugPrint('DEBUG: Using project_id from widget.lead: $raw');
+    } else {
+      debugPrint('DEBUG: No project_id available, using fallback');
+      return '0000';
+    }
+    
+    // First try to extract part after "Tobler-" prefix (e.g., "Tobler-8224" -> "8224", "Tobler-ADE1" -> "ADE1")
+    if (raw.startsWith('Tobler-')) {
+      final suffix = raw.substring(7); // Remove "Tobler-" prefix
+      if (suffix.isNotEmpty) {
+        debugPrint('DEBUG: Extracted project code after Tobler- prefix: $suffix');
+        return suffix;
+      }
+    }
+    
+    // Try to extract numeric part from end (e.g., "Tobler-8224" -> "8224")
     final match = RegExp(r'(\d+)$').firstMatch(raw);
-    if (match != null) return match.group(1)!;
-    // Fallback: remove non-alphanumerics
-    return raw.replaceAll(RegExp(r'[^0-9A-Za-z]'), '');
+    if (match != null) {
+      final extracted = match.group(1)!;
+      debugPrint('DEBUG: Extracted project code: $extracted');
+      return extracted;
+    }
+    
+    // If no numeric part at end, try to find any numeric sequence
+    final numericMatch = RegExp(r'(\d+)').firstMatch(raw);
+    if (numericMatch != null) {
+      final extracted = numericMatch.group(1)!;
+      debugPrint('DEBUG: Found numeric sequence: $extracted');
+      return extracted;
+    }
+    
+    // Fallback: remove non-alphanumeric characters and take first 4 characters
+    final cleaned = raw.replaceAll(RegExp(r'[^0-9A-Za-z]'), '');
+    final result = cleaned.isNotEmpty ? cleaned.substring(0, cleaned.length > 4 ? 4 : cleaned.length) : '0000';
+    debugPrint('DEBUG: Fallback project code: $result');
+    return result;
   }
 
   // Builds Ref value like TI/MF/25-26/8224/I1 or .../R1
@@ -1345,7 +1461,138 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     final String projectCode = _extractProjectCode();
     final bool useRevision = revision ?? _isRevision;
     final String seriesPrefix = useRevision ? 'R' : 'I';
-    return '$companyCode/$leadTypeCode/$session/$projectCode/$seriesPrefix$seriesNumber';
+    
+    final result = '$companyCode/$leadTypeCode/$session/$projectCode/$seriesPrefix$seriesNumber';
+    debugPrint('DEBUG: Generated ref: $result');
+    debugPrint('DEBUG: Components - companyCode: $companyCode, leadTypeCode: $leadTypeCode, session: $session, projectCode: $projectCode, seriesPrefix: $seriesPrefix, seriesNumber: $seriesNumber');
+    
+    return result;
+  }
+
+  // Computes the next revision Ref from an existing Ref string
+  // _nextRevisionRef helper removed (unused)
+  
+  // Helper method to get the next revision number for a lead
+  Future<int> _getNextRevisionNumber(String leadId) async {
+    try {
+      final client = Supabase.instance.client;
+      debugPrint('DEBUG: Fetching existing active offers for lead ID: $leadId');
+      
+      final existingActiveOffers = await client
+          .from('offers')
+          .select('ref')
+          .eq('lead_id', leadId)
+          .eq('offer_status', 'Active Offer');
+      
+      debugPrint('DEBUG: Found ${existingActiveOffers.length} existing active offers');
+      
+      int nextRevisionNumber = 1;
+      for (final offer in existingActiveOffers) {
+        final ref = offer['ref']?.toString() ?? '';
+        debugPrint('DEBUG: Checking ref: $ref');
+        final revisionMatch = RegExp(r'R(\d+)$').firstMatch(ref);
+        if (revisionMatch != null) {
+          final revisionNum = int.tryParse(revisionMatch.group(1) ?? '1') ?? 1;
+          debugPrint('DEBUG: Found revision number: $revisionNum');
+          if (revisionNum >= nextRevisionNumber) {
+            nextRevisionNumber = revisionNum + 1;
+            debugPrint('DEBUG: Updated next revision number to: $nextRevisionNumber');
+          }
+        }
+      }
+      
+      debugPrint('DEBUG: Final next revision number: $nextRevisionNumber');
+      return nextRevisionNumber;
+    } catch (e) {
+      debugPrint('Error getting next revision number: $e');
+      return 1; // Fallback to 1 if there's an error
+    }
+  }
+  
+  // Helper method to check if current ref is a revision and get its number
+  int _getCurrentRevisionNumber() {
+    final currentRef = _refNoCtl.text;
+    final revisionMatch = RegExp(r'R(\d+)$').firstMatch(currentRef);
+    if (revisionMatch != null) {
+      return int.tryParse(revisionMatch.group(1) ?? '1') ?? 1;
+    }
+    return 0; // Not a revision
+  }
+  
+  // Method to handle ref regeneration when offer status changes
+  void _handleOfferStatusChange(String newStatus) {
+    setState(() {
+      _offerStatus = newStatus;
+      
+      // If changing to Active Offer and current ref is not a revision, 
+      // we might need to prepare for potential revision
+      if (newStatus == 'Active Offer' && _getCurrentRevisionNumber() == 0) {
+        // Keep the current ref as is - it will be handled during save
+        debugPrint('Offer status changed to Active Offer - ref will be handled during save');
+      }
+    });
+  }
+  
+  // Method to show revision confirmation dialog
+  Future<bool> _showRevisionConfirmationDialog() async {
+    return await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Create Revision'),
+          content: const Text(
+            'You are about to create a revision of an existing Active Offer. '
+            'This will:\n'
+            '• Create a new offer with an updated reference number (R1, R2, etc.)\n'
+            '• Mark the previous offer as "Expired Offer"\n'
+            'Do you want to continue?'
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Continue'),
+            ),
+          ],
+        );
+      },
+    ) ?? false;
+  }
+  
+  // Method to validate and fix ref format
+  void _validateAndFixRef() {
+    final currentRef = _refNoCtl.text;
+    if (currentRef.contains('//')) {
+      // Ref has missing project code, regenerate it
+      if (_adminResponseData != null) {
+        final newRef = _generateRef();
+        setState(() {
+          _refNoCtl.text = newRef;
+        });
+        debugPrint('DEBUG: Fixed ref from "$currentRef" to "$newRef"');
+        
+        // Show user notification
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ref automatically fixed: $newRef'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else {
+        debugPrint('DEBUG: Cannot fix ref - admin_response data not available');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cannot fix ref - project data not loaded yet'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 
   /// Builds the offer status selection section with status buttons
@@ -1420,9 +1667,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: InkWell(
                   onTap: () {
-                    setState(() {
-                      _offerStatus = status;
-                    });
+                    _handleOfferStatusChange(status);
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -1508,21 +1753,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
         );
   }
 
-  /// Helper method to get status color based on offer status
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'Active Offer':
-        return Colors.green;
-      case 'Draft Offer':
-        return Colors.orange;
-      case 'Expired Offer':
-        return Colors.red;
-      case 'Closed Offer':
-        return Colors.grey;
-      default:
-        return Colors.blue;
-    }
-  }
+  // _getStatusColor removed: no longer used in document view after status removal
   
   /// Builds the left sidebar with input fields for project details
   Widget _buildLeftSidebar() {
@@ -1830,7 +2061,9 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
   void initState() {
     super.initState();
     _offerDate = DateTime.now();
-    _refNoCtl = TextEditingController(text: _generateRef());
+    // If a ref is provided (viewing an existing offer), prefer it; otherwise auto-generate
+    final String? incomingRef = widget.lead['ref']?.toString();
+    _refNoCtl = TextEditingController(text: (incomingRef != null && incomingRef.isNotEmpty) ? incomingRef : _generateRef());
     
     // Initialize with placeholder values - will be updated when lead info is fetched
     _clientNameCtl = TextEditingController(text: 'Loading...');
@@ -1870,7 +2103,6 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
   // Fetch lead information and admin_response data
   _fetchLeadInfoAndAdminResponseData();
   }
-  
   /// Fetches lead information and admin_response data
   Future<void> _fetchLeadInfoAndAdminResponseData() async {
     setState(() {
@@ -1963,6 +2195,16 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                 debugPrint('DEBUG: Updated first item: qtySqm=$qtySqm, rate=$rate');
               }
             }
+            
+            // Regenerate ref with the correct project code from admin_response
+            if (_refNoCtl.text.isEmpty || _refNoCtl.text.contains('//')) {
+              final newRef = _generateRef();
+              _refNoCtl.text = newRef;
+              debugPrint('DEBUG: Regenerated ref with admin_response data: $newRef');
+            }
+            
+            // Validate and fix any malformed refs
+            _validateAndFixRef();
           });
         } else {
           debugPrint('DEBUG: Admin response is null for leadId: $leadId');
@@ -2286,12 +2528,11 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     );
   }
 
+
+
   /// Export offer to PDF using the pdf/printing packages with pagination
   Future<void> _exportToPDF() async {
     try {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Generating PDF...')),
-      );
       // Capture on-screen pages as images for WYSIWYG PDF
       final captured = <Uint8List>[];
       for (final key in _pageKeys) {
@@ -2318,6 +2559,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
 
       final bytes = await pdf.save();
       final fileName = 'Offer_${_refNoCtl.text}_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      
       await Printing.sharePdf(bytes: bytes, filename: fileName);
       
       if (mounted) {
@@ -2339,10 +2581,6 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
   /// Export offer to Word document using docx_template
   Future<void> _exportToWord() async {
     try {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Generating Word document...')),
-      );
-
       // Capture current A4 pages as images and embed in a .doc (HTML) for WYSIWYG export
       final images = <Uint8List>[];
       for (final key in _pageKeys) {
@@ -2367,9 +2605,10 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
       buffer.writeln('</body></html>');
 
       final fileName = 'Offer_${_refNoCtl.text}_${DateTime.now().millisecondsSinceEpoch}.doc';
+      
       // Save bytes with appropriate mime
       // ignore: undefined_function
-      await saveBytes(fileName: fileName, bytes: utf8.encode(buffer.toString()),);
+      await saveBytes(fileName: fileName, bytes: utf8.encode(buffer.toString()));
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2421,6 +2660,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
       // Lead information (project_id, project_name, client_name, location) will be fetched dynamically
       final offerData = {
         'lead_id': widget.lead['lead_id'] ?? widget.lead['id'],
+        'ref': _refNoCtl.text,
         'offer_status': _offerStatus,
         'offer_created': DateTime.now().toIso8601String(),
         'value': grandTotal,
@@ -2432,13 +2672,164 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
         'payment_terms': paymentTerms,
       };
 
-      // Save to Supabase
       final client = Supabase.instance.client;
-      final result = await client
-          .from('offers')
-          .insert(offerData)
-          .select()
-          .single();
+
+      Map<String, dynamic>? result;
+
+      // Implement refined save logic based on offer_status transitions
+      if (_offerStatus == 'Draft Offer') {
+        // For Draft Offer, check if there's an existing draft for this lead_id
+        final existingDraft = await client
+            .from('offers')
+            .select('id')
+            .eq('lead_id', offerData['lead_id'])
+            .eq('offer_status', 'Draft Offer')
+            .maybeSingle();
+
+        if (existingDraft != null) {
+          // Update existing draft
+          final updated = await client
+              .from('offers')
+              .update(offerData)
+              .eq('id', existingDraft['id'] as String)
+              .select()
+              .single();
+          result = Map<String, dynamic>.from(updated as Map);
+        } else {
+          // Insert new draft
+          final inserted = await client
+              .from('offers')
+              .insert(offerData)
+              .select()
+              .single();
+          result = Map<String, dynamic>.from(inserted as Map);
+        }
+      } else if (_offerStatus == 'Active Offer') {
+        // For Active Offer, check if there's an existing active offer for this lead_id
+        final existingActive = await client
+            .from('offers')
+            .select('id, ref')
+            .eq('lead_id', offerData['lead_id'])
+            .eq('offer_status', 'Active Offer')
+            .maybeSingle();
+
+        if (existingActive != null) {
+          // If status remains "Active Offer" to "Active Offer", add new row with revision ref
+          debugPrint('DEBUG: Creating revision for existing Active Offer. Lead ID: ${offerData['lead_id']}');
+          
+          // Show confirmation dialog for revision creation
+          final shouldCreateRevision = await _showRevisionConfirmationDialog();
+          if (!shouldCreateRevision) {
+            // User cancelled, return early
+            debugPrint('DEBUG: User cancelled revision creation');
+            return;
+          }
+          
+          // Update the existing active offer status to "Expired Offer"
+          debugPrint('DEBUG: Updating existing active offer status to Expired Offer. Offer ID: ${existingActive['id']}');
+          await client
+              .from('offers')
+              .update({'offer_status': 'Expired Offer'})
+              .eq('id', existingActive['id'] as String);
+          debugPrint('DEBUG: Existing active offer status updated to Expired Offer');
+          
+          // Get the next revision number for this lead
+          final nextRevisionNumber = await _getNextRevisionNumber(offerData['lead_id'] as String);
+          debugPrint('DEBUG: Next revision number: $nextRevisionNumber');
+          
+          // Generate new revision ref and update offerData
+          final newRevisionRef = _generateRef(revision: true, seriesNumber: nextRevisionNumber);
+          debugPrint('DEBUG: Generated new revision ref: $newRevisionRef');
+          offerData['ref'] = newRevisionRef;
+          
+          // Update the ref controller text to show the new revision
+          setState(() {
+            _refNoCtl.text = newRevisionRef;
+          });
+          
+          // Insert new revision row
+          final inserted = await client
+              .from('offers')
+              .insert(offerData)
+              .select()
+              .single();
+          result = Map<String, dynamic>.from(inserted as Map);
+          debugPrint('DEBUG: Revision offer created successfully with ID: ${result['id']}');
+          
+          // Show success message about revision creation and previous offer expiration
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Revision created successfully! Previous offer marked as expired.'),
+                backgroundColor: Colors.orange,
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
+        } else {
+          // If changing from other status to "Active Offer", check if there's a draft to overwrite
+          final existingDraft = await client
+              .from('offers')
+              .select('id')
+              .eq('lead_id', offerData['lead_id'])
+              .eq('offer_status', 'Draft Offer')
+              .maybeSingle();
+
+          if (existingDraft != null) {
+            // Overwrite existing draft row
+            final updated = await client
+                .from('offers')
+                .update(offerData)
+                .eq('id', existingDraft['id'] as String)
+                .select()
+                .single();
+            result = Map<String, dynamic>.from(updated as Map);
+          } else {
+            // Insert new active offer
+            final inserted = await client
+                .from('offers')
+                .insert(offerData)
+                .select()
+                .single();
+            result = Map<String, dynamic>.from(inserted as Map);
+          }
+        }
+      } else if (_offerStatus == 'Expired Offer') {
+        // For Expired Offer, check if there's an existing active offer for this lead_id
+        final existingActive = await client
+            .from('offers')
+            .select('id')
+            .eq('lead_id', offerData['lead_id'])
+            .eq('offer_status', 'Active Offer')
+            .maybeSingle();
+
+        if (existingActive != null) {
+          // Overwrite existing active offer row
+          final updated = await client
+              .from('offers')
+              .update(offerData)
+              .eq('id', existingActive['id'] as String)
+              .select()
+              .single();
+          result = Map<String, dynamic>.from(updated as Map);
+        } else {
+          // Insert new expired offer
+          final inserted = await client
+              .from('offers')
+              .insert(offerData)
+              .select()
+              .single();
+          result = Map<String, dynamic>.from(inserted as Map);
+        }
+      } else {
+        // For other statuses (like "Closed Offer"), always insert new record
+        final inserted = await client
+            .from('offers')
+            .insert(offerData)
+            .select()
+            .single();
+        result = Map<String, dynamic>.from(inserted as Map);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2481,7 +2872,6 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     }
     super.dispose();
   }
-
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -2809,7 +3199,27 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                             padding: const EdgeInsets.only(bottom: 16),
                                             child: RepaintBoundary(
                                               key: _pageKeys[i],
-                                              child: _buildA4Page(targetWidth, targetHeight, pageBodies[i]),
+                                              child: Stack(
+                                                children: [
+                                                  _buildA4Page(targetWidth, targetHeight, pageBodies[i]),
+                                                  Positioned(
+                                                    right: 16,
+                                                    bottom: 16,
+                                                    child: Container(
+                                                      padding: const EdgeInsets.all(8),
+                                                      decoration: BoxDecoration(
+                                                        shape: BoxShape.circle,
+                                                        border: Border.all(color: Colors.grey.shade600),
+                                                        color: Colors.white,
+                                                      ),
+                                                      child: Text(
+                                                        '${i + 1}',
+                                                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
                                             ),
                                           ),
                                       ],
@@ -3109,31 +3519,53 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Stack(
         children: [
-          Padding(
-            padding: EdgeInsets.fromLTRB(headerMargin, headerMargin, headerMargin, 0),
-            child: Image.asset(
-              'assets/Header.png',
-              fit: BoxFit.fitWidth,
-              width: targetWidth - (2 * headerMargin),
+          // Layout column
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: EdgeInsets.fromLTRB(headerMargin, headerMargin, headerMargin, 0),
+                child: Image.asset(
+                  'assets/Header.png',
+                  fit: BoxFit.fitWidth,
+                  width: targetWidth - (2 * headerMargin),
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(contentLeft, 16, contentRight, 16),
+                  child: body,
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(footerMargin, 0, footerMargin, footerMargin),
+                child: Image.asset(
+                  'assets/Footer.png',
+                  fit: BoxFit.fitWidth,
+                  width: targetWidth - (2 * footerMargin),
+                ),
+              ),
+            ],
+          ),
+          // Computer Generated label positioned 5mm from left, 30mm from bottom
+          Positioned(
+            left: 5 * pxPerMm,
+            bottom: 30 * pxPerMm,
+            child: Text(
+              'Computer Generated',
+              textAlign: TextAlign.left,
+              style: TextStyle(
+                fontFamily: 'Courier',
+                fontSize: 10,
+                fontStyle: FontStyle.italic,
+                color: Colors.grey[700],
+              ),
             ),
           ),
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(contentLeft, 16, contentRight, 16),
-              child: body,
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.fromLTRB(footerMargin, 0, footerMargin, footerMargin),
-            child: Image.asset(
-              'assets/Footer.png',
-              fit: BoxFit.fitWidth,
-              width: targetWidth - (2 * footerMargin),
-            ),
-          ),
+          // Page number badge at bottom-right
+          // Page badge drawn by caller via Stack wrapper with index
         ],
       ),
     );
@@ -3281,7 +3713,6 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
       ],
     );
   }
-
   // Helper: the remainder of Terms page when Area Statement is moved elsewhere
   Widget _buildTermsRemainderSection() {
     return Column(
@@ -3741,8 +4172,21 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                       width: 220,
                       child: TextField(
                         controller: _refNoCtl,
-                        decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
+                        decoration: InputDecoration(
+                          isDense: true, 
+                          border: OutlineInputBorder(),
+                          errorText: _refNoCtl.text.contains('//') ? 'Missing project code' : null,
+                          errorStyle: const TextStyle(fontSize: 10),
+                        ),
                         style: _textFieldStyle,
+                        onChanged: (value) {
+                          // Validate ref format on change
+                          if (value.contains('//')) {
+                            setState(() {
+                              // Trigger rebuild to show error
+                            });
+                          }
+                        },
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -3754,19 +4198,82 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                       },
                       child: const Text('Auto'),
                     ),
+                    const SizedBox(width: 8),
+                    OutlinedButton(
+                      onPressed: () {
+                        setState(() {
+                          // Force regeneration using admin_response data
+                          if (_adminResponseData != null) {
+                            _refNoCtl.text = _generateRef();
+                            debugPrint('DEBUG: Manually regenerated ref: ${_refNoCtl.text}');
+                          } else {
+                            debugPrint('DEBUG: Cannot regenerate ref - admin_response data not available');
+                          }
+                        });
+                      },
+                      child: const Text('Regen'),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _getCurrentRevisionNumber() > 0 ? Colors.orange[100] : Colors.blue[100],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _getCurrentRevisionNumber() > 0 ? Colors.orange : Colors.blue,
+                          width: 1,
+                        ),
+                      ),
+                      child: Text(
+                        _getCurrentRevisionNumber() > 0 ? 'Revision ${_getCurrentRevisionNumber()}' : 'Initial Offer',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: _getCurrentRevisionNumber() > 0 ? Colors.orange[700] : Colors.blue[700],
+                        ),
+                      ),
+                    ),
                   ],
                 )
-              : RichText(
-                  text: TextSpan(
-                    style: _baseTextStyle,
-                    children: [
-                      TextSpan(
-                        text: 'Ref: ', 
-                        style: TextStyle(fontWeight: FontWeight.w700)
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    RichText(
+                      text: TextSpan(
+                        style: _baseTextStyle,
+                        children: [
+                          const TextSpan(
+                            text: 'Ref: ',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          TextSpan(
+                            text: _refNoCtl.text.isNotEmpty ? _refNoCtl.text : autoRef,
+                            style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.blue),
+                          ),
+                        ],
                       ),
-                      TextSpan(text: _refNoCtl.text.isNotEmpty ? _refNoCtl.text : autoRef),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _getCurrentRevisionNumber() > 0 ? Colors.orange[100] : Colors.blue[100],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _getCurrentRevisionNumber() > 0 ? Colors.orange : Colors.blue,
+                          width: 1,
+                        ),
+                      ),
+                      child: Text(
+                        _getCurrentRevisionNumber() > 0 ? 'Revision ${_getCurrentRevisionNumber()}' : 'Initial Offer',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: _getCurrentRevisionNumber() > 0 ? Colors.orange[700] : Colors.blue[700],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
         ),
         _isEditing
@@ -3988,50 +4495,8 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
               ),
         const SizedBox(height: 6),
         
-        // Offer Status Display
-        _isEditing
-            ? Row(
-                children: [
-                  Text('Status:', style: _baseTextStyle),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _getStatusColor(_offerStatus),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      _offerStatus,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              )
-            : Row(
-                children: [
-                  Text('Status: ', style: _baseTextStyle),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _getStatusColor(_offerStatus),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      _offerStatus,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-        const SizedBox(height: 6),
+        // Offer Status Display (removed from document view as requested)
+        const SizedBox(height: 0),
         _isEditing
             ? Row(
                 children: [
@@ -4061,7 +4526,6 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
       ],
     );
   }
-
   // Internal: render a partial table section. If showTotals=false, omit totals rows.
   Widget _buildOfferTableSection(BuildContext context, List<_OfferItem> items,
       {required bool showEditorControls, required bool showTotals}) {
@@ -4212,6 +4676,20 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
           border: TableBorder.all(color: Colors.grey.shade400, width: 1),
           children: rows,
         ),
+        if (showTotals) ...[
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              'Amount in words: ${_toIndianRupeesWords(grandTotal)}',
+              style: _baseTextStyle.copyWith(
+                fontWeight: FontWeight.w700,
+                color: Colors.blue[900],
+              ),
+              textAlign: TextAlign.right,
+            ),
+          ),
+        ]
       ],
     );
   }
@@ -4398,7 +4876,6 @@ class _OfferLeadSelectionDialogState extends State<OfferLeadSelectionDialog> {
     );
   }
 }
-
 class _LeadManagementScreenState extends State<LeadManagementScreen> {
   List<Map<String, dynamic>> _leads = [];
   List<Map<String, dynamic>> _filteredLeads = [];
@@ -5195,7 +5672,6 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       ],
     );
   }
-
   Widget _buildStatCard(
     String title,
     String value,
