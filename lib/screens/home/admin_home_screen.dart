@@ -11672,8 +11672,26 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                         project['total_amount_gst']
                                             as double? ??
                                         0.0;
-                                    final amountInCrore =
-                                        amount / 10000000; // Convert to Crore
+                                    // Format amount based on selected currency
+                                    String formattedAmount;
+                                    if (_selectedCurrency == 'INR') {
+                                      final amountInCrore =
+                                          amount / 10000000; // Convert to Crore
+                                      formattedAmount =
+                                          '₹${amountInCrore.toStringAsFixed(2)} CR';
+                                    } else if (_selectedCurrency == 'CHF') {
+                                      final amountInMillions =
+                                          amount /
+                                          1000000; // Convert to Millions
+                                      formattedAmount =
+                                          'CHF ${amountInMillions.toStringAsFixed(2)}M';
+                                    } else {
+                                      // For other currencies, convert to millions
+                                      final amountInMillions = amount / 1000000;
+                                      formattedAmount =
+                                          '$_selectedCurrency ${amountInMillions.toStringAsFixed(2)}M';
+                                    }
+
                                     final totalArea =
                                         project['total_area'] as double? ?? 0.0;
 
@@ -11686,8 +11704,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                       ),
                                       children: <TextSpan>[
                                         TextSpan(
-                                          text:
-                                              '₹${amountInCrore.toStringAsFixed(2)} CR',
+                                          text: formattedAmount,
                                           style: const TextStyle(
                                             color: Colors.white,
                                             fontSize: 14,
@@ -11762,10 +11779,29 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                         _inquiryPipelineMaxY * 1.25 - 0.0001) {
                                       return const SizedBox.shrink();
                                     }
-                                    final amountInCrore =
-                                        value / 10000000; // Convert to Crore
+
+                                    // Format y-axis labels based on selected currency
+                                    String formattedValue;
+                                    if (_selectedCurrency == 'INR') {
+                                      final amountInCrore =
+                                          value / 10000000; // Convert to Crore
+                                      formattedValue =
+                                          '₹${amountInCrore.toStringAsFixed(1)} CR';
+                                    } else if (_selectedCurrency == 'CHF') {
+                                      final amountInMillions =
+                                          value /
+                                          1000000; // Convert to Millions
+                                      formattedValue =
+                                          'CHF ${amountInMillions.toStringAsFixed(1)}M';
+                                    } else {
+                                      // For other currencies, convert to millions
+                                      final amountInMillions = value / 1000000;
+                                      formattedValue =
+                                          '$_selectedCurrency ${amountInMillions.toStringAsFixed(1)}M';
+                                    }
+
                                     return Text(
-                                      '₹${amountInCrore.toStringAsFixed(1)} CR',
+                                      formattedValue,
                                       style: TextStyle(
                                         color: Colors.grey[700],
                                         fontSize: 10,
@@ -12078,10 +12114,15 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                       final amountInCrore = amount / 10000000;
                                       currencyText =
                                           '₹${amountInCrore.toStringAsFixed(2)} CR';
-                                    } else {
+                                    } else if (_selectedCurrency == 'CHF') {
                                       final amountInMillions = amount / 1000000;
                                       currencyText =
                                           'CHF ${amountInMillions.toStringAsFixed(2)}M';
+                                    } else {
+                                      // For other currencies, convert to millions
+                                      final amountInMillions = amount / 1000000;
+                                      currencyText =
+                                          '$_selectedCurrency ${amountInMillions.toStringAsFixed(2)}M';
                                     }
 
                                     return BarTooltipItem(
@@ -12168,31 +12209,33 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                       return const SizedBox.shrink();
                                     }
                                     // Dynamic currency display based on selected currency
+                                    String formattedValue;
                                     if (_selectedCurrency == 'INR') {
                                       final amountInCrore =
                                           value / 10000000; // Convert to Crore
-                                      return Text(
-                                        '₹${amountInCrore.toStringAsFixed(1)} CR',
-                                        style: TextStyle(
-                                          color: Colors.grey[700],
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      );
-                                    } else {
-                                      // CHF currency
+                                      formattedValue =
+                                          '₹${amountInCrore.toStringAsFixed(1)} CR';
+                                    } else if (_selectedCurrency == 'CHF') {
                                       final amountInMillions =
                                           value /
                                           1000000; // Convert to Millions
-                                      return Text(
-                                        'CHF ${amountInMillions.toStringAsFixed(1)}M',
-                                        style: TextStyle(
-                                          color: Colors.grey[700],
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      );
+                                      formattedValue =
+                                          'CHF ${amountInMillions.toStringAsFixed(1)}M';
+                                    } else {
+                                      // For other currencies, convert to millions
+                                      final amountInMillions = value / 1000000;
+                                      formattedValue =
+                                          '$_selectedCurrency ${amountInMillions.toStringAsFixed(1)}M';
                                     }
+
+                                    return Text(
+                                      formattedValue,
+                                      style: TextStyle(
+                                        color: Colors.grey[700],
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    );
                                   },
                                   reservedSize: 80,
                                   interval: _expectedToCloseMaxY > 0
