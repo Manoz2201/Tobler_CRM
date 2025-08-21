@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:math';
 
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -8967,16 +8968,16 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       // Fetch data from admin_response table for Inquiry Pipeline (exclude Won/Lost status, include all projects)
       final response = await client
           .from('admin_response')
-          .select('lead_id, project_name, total_amount_gst, aluminium_area, ms_weight, update_lead_status')
+          .select(
+            'lead_id, project_name, total_amount_gst, aluminium_area, ms_weight, update_lead_status',
+          )
           .not('update_lead_status', 'in', ['Won', 'Lost'])
           .gte('updated_at', dateRange['start']!.toIso8601String())
           .lte('updated_at', dateRange['end']!.toIso8601String())
           .order('total_amount_gst', ascending: false)
           .timeout(const Duration(seconds: 10));
 
-      debugPrint(
-        '📊 Inquiry Pipeline Graph: Fetched ${response.length} leads',
-      );
+      debugPrint('📊 Inquiry Pipeline Graph: Fetched ${response.length} leads');
       await _processInquiryPipelineGraphData(response);
     } catch (e) {
       debugPrint('Error fetching Inquiry Pipeline Graph data: $e');
@@ -9004,14 +9005,16 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       final projectName =
           record['project_name']?.toString() ?? 'Unknown Project';
       final amount = (record['total_amount_gst'] as num?)?.toDouble() ?? 0.0;
-      final aluminiumArea = (record['aluminium_area'] as num?)?.toDouble() ?? 0.0;
+      final aluminiumArea =
+          (record['aluminium_area'] as num?)?.toDouble() ?? 0.0;
       final msWeight = (record['ms_weight'] as num?)?.toDouble() ?? 0.0;
 
       if (leadId.isNotEmpty) {
         // Include all leads regardless of amount (even if total_amount_gst = 0)
         projectAmounts[leadId] = (projectAmounts[leadId] ?? 0.0) + amount;
         projectNames[leadId] = projectName;
-        projectAluminiumAreas[leadId] = (projectAluminiumAreas[leadId] ?? 0.0) + aluminiumArea;
+        projectAluminiumAreas[leadId] =
+            (projectAluminiumAreas[leadId] ?? 0.0) + aluminiumArea;
         projectMsWeights[leadId] = (projectMsWeights[leadId] ?? 0.0) + msWeight;
 
         debugPrint(
@@ -9032,7 +9035,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       final project = sortedProjects[i];
       final projectName = projectNames[project.key] ?? 'Unknown Project';
       final amount = project.value;
-      final totalArea = (projectAluminiumAreas[project.key] ?? 0.0) + (projectMsWeights[project.key] ?? 0.0);
+      final totalArea =
+          (projectAluminiumAreas[project.key] ?? 0.0) +
+          (projectMsWeights[project.key] ?? 0.0);
 
       processedData.add({
         'lead_id': project.key,
@@ -12417,14 +12422,23 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                 style: style,
                               );
                             },
-                            reservedSize: 70,
+                            reservedSize: 80, // Increased reserved size for better spacing
                           ),
                         ),
                       ),
                       gridData: FlGridData(
                         show: true,
                         horizontalInterval: _getGridInterval(),
+                        drawVerticalLine: false,
                         getDrawingHorizontalLine: (value) {
+                          // Ensure grid lines don't overlap with axis labels
+                          if (value == 0) {
+                            return FlLine(
+                              color: Colors.grey[300]!,
+                              strokeWidth: 1,
+                              dashArray: [5, 5],
+                            );
+                          }
                           return FlLine(
                             color: Colors.grey[300]!,
                             strokeWidth: 1,
@@ -12464,7 +12478,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     );
   }
 
-  // Helper method to get max Y value for bar chart
+  // Helper method to get max Y value for bar chart with proper spacing
   double _getMaxYValue() {
     if (_barChartData.isEmpty) return 10.0;
 
@@ -12476,24 +12490,43 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         }
       }
     }
-    return (maxValue * 1.6).clamp(
-      10.0,
-      double.infinity,
-    ); // Add 60% padding to prevent overlap
+    
+    // Calculate a nice rounded max value for better grid spacing
+    final niceMax = _getNiceNumber(maxValue * 1.2); // Add 20% padding
+    return niceMax.clamp(10.0, double.infinity);
+  }
+
+  // Helper method to get nice rounded numbers for grid spacing
+  double _getNiceNumber(double value) {
+    final exponent = (log(value) / log(10)).floor();
+    final fraction = value / pow(10, exponent);
+    
+    double niceFraction;
+    if (fraction < 1.5) {
+      niceFraction = 1.0;
+    } else if (fraction < 3.0) {
+      niceFraction = 2.0;
+    } else if (fraction < 7.0) {
+      niceFraction = 5.0;
+    } else {
+      niceFraction = 10.0;
+    }
+    
+    return niceFraction * pow(10, exponent);
   }
 
   // Helper method to get grid interval based on max value
   double _getGridInterval() {
     final maxY = _getMaxYValue();
-    // Divide maxY by 6 to get 6 grid lines
-    return (maxY / 6).ceil().toDouble();
+    // Use 5 grid lines for better spacing (0, 1/5, 2/5, 3/5, 4/5, 5/5)
+    return maxY / 5;
   }
 
   // Helper method to get Y-axis interval
   double _getYAxisInterval() {
     final maxY = _getMaxYValue();
-    // Divide maxY by 6 to get 6 Y-axis labels
-    return (maxY / 6).ceil().toDouble();
+    // Use 5 intervals for better spacing
+    return maxY / 5;
   }
 
   // Helper method to format Y-axis labels based on selected currency
