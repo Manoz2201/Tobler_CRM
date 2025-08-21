@@ -8964,7 +8964,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       final client = Supabase.instance.client;
       final dateRange = _getDateRange(_selectedTimePeriod);
 
-      // Fetch data from admin_response table for Inquiry Pipeline (excluding Won/Lost)
+      // Fetch data from admin_response table for Inquiry Pipeline (exclude Won/Lost status, include all projects)
       final response = await client
           .from('admin_response')
           .select('lead_id, project_name, total_amount_gst, aluminium_area, ms_weight, update_lead_status')
@@ -8974,6 +8974,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           .order('total_amount_gst', ascending: false)
           .timeout(const Duration(seconds: 10));
 
+      debugPrint(
+        '📊 Inquiry Pipeline Graph: Fetched ${response.length} leads',
+      );
       await _processInquiryPipelineGraphData(response);
     } catch (e) {
       debugPrint('Error fetching Inquiry Pipeline Graph data: $e');
@@ -9005,10 +9008,15 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       final msWeight = (record['ms_weight'] as num?)?.toDouble() ?? 0.0;
 
       if (leadId.isNotEmpty) {
+        // Include all leads regardless of amount (even if total_amount_gst = 0)
         projectAmounts[leadId] = (projectAmounts[leadId] ?? 0.0) + amount;
         projectNames[leadId] = projectName;
         projectAluminiumAreas[leadId] = (projectAluminiumAreas[leadId] ?? 0.0) + aluminiumArea;
         projectMsWeights[leadId] = (projectMsWeights[leadId] ?? 0.0) + msWeight;
+
+        debugPrint(
+          '📊 Inquiry Pipeline: Processing lead: $leadId, project: $projectName, amount: $amount, area: $aluminiumArea, weight: $msWeight',
+        );
       }
     }
 
@@ -9016,13 +9024,16 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     final sortedProjects = projectAmounts.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
+    debugPrint(
+      '📊 Inquiry Pipeline: Found ${projectAmounts.length} unique leads after grouping',
+    );
+
     for (int i = 0; i < sortedProjects.length; i++) {
       final project = sortedProjects[i];
       final projectName = projectNames[project.key] ?? 'Unknown Project';
       final amount = project.value;
-
       final totalArea = (projectAluminiumAreas[project.key] ?? 0.0) + (projectMsWeights[project.key] ?? 0.0);
-      
+
       processedData.add({
         'lead_id': project.key,
         'project_name': projectName,
@@ -9035,6 +9046,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       }
     }
 
+    debugPrint(
+      '📊 Inquiry Pipeline Graph: Processed ${processedData.length} projects, maxY: $maxY',
+    );
     setState(() {
       _inquiryPipelineGraphData = processedData;
       _inquiryPipelineMaxY = maxY;
@@ -11371,8 +11385,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     final double chartCardHeight = screenWidth >= 1200
         ? 520.0 // Desktop
         : (screenWidth >= 600
-            ? 500.0 // Tablet
-            : 460.0); // Mobile
+              ? 500.0 // Tablet
+              : 460.0); // Mobile
 
     return AnimatedContainer(
       duration: Duration(milliseconds: 300),
@@ -11476,7 +11490,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         final numberOfLeads = _inquiryPipelineGraphData.length;
                         // Determine device type by width (mobile <600, tablet 600-1200, desktop >=1200)
                         final bool isDesktop = constraints.maxWidth >= 1200;
-                        final bool isTablet = constraints.maxWidth >= 600 && constraints.maxWidth < 1200;
+                        final bool isTablet =
+                            constraints.maxWidth >= 600 &&
+                            constraints.maxWidth < 1200;
 
                         int visibleInitialBars;
                         if (isDesktop) {
@@ -11493,10 +11509,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         const double barWidth = 20.0;
                         const double minGroupSpace = 8.0;
                         const double maxGroupSpace = 200.0;
-                        const double rightEdgePaddingForLabels = 56.0; // prevent last label clipping
+                        const double rightEdgePaddingForLabels =
+                            56.0; // prevent last label clipping
 
-                        double barGapPerGroup; // total width per bar group = barWidth + groupsSpace
-                        double groupsSpace; // space between groups as expected by fl_chart
+                        double
+                        barGapPerGroup; // total width per bar group = barWidth + groupsSpace
+                        double
+                        groupsSpace; // space between groups as expected by fl_chart
                         double chartWidth;
 
                         if (numberOfLeads <= 0) {
@@ -11506,19 +11525,32 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                           chartWidth = cardWidth;
                         } else if (numberOfLeads <= visibleInitialBars) {
                           // Fit all bars within card width without scrolling
-                          barGapPerGroup = (cardWidth / numberOfLeads)
-                              .clamp(barWidth + minGroupSpace, barWidth + maxGroupSpace);
-                          groupsSpace = (barGapPerGroup - barWidth).clamp(minGroupSpace, maxGroupSpace);
+                          barGapPerGroup = (cardWidth / numberOfLeads).clamp(
+                            barWidth + minGroupSpace,
+                            barWidth + maxGroupSpace,
+                          );
+                          groupsSpace = (barGapPerGroup - barWidth).clamp(
+                            minGroupSpace,
+                            maxGroupSpace,
+                          );
                           chartWidth = cardWidth;
                           // Force a visible scrollbar on all layouts by adding minimal overflow
                           if (forceScrollbar) {
-                            chartWidth = cardWidth + 1; // minimal overflow to render scrollbar
+                            chartWidth =
+                                cardWidth +
+                                1; // minimal overflow to render scrollbar
                           }
                         } else {
                           // More bars than initial visible count: make viewport show exactly visibleInitialBars and enable scroll
                           barGapPerGroup = (cardWidth / visibleInitialBars)
-                              .clamp(barWidth + minGroupSpace, barWidth + maxGroupSpace);
-                          groupsSpace = (barGapPerGroup - barWidth).clamp(minGroupSpace, maxGroupSpace);
+                              .clamp(
+                                barWidth + minGroupSpace,
+                                barWidth + maxGroupSpace,
+                              );
+                          groupsSpace = (barGapPerGroup - barWidth).clamp(
+                            minGroupSpace,
+                            maxGroupSpace,
+                          );
                           chartWidth = (numberOfLeads * barGapPerGroup);
                         }
 
@@ -11526,7 +11558,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         final chart = BarChart(
                           BarChartData(
                             alignment: BarChartAlignment.spaceBetween,
-                            maxY: _inquiryPipelineMaxY * 1.25, // add headroom for tooltip
+                            maxY:
+                                _inquiryPipelineMaxY *
+                                1.25, // add headroom for tooltip
                             groupsSpace: groupsSpace, // space between groups
                             barTouchData: BarTouchData(
                               enabled: true,
@@ -11535,7 +11569,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                 fitInsideVertically: true,
                                 tooltipPadding: EdgeInsets.all(8),
                                 tooltipMargin: 8,
-                                tooltipBorder: BorderSide(color: Colors.black26),
+                                tooltipBorder: BorderSide(
+                                  color: Colors.black26,
+                                ),
                                 getTooltipItem: (group, groupIndex, rod, rodIndex) {
                                   final projectIndex = group.x.toInt();
                                   if (projectIndex <
@@ -11549,9 +11585,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                         project['total_amount_gst']
                                             as double? ??
                                         0.0;
-                                    final totalArea = project['total_area'] as double? ?? 0.0;
                                     final amountInCrore =
                                         amount / 10000000; // Convert to Crore
+                                    final totalArea =
+                                        project['total_area'] as double? ?? 0.0;
 
                                     return BarTooltipItem(
                                       '$projectName\n',
@@ -11625,7 +11662,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                     }
                                     return Text('');
                                   },
-                                  reservedSize: 56, // Extra space for labels + scrollbar
+                                  reservedSize:
+                                      56, // Extra space for labels + scrollbar
                                 ),
                               ),
                               leftTitles: AxisTitles(
@@ -11633,7 +11671,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                   showTitles: true,
                                   getTitlesWidget: (value, meta) {
                                     // Hide the top-most label to avoid clipping at chart edge
-                                    if (value >= _inquiryPipelineMaxY * 1.25 - 0.0001) {
+                                    if (value >=
+                                        _inquiryPipelineMaxY * 1.25 - 0.0001) {
                                       return const SizedBox.shrink();
                                     }
                                     final amountInCrore =
@@ -11675,10 +11714,17 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                               drawVerticalLine: false,
                               getDrawingHorizontalLine: (value) {
                                 // Skip drawing the top-most horizontal line to prevent clipping
-                                if (value >= _inquiryPipelineMaxY * 1.25 - 0.0001) {
-                                  return FlLine(color: Colors.transparent, strokeWidth: 0);
+                                if (value >=
+                                    _inquiryPipelineMaxY * 1.25 - 0.0001) {
+                                  return FlLine(
+                                    color: Colors.transparent,
+                                    strokeWidth: 0,
+                                  );
                                 }
-                                return FlLine(color: Colors.grey[300]!, strokeWidth: 1);
+                                return FlLine(
+                                  color: Colors.grey[300]!,
+                                  strokeWidth: 1,
+                                );
                               },
                             ),
                             barGroups: _createDynamicBarGroups(barGapPerGroup),
@@ -11698,7 +11744,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                             controller: _inquiryPipelineScrollController,
                             scrollDirection: Axis.horizontal,
                             child: Padding(
-                              padding: EdgeInsets.only(right: rightEdgePaddingForLabels),
+                              padding: EdgeInsets.only(
+                                right: rightEdgePaddingForLabels,
+                              ),
                               child: SizedBox(
                                 width: chartWidth,
                                 height: constraints.maxHeight,
