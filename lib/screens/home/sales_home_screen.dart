@@ -400,7 +400,6 @@ class OffersManagementScreen extends StatefulWidget {
   @override
   State<OffersManagementScreen> createState() => _OffersManagementScreenState();
 }
-
 class _OffersManagementScreenState extends State<OffersManagementScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
@@ -1182,7 +1181,6 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
       },
     );
   }
-
   void _deleteOffer(Map<String, dynamic> offer) {
     showDialog(
       context: context,
@@ -1257,6 +1255,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
   final List<GlobalKey> _pageKeys = <GlobalKey>[];
 
   bool _isEditing = false;
+  final bool _isRevision = false; // If true, use R-series in Ref instead of I-series
   
   // Text formatting controls
   double _textHeight = 1.4;
@@ -1282,6 +1281,35 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     height: _textHeight,
     color: _textColor,
   );
+
+  // Generates session string like 25-26 for the offer date's financial year
+  String _computeSessionString(DateTime date) {
+    final int year = date.year % 100; // two-digit year
+    final int next = (year + 1) % 100;
+    final String yy = year.toString().padLeft(2, '0');
+    final String nn = next.toString().padLeft(2, '0');
+    return '$yy-$nn';
+  }
+
+  // Extracts project code from project_id like "Tobler-8224" -> "8224"
+  String _extractProjectCode() {
+    final String raw = (widget.lead['project_id'] ?? '').toString();
+    final match = RegExp(r'(\d+)$').firstMatch(raw);
+    if (match != null) return match.group(1)!;
+    // Fallback: remove non-alphanumerics
+    return raw.replaceAll(RegExp(r'[^0-9A-Za-z]'), '');
+  }
+
+  // Builds Ref value like TI/MF/25-26/8224/I1 or .../R1
+  String _generateRef({bool? revision, int seriesNumber = 1}) {
+    const String companyCode = 'TI';
+    const String leadTypeCode = 'MF'; // Monolithic Formwork
+    final String session = _computeSessionString(_offerDate);
+    final String projectCode = _extractProjectCode();
+    final bool useRevision = revision ?? _isRevision;
+    final String seriesPrefix = useRevision ? 'R' : 'I';
+    return '$companyCode/$leadTypeCode/$session/$projectCode/$seriesPrefix$seriesNumber';
+  }
 
   /// Builds the offer status selection section with status buttons
   Widget _buildOfferStatusSection() {
@@ -1764,7 +1792,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
   @override
   void initState() {
     super.initState();
-    _refNoCtl = TextEditingController(text: 'TSFPL/PC/25-26/001');
+    _refNoCtl = TextEditingController(text: _generateRef());
     _offerDate = DateTime.now();
     _clientNameCtl = TextEditingController(text: (widget.lead['client_name'] ?? 'Client').toString());
     _addressCtl = TextEditingController(
@@ -1930,7 +1958,6 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
       });
     }
   }
-
   void _showTextFormattingDialog() {
     showDialog(
       context: context,
@@ -2642,7 +2669,6 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
       },
     );
   }
-
   /// Builds offer pages with proper content positioning
   /// Ensures content never overlaps with header/footer (letterhead)
   /// Uses conservative height estimates and safety margins
@@ -3063,7 +3089,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
         'Any extra accessories required like embedded ties will be charged extra.',
         'The Monolithic formwork set will be manufactured and supplied from Tobler India factory in India.',
         'The price quoted above is Inclusive of transportation charges from factory to site.',
-        'Unloading of the material at site is under the buyer’s scope.',
+        'Unloading of the material at site is under the buyer\'s scope.',
       ];
 
   // Helper: a standalone Area Statement section for shifting into leftover space
@@ -3264,8 +3290,8 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     InlineSpan span(String text, {bool bold = false}) => TextSpan(text: text, style: bold ? const TextStyle(fontWeight: FontWeight.w700) : null);
     return [
       _CommercialRow('Delivery Date:', TextSpan(text: _deliveryTimeCtl.text.isNotEmpty ? _deliveryTimeCtl.text : 'The first shipment shall leave the factory within (08) working weeks from the date of shell drawing confirmation by client.')),
-      _CommercialRow('Technical Services:', TextSpan(text: "Tobler’s shell drawings will be ready in two (02) weeks’ time (from date of receive full complete set of architectural and structural drawings for construction and full reply to our technical queries whichever is later) and will be sent to Client for verifying of all the dimensions, positioning, opening etc. Client shall sign and return to us after confirmation of acceptance of the shell drawings.")),
-      _CommercialRow('Setting Up Support:', TextSpan(children: [span('Two (02) Supervisor per set will be provided '), span('Free of charge', bold: true), span(' by Tobler to assist in the first erection of the formwork equipment until 2 levels of casting or for a period of not exceeding Eight (08) weeks. The seller’s site engineer shall visit the site for site training prior to arrival of materials. The Client shall provide suitable local accommodation (at least 1 room per field specialist) and transportation for the field specialist during his course of work/stay. If the client cannot arrange the accommodation, Tobler will arrange the accommodation & shall be reimbursed or charged back to the client.')])) ,
+      _CommercialRow('Technical Services:', TextSpan(text: "Tobler's shell drawings will be ready in two (02) weeks' time (from date of receive full complete set of architectural and structural drawings for construction and full reply to our technical queries whichever is later) and will be sent to Client for verifying of all the dimensions, positioning, opening etc. Client shall sign and return to us after confirmation of acceptance of the shell drawings.")),
+      _CommercialRow('Setting Up Support:', TextSpan(children: [span('Two (02) Supervisor per set will be provided '), span('Free of charge', bold: true), span(' by Tobler to assist in the first erection of the formwork equipment until 2 levels of casting or for a period of not exceeding Eight (08) weeks. The seller\'s site engineer shall visit the site for site training prior to arrival of materials. The Client shall provide suitable local accommodation (at least 1 room per field specialist) and transportation for the field specialist during his course of work/stay. If the client cannot arrange the accommodation, Tobler will arrange the accommodation & shall be reimbursed or charged back to the client.')])),
       _CommercialRow('Payment Terms:', TextSpan(children: _buildPaymentTermsSpans())),
       _CommercialRow('Nalco Rates:', TextSpan(text: '${_nalcoPriceCtl.text.isNotEmpty ? _nalcoPriceCtl.text : 'Rs. 267/kg'} Nalco has been considered of date: $dateStr.')),
     ];
@@ -3388,7 +3414,6 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
       ],
     );
   }
-
   // Technical Specification pages: exactly 17 rows per page, repeat header per page
   /// Builds Technical Specification pages with exactly 17 rows per page
   /// maxWidth is used for table width constraints, maxHeight parameter is kept for compatibility but not used
@@ -3542,6 +3567,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
 
   Widget _buildMetaRow() {
     final String dateStr = DateFormat('dd MMMM yyyy').format(_offerDate);
+    final String autoRef = _generateRef();
     return Row(
       children: [
         Expanded(
@@ -3557,6 +3583,15 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                         style: _textFieldStyle,
                       ),
                     ),
+                    const SizedBox(width: 8),
+                    OutlinedButton(
+                      onPressed: () {
+                        setState(() {
+                          _refNoCtl.text = _generateRef();
+                        });
+                      },
+                      child: const Text('Auto'),
+                    ),
                   ],
                 )
               : RichText(
@@ -3567,7 +3602,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                         text: 'Ref: ', 
                         style: TextStyle(fontWeight: FontWeight.w700)
                       ),
-                      TextSpan(text: _refNoCtl.text),
+                      TextSpan(text: _refNoCtl.text.isNotEmpty ? _refNoCtl.text : autoRef),
                     ],
                   ),
                 ),
@@ -3588,6 +3623,9 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                       );
                       if (picked != null) {
                         setState(() => _offerDate = picked);
+                        if (_refNoCtl.text.isEmpty) {
+                          _refNoCtl.text = _generateRef();
+                        }
                       }
                     },
                   ),
@@ -4083,7 +4121,6 @@ class OfferLeadSelectionDialog extends StatefulWidget {
   @override
   State<OfferLeadSelectionDialog> createState() => _OfferLeadSelectionDialogState();
 }
-
 class _OfferLeadSelectionDialogState extends State<OfferLeadSelectionDialog> {
   List<Map<String, dynamic>> _allLeads = [];
   List<Map<String, dynamic>> _filteredLeads = [];
@@ -4783,7 +4820,6 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       },
     );
   }
-
   Widget _buildHeader(bool isWide) {
     if (isWide) {
       // Desktop layout - matching admin design exactly
@@ -5582,7 +5618,6 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       ),
     );
   }
-
   Widget _buildTableRow(Map<String, dynamic> lead, int index) {
     final leadId = lead['lead_id'].toString();
     final totalAmount = _totalAmounts[leadId] ?? 0.0;
@@ -6207,7 +6242,6 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       },
     );
   }
-
   Future<void> _deleteLead(Map<String, dynamic> lead) async {
     final leadId = lead['lead_id'].toString();
 
@@ -7008,7 +7042,6 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       ),
     );
   }
-
   Widget _buildCompleteLeadDetailsHeader(Map<String, dynamic> leadsData) {
     final isMobile = MediaQuery.of(context).size.width < 600;
 
@@ -7558,7 +7591,6 @@ class AddLeadDialog extends StatefulWidget {
   @override
   State<AddLeadDialog> createState() => _AddLeadDialogState();
 }
-
 class _AddLeadDialogState extends State<AddLeadDialog> {
   final _formKey = GlobalKey<FormState>();
   final _projectNameController = TextEditingController();
@@ -7971,7 +8003,6 @@ class _AddLeadDialogState extends State<AddLeadDialog> {
       }
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -8631,7 +8662,6 @@ class _AddLeadDialogState extends State<AddLeadDialog> {
                               ),
                             ),
                             SizedBox(height: isWide ? 32 : 24),
-
                             // Initial Quote Section (for Scaffolding)
                             if (_selectedLeadType == 'Scaffolding') ...[
                               _buildSectionHeader(
@@ -9351,7 +9381,6 @@ class _EditLeadDialogState extends State<EditLeadDialog> {
       ),
     );
   }
-
   Future<void> _updateLead() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -9674,7 +9703,6 @@ class _EditLeadDialogState extends State<EditLeadDialog> {
                     ],
                   ),
                 ),
-
                 // Form Content - same structure as AddLeadDialog
                 Expanded(
                   child: SingleChildScrollView(
@@ -10293,7 +10321,6 @@ class SalesDashboardPage extends StatefulWidget {
   @override
   State<SalesDashboardPage> createState() => _SalesDashboardPageState();
 }
-
 class _SalesDashboardPageState extends State<SalesDashboardPage> {
   bool _isSearchExpanded = false;
   final TextEditingController _searchController = TextEditingController();
@@ -11071,7 +11098,6 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
       },
     );
   }
-
   // Show time period dialog
   void _showTimePeriodDialog() {
     final timePeriods = [
@@ -11806,7 +11832,6 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
       ),
     );
   }
-
   // Build tablet lead row
   DataRow _buildTabletLeadRow(Map<String, dynamic> lead) {
     final projectId = lead['project_id'] ?? 'N/A';
@@ -12410,7 +12435,6 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
       ),
     );
   }
-
   Widget _buildHeader() {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -13198,7 +13222,6 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
   List<BarChartGroupData> _buildBarGroups() {
     return _barChartData;
   }
-
   Widget _buildLeadStatusDistributionChart() {
     return Container(
       height: 300,
@@ -13985,7 +14008,6 @@ class AlertsDialog extends StatefulWidget {
   @override
   State<AlertsDialog> createState() => _AlertsDialogState();
 }
-
 class _AlertsDialogState extends State<AlertsDialog> {
   List<Map<String, dynamic>> _alerts = [];
   bool _isLoading = true;
