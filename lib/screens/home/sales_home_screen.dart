@@ -1080,13 +1080,53 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
 
     try {
       final client = Supabase.instance.client;
-      final result = await client
+      
+      // First, get all offers
+      final offersResult = await client
           .from('offers')
           .select('*')
           .order('offer_created', ascending: false);
+      
+      final List<Map<String, dynamic>> offers = List<Map<String, dynamic>>.from(offersResult);
+      
+      // Fetch lead information for each offer from admin_response table
+      final List<Map<String, dynamic>> offersWithLeadInfo = [];
+      
+      for (final offer in offers) {
+        try {
+          // Fetch lead info from admin_response table using lead_id
+          final leadInfoResult = await client
+              .from('admin_response')
+              .select('project_id, project_name, client_name, location')
+              .eq('lead_id', offer['lead_id'])
+              .single();
+          
+          // Merge offer data with lead info
+          final Map<String, dynamic> offerWithLeadInfo = {
+            ...offer,
+            'project_id': leadInfoResult['project_id'],
+            'project_name': leadInfoResult['project_name'],
+            'client_name': leadInfoResult['client_name'],
+            'location': leadInfoResult['location'],
+          };
+          
+          offersWithLeadInfo.add(offerWithLeadInfo);
+        } catch (e) {
+          // If lead info not found, add offer with null values
+          debugPrint('Lead info not found for offer ${offer['id']}: $e');
+          final Map<String, dynamic> offerWithLeadInfo = {
+            ...offer,
+            'project_id': null,
+            'project_name': null,
+            'client_name': null,
+            'location': null,
+          };
+          offersWithLeadInfo.add(offerWithLeadInfo);
+        }
+      }
 
       setState(() {
-        _offers = List<Map<String, dynamic>>.from(result);
+        _offers = offersWithLeadInfo;
         _isLoadingOffers = false;
       });
     } catch (e) {
@@ -1150,15 +1190,13 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
 
   void _editOffer(Map<String, dynamic> offer) {
     // Show Offer Editor with the selected offer data in edit mode
+    // Lead information will be fetched dynamically in the OfferEditorDialog
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext dialogContext) {
         return OfferEditorDialog(lead: {
           'lead_id': offer['lead_id'],
-          'project_id': offer['project_id'],
-          'project_name': offer['project_name'],
-          'client_name': offer['client_name'],
           'id': offer['lead_id'], // For backward compatibility
         });
       },
@@ -1167,27 +1205,26 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
 
   void _viewOffer(Map<String, dynamic> offer) {
     // Show Offer Editor with the selected offer data
+    // Lead information will be fetched dynamically in the OfferEditorDialog
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext dialogContext) {
         return OfferEditorDialog(lead: {
           'lead_id': offer['lead_id'],
-          'project_id': offer['project_id'],
-          'project_name': offer['project_name'],
-          'client_name': offer['client_name'],
           'id': offer['lead_id'], // For backward compatibility
         });
       },
     );
   }
   void _deleteOffer(Map<String, dynamic> offer) {
+    final String projectName = offer['project_name'] ?? 'Unknown Project';
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text('Delete Offer'),
-          content: Text('Are you sure you want to delete "${offer['project_name']}"? This action cannot be undone.'),
+          content: Text('Are you sure you want to delete "$projectName"? This action cannot be undone.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -1212,7 +1249,7 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Offer deleted: ${offer['project_name']}'),
+                      content: Text('Offer deleted: $projectName'),
                       backgroundColor: Colors.green,
                       duration: Duration(seconds: 2),
                     ),
@@ -1794,11 +1831,12 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     super.initState();
     _offerDate = DateTime.now();
     _refNoCtl = TextEditingController(text: _generateRef());
-    _clientNameCtl = TextEditingController(text: (widget.lead['client_name'] ?? 'Client').toString());
-    _addressCtl = TextEditingController(
-      text: 'Loading address...',
-    );
-    _projectNameCtl = TextEditingController(text: (widget.lead['project_name'] ?? 'Project').toString());
+    
+    // Initialize with placeholder values - will be updated when lead info is fetched
+    _clientNameCtl = TextEditingController(text: 'Loading...');
+    _addressCtl = TextEditingController(text: 'Loading address...');
+    _projectNameCtl = TextEditingController(text: 'Loading...');
+    
     _introNoteCtl = TextEditingController(
       text:
           'We thank you for inviting us to quote for the supply of our Tobler Monolithic Formwork System.\nOur proposal is set out in the attached document for your kind consideration.',
@@ -1829,10 +1867,136 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
   // Initialize zoom controller
   _zoomTextController = TextEditingController(text: '100%');
   
-  // Fetch admin_response data for address
-    _fetchAdminResponseData();
+  // Fetch lead information and admin_response data
+  _fetchLeadInfoAndAdminResponseData();
   }
   
+  /// Fetches lead information and admin_response data
+  Future<void> _fetchLeadInfoAndAdminResponseData() async {
+    setState(() {
+      _isLoadingAddress = true;
+    });
+    
+    try {
+      // Log the lead data passed to the dialog
+      debugPrint('DEBUG: _fetchLeadInfoAndAdminResponseData called. Lead data: ${widget.lead}');
+      debugPrint('DEBUG: Lead data keys: ${widget.lead.keys.toList()}');
+      debugPrint('DEBUG: Lead data types: ${widget.lead.map((k, v) => MapEntry(k, v.runtimeType))}');
+      
+      final String? leadId = (widget.lead['lead_id'] ?? widget.lead['id'])?.toString();
+      debugPrint('DEBUG: Extracted leadId: $leadId');
+      debugPrint('DEBUG: Lead ID type: ${leadId.runtimeType}');
+
+      if (leadId != null) {
+        // Fetch lead information from admin_response table
+        debugPrint('DEBUG: About to call LeadUtils.fetchAdminResponseByLeadId with leadId: $leadId');
+        final adminResponse = await LeadUtils.fetchAdminResponseByLeadId(leadId);
+        debugPrint('DEBUG: Admin response for leadId $leadId: $adminResponse');
+        debugPrint('DEBUG: Admin response type: ${adminResponse.runtimeType}');
+        
+        if (adminResponse != null) {
+          debugPrint('DEBUG: Admin response keys: ${adminResponse.keys.toList()}');
+          debugPrint('DEBUG: Admin response values: ${adminResponse.values.toList()}');
+          
+          setState(() {
+            _adminResponseData = adminResponse;
+            
+            // Update project name from admin_response
+            final projectName = adminResponse['project_name']?.toString();
+            if (projectName != null && projectName.isNotEmpty) {
+              _projectNameCtl.text = projectName;
+              debugPrint('DEBUG: Project name updated to: $projectName');
+            }
+            
+            // Update client name from admin_response
+            final clientName = adminResponse['client_name']?.toString();
+            if (clientName != null && clientName.isNotEmpty) {
+              _clientNameCtl.text = clientName;
+              debugPrint('DEBUG: Client name updated to: $clientName');
+            }
+            
+            // Update address from location column
+            final location = adminResponse['location']?.toString();
+            debugPrint('DEBUG: Fetched location: $location');
+            debugPrint('DEBUG: Location type: ${location.runtimeType}');
+            debugPrint('DEBUG: Location is empty: ${location?.isEmpty}');
+            debugPrint('DEBUG: Location is null: ${location == null}');
+            
+            if (location != null && location.isNotEmpty) {
+              _addressCtl.text = location;
+              debugPrint('DEBUG: Address controller updated to: $location');
+            } else {
+              // Fallback to hardcoded address if location is empty
+              _addressCtl.text = '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
+              debugPrint('DEBUG: Location is empty or null, using fallback address.');
+            }
+
+            // Update first "Sales Offer" row values from admin_response
+            final dynamic aluminiumAreaRaw = adminResponse['aluminium_area'];
+            final dynamic rateSqmRaw = adminResponse['rate_sqm'];
+            debugPrint('DEBUG: Raw aluminium_area: $aluminiumAreaRaw, Raw rate_sqm: $rateSqmRaw');
+            debugPrint('DEBUG: aluminium_area type: ${aluminiumAreaRaw.runtimeType}, rate_sqm type: ${rateSqmRaw.runtimeType}');
+
+            int? qtySqm;
+            if (aluminiumAreaRaw is int) {
+              qtySqm = aluminiumAreaRaw;
+            } else if (aluminiumAreaRaw is double) {
+              qtySqm = aluminiumAreaRaw.round();
+            } else if (aluminiumAreaRaw is String) {
+              qtySqm = int.tryParse(aluminiumAreaRaw);
+            }
+            debugPrint('DEBUG: Parsed qtySqm: $qtySqm');
+
+            int? rate;
+            if (rateSqmRaw is int) {
+              rate = rateSqmRaw;
+            } else if (rateSqmRaw is double) {
+              rate = rateSqmRaw.round();
+            } else if (rateSqmRaw is String) {
+              rate = int.tryParse(rateSqmRaw);
+            }
+            debugPrint('DEBUG: Parsed rate: $rate');
+
+            if (qtySqm != null && rate != null) {
+              if (_items.isNotEmpty) {
+                _items[0] = _items[0].copyWith(qtySqm: qtySqm, rate: rate);
+                debugPrint('DEBUG: Updated first item: qtySqm=$qtySqm, rate=$rate');
+              }
+            }
+          });
+        } else {
+          debugPrint('DEBUG: Admin response is null for leadId: $leadId');
+          // Set default values if no admin response found
+          setState(() {
+            _clientNameCtl.text = 'Client';
+            _projectNameCtl.text = 'Project';
+            _addressCtl.text = '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
+          });
+        }
+      } else {
+        debugPrint('DEBUG: Lead ID is null, cannot fetch admin response data');
+        // Set default values if no lead ID
+        setState(() {
+          _clientNameCtl.text = 'Client';
+          _projectNameCtl.text = 'Project';
+          _addressCtl.text = '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
+        });
+      }
+    } catch (e) {
+      debugPrint('DEBUG: Error in _fetchLeadInfoAndAdminResponseData: $e');
+      // Set default values on error
+      setState(() {
+        _clientNameCtl.text = 'Client';
+        _projectNameCtl.text = 'Project';
+        _addressCtl.text = '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
+      });
+    } finally {
+      setState(() {
+        _isLoadingAddress = false;
+      });
+    }
+  }
+
   /// Fetches admin_response data to get the location/address
   Future<void> _fetchAdminResponseData() async {
     setState(() {
@@ -2253,12 +2417,10 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
       final paymentTermsMatches = RegExp(r'(\d+)%').allMatches(paymentTermsText);
       final String paymentTerms = paymentTermsMatches.map((m) => m.group(1)!).join(',');
 
-      // Prepare offer data
+      // Prepare offer data - only store lead_id and offer-specific data
+      // Lead information (project_id, project_name, client_name, location) will be fetched dynamically
       final offerData = {
         'lead_id': widget.lead['lead_id'] ?? widget.lead['id'],
-        'project_id': widget.lead['project_id'],
-        'project_name': _projectNameCtl.text,
-        'client_name': _clientNameCtl.text,
         'offer_status': _offerStatus,
         'offer_created': DateTime.now().toIso8601String(),
         'value': grandTotal,
