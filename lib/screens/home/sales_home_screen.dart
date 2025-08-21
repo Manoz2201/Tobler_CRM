@@ -414,6 +414,7 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
       // Trigger rebuild on tab change if needed
       setState(() {});
     });
+    _loadOffers();
   }
 
   @override
@@ -485,15 +486,30 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
               ],
             ),
           ),
-          ElevatedButton.icon(
-            onPressed: () => _showCreateOfferDialog(context),
-            icon: Icon(Icons.add),
-            label: Text('Create New Offer'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange[600],
-              foregroundColor: Colors.white,
-              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                onPressed: _loadOffers,
+                icon: Icon(Icons.refresh),
+                tooltip: 'Refresh Offers',
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.orange[100],
+                  foregroundColor: Colors.orange[700],
+                ),
+              ),
+              SizedBox(width: 12),
+              ElevatedButton.icon(
+                onPressed: () => _showCreateOfferDialog(context),
+                icon: Icon(Icons.add),
+                label: Text('Create New Offer'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange[600],
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                ),
+              ),
+            ],
           ),
         ],
       );
@@ -842,7 +858,24 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
         ),
         SizedBox(height: isWide ? 24 : 16),
         
-        if (isWide)
+        if (_isLoadingOffers)
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(color: Colors.orange[600]),
+                SizedBox(height: 16),
+                Text(
+                  'Loading offers...',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+          )
+        else if (isWide)
           _buildWideOffersTable(offers, showStatus, statusColor)
         else
           _buildMobileOffersList(offers, showStatus, statusColor),
@@ -868,8 +901,8 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
         scrollDirection: Axis.horizontal,
         child: DataTable(
           columns: [
-            DataColumn(label: Text('Customer')),
-            DataColumn(label: Text('Offer Title')),
+            DataColumn(label: Text('Client Name')),
+            DataColumn(label: Text('Project Name')),
             DataColumn(label: Text('Value')),
             DataColumn(label: Text('Created Date')),
             if (showStatus) DataColumn(label: Text('Status')),
@@ -878,10 +911,10 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
           rows: offers.map((offer) {
             return DataRow(
               cells: [
-                DataCell(Text(offer['customer'] ?? '')),
-                DataCell(Text(offer['title'] ?? '')),
-                DataCell(Text(offer['value'] ?? '')),
-                DataCell(Text(offer['createdDate'] ?? '')),
+                DataCell(Text(offer['client_name'] ?? '')),
+                DataCell(Text(offer['project_name'] ?? '')),
+                DataCell(Text('₹${offer['grand_total']?.toString() ?? '0'}')),
+                DataCell(Text(_formatDate(offer['offer_created'] ?? ''))),
                 if (showStatus)
                   DataCell(
                     Container(
@@ -892,7 +925,7 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
                         border: Border.all(color: statusColor ?? Colors.grey),
                       ),
                       child: Text(
-                        offer['status'] ?? '',
+                        offer['offer_status'] ?? '',
                         style: TextStyle(
                           color: statusColor ?? Colors.grey,
                           fontSize: 12,
@@ -948,7 +981,7 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
                   children: [
                     Expanded(
                       child: Text(
-                        offer['title'] ?? '',
+                        offer['project_name'] ?? '',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -965,7 +998,7 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
                           border: Border.all(color: statusColor ?? Colors.grey),
                         ),
                         child: Text(
-                          offer['status'] ?? '',
+                          offer['offer_status'] ?? '',
                           style: TextStyle(
                             color: statusColor ?? Colors.grey,
                             fontSize: 12,
@@ -977,17 +1010,17 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
                 ),
                 SizedBox(height: 8),
                 Text(
-                  'Customer: ${offer['customer'] ?? ''}',
+                  'Client: ${offer['client_name'] ?? ''}',
                   style: TextStyle(color: Colors.grey[600]),
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'Value: ${offer['value'] ?? ''}',
+                  'Value: ₹${offer['grand_total']?.toString() ?? '0'}',
                   style: TextStyle(color: Colors.grey[600]),
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'Created: ${offer['createdDate'] ?? ''}',
+                  'Created: ${_formatDate(offer['offer_created'] ?? '')}',
                   style: TextStyle(color: Colors.grey[600]),
                 ),
                 SizedBox(height: 12),
@@ -1037,47 +1070,58 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
     );
   }
 
-  // Mock data methods
+  // Real data methods for offers
+  List<Map<String, dynamic>> _offers = [];
+  bool _isLoadingOffers = false;
+
+  Future<void> _loadOffers() async {
+    setState(() {
+      _isLoadingOffers = true;
+    });
+
+    try {
+      final client = Supabase.instance.client;
+      final result = await client
+          .from('offers')
+          .select('*')
+          .order('offer_created', ascending: false);
+
+      setState(() {
+        _offers = List<Map<String, dynamic>>.from(result);
+        _isLoadingOffers = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingOffers = false;
+      });
+      debugPrint('Error loading offers: $e');
+    }
+  }
+
+  List<Map<String, dynamic>> _getOffersByStatus(String status) {
+    return _offers.where((offer) => offer['offer_status'] == status).toList();
+  }
+
+  String _formatDate(String? dateString) {
+    if (dateString == null || dateString.isEmpty) return 'N/A';
+    try {
+      final date = DateTime.parse(dateString);
+      return DateFormat('dd/MM/yyyy').format(date);
+    } catch (e) {
+      return dateString;
+    }
+  }
+
   List<Map<String, dynamic>> _getMockActiveOffers() {
-    return [
-      {
-        'customer': 'ABC Corporation',
-        'title': 'Enterprise Software License',
-        'value': '\$25,000',
-        'createdDate': '2024-01-15',
-        'status': 'Active',
-      },
-      {
-        'customer': 'XYZ Industries',
-        'title': 'Cloud Services Package',
-        'value': '\$12,500',
-        'createdDate': '2024-01-10',
-        'status': 'Active',
-      },
-    ];
+    return _getOffersByStatus('Active Offer');
   }
 
   List<Map<String, dynamic>> _getMockDraftOffers() {
-    return [
-      {
-        'customer': 'Tech Solutions Inc',
-        'title': 'Consulting Services',
-        'value': '\$8,000',
-        'createdDate': '2024-01-20',
-      },
-    ];
+    return _getOffersByStatus('Draft Offer');
   }
 
   List<Map<String, dynamic>> _getMockExpiredOffers() {
-    return [
-      {
-        'customer': 'Old Company Ltd',
-        'title': 'Legacy System Upgrade',
-        'value': '\$15,000',
-        'createdDate': '2023-12-01',
-        'status': 'Expired',
-      },
-    ];
+    return _getOffersByStatus('Expired Offer');
   }
 
   // Action methods
@@ -1106,20 +1150,36 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
   }
 
   void _editOffer(Map<String, dynamic> offer) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Edit offer: ${offer['title']}'),
-        duration: Duration(seconds: 2),
-      ),
+    // Show Offer Editor with the selected offer data in edit mode
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return OfferEditorDialog(lead: {
+          'lead_id': offer['lead_id'],
+          'project_id': offer['project_id'],
+          'project_name': offer['project_name'],
+          'client_name': offer['client_name'],
+          'id': offer['lead_id'], // For backward compatibility
+        });
+      },
     );
   }
 
   void _viewOffer(Map<String, dynamic> offer) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('View offer: ${offer['title']}'),
-        duration: Duration(seconds: 2),
-      ),
+    // Show Offer Editor with the selected offer data
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return OfferEditorDialog(lead: {
+          'lead_id': offer['lead_id'],
+          'project_id': offer['project_id'],
+          'project_name': offer['project_name'],
+          'client_name': offer['client_name'],
+          'id': offer['lead_id'], // For backward compatibility
+        });
+      },
     );
   }
 
@@ -1129,21 +1189,45 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text('Delete Offer'),
-          content: Text('Are you sure you want to delete "${offer['title']}"? This action cannot be undone.'),
+          content: Text('Are you sure you want to delete "${offer['project_name']}"? This action cannot be undone.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
               child: Text('Cancel'),
             ),
             TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Offer deleted: ${offer['title']}'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
+              onPressed: () async {
+                try {
+                  // Delete from Supabase
+                  final client = Supabase.instance.client;
+                  await client
+                      .from('offers')
+                      .delete()
+                      .eq('id', offer['id']);
+                  
+                  Navigator.of(context).pop();
+                  
+                  // Reload offers
+                  _loadOffers();
+                  
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Offer deleted: ${offer['project_name']}'),
+                      backgroundColor: Colors.green,
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                } catch (e) {
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error deleting offer: $e'),
+                      backgroundColor: Colors.red,
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                  debugPrint('Error deleting offer: $e');
+                }
               },
               child: Text('Delete', style: TextStyle(color: Colors.red)),
             ),
@@ -2106,6 +2190,87 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     }
   }
 
+  /// Save offer to Supabase Offers table
+  Future<void> _saveOfferToSupabase() async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Saving offer to database...')),
+      );
+
+      // Calculate values from the offer
+      final int subTotal = _items.fold(0, (sum, i) => sum + i.amount);
+      final int gst = (subTotal * 0.18).round();
+      final int grandTotal = subTotal + gst;
+
+      // Get qty_sqm and rate from the first item (Supply of Aluminium formwork shuttering system)
+      final firstItem = _items.isNotEmpty ? _items.first : null;
+      final int qtySqm = firstItem?.qtySqm ?? 0;
+      final int rate = firstItem?.rate ?? 0;
+
+      // Parse nalco rate from text (e.g., "Rs. 267/kg" -> 267)
+      final nalcoRateText = _nalcoPriceCtl.text;
+      final nalcoRateMatch = RegExp(r'Rs\.\s*(\d+)').firstMatch(nalcoRateText);
+      final int nalcoRate = nalcoRateMatch != null ? int.parse(nalcoRateMatch.group(1)!) : 0;
+
+      // Parse delivery time (e.g., "8 weeks from shell drawing confirmation" -> "8")
+      final deliveryTimeText = _deliveryTimeCtl.text;
+      final deliveryTimeMatch = RegExp(r'(\d+)\s*weeks?').firstMatch(deliveryTimeText);
+      final String deliveryTime = deliveryTimeMatch != null ? deliveryTimeMatch.group(1)! : deliveryTimeText;
+
+      // Parse payment terms (e.g., "25% Advance with Purchase Order and 25% after shell plan approval and 50% before dispatch" -> "25,25,50")
+      final paymentTermsText = _paymentTermControllers.map((c) => c.text).join(' and ');
+      final paymentTermsMatches = RegExp(r'(\d+)%').allMatches(paymentTermsText);
+      final String paymentTerms = paymentTermsMatches.map((m) => m.group(1)!).join(',');
+
+      // Prepare offer data
+      final offerData = {
+        'lead_id': widget.lead['lead_id'] ?? widget.lead['id'],
+        'project_id': widget.lead['project_id'],
+        'project_name': _projectNameCtl.text,
+        'client_name': _clientNameCtl.text,
+        'offer_status': _offerStatus,
+        'offer_created': DateTime.now().toIso8601String(),
+        'value': grandTotal,
+        'qty_sqm': qtySqm,
+        'rate': rate,
+        'grand_total': grandTotal,
+        'nalco_rate': nalcoRate,
+        'delivery_time': deliveryTime,
+        'payment_terms': paymentTerms,
+      };
+
+      // Save to Supabase
+      final client = Supabase.instance.client;
+      final result = await client
+          .from('offers')
+          .insert(offerData)
+          .select()
+          .single();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Offer saved successfully! ID: ${result['id']}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        // Close the dialog and return the saved offer data
+        Navigator.of(context).pop(result);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error saving offer: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      debugPrint('Error saving offer: $e');
+    }
+  }
+
   @override
   void dispose() {
     _refNoCtl.dispose();
@@ -2375,12 +2540,8 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                           ),
                           IconButton(
                             icon: const Icon(Icons.save, color: Colors.white),
-                            tooltip: 'Save',
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Offer saved (placeholder)')),
-                              );
-                            },
+                            tooltip: 'Save Offer',
+                            onPressed: _saveOfferToSupabase,
                           ),
                           IconButton(
                             icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
