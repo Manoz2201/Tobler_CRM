@@ -11039,22 +11039,44 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.grey[800],
+                                color: _showExpectedToCloseGraph
+                                    ? Colors.blue[700]
+                                    : Colors.grey[800],
                               ),
                               textAlign: TextAlign.center,
                             ),
                           ),
                           SizedBox(height: 4),
-                          Text(
-                            'Expected to Close',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.grey[600],
-                              fontWeight: FontWeight.w500,
-                            ),
-                            textAlign: TextAlign.center,
+                          // Label centered with dropdown arrow
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Expected to Close',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: _showExpectedToCloseGraph
+                                      ? Colors.blue[600]
+                                      : Colors.grey[600],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              SizedBox(width: 4),
+                              Icon(
+                                _showExpectedToCloseGraph
+                                    ? Icons.keyboard_arrow_up
+                                    : Icons.keyboard_arrow_down,
+                                color: _showExpectedToCloseGraph
+                                    ? Colors.blue[600]
+                                    : Colors.grey[600],
+                                size: 12,
+                              ),
+                            ],
                           ),
                           SizedBox(height: 4),
+                          // Percentage row
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             mainAxisSize: MainAxisSize.min,
@@ -11086,16 +11108,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                 ),
                               ),
                             ],
-                          ),
-                          SizedBox(height: 4),
-                          Icon(
-                            _showExpectedToCloseGraph
-                                ? Icons.keyboard_arrow_up
-                                : Icons.keyboard_arrow_down,
-                            color: _showExpectedToCloseGraph
-                                ? Colors.blue[600]
-                                : Colors.grey[600],
-                            size: 20,
                           ),
                         ],
                       ),
