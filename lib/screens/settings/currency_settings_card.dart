@@ -589,14 +589,14 @@ class _CurrencySettingsCardState extends State<CurrencySettingsCard>
       double top;
 
       if (isDesktopOrTablet) {
-        // For desktop and tablet: position card 205px left from right edge
-        left = screenWidth - cardWidth - 205;
+        // For desktop and tablet: position card 505px left from right edge
+        left = screenWidth - cardWidth - 505;
         top = targetPos.dy - (cardHeight / 2) + (buttonHeight / 2);
 
         // Debug logging for desktop/tablet layout
         debugPrint('Currency Card Positioning Debug (Desktop/Tablet):');
         debugPrint('  Screen width: $screenWidth');
-        debugPrint('  Positioned 205px left from right edge');
+        debugPrint('  Positioned 505px left from right edge');
         debugPrint('  Calculated left: $left');
         debugPrint('  Calculated top: $top');
       } else {
@@ -678,7 +678,7 @@ class _CurrencySettingsCardState extends State<CurrencySettingsCard>
     if (isDesktopOrTablet) {
       final distanceFromRight = screenWidth - (position.dx + 380);
       debugPrint(
-        '  Distance from right edge: ${distanceFromRight}px (Target: 205px)',
+        '  Distance from right edge: ${distanceFromRight}px (Target: 505px)',
       );
     }
   }

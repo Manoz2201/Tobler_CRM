@@ -12,7 +12,7 @@ class TimezoneUtils {
     try {
       // Detect current timezone
       await _detectCurrentTimezone();
-      
+
       _isInitialized = true;
     } catch (e) {
       // Fallback to UTC
@@ -30,9 +30,9 @@ class TimezoneUtils {
         final offset = now.timeZoneOffset;
         final offsetHours = offset.inHours;
         final offsetMinutes = offset.inMinutes % 60;
-        
+
         _timezoneOffset = offset.inMinutes / 60.0;
-        
+
         // Map common timezone offsets to timezone names
         if (offsetHours == 5 && offsetMinutes == 30) {
           _currentTimezone = 'Asia/Kolkata'; // India
@@ -46,15 +46,14 @@ class TimezoneUtils {
           _currentTimezone = 'Europe/London';
         } else {
           // Create custom timezone based on offset
-          _currentTimezone = 'Custom_${offsetHours > 0 ? '+' : ''}$offsetHours:${offsetMinutes.toString().padLeft(2, '0')}';
+          _currentTimezone =
+              'Custom_${offsetHours > 0 ? '+' : ''}$offsetHours:${offsetMinutes.toString().padLeft(2, '0')}';
         }
-        
       } else {
         // For web/desktop, try to detect from browser/system
         _currentTimezone = 'UTC';
         _timezoneOffset = 0.0;
       }
-      
     } catch (e) {
       _currentTimezone = 'UTC';
       _timezoneOffset = 0.0;
@@ -77,8 +76,10 @@ class TimezoneUtils {
       final offset = getTimezoneOffset();
       final offsetHours = offset.floor();
       final offsetMinutes = ((offset - offsetHours) * 60).round();
-      
-      final localDateTime = utcDateTime.add(Duration(hours: offsetHours, minutes: offsetMinutes));
+
+      final localDateTime = utcDateTime.add(
+        Duration(hours: offsetHours, minutes: offsetMinutes),
+      );
       return localDateTime;
     } catch (e) {
       return utcDateTime;
@@ -96,8 +97,10 @@ class TimezoneUtils {
       final offset = getTimezoneOffset();
       final offsetHours = offset.floor();
       final offsetMinutes = ((offset - offsetHours) * 60).round();
-      
-      final utcDateTime = localDateTime.subtract(Duration(hours: offsetHours, minutes: offsetMinutes));
+
+      final utcDateTime = localDateTime.subtract(
+        Duration(hours: offsetHours, minutes: offsetMinutes),
+      );
       return utcDateTime;
     } catch (e) {
       return localDateTime;
@@ -118,7 +121,9 @@ class TimezoneUtils {
 
     try {
       final offset = getTimezoneOffset();
-      final offsetString = offset >= 0 ? '+${offset.toStringAsFixed(2)}' : offset.toStringAsFixed(2);
+      final offsetString = offset >= 0
+          ? '+${offset.toStringAsFixed(2)}'
+          : offset.toStringAsFixed(2);
       return '${dateTime.toIso8601String()} ($_currentTimezone $offsetString)';
     } catch (e) {
       return dateTime.toIso8601String();
@@ -140,4 +145,4 @@ class TimezoneUtils {
       'current_time_utc': DateTime.now().toUtc().toString(),
     };
   }
-} 
+}

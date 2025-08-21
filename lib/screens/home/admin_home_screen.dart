@@ -7288,6 +7288,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   List<BarChartGroupData> _barChartData = [];
   bool _isLoadingChartData = false;
 
+  // Bar click tracking for table highlighting
+  String? _selectedChartPeriod;
+  final ScrollController _tableScrollController = ScrollController();
+
   // Achievement Trend data state for Sales Analytics
   List<Map<String, dynamic>> _achievementTrendData = [];
   bool _isLoadingTrendData = false;
@@ -9205,18 +9209,26 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       body: SafeArea(
         child: Stack(
           children: [
-            // Main dashboard content
+            // Main dashboard content with proper alignment constraints
+            // to prevent cards from shifting towards the right edge
             Padding(
               padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  // Header with Dashboard heading, search bar, notification and chat icons
-                  _buildHeader(),
-                  SizedBox(height: 24),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width,
+                ),
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start, // Ensure left alignment
+                  children: [
+                    // Header with Dashboard heading, search bar, notification and chat icons
+                    _buildHeader(),
+                    SizedBox(height: 24),
 
-                  // Dashboard content
-                  Expanded(child: _buildDashboardContent()),
-                ],
+                    // Dashboard content
+                    Expanded(child: _buildDashboardContent()),
+                  ],
+                ),
               ),
             ),
             // Floating action buttons overlay (all screen sizes) with smooth animation
@@ -9501,6 +9513,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     );
   }
 
+  /// Builds the main dashboard content with proper alignment constraints
+  /// to prevent cards from shifting towards the right edge
   Widget _buildDashboardContent() {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -9509,13 +9523,18 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         if (isWide) {
           // Desktop layout - horizontal row
           return Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.start, // Ensure left alignment
             children: [
               // Time Period Filter Section
               _buildTimePeriodFilter(),
               // Scrollable content below fixed header
               Expanded(
                 child: SingleChildScrollView(
+                  controller: _tableScrollController,
                   child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start, // Ensure left alignment
                     children: [
                       SizedBox(
                         height: 16,
@@ -9538,9 +9557,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                               ),
                             )
                           : Column(
+                              crossAxisAlignment: CrossAxisAlignment
+                                  .start, // Ensure left alignment
                               children: [
                                 // Top row: Order Received, Aluminum Area, Qualified Leads
                                 Row(
+                                  crossAxisAlignment: CrossAxisAlignment
+                                      .start, // Ensure top alignment
                                   children: [
                                     Expanded(child: _buildTotalRevenueCard()),
                                     SizedBox(width: 16),
@@ -9549,6 +9572,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                     ),
                                   ],
                                 ),
+                                SizedBox(height: 16),
                                 // Inquiry Pipeline Graph (animated)
                                 _buildInquiryPipelineGraph(),
                                 // Expected to Close Graph (animated)
@@ -9556,6 +9580,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                 SizedBox(height: 16),
                                 // Lead Status Cards Section (without title) - Merged with dividers
                                 Container(
+                                  width: double.infinity, // Ensure full width
                                   decoration: BoxDecoration(
                                     color: Colors.white,
                                     borderRadius: BorderRadius.circular(12),
@@ -9570,6 +9595,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                     ],
                                   ),
                                   child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment
+                                        .start, // Ensure top alignment
                                     children: [
                                       Expanded(
                                         child: _buildMergedLeadStatusCard(
@@ -9630,6 +9657,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         height: 16,
                       ), // Reduced spacing for compact layout
                       Row(
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start, // Ensure top alignment
                         children: [
                           Expanded(child: _buildQualifiedAreaVsRevenueChart()),
                           SizedBox(width: 16),
@@ -9642,6 +9671,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                       // Sales Performance KPI Cards moved to grid layout next to Sales Analytics chart
                       // Sales Analytics Chart and KPI Cards Section
                       Row(
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start, // Ensure top alignment
                         children: [
                           // Sales Analytics Chart (60% width)
                           Expanded(
@@ -9670,7 +9701,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           // Mobile and tablet layout - custom layout
 
           return SingleChildScrollView(
+            controller: _tableScrollController,
             child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start, // Ensure left alignment
               children: [
                 // Mobile Time Period Filter
                 _buildMobileTimePeriodFilter(),
@@ -9693,9 +9727,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         ),
                       )
                     : Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start, // Ensure left alignment
                         children: [
                           // First row with merged inquiries card
                           _buildMergedInquiriesCard(),
+                          SizedBox(height: 12),
                           // Inquiry Pipeline Graph (animated) - Mobile
                           _buildInquiryPipelineGraph(),
                           // Expected to Close Graph (animated) - Mobile
@@ -9721,6 +9758,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                     SizedBox(height: 16),
                     // Merged container for all cards - Mobile responsive
                     Container(
+                      width: double.infinity, // Ensure full width
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
@@ -9733,9 +9771,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         ],
                       ),
                       child: Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start, // Ensure left alignment
                         children: [
                           // First row: Total Leads, Proposal Progress, Waiting Approval
                           Row(
+                            crossAxisAlignment: CrossAxisAlignment
+                                .start, // Ensure top alignment
                             children: [
                               Expanded(
                                 child: _buildMobileMergedLeadStatusCard(
@@ -9777,6 +9819,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                           ),
                           // Second row: Approved and Completed
                           Row(
+                            crossAxisAlignment: CrossAxisAlignment
+                                .start, // Ensure top alignment
                             children: [
                               Expanded(
                                 child: _buildMobileMergedLeadStatusCard(
@@ -10168,6 +10212,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     );
   }
 
+  /// Builds the time period filter with proper alignment constraints
+  /// to prevent shifting towards the right edge
   Widget _buildTimePeriodFilter() {
     final timePeriods = [
       'Week',
@@ -10180,125 +10226,147 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       'Five Years',
     ];
 
-    return Row(
-      children: [
-        // Time Period Label
-        Text(
-          'Time Period:',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey[800],
+    return SizedBox(
+      width: double.infinity, // Ensure full width
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start, // Ensure top alignment
+        children: [
+          // Time Period Label
+          Text(
+            'Time Period:',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[800],
+            ),
           ),
-        ),
-        SizedBox(width: 16),
-        // Time Period Buttons
-        Expanded(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: timePeriods.map((period) {
-                final isSelected = _selectedTimePeriod == period;
-                return Padding(
-                  padding: EdgeInsets.only(right: 8),
-                  child: InkWell(
-                    onTap: () {
-                      _onTimePeriodChanged(period);
-                    },
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? Colors.blue[100]
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: isSelected ? Colors.blue : Colors.grey[300]!,
-                          width: 1,
+          SizedBox(width: 16),
+          // Time Period Buttons
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                crossAxisAlignment:
+                    CrossAxisAlignment.start, // Ensure top alignment
+                children: timePeriods.map((period) {
+                  final isSelected = _selectedTimePeriod == period;
+                  return Padding(
+                    padding: EdgeInsets.only(right: 8),
+                    child: InkWell(
+                      onTap: () {
+                        _onTimePeriodChanged(period);
+                      },
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
                         ),
-                      ),
-                      child: Text(
-                        period,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
+                        decoration: BoxDecoration(
                           color: isSelected
-                              ? Colors.blue[700]
-                              : Colors.grey[600],
+                              ? Colors.blue[100]
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: isSelected ? Colors.blue : Colors.grey[300]!,
+                            width: 1,
+                          ),
+                        ),
+                        child: Text(
+                          period,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: isSelected
+                                ? Colors.blue[700]
+                                : Colors.grey[600],
+                          ),
                         ),
                       ),
                     ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+          SizedBox(width: 16),
+          // Export Button
+          ElevatedButton(
+            onPressed: () {
+              // Handle export functionality
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Exporting data...'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text(
+              'Export',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ),
+          SizedBox(width: 8),
+          // More Filters Button
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white, // Explicit white background
+              border: Border.all(color: Colors.grey[300]!),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Material(
+              color: Colors
+                  .transparent, // Transparent material to avoid interference
+              child: InkWell(
+                onTap: () {
+                  // Handle more filters functionality
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Opening more filters...'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.filter_list,
+                        size: 16,
+                        color: Colors.grey[700],
+                      ),
+                      SizedBox(width: 4),
+                      Text(
+                        'More Filters',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    ],
                   ),
-                );
-              }).toList(),
+                ),
+              ),
             ),
           ),
-        ),
-        SizedBox(width: 16),
-        // Export Button
-        ElevatedButton(
-          onPressed: () {
-            // Handle export functionality
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Exporting data...'),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue,
-            foregroundColor: Colors.white,
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-          child: Text(
-            'Export',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-          ),
-        ),
-        SizedBox(width: 8),
-        // More Filters Button
-        OutlinedButton(
-          onPressed: () {
-            // Handle more filters functionality
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Opening more filters...'),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          },
-          style: OutlinedButton.styleFrom(
-            foregroundColor: Colors.grey[700],
-            side: BorderSide(color: Colors.grey[300]!),
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.filter_list, size: 16),
-              SizedBox(width: 4),
-              Text(
-                'More Filters',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  // Build Order Received card with dual currency display and integrated sections
+  /// Builds the Order Received card with proper alignment constraints
+  /// to prevent shifting towards the right edge
   Widget _buildTotalRevenueCard() {
     final isPositive = _dashboardData['totalRevenue']['percentage'].startsWith(
       '+',
@@ -10353,6 +10421,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       child: Container(
         height:
             300, // Increased height by 80px to accommodate integrated sections
+        width: double.infinity, // Ensure full width
         padding: EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -10867,7 +10936,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     );
   }
 
-  // Build Merged Inquiries Card with 4 sections
+  /// Builds the merged inquiries card with proper alignment constraints
+  /// to prevent shifting towards the right edge
   Widget _buildMergedInquiriesCard() {
     return Container(
       height: 300, // Same height as Order Received card
@@ -12279,14 +12349,26 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             children: [
               Icon(Icons.bar_chart, color: Colors.grey[800], size: 20),
               SizedBox(width: 8),
-              Text(
-                'Revenue by Period',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[800],
+              Expanded(
+                child: Text(
+                  'Revenue by Period${_selectedChartPeriod != null ? ' - Selected: $_selectedChartPeriod' : ''}',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
                 ),
               ),
+              if (_selectedChartPeriod != null)
+                IconButton(
+                  onPressed: () {
+                    setState(() {
+                      _selectedChartPeriod = null;
+                    });
+                  },
+                  icon: Icon(Icons.clear, color: Colors.grey[600], size: 18),
+                  tooltip: 'Clear selection',
+                ),
             ],
           ),
           SizedBox(height: 16),
@@ -12358,6 +12440,18 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                       minY: 0,
                       barTouchData: BarTouchData(
                         enabled: true,
+                        touchCallback:
+                            (FlTouchEvent event, BarTouchResponse? response) {
+                              if (event is FlTapUpEvent && response != null) {
+                                final labels = _getChartLabels();
+                                final barIndex =
+                                    response.spot?.touchedBarGroupIndex ?? 0;
+                                if (barIndex < labels.length) {
+                                  final selectedPeriod = labels[barIndex];
+                                  _onBarChartTapped(selectedPeriod);
+                                }
+                              }
+                            },
                         touchTooltipData: BarTouchTooltipData(
                           getTooltipItem: (group, groupIndex, rod, rodIndex) {
                             final labels = _getChartLabels();
@@ -12535,6 +12629,148 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     return maxY / 5;
   }
 
+  // Handle bar chart tap and scroll to table
+  void _onBarChartTapped(String selectedPeriod) {
+    setState(() {
+      _selectedChartPeriod = selectedPeriod;
+    });
+
+    // Scroll to the Lead Performance table
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_tableScrollController.hasClients) {
+        // Scroll to the bottom of the page where the table is located
+        _tableScrollController.animateTo(
+          _tableScrollController.position.maxScrollExtent,
+          duration: Duration(milliseconds: 800),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+  }
+
+  // Check if a table row should be highlighted based on selected chart period
+  bool _shouldHighlightRow(Map<String, dynamic> lead) {
+    if (_selectedChartPeriod == null) return false;
+
+    try {
+      final closedDate = DateTime.parse(lead['updated_at'].toString());
+      final selectedPeriod = _selectedChartPeriod!;
+
+      // Handle different time period formats
+      switch (_selectedTimePeriod.toLowerCase()) {
+        case 'month':
+          // For month view, check if the lead was closed in the selected month
+          final monthNames = [
+            'Jan',
+            'Feb',
+            'Mar',
+            'Apr',
+            'May',
+            'Jun',
+            'Jul',
+            'Aug',
+            'Sep',
+            'Oct',
+            'Nov',
+            'Dec',
+          ];
+          final monthIndex = monthNames.indexOf(selectedPeriod);
+          if (monthIndex != -1) {
+            return closedDate.month == monthIndex + 1;
+          }
+          break;
+
+        case 'quarter':
+          // For quarter view, check if the lead was closed in the selected quarter
+          final quarterMonths = _getQuarterMonths(selectedPeriod);
+          if (quarterMonths.isNotEmpty) {
+            return quarterMonths.contains(closedDate.month);
+          }
+          break;
+
+        case 'annual':
+          // For annual view, check if the lead was closed in the selected month
+          final monthNames = [
+            'Jan',
+            'Feb',
+            'Mar',
+            'Apr',
+            'May',
+            'Jun',
+            'Jul',
+            'Aug',
+            'Sep',
+            'Oct',
+            'Nov',
+            'Dec',
+          ];
+          final monthIndex = monthNames.indexOf(selectedPeriod);
+          if (monthIndex != -1) {
+            return closedDate.month == monthIndex + 1;
+          }
+          break;
+
+        case 'week':
+          // For week view, check if the lead was closed in the selected week
+          final weekDay = _getWeekDay(selectedPeriod);
+          if (weekDay != null) {
+            return closedDate.weekday == weekDay;
+          }
+          break;
+      }
+
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Helper method to get quarter months
+  List<int> _getQuarterMonths(String quarter) {
+    switch (quarter) {
+      case 'Jan':
+      case 'Feb':
+      case 'Mar':
+        return [1, 2, 3];
+      case 'Apr':
+      case 'May':
+      case 'Jun':
+        return [4, 5, 6];
+      case 'Jul':
+      case 'Aug':
+      case 'Sep':
+        return [7, 8, 9];
+      case 'Oct':
+      case 'Nov':
+      case 'Dec':
+        return [10, 11, 12];
+      default:
+        return [];
+    }
+  }
+
+  // Helper method to get week day number
+  int? _getWeekDay(String weekDay) {
+    switch (weekDay) {
+      case 'Mon':
+        return 1;
+      case 'Tue':
+        return 2;
+      case 'Wed':
+        return 3;
+      case 'Thu':
+        return 4;
+      case 'Fri':
+        return 5;
+      case 'Sat':
+        return 6;
+      case 'Sun':
+        return 7;
+      default:
+        return null;
+    }
+  }
+
   // Helper method to get Y-axis interval
   double _getYAxisInterval() {
     final maxY = _getMaxYValue();
@@ -12570,7 +12806,41 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   // Build bar groups for the chart
   List<BarChartGroupData> _buildBarGroups() {
-    return _barChartData;
+    if (_barChartData.isEmpty) return [];
+
+    final labels = _getChartLabels();
+
+    return _barChartData.asMap().entries.map((entry) {
+      final index = entry.key;
+      final group = entry.value;
+      final isSelected =
+          _selectedChartPeriod != null &&
+          index < labels.length &&
+          labels[index] == _selectedChartPeriod;
+
+      // Create new bar rods with highlighting for selected period
+      final highlightedBarRods = group.barRods.map((rod) {
+        return BarChartRodData(
+          toY: rod.toY,
+          color: isSelected
+              ? Colors.blue
+              : rod.color, // Highlight selected bar with blue
+          width: isSelected
+              ? 20
+              : rod.width, // Make selected bar slightly wider
+          borderRadius: rod.borderRadius,
+          backDrawRodData: rod.backDrawRodData,
+        );
+      }).toList();
+
+      return BarChartGroupData(
+        x: group.x,
+        barRods: highlightedBarRods,
+        showingTooltipIndicators: isSelected
+            ? [0]
+            : [], // Show tooltip for selected bar
+      );
+    }).toList();
   }
 
   Widget _buildLeadPerformanceTable() {
@@ -13415,12 +13685,15 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       itemCount: _filteredLeadData.length,
       itemBuilder: (context, index) {
         final lead = _filteredLeadData[index];
+        final shouldHighlight = _shouldHighlightRow(lead);
         return AnimatedContainer(
           duration: Duration(milliseconds: 300),
           margin: EdgeInsets.only(bottom: 16),
           child: Card(
-            elevation: 6,
-            shadowColor: Colors.black.withValues(alpha: 0.15),
+            elevation: shouldHighlight ? 8 : 6,
+            shadowColor: shouldHighlight
+                ? Colors.blue.withValues(alpha: 0.3)
+                : Colors.black.withValues(alpha: 0.15),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
@@ -13430,11 +13703,20 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               child: Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(20),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Colors.white, Colors.grey[50]!],
-                  ),
+                  gradient: shouldHighlight
+                      ? LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Colors.blue[50]!, Colors.blue[100]!],
+                        )
+                      : LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Colors.white, Colors.grey[50]!],
+                        ),
+                  border: shouldHighlight
+                      ? Border.all(color: Colors.blue, width: 3)
+                      : null,
                 ),
                 child: Padding(
                   padding: EdgeInsets.all(24),
@@ -14319,9 +14601,20 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   // Build table data row
   Widget _buildTableDataRow(Map<String, dynamic> lead) {
+    // Check if this row should be highlighted based on selected chart period
+    final shouldHighlight = _shouldHighlightRow(lead);
+
     return Container(
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
+        color: shouldHighlight
+            ? Colors.blue[50]
+            : null, // Highlight with light blue background
+        border: shouldHighlight
+            ? Border.all(
+                color: Colors.blue,
+                width: 2,
+              ) // Blue outline for highlighted rows
+            : Border(bottom: BorderSide(color: Colors.grey[200]!)),
       ),
       child: Row(
         children: [
