@@ -1175,6 +1175,10 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
   Color _textColor = Colors.black;
   TextAlign _textAlignment = TextAlign.left;
   
+  // Zoom controls
+  double _zoomLevel = 1.0;
+  late final TextEditingController _zoomTextController;
+  
   // Sidebar input controllers
   late final TextEditingController _deliveryTimeCtl;
   late final TextEditingController _nalcoPriceCtl;
@@ -1522,6 +1526,9 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
         return TextEditingController(text: '');
     }
   });
+  
+  // Initialize zoom controller
+  _zoomTextController = TextEditingController(text: '100%');
   
   // Fetch admin_response data for address
     _fetchAdminResponseData();
@@ -1927,6 +1934,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     _descriptionCtl.dispose();
     _deliveryTimeCtl.dispose();
     _nalcoPriceCtl.dispose();
+    _zoomTextController.dispose();
     for (final controller in _paymentTermControllers) {
       controller.dispose();
     }
@@ -2034,6 +2042,26 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                 ),
                               ),
                             ],
+                            // Zoom level indicator
+                            const SizedBox(width: 16),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.zoom_in, color: Colors.white, size: 12),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${(_zoomLevel * 100).round()}%',
+                                    style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -2053,6 +2081,114 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                             icon: const Icon(Icons.format_size, color: Colors.white),
                             tooltip: 'Text Formatting',
                             onPressed: () => _showTextFormattingDialog(),
+                          ),
+                          // Zoom Controls
+                          Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 8),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Quick zoom out button
+                                IconButton(
+                                  icon: const Icon(Icons.zoom_out, color: Colors.white, size: 18),
+                                  tooltip: 'Zoom Out',
+                                  onPressed: () {
+                                    setState(() {
+                                      _zoomLevel = math.max(0.5, _zoomLevel - 0.1);
+                                      _zoomTextController.text = '${(_zoomLevel * 100).round()}%';
+                                    });
+                                  },
+                                ),
+                                const SizedBox(width: 4),
+                                SizedBox(
+                                  width: 80,
+                                  child: SliderTheme(
+                                    data: SliderTheme.of(context).copyWith(
+                                      activeTrackColor: Colors.white,
+                                      inactiveTrackColor: Colors.white.withValues(alpha: 0.3),
+                                      thumbColor: Colors.white,
+                                      overlayColor: Colors.white.withValues(alpha: 0.2),
+                                      trackHeight: 2,
+                                    ),
+                                    child: Slider(
+                                      value: _zoomLevel,
+                                      min: 0.5,
+                                      max: 2.0,
+                                      divisions: 15,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          _zoomLevel = value;
+                                          _zoomTextController.text = '${(value * 100).round()}%';
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                // Quick zoom in button
+                                IconButton(
+                                  icon: const Icon(Icons.zoom_in, color: Colors.white, size: 18),
+                                  tooltip: 'Zoom In',
+                                  onPressed: () {
+                                    setState(() {
+                                      _zoomLevel = math.min(2.0, _zoomLevel + 0.1);
+                                      _zoomTextController.text = '${(_zoomLevel * 100).round()}%';
+                                    });
+                                  },
+                                ),
+                                const SizedBox(width: 8),
+                                // Zoom percentage input
+                                Container(
+                                  width: 50,
+                                  height: 28,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: TextField(
+                                    controller: _zoomTextController,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    decoration: const InputDecoration(
+                                      border: InputBorder.none,
+                                      contentPadding: EdgeInsets.symmetric(vertical: 4),
+                                      isDense: true,
+                                    ),
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    onSubmitted: (value) {
+                                      // Parse percentage input (e.g., "150" -> 1.5)
+                                      final percentage = double.tryParse(value);
+                                      if (percentage != null && percentage >= 50 && percentage <= 200) {
+                                        final zoom = percentage / 100;
+                                        setState(() {
+                                          _zoomLevel = zoom;
+                                          _zoomTextController.text = '${(zoom * 100).round()}%';
+                                        });
+                                      } else {
+                                        // Reset to current zoom level if invalid
+                                        _zoomTextController.text = '${(_zoomLevel * 100).round()}%';
+                                      }
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                // Reset zoom button
+                                IconButton(
+                                  icon: const Icon(Icons.refresh, color: Colors.white, size: 16),
+                                  tooltip: 'Reset Zoom',
+                                  onPressed: () {
+                                    setState(() {
+                                      _zoomLevel = 1.0;
+                                      _zoomTextController.text = '100%';
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
                           ),
                           IconButton(
                             icon: const Icon(Icons.save, color: Colors.white),
@@ -2118,7 +2254,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                   final List<Widget> pageBodies = [
                                     ..._buildOfferBodyPages(context, targetWidth, targetHeight),
                                   ];
-
+                                  
                                   // Ensure keys list matches number of pages
                                   if (_pageKeys.length != pageBodies.length) {
                                     _pageKeys
@@ -2126,17 +2262,21 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                       ..addAll(List.generate(pageBodies.length, (_) => GlobalKey()));
                                   }
 
-                                  return Column(
-                                    children: [
-                                      for (int i = 0; i < pageBodies.length; i++)
-                                        Padding(
-                                          padding: const EdgeInsets.only(bottom: 16),
-                                          child: RepaintBoundary(
-                                            key: _pageKeys[i],
-                                            child: _buildA4Page(targetWidth, targetHeight, pageBodies[i]),
+                                  return Transform.scale(
+                                    scale: _zoomLevel,
+                                    alignment: Alignment.topCenter,
+                                    child: Column(
+                                      children: [
+                                        for (int i = 0; i < pageBodies.length; i++)
+                                          Padding(
+                                            padding: const EdgeInsets.only(bottom: 16),
+                                            child: RepaintBoundary(
+                                              key: _pageKeys[i],
+                                              child: _buildA4Page(targetWidth, targetHeight, pageBodies[i]),
+                                            ),
                                           ),
-                                        ),
-                                    ],
+                                      ],
+                                    ),
                                   );
                                 },
                               ),
@@ -2155,13 +2295,25 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     );
   }
 
+  /// Builds offer pages with proper content positioning
+  /// Ensures content never overlaps with header/footer (letterhead)
+  /// Uses conservative height estimates and safety margins
   List<Widget> _buildOfferBodyPages(BuildContext context, double targetWidth, double targetHeight) {
-    // Constants for header/footer height used for rough pagination budget
-    const double headerHeight = 120;
-    const double footerHeight = 70;
-    const double verticalPadding = 32; // from EdgeInsets.symmetric(vertical: 16)
+    // Calculate pixel-per-millimeter ratio for consistent margins
+    final double pxPerMm = targetWidth / _a4WidthMm;
+    
+    // Note: headerMargin and footerMargin are calculated here for reference
+    // but the actual margins are applied in _buildA4Page method
+    
+    // Estimate header/footer heights based on typical image dimensions
+    // These are conservative estimates to ensure content never overlaps
+    // Adding extra safety margins to prevent any content from touching header/footer
+    final double estimatedHeaderHeight = 120; // Increased from 100 to 120 for safety
+    final double estimatedFooterHeight = 80; // Increased from 60 to 80 for safety
+    final double verticalPadding = 32; // from EdgeInsets.symmetric(vertical: 16)
+    final double safetyMargin = 20; // Additional safety margin
 
-    final double bodyHeightBudget = targetHeight - headerHeight - footerHeight - verticalPadding;
+    final double bodyHeightBudget = targetHeight - estimatedHeaderHeight - estimatedFooterHeight - verticalPadding - safetyMargin;
 
     // Measure dynamic text blocks to estimate heights
     double measure(String text, TextStyle style, double maxWidth) {
@@ -2174,7 +2326,6 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     }
 
     // Match content width to mm-based content padding used in _buildA4Page
-    final double pxPerMm = targetWidth / _a4WidthMm;
     final double contentLeft = 14 * pxPerMm; // must mirror _buildA4Page
     final double contentRight = 10 * pxPerMm; // must mirror _buildA4Page
     final double contentWidth = targetWidth - contentLeft - contentRight;
@@ -2384,8 +2535,12 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     if (!signaturePlaced) {
       pages.add(_buildOfferSignaturePage(context));
     }
-    // Append Technical Specification pages as the last pages
-    pages.addAll(_buildTechnicalSpecificationPages(context, maxWidth: contentWidth));
+    // Append Technical Specification pages as the last pages (fit to available height)
+    pages.addAll(_buildTechnicalSpecificationPages(
+      context,
+      maxWidth: contentWidth,
+      maxHeight: bodyHeightBudget,
+    ));
 
     return pages;
   }
@@ -2394,6 +2549,9 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
 
 
 
+  /// Builds an A4 page with proper letterhead positioning
+  /// Ensures content never overlaps with header or footer images
+  /// Content is positioned with precise millimeter-based margins
   Widget _buildA4Page(double targetWidth, double targetHeight, Widget body) {
     final double pxPerMm = targetWidth / _a4WidthMm;
     final double headerMargin = 5 * pxPerMm; // 5mm from left/top/right
@@ -2883,8 +3041,8 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     );
   }
 
-  // Technical Specification pages: paginate rows (19 per page) with repeated header
-  List<Widget> _buildTechnicalSpecificationPages(BuildContext context, {int rowsPerPage = 19, double? maxWidth}) {
+  // Technical Specification pages: paginate rows to fit available page height, repeat header per page
+  List<Widget> _buildTechnicalSpecificationPages(BuildContext context, {double? maxWidth, double? maxHeight}) {
     TextStyle headStyle = _baseTextStyle.copyWith(fontWeight: FontWeight.w800);
     TextStyle cellStyle = _baseTextStyle;
 
@@ -2895,7 +3053,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
               padding: const EdgeInsets.all(6),
               constraints: const BoxConstraints(
                 minHeight: 40,
-                maxHeight: 80,
+                maxHeight: 60,
               ),
               child: Text(
                 c, 
@@ -2913,7 +3071,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
               padding: const EdgeInsets.all(6),
               constraints: const BoxConstraints(
                 minHeight: 40,
-                maxHeight: 100,
+                maxHeight: 80,
               ),
               child: Text(
                 c, 
@@ -2976,10 +3134,72 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     ];
 
     final List<Widget> pages = [];
-    for (int start = 0; start < data.length; start += rowsPerPage) {
-      final chunk = data.skip(start).take(rowsPerPage).toList();
+
+    // If no height budget provided, fall back to a conservative default to avoid overflow
+    final double availableHeight = (maxHeight ?? 700).clamp(400.0, 2000.0);
+    final double tableMaxWidth = maxWidth ?? double.infinity;
+
+    // Column widths (must match Table columnWidths)
+    const double col0Width = 70;
+    const double col1Width = 200;
+    final double col2Width = math.max(120.0, tableMaxWidth.isFinite ? (tableMaxWidth - col0Width - col1Width) : 400.0);
+
+    // Measure helpers
+    double measureTextHeight(String text, TextStyle style, double maxW) {
+      final tp = TextPainter(
+        text: TextSpan(text: text, style: style),
+        textDirection: ui.TextDirection.ltr,
+        maxLines: null,
+      )..layout(maxWidth: maxW);
+      return tp.height;
+    }
+
+    double measureCellHeight(String text, TextStyle style, double colW, {double minH = 40, double maxH = 80}) {
+      // Subtract horizontal padding (6 left + 6 right) for layout
+      final double textHeight = measureTextHeight(text, style, math.max(0, colW - 12));
+      final double cellH = textHeight + 12; // add vertical padding (6 + 6)
+      return cellH.clamp(minH, maxH);
+    }
+
+    // Title height + spacing
+    final double titleHeight = measureTextHeight('TECHNICAL SPECIFICATION SHEET', headStyle, tableMaxWidth) + 12;
+
+    // Header row height (max of cells, with header constraints 40..60)
+    final List<String> headerCols = ['Sr. No', 'PARAMETERS', 'SPECIFICATIONS'];
+    double headerRowHeight = math.max(
+      measureCellHeight(headerCols[0], headStyle, col0Width, minH: 40, maxH: 60),
+      math.max(
+        measureCellHeight(headerCols[1], headStyle, col1Width, minH: 40, maxH: 60),
+        measureCellHeight(headerCols[2], headStyle, col2Width, minH: 40, maxH: 60),
+      ),
+    );
+
+    int index = 0;
+    while (index < data.length) {
+      double used = titleHeight; // title + spacing
+      final List<List<String>> chunk = [];
+
+      // Pack as many rows as fit within availableHeight
+      while (index < data.length) {
+        final rowData = data[index];
+        final double h0 = measureCellHeight(rowData[0], cellStyle, col0Width);
+        final double h1 = measureCellHeight(rowData[1], cellStyle, col1Width);
+        final double h2 = measureCellHeight(rowData[2], cellStyle, col2Width);
+        final double rowH = math.max(h0, math.max(h1, h2));
+
+        // Include header row height only once per page
+        final double projected = used + headerRowHeight + rowH;
+        if (projected <= availableHeight || chunk.isEmpty) {
+          used = projected;
+          chunk.add(rowData);
+          index++;
+        } else {
+          break;
+        }
+      }
+
       final List<TableRow> tableRows = [
-        header(['Sr. No', 'PARAMETERS', 'SPECIFICATIONS']),
+        header(headerCols),
         for (final r in chunk) row(r),
       ];
 
@@ -2987,22 +3207,18 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(child: Text('TECHNICAL SPECIFICATION SHEET', style: _baseTextStyle.copyWith(fontWeight: FontWeight.w800))),
+            Center(child: Text('TECHNICAL SPECIFICATION SHEET', style: headStyle)),
             const SizedBox(height: 12),
             ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: maxWidth ?? double.infinity,
-              ),
-              child: SingleChildScrollView(
-                child: Table(
-                  columnWidths: const {
-                    0: FixedColumnWidth(70),
-                    1: FixedColumnWidth(200),
-                    2: FlexColumnWidth(),
-                  },
-                  border: TableBorder.all(color: Colors.grey.shade600, width: 1),
-                  children: tableRows,
-                ),
+              constraints: BoxConstraints(maxWidth: tableMaxWidth),
+              child: Table(
+                columnWidths: <int, TableColumnWidth>{
+                  0: FixedColumnWidth(col0Width),
+                  1: FixedColumnWidth(col1Width),
+                  2: const FlexColumnWidth(),
+                },
+                border: TableBorder.all(color: Colors.grey.shade600, width: 1),
+                children: tableRows,
               ),
             ),
           ],
