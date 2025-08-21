@@ -7875,6 +7875,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     if (_showExpectedToCloseGraph) {
       _fetchExpectedToCloseGraphData();
     }
+    // Ensure Inquiry Pipeline graph updates immediately when visible
+    if (_showInquiryPipelineGraph) {
+      _fetchInquiryPipelineGraphData();
+    }
   }
 
   // Refresh data when currency changes
@@ -8963,12 +8967,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       // Fetch data from admin_response table for Inquiry Pipeline (excluding Won/Lost)
       final response = await client
           .from('admin_response')
-          .select('lead_id, project_name, total_amount_gst, update_lead_status')
+          .select('lead_id, project_name, total_amount_gst, aluminium_area, ms_weight, update_lead_status')
           .not('update_lead_status', 'in', ['Won', 'Lost'])
           .gte('updated_at', dateRange['start']!.toIso8601String())
           .lte('updated_at', dateRange['end']!.toIso8601String())
           .order('total_amount_gst', ascending: false)
-          .limit(10) // Limit to top 10 projects by amount
           .timeout(const Duration(seconds: 10));
 
       await _processInquiryPipelineGraphData(response);
@@ -8987,19 +8990,25 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     final List<Map<String, dynamic>> processedData = [];
     double maxY = 0.0;
 
-    // Group by lead_id and sum total_amount_gst for each project
+    // Group by lead_id and sum total_amount_gst, aluminium_area, and ms_weight for each project
     final Map<String, double> projectAmounts = {};
     final Map<String, String> projectNames = {};
+    final Map<String, double> projectAluminiumAreas = {};
+    final Map<String, double> projectMsWeights = {};
 
     for (var record in data) {
       final leadId = record['lead_id']?.toString() ?? '';
       final projectName =
           record['project_name']?.toString() ?? 'Unknown Project';
       final amount = (record['total_amount_gst'] as num?)?.toDouble() ?? 0.0;
+      final aluminiumArea = (record['aluminium_area'] as num?)?.toDouble() ?? 0.0;
+      final msWeight = (record['ms_weight'] as num?)?.toDouble() ?? 0.0;
 
-      if (leadId.isNotEmpty && amount > 0) {
+      if (leadId.isNotEmpty) {
         projectAmounts[leadId] = (projectAmounts[leadId] ?? 0.0) + amount;
         projectNames[leadId] = projectName;
+        projectAluminiumAreas[leadId] = (projectAluminiumAreas[leadId] ?? 0.0) + aluminiumArea;
+        projectMsWeights[leadId] = (projectMsWeights[leadId] ?? 0.0) + msWeight;
       }
     }
 
@@ -9012,10 +9021,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       final projectName = projectNames[project.key] ?? 'Unknown Project';
       final amount = project.value;
 
+      final totalArea = (projectAluminiumAreas[project.key] ?? 0.0) + (projectMsWeights[project.key] ?? 0.0);
+      
       processedData.add({
         'lead_id': project.key,
         'project_name': projectName,
         'total_amount_gst': amount,
+        'total_area': totalArea,
       });
 
       if (amount > maxY) {
@@ -11537,6 +11549,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                         project['total_amount_gst']
                                             as double? ??
                                         0.0;
+                                    final totalArea = project['total_area'] as double? ?? 0.0;
                                     final amountInCrore =
                                         amount / 10000000; // Convert to Crore
 
@@ -11555,6 +11568,15 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                             color: Colors.white,
                                             fontSize: 14,
                                             fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        TextSpan(
+                                          text:
+                                              '\n${totalArea.toStringAsFixed(0)} m²',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w400,
                                           ),
                                         ),
                                       ],
