@@ -11416,7 +11416,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           children: [
             Row(
               children: [
-                Icon(Icons.bar_chart, color: Colors.blue[600], size: 20),
+                Icon(Icons.bar_chart, color: const Color(0xFFF2D400), size: 20),
                 SizedBox(width: 8),
                 Text(
                   'Inquiry Pipeline - Project Revenue',
@@ -12205,7 +12205,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           barRods: [
             BarChartRodData(
               toY: amount,
-              color: Colors.blue[600]!,
+              color: const Color(0xFFF2D400), // Bright Yellow same as app logo
               width: 20,
               borderRadius: BorderRadius.circular(4),
             ),
@@ -12422,7 +12422,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                 style: style,
                               );
                             },
-                            reservedSize: 80, // Increased reserved size for better spacing
+                            reservedSize:
+                                80, // Increased reserved size for better spacing
                           ),
                         ),
                       ),
@@ -12490,7 +12491,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         }
       }
     }
-    
+
     // Calculate a nice rounded max value for better grid spacing
     final niceMax = _getNiceNumber(maxValue * 1.2); // Add 20% padding
     return niceMax.clamp(10.0, double.infinity);
@@ -12500,7 +12501,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   double _getNiceNumber(double value) {
     final exponent = (log(value) / log(10)).floor();
     final fraction = value / pow(10, exponent);
-    
+
     double niceFraction;
     if (fraction < 1.5) {
       niceFraction = 1.0;
@@ -12511,7 +12512,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     } else {
       niceFraction = 10.0;
     }
-    
+
     return niceFraction * pow(10, exponent);
   }
 
