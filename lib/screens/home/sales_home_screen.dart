@@ -1205,11 +1205,13 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
                       .delete()
                       .eq('id', offer['id']);
                   
+                  if (!context.mounted) return;
                   Navigator.of(context).pop();
                   
                   // Reload offers
                   _loadOffers();
                   
+                  if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('Offer deleted: ${offer['project_name']}'),
@@ -1218,7 +1220,9 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
                     ),
                   );
                 } catch (e) {
+                  if (!context.mounted) return;
                   Navigator.of(context).pop();
+                  if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('Error deleting offer: $e'),
@@ -1361,7 +1365,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                       color: buttonColor,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: isSelected ? buttonColor : buttonColor.withOpacity(0.3),
+                        color: isSelected ? buttonColor : buttonColor.withValues(alpha: 0.3),
                         width: 1.5,
                       ),
                     ),
