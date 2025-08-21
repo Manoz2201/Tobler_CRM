@@ -1185,6 +1185,9 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
   late final List<TextEditingController> _paymentTermControllers;
   int _paymentTermCount = 3; // Default count
   
+  // Offer status
+  String _offerStatus = 'Draft Offer'; // Default status
+  
   // Helper method to get consistent text style
   TextStyle get _baseTextStyle => TextStyle(
     fontSize: 12,
@@ -1192,11 +1195,187 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     color: _textColor,
   );
 
+  /// Builds the offer status selection section with status buttons
+  Widget _buildOfferStatusSection() {
+    const List<String> statusOptions = [
+      'Active Offer',
+      'Draft Offer',
+      'Expired Offer',
+      'Closed Offer',
+    ];
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Status Section Header
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.blue[50],
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.blue.shade200),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.flag, color: Colors.blue[700], size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Offer Status',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue[700],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        
+        // Status Buttons
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: statusOptions.map((status) {
+            final bool isSelected = _offerStatus == status;
+            Color buttonColor;
+            Color textColor;
+            
+            // Set colors based on status
+            switch (status) {
+              case 'Active Offer':
+                buttonColor = isSelected ? Colors.green : Colors.green[50]!;
+                textColor = isSelected ? Colors.white : Colors.green[700]!;
+                break;
+              case 'Draft Offer':
+                buttonColor = isSelected ? Colors.orange : Colors.orange[50]!;
+                textColor = isSelected ? Colors.white : Colors.orange[700]!;
+                break;
+              case 'Expired Offer':
+                buttonColor = isSelected ? Colors.red : Colors.red[50]!;
+                textColor = isSelected ? Colors.white : Colors.red[700]!;
+                break;
+              case 'Closed Offer':
+                buttonColor = isSelected ? Colors.grey : Colors.grey[50]!;
+                textColor = isSelected ? Colors.white : Colors.grey[700]!;
+                break;
+              default:
+                buttonColor = isSelected ? Colors.blue : Colors.blue[50]!;
+                textColor = isSelected ? Colors.white : Colors.blue[700]!;
+            }
+            
+            return InkWell(
+              onTap: () {
+                setState(() {
+                  _offerStatus = status;
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: buttonColor,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isSelected ? buttonColor : buttonColor.withOpacity(0.3),
+                    width: 1.5,
+                  ),
+                ),
+                child: Text(
+                  status,
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 12,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        
+        // Status Info
+        if (_offerStatus == 'Active Offer')
+          Container(
+            margin: const EdgeInsets.only(top: 8),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.green[50],
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.green.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.green[700], size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Offer will expire after 7 days from creation date',
+                    style: TextStyle(
+                      color: Colors.green[700],
+                      fontSize: 11,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        
+        if (_offerStatus == 'Draft Offer')
+          Container(
+            margin: const EdgeInsets.only(top: 8),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.orange[50],
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.orange.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.orange[700], size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Draft offers will not expire',
+                    style: TextStyle(
+                      color: Colors.orange[700],
+                      fontSize: 11,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+        );
+  }
+
+  /// Helper method to get status color based on offer status
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'Active Offer':
+        return Colors.green;
+      case 'Draft Offer':
+        return Colors.orange;
+      case 'Expired Offer':
+        return Colors.red;
+      case 'Closed Offer':
+        return Colors.grey;
+      default:
+        return Colors.blue;
+    }
+  }
+  
   /// Builds the left sidebar with input fields for project details
   Widget _buildLeftSidebar() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Offer Status Buttons
+        _buildOfferStatusSection(),
+        const SizedBox(height: 20),
+        
         // Header
         Container(
           padding: const EdgeInsets.all(12),
@@ -3437,6 +3616,51 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                     TextSpan(text: '${_projectNameCtl.text}.'),
                   ],
                 ),
+              ),
+        const SizedBox(height: 6),
+        
+        // Offer Status Display
+        _isEditing
+            ? Row(
+                children: [
+                  Text('Status:', style: _baseTextStyle),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(_offerStatus),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      _offerStatus,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            : Row(
+                children: [
+                  Text('Status: ', style: _baseTextStyle),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(_offerStatus),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      _offerStatus,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
               ),
         const SizedBox(height: 6),
         _isEditing
