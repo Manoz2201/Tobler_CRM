@@ -1335,6 +1335,9 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
   double _zoomLevel = 1.0;
   late final TextEditingController _zoomTextController;
   
+  // Export quality settings
+  double _exportPixelRatio = 1.0; // 1.0 for speed, 2.0 for quality
+  
   // Sidebar input controllers
   late final TextEditingController _deliveryTimeCtl;
   late final TextEditingController _nalcoPriceCtl;
@@ -2533,16 +2536,52 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
   /// Export offer to PDF using the pdf/printing packages with pagination
   Future<void> _exportToPDF() async {
     try {
+      // Show progress feedback with estimated time
+      final int totalPages = _pageKeys.length;
+      final String estimatedTime = totalPages <= 3 ? '10-15 seconds' : '20-30 seconds';
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Generating PDF... Estimated time: $estimatedTime'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+
       // Capture on-screen pages as images for WYSIWYG PDF
       final captured = <Uint8List>[];
-      for (final key in _pageKeys) {
+      
+      for (int i = 0; i < totalPages; i++) {
+        final key = _pageKeys[i];
         final boundary = key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
         if (boundary == null) continue;
-        final image = await boundary.toImage(pixelRatio: 2.0);
+        
+        // Use configurable pixel ratio for quality vs speed trade-off
+        final image = await boundary.toImage(pixelRatio: _exportPixelRatio);
         final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
         if (byteData != null) {
           captured.add(byteData.buffer.asUint8List());
+          
+          // Show progress for each page
+          if (mounted && totalPages > 1) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Captured page ${i + 1} of $totalPages'),
+                duration: const Duration(milliseconds: 500),
+              ),
+            );
+          }
         }
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Creating PDF document...'),
+            duration: Duration(seconds: 1),
+          ),
+        );
       }
 
       final pdf = pw.Document();
@@ -2557,6 +2596,15 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
         );
       }
 
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Saving PDF...'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+
       final bytes = await pdf.save();
       final fileName = 'Offer_${_refNoCtl.text}_${DateTime.now().millisecondsSinceEpoch}.pdf';
       
@@ -2565,14 +2613,18 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('PDF generated: $fileName'),
-          ),
+            content: Text('PDF generated successfully: $fileName'),
+            backgroundColor: Colors.green,
+        ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error generating document: $e')),
+          SnackBar(
+            content: Text('Error generating PDF: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -2581,16 +2633,52 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
   /// Export offer to Word document using docx_template
   Future<void> _exportToWord() async {
     try {
+      // Show progress feedback with estimated time
+      final int totalPages = _pageKeys.length;
+      final String estimatedTime = totalPages <= 3 ? '10-15 seconds' : '20-30 seconds';
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Generating Word document... Estimated time: $estimatedTime'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+
       // Capture current A4 pages as images and embed in a .doc (HTML) for WYSIWYG export
       final images = <Uint8List>[];
-      for (final key in _pageKeys) {
+      
+      for (int i = 0; i < totalPages; i++) {
+        final key = _pageKeys[i];
         final boundary = key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
         if (boundary == null) continue;
-        final image = await boundary.toImage(pixelRatio: 2.0);
+        
+        // Use configurable pixel ratio for quality vs speed trade-off
+        final image = await boundary.toImage(pixelRatio: _exportPixelRatio);
         final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
         if (byteData != null) {
           images.add(byteData.buffer.asUint8List());
+          
+          // Show progress for each page
+          if (mounted && totalPages > 1) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Captured page ${i + 1} of $totalPages'),
+                duration: const Duration(milliseconds: 500),
+              ),
+            );
+          }
         }
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Creating Word document...'),
+            duration: Duration(seconds: 1),
+          ),
+        );
       }
 
       // Build a simple HTML-based .doc with each page as an <img>
@@ -2612,13 +2700,19 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Word document generated: $fileName')),
+          SnackBar(
+            content: Text('Word document generated successfully: $fileName'),
+            backgroundColor: Colors.green,
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error generating document: $e')),
+          SnackBar(
+            content: Text('Error generating Word document: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -3126,6 +3220,47 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                             tooltip: 'Save Offer',
                             onPressed: _saveOfferToSupabase,
                           ),
+                          // Export quality selector
+                          Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 8),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Quality:',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                DropdownButton<double>(
+                                  value: _exportPixelRatio,
+                                  dropdownColor: Colors.grey[800],
+                                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                                  underline: Container(),
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 1.0,
+                                      child: Text('Fast', style: TextStyle(color: Colors.white)),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 2.0,
+                                      child: Text('High', style: TextStyle(color: Colors.white)),
+                                    ),
+                                  ],
+                                  onChanged: (value) {
+                                    if (value != null) {
+                                      setState(() {
+                                        _exportPixelRatio = value;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
                           IconButton(
                             icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
                             tooltip: 'Export PDF',
@@ -3203,18 +3338,21 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                                 children: [
                                                   _buildA4Page(targetWidth, targetHeight, pageBodies[i]),
                                                   Positioned(
-                                                    right: 16,
+                                                    left: 0,
+                                                    right: 0,
                                                     bottom: 16,
-                                                    child: Container(
-                                                      padding: const EdgeInsets.all(8),
-                                                      decoration: BoxDecoration(
-                                                        shape: BoxShape.circle,
-                                                        border: Border.all(color: Colors.grey.shade600),
-                                                        color: Colors.white,
-                                                      ),
-                                                      child: Text(
-                                                        '${i + 1}',
-                                                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                                                    child: Center(
+                                                      child: Container(
+                                                        padding: const EdgeInsets.all(8),
+                                                        decoration: BoxDecoration(
+                                                          shape: BoxShape.circle,
+                                                          border: Border.all(color: Colors.grey.shade600),
+                                                          color: Colors.white,
+                                                        ),
+                                                        child: Text(
+                                                          '${i + 1}',
+                                                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                                                        ),
                                                       ),
                                                     ),
                                                   ),
@@ -3501,7 +3639,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
   Widget _buildA4Page(double targetWidth, double targetHeight, Widget body) {
     final double pxPerMm = targetWidth / _a4WidthMm;
     final double headerMargin = 5 * pxPerMm; // 5mm from left/top/right
-    final double footerMargin = 3 * pxPerMm; // 3mm from left/bottom/right
+    final double footerMargin = 6 * pxPerMm; // 6mm from left/bottom/right (increased from 3mm)
     final double contentLeft = 14 * pxPerMm; // 14mm from left
     final double contentRight = 10 * pxPerMm; // 10mm from right
 
@@ -3549,13 +3687,14 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
               ),
             ],
           ),
-          // Computer Generated label positioned 5mm from left, 30mm from bottom
+          // Computer Generated label positioned at center, 36mm from bottom (moved 6mm up from 30mm)
           Positioned(
-            left: 5 * pxPerMm,
-            bottom: 30 * pxPerMm,
+            left: 0,
+            right: 0,
+            bottom: 36 * pxPerMm,
             child: Text(
-              'Computer Generated',
-              textAlign: TextAlign.left,
+              'This is Computer Generated offer, no requirement of signature.',
+              textAlign: TextAlign.center,
               style: TextStyle(
                 fontFamily: 'Courier',
                 fontSize: 10,
