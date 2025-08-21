@@ -1792,8 +1792,8 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
   @override
   void initState() {
     super.initState();
-    _refNoCtl = TextEditingController(text: _generateRef());
     _offerDate = DateTime.now();
+    _refNoCtl = TextEditingController(text: _generateRef());
     _clientNameCtl = TextEditingController(text: (widget.lead['client_name'] ?? 'Client').toString());
     _addressCtl = TextEditingController(
       text: 'Loading address...',
