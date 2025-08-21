@@ -15,7 +15,8 @@ import 'package:crm_app/widgets/profile_page.dart';
 import 'package:crm_app/widgets/enhanced_floating_button.dart';
 import 'package:crm_app/widgets/custom_radio_group.dart';
 import 'admin_user_management_page.dart';
-import '../settings/currency_settings_screen.dart';
+import '../settings/currency_settings_card.dart';
+import '../settings/time_period_card.dart';
 
 import '../../utils/navigation_utils.dart';
 import '../../utils/timezone_utils.dart';
@@ -70,8 +71,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   int _selectedIndex = 0;
   bool _isCollapsed = false;
   final Map<int, bool> _hoveredItems = {};
-  // Link used to precisely anchor the quick-action menu under the three-dot button
-  final LayerLink _menuLink = LayerLink();
 
   List<NavItem> get _navItems {
     // Admin users get all navigation items including Leads Management
@@ -376,6 +375,7 @@ class SalesPerformancePage extends StatefulWidget {
   @override
   State<SalesPerformancePage> createState() => _SalesPerformancePageState();
 }
+
 class _SalesPerformancePageState extends State<SalesPerformancePage> {
   String _selectedSalesPerson = 'All Sales Team';
   String _selectedTimePeriod = 'Month';
@@ -384,6 +384,9 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
   // Sales team members from Supabase
   List<String> _salesTeamMembers = ['All Sales Team'];
   bool _isLoadingSalesTeam = true;
+
+  // Currency symbols moved to AdminDashboardPageState class
+  // Inquiry Pipeline Graph state declarations moved to AdminDashboardPageState class
 
   @override
   void initState() {
@@ -1023,6 +1026,7 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
       ),
     );
   }
+
   Widget _buildFiltersSection() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1717,6 +1721,7 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
       ),
     );
   }
+
   Widget _buildAchievementTrendBarChart() {
     if (_achievementTrendData.isEmpty) {
       return Center(
@@ -2433,6 +2438,7 @@ class _AdminLeadsPageState extends State<_AdminLeadsPage> {
       }
     }
   }
+
   void _showComprehensiveLeadDetailsDialog(
     Map<String, dynamic> leadDetails,
     Map<String, dynamic> salesPersonDetails,
@@ -2913,6 +2919,7 @@ class _AdminLeadsPageState extends State<_AdminLeadsPage> {
       return 'Unknown';
     }
   }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -3447,6 +3454,7 @@ class LeadTable extends StatefulWidget {
   @override
   State<LeadTable> createState() => _LeadTableState();
 }
+
 class _LeadTableState extends State<LeadTable> {
   List<Map<String, dynamic>> _leads = [];
   List<Map<String, dynamic>> _filteredLeads = [];
@@ -4222,6 +4230,7 @@ class _LeadTableState extends State<LeadTable> {
       },
     );
   }
+
   // Open the downloaded file
   Future<void> _openFile(File file) async {
     try {
@@ -4999,6 +5008,7 @@ class _LeadTableState extends State<LeadTable> {
       },
     );
   }
+
   Widget _buildWideTable() {
     return Container(
       decoration: BoxDecoration(
@@ -5638,6 +5648,7 @@ class _LeadTableState extends State<LeadTable> {
       },
     );
   }
+
   Widget _buildMobileCard(Map<String, dynamic> lead, int index) {
     final leadId = lead['lead_id'] ?? '';
     final formattedLeadId =
@@ -6266,6 +6277,7 @@ class _LeadTableState extends State<LeadTable> {
       }
     }
   }
+
   void _viewLeadDetails(Map<String, dynamic> lead) async {
     final leadId = lead['lead_id'];
 
@@ -7062,6 +7074,7 @@ class _LeadTableState extends State<LeadTable> {
       },
     );
   }
+
   void _queryLead(Map<String, dynamic> lead) {
     // Implement query lead functionality
     try {
@@ -7302,6 +7315,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   bool _isLoading = false;
 
+  // Currency settings card overlay state
+  bool _isCurrencyCardVisible = false;
+  final GlobalKey _currencyButtonKey = GlobalKey();
+
+  // Time Period settings card overlay state
+  bool _isTimePeriodCardVisible = false;
+  final GlobalKey _timePeriodButtonKey = GlobalKey();
+
   // Lead Status data state
   Map<String, dynamic> _leadStatusData = {
     'totalLeads': {'value': '0', 'percentage': '+0.0%', 'isPositive': true},
@@ -7318,7 +7339,39 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     'approved': {'value': '0', 'percentage': '+0.0%', 'isPositive': true},
     'completed': {'value': '0', 'percentage': '+0.0%', 'isPositive': true},
     'starredLeads': {'value': '0', 'percentage': '+0.0%', 'isPositive': true},
+    'inquiryPipeline': {
+      'value': '0',
+      'amount': 0.0,
+      'percentage': '+0.0%',
+      'isPositive': true,
+    },
+    'followUp': {
+      'value': '0',
+      'amount': 0.0,
+      'percentage': '+0.0%',
+      'isPositive': true,
+    },
+    'lost': {
+      'value': '0',
+      'amount': 0.0,
+      'percentage': '+0.0%',
+      'isPositive': true,
+    },
   };
+
+  // Inquiry Pipeline Graph state
+  bool _showInquiryPipelineGraph = false;
+  bool _isInquiryPipelineGraphLoading = false;
+  List<Map<String, dynamic>> _inquiryPipelineGraphData = [];
+  double _inquiryPipelineMaxY = 0.0;
+  final ScrollController _inquiryPipelineScrollController = ScrollController();
+
+  // Expected to Close Graph state
+  bool _showExpectedToCloseGraph = false;
+  bool _isExpectedToCloseGraphLoading = false;
+  List<Map<String, dynamic>> _expectedToCloseGraphData = [];
+  double _expectedToCloseMaxY = 0.0;
+  final ScrollController _expectedToCloseScrollController = ScrollController();
 
   // Fetch achievement trend data for all sales users
   Future<void> _fetchAchievementTrendData() async {
@@ -7513,6 +7566,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   void initState() {
     super.initState();
     _initializeTimezoneAndData();
+    _fetchInquiryPipelineGraphData();
   }
 
   /// Initialize timezone and fetch data
@@ -7529,6 +7583,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       _fetchLeadStatusDistributionData();
       _fetchAchievementTrendData(); // Add achievement trend data
       _fetchLeadCounts(); // Fetch lead counts for KPI cards
+      _fetchInquiryPipelineGraphData();
     } catch (e) {
       // Fallback to fetching data without timezone
       _fetchDashboardData();
@@ -7538,12 +7593,15 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       _fetchLeadStatusDistributionData();
       _fetchAchievementTrendData(); // Add achievement trend data
       _fetchLeadCounts(); // Fetch lead counts for KPI cards
+      _fetchInquiryPipelineGraphData();
     }
   }
 
   @override
   void dispose() {
     _leadSearchController.dispose();
+    _inquiryPipelineScrollController.dispose();
+    _expectedToCloseScrollController.dispose();
     super.dispose();
   }
 
@@ -7813,6 +7871,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     _fetchLeadPerformanceData();
     _fetchAchievementTrendData(); // Refresh achievement trend data
     _fetchLeadCounts(); // Refresh lead counts for KPI cards
+    // Ensure Expected to Close graph updates immediately when visible
+    if (_showExpectedToCloseGraph) {
+      _fetchExpectedToCloseGraphData();
+    }
   }
 
   // Refresh data when currency changes
@@ -7824,6 +7886,34 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     _fetchDashboardData();
     _fetchChartData();
     _fetchLeadPerformanceData();
+  }
+
+  // Show currency settings card
+  void _showCurrencyCard() {
+    setState(() {
+      _isCurrencyCardVisible = true;
+    });
+  }
+
+  // Hide currency settings card
+  void _hideCurrencyCard() {
+    setState(() {
+      _isCurrencyCardVisible = false;
+    });
+  }
+
+  // Show time period settings card
+  void _showTimePeriodCard() {
+    setState(() {
+      _isTimePeriodCardVisible = true;
+    });
+  }
+
+  // Hide time period settings card
+  void _hideTimePeriodCard() {
+    setState(() {
+      _isTimePeriodCardVisible = false;
+    });
   }
 
   // Navigate to Lead Management with specific filter
@@ -7838,6 +7928,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       debugPrint('❌ AdminDashboardPage: No callback provided');
     }
   }
+
   // Fetch lead status data from leads, proposal_input, and admin_response tables
   Future<void> _fetchLeadStatusData() async {
     try {
@@ -7892,13 +7983,22 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     int waitingApproval = 0;
     int approved = 0;
     int completed = 0;
-    int starredLeads = 0; // Count of leads where starred = true
-    double starredAmountGst = 0.0; // Sum of GST for starred leads
+    // Track unique starred leads and their GST sums within the selected period
+    int starredLeads = 0; // Unique count of leads where starred = true
+    double starredAmountGst = 0.0; // Sum of GST across unique starred leads
+    final Set<String> starredLeadIds = {}; // uniqueness by lead_id
+    final Map<String, double> starredLeadIdToAmount =
+        {}; // aggregate GST per lead
     // Unique lead counts for Follow Up and Lost
     final Set<String> followUpLeadIds = {};
     final Set<String> lostLeadIds = {};
     double followUpAmountGst = 0.0;
     double lostAmountGst = 0.0;
+    // Inquiry Pipeline aggregation (exclude Won/Lost)
+    // - inquiryLeadIdToAmount: key = lead_id, value = summed GST (per lead)
+    // - inquiryPipelineRowCount: total number of admin_response rows across all lead_ids (excluding Won/Lost)
+    final Map<String, double> inquiryLeadIdToAmount = {};
+    int inquiryPipelineRowCount = 0;
 
     // Create lookup maps for efficient processing
     final Map<String, double> aluminiumAreaMap = {};
@@ -7933,12 +8033,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       if (leadId != null) {
         adminResponseMap[leadId] = response;
 
-        // Count ALL leads where starred = true (regardless of status)
+        // Count unique leads where starred = true (regardless of status)
         if (response['starred'] == true) {
-          starredLeads++;
+          starredLeadIds.add(leadId.toString());
           final amt = (response['total_amount_gst'] as num?)?.toDouble() ?? 0.0;
-          starredAmountGst += amt;
-          debugPrint('⭐ Found starred lead: $leadId');
+          final key = leadId.toString();
+          starredLeadIdToAmount[key] =
+              (starredLeadIdToAmount[key] ?? 0.0) + amt;
         }
 
         // Track Follow Up and Lost counts by unique lead_id and sum GST amounts
@@ -7952,10 +8053,25 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           final amt = (response['total_amount_gst'] as num?)?.toDouble() ?? 0.0;
           lostAmountGst += amt;
         }
+
+        // Build Inquiry Pipeline map: include anything not Won or Lost
+        final statusLower = (response['update_lead_status'] ?? '')
+            .toString()
+            .toLowerCase();
+        if (statusLower != 'won' && statusLower != 'lost') {
+          // Count each admin_response row in Inquiry Pipeline
+          inquiryPipelineRowCount++;
+          final amt = (response['total_amount_gst'] as num?)?.toDouble() ?? 0.0;
+          final key = leadId.toString();
+          inquiryLeadIdToAmount[key] =
+              (inquiryLeadIdToAmount[key] ?? 0.0) + amt;
+        }
       }
     }
 
-    debugPrint('📊 Total starred leads found: $starredLeads');
+    starredLeads = starredLeadIds.length;
+    starredAmountGst = starredLeadIdToAmount.values.fold(0.0, (p, v) => p + v);
+    debugPrint('📊 Total unique starred leads found: $starredLeads');
     final int followUpLeads = followUpLeadIds.length;
     final int lostLeads = lostLeadIds.length;
 
@@ -8019,6 +8135,16 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       starredLeads.toDouble(),
       previousPeriodData['starredLeads'] ?? 0,
     );
+    // Use total row count from admin_response for Inquiry Pipeline "value"
+    final int inquiryLeads = inquiryPipelineRowCount;
+    final double inquiryAmountGst = inquiryLeadIdToAmount.values.fold(
+      0.0,
+      (prev, v) => prev + v,
+    );
+    final inquiryLeadsPercentage = _calculatePercentage(
+      inquiryLeads.toDouble(),
+      previousPeriodData['inquiryLeads'] ?? 0,
+    );
     final followUpPercentage = _calculatePercentage(
       followUpLeads.toDouble(),
       previousPeriodData['followUpLeads'] ?? 0,
@@ -8034,6 +8160,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
     setState(() {
       _leadStatusData = {
+        'inquiryPipeline': {
+          'value': inquiryLeads.toString(),
+          'amount': inquiryAmountGst,
+          'percentage':
+              '${inquiryLeadsPercentage >= 0 ? '+' : ''}${inquiryLeadsPercentage.toStringAsFixed(1)}%',
+          'isPositive': inquiryLeadsPercentage >= 0,
+        },
         'totalLeads': {
           'value': totalLeads.toString(),
           'percentage':
@@ -8114,6 +8247,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       // Calculate previous period metrics using same logic
       final Map<String, double> aluminiumAreaMap = {};
       final Map<String, List<double>> msWeightMap = {};
+      // Previous-period auxiliary aggregations
+      int previousInquiryPipelineRowCount =
+          0; // total rows in admin_response excluding Won/Lost
+      final Set<String> previousFollowUpLeadIds = {};
+      final Set<String> previousLostLeadIds = {};
 
       // Process proposal_input data
       for (final input in previousProposalInputResult) {
@@ -8140,6 +8278,20 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         final leadId = response['lead_id'];
         if (leadId != null) {
           adminResponseMap[leadId] = response;
+          // Build previous Inquiry Pipeline row count and status buckets
+          final statusLower = (response['update_lead_status'] ?? '')
+              .toString()
+              .toLowerCase();
+          if (statusLower != 'won' && statusLower != 'lost') {
+            previousInquiryPipelineRowCount++;
+          }
+          if ((response['update_lead_status'] ?? '').toString() ==
+              'Follow Up') {
+            previousFollowUpLeadIds.add(leadId.toString());
+          } else if ((response['update_lead_status'] ?? '').toString() ==
+              'Lost') {
+            previousLostLeadIds.add(leadId.toString());
+          }
         }
       }
 
@@ -8184,6 +8336,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         'waitingApproval': previousWaitingApproval.toDouble(),
         'approved': previousApproved.toDouble(),
         'starredLeads': previousStarredLeads.toDouble(),
+        // Added keys to support percentage comparison
+        'inquiryLeads': previousInquiryPipelineRowCount.toDouble(),
+        'followUpLeads': previousFollowUpLeadIds.length.toDouble(),
+        'lostLeads': previousLostLeadIds.length.toDouble(),
       };
     } catch (e) {
       debugPrint('Error fetching previous period lead status data: $e');
@@ -8193,6 +8349,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         'waitingApproval': 0.0,
         'approved': 0.0,
         'starredLeads': 0.0,
+        'inquiryLeads': 0.0,
+        'followUpLeads': 0.0,
+        'lostLeads': 0.0,
       };
     }
   }
@@ -8614,6 +8773,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       return 'Revenue ($symbol)';
     }
   }
+
   // Helper method to convert amount to display currency with proper label
   Map<String, dynamic> _convertToDisplayCurrency(double amountInINR) {
     if (_selectedCurrency == 'INR') {
@@ -8790,6 +8950,194 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     });
   }
 
+  // Fetch Inquiry Pipeline Graph data
+  Future<void> _fetchInquiryPipelineGraphData() async {
+    setState(() {
+      _isInquiryPipelineGraphLoading = true;
+    });
+
+    try {
+      final client = Supabase.instance.client;
+      final dateRange = _getDateRange(_selectedTimePeriod);
+
+      // Fetch data from admin_response table for Inquiry Pipeline (excluding Won/Lost)
+      final response = await client
+          .from('admin_response')
+          .select('lead_id, project_name, total_amount_gst, update_lead_status')
+          .not('update_lead_status', 'in', ['Won', 'Lost'])
+          .gte('updated_at', dateRange['start']!.toIso8601String())
+          .lte('updated_at', dateRange['end']!.toIso8601String())
+          .order('total_amount_gst', ascending: false)
+          .limit(10) // Limit to top 10 projects by amount
+          .timeout(const Duration(seconds: 10));
+
+      await _processInquiryPipelineGraphData(response);
+    } catch (e) {
+      debugPrint('Error fetching Inquiry Pipeline Graph data: $e');
+      setState(() {
+        _inquiryPipelineGraphData = [];
+        _inquiryPipelineMaxY = 0.0;
+        _isInquiryPipelineGraphLoading = false;
+      });
+    }
+  }
+
+  // Process Inquiry Pipeline Graph data
+  Future<void> _processInquiryPipelineGraphData(List<dynamic> data) async {
+    final List<Map<String, dynamic>> processedData = [];
+    double maxY = 0.0;
+
+    // Group by lead_id and sum total_amount_gst for each project
+    final Map<String, double> projectAmounts = {};
+    final Map<String, String> projectNames = {};
+
+    for (var record in data) {
+      final leadId = record['lead_id']?.toString() ?? '';
+      final projectName =
+          record['project_name']?.toString() ?? 'Unknown Project';
+      final amount = (record['total_amount_gst'] as num?)?.toDouble() ?? 0.0;
+
+      if (leadId.isNotEmpty && amount > 0) {
+        projectAmounts[leadId] = (projectAmounts[leadId] ?? 0.0) + amount;
+        projectNames[leadId] = projectName;
+      }
+    }
+
+    // Convert to sorted list and create chart data
+    final sortedProjects = projectAmounts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    for (int i = 0; i < sortedProjects.length; i++) {
+      final project = sortedProjects[i];
+      final projectName = projectNames[project.key] ?? 'Unknown Project';
+      final amount = project.value;
+
+      processedData.add({
+        'lead_id': project.key,
+        'project_name': projectName,
+        'total_amount_gst': amount,
+      });
+
+      if (amount > maxY) {
+        maxY = amount;
+      }
+    }
+
+    setState(() {
+      _inquiryPipelineGraphData = processedData;
+      _inquiryPipelineMaxY = maxY;
+      _isInquiryPipelineGraphLoading = false;
+    });
+  }
+
+  // Fetch Expected to Close Graph data
+  Future<void> _fetchExpectedToCloseGraphData() async {
+    setState(() {
+      _isExpectedToCloseGraphLoading = true;
+    });
+
+    try {
+      final client = Supabase.instance.client;
+      final dateRange = _getDateRange(_selectedTimePeriod);
+
+      // Fetch data from admin_response table for Expected to Close (all starred leads for selected period)
+      final response = await client
+          .from('admin_response')
+          .select(
+            'lead_id, project_name, total_amount_gst, aluminium_area, ms_weight, starred',
+          )
+          .eq('starred', true)
+          .gte('updated_at', dateRange['start']!.toIso8601String())
+          .lte('updated_at', dateRange['end']!.toIso8601String())
+          .order('total_amount_gst', ascending: false)
+          .timeout(const Duration(seconds: 10));
+
+      debugPrint(
+        '📊 Expected to Close Graph: Fetched ${response.length} starred leads',
+      );
+      await _processExpectedToCloseGraphData(response);
+    } catch (e) {
+      debugPrint('Error fetching Expected to Close Graph data: $e');
+      setState(() {
+        _expectedToCloseGraphData = [];
+        _expectedToCloseMaxY = 0.0;
+        _isExpectedToCloseGraphLoading = false;
+      });
+    }
+  }
+
+  // Process Expected to Close Graph data
+  Future<void> _processExpectedToCloseGraphData(List<dynamic> data) async {
+    final List<Map<String, dynamic>> processedData = [];
+    double maxY = 0.0;
+
+    // Group by lead_id and sum total_amount_gst for each project
+    final Map<String, double> projectAmounts = {};
+    final Map<String, String> projectNames = {};
+    final Map<String, double> projectAluminiumAreas = {};
+    final Map<String, double> projectMsWeights = {};
+
+    for (var record in data) {
+      final leadId = record['lead_id']?.toString() ?? '';
+      final projectName =
+          record['project_name']?.toString() ?? 'Unknown Project';
+      final amount = (record['total_amount_gst'] as num?)?.toDouble() ?? 0.0;
+      final aluminiumArea =
+          (record['aluminium_area'] as num?)?.toDouble() ?? 0.0;
+      final msWeight = (record['ms_weight'] as num?)?.toDouble() ?? 0.0;
+
+      if (leadId.isNotEmpty) {
+        // Include all starred leads (amount may be zero) to match Leads Update count
+        projectAmounts[leadId] = (projectAmounts[leadId] ?? 0.0) + amount;
+        projectNames[leadId] = projectName;
+        projectAluminiumAreas[leadId] =
+            (projectAluminiumAreas[leadId] ?? 0.0) + aluminiumArea;
+        projectMsWeights[leadId] = (projectMsWeights[leadId] ?? 0.0) + msWeight;
+
+        debugPrint(
+          '📊 Expected to Close: Processing lead: $leadId, project: $projectName, amount: $amount',
+        );
+      }
+    }
+
+    // Convert to sorted list and create chart data
+    final sortedProjects = projectAmounts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    debugPrint(
+      '📊 Expected to Close: Found ${projectAmounts.length} unique leads after grouping',
+    );
+
+    for (int i = 0; i < sortedProjects.length; i++) {
+      final project = sortedProjects[i];
+      final projectName = projectNames[project.key] ?? 'Unknown Project';
+      final amount = project.value;
+      final totalArea =
+          (projectAluminiumAreas[project.key] ?? 0.0) +
+          (projectMsWeights[project.key] ?? 0.0);
+
+      processedData.add({
+        'lead_id': project.key,
+        'project_name': projectName,
+        'total_amount_gst': amount,
+        'total_area': totalArea,
+      });
+
+      if (amount > maxY) {
+        maxY = amount;
+      }
+    }
+
+    debugPrint(
+      '📊 Expected to Close Graph: Processed ${processedData.length} projects, maxY: $maxY',
+    );
+    setState(() {
+      _expectedToCloseGraphData = processedData;
+      _expectedToCloseMaxY = maxY;
+      _isExpectedToCloseGraphLoading = false;
+    });
+  }
+
   // Build Syncfusion pie chart data
   List<ChartData> _buildSyncfusionPieChartData() {
     final totalLeads = _leadStatusDistribution.values.fold(
@@ -8840,13 +9188,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 ],
               ),
             ),
-            // Floating action buttons overlay anchored to the three-dot button
-            CompositedTransformFollower(
-              link: _menuLink,
-              showWhenUnlinked: false,
-              offset: const Offset(0, 56), // place directly below the 48px button (+ padding)
-              child: IgnorePointer(
-                ignoring: !_isMenuExpanded,
+            // Floating action buttons overlay (all screen sizes) with smooth animation
+            if (_isMenuExpanded)
+              Positioned(
+                top: 80, // Position below the header
+                right: 32, // Align with the three-dot button
                 child: AnimatedContainer(
                   duration: Duration(milliseconds: 300),
                   curve: Curves.easeOutBack,
@@ -8870,26 +9216,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                               0,
                             ),
                             child: EnhancedFloatingButton(
+                              key: _currencyButtonKey,
                               icon: Icons.attach_money,
                               label: 'Currency',
                               color: Colors.blue,
                               onTap: () {
-                                // Navigate to currency settings screen
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        CurrencySettingsScreen(
-                                          currentCurrency: _selectedCurrency,
-                                          onCurrencyChanged:
-                                              (String newCurrency) {
-                                                _onCurrencyChanged(newCurrency);
-                                                setState(() {
-                                                  _isMenuExpanded = false;
-                                                });
-                                              },
-                                        ),
-                                  ),
-                                );
+                                _showCurrencyCard();
                               },
                             ),
                           ),
@@ -8904,19 +9236,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                               0,
                             ),
                             child: EnhancedFloatingButton(
+                              key: _timePeriodButtonKey,
                               icon: Icons.schedule,
                               label: 'Time Period',
                               color: Colors.blue,
                               onTap: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Time Period Settings'),
-                                    duration: Duration(seconds: 2),
-                                  ),
-                                );
-                                setState(() {
-                                  _isMenuExpanded = false;
-                                });
+                                _showTimePeriodCard();
                               },
                             ),
                           ),
@@ -8981,6 +9306,56 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   ),
                 ),
               ),
+            // Currency settings card overlay
+            if (_isCurrencyCardVisible)
+              Positioned.fill(
+                child: Stack(
+                  children: [
+                    // Dismiss layer
+                    Positioned.fill(
+                      child: GestureDetector(
+                        onTap: _hideCurrencyCard,
+                        child: Container(color: Colors.transparent),
+                      ),
+                    ),
+                    // Currency card positioned using its own logic
+                    CurrencySettingsCard(
+                      currentCurrency: _selectedCurrency,
+                      onCurrencyChanged: (String newCurrency) {
+                        _onCurrencyChanged(newCurrency);
+                        _hideCurrencyCard();
+                      },
+                      onClose: _hideCurrencyCard,
+                      targetKey: _currencyButtonKey,
+                    ),
+                  ],
+                ),
+              ),
+            // Time Period settings card overlay
+            if (_isTimePeriodCardVisible)
+              Positioned.fill(
+                child: Stack(
+                  children: [
+                    // Dismiss layer
+                    Positioned.fill(
+                      child: GestureDetector(
+                        onTap: _hideTimePeriodCard,
+                        child: Container(color: Colors.transparent),
+                      ),
+                    ),
+                    // Time Period card positioned using its own logic
+                    TimePeriodCard(
+                      currentTimePeriod: _selectedTimePeriod,
+                      onTimePeriodChanged: (String newTimePeriod) {
+                        _onTimePeriodChanged(newTimePeriod);
+                        _hideTimePeriodCard();
+                      },
+                      onClose: _hideTimePeriodCard,
+                      targetKey: _timePeriodButtonKey,
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
@@ -9012,32 +9387,29 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                   ),
                   Spacer(),
                   // Three dots menu button
-                  CompositedTransformTarget(
-                    link: _menuLink,
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(18),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
-                            blurRadius: 4,
-                            offset: Offset(0, 1),
-                          ),
-                        ],
-                      ),
-                      child: IconButton(
-                        onPressed: () {
-                          setState(() {
-                            _isMenuExpanded = !_isMenuExpanded;
-                          });
-                        },
-                        icon: Icon(Icons.more_vert, color: Colors.grey[600]),
-                        iconSize: 16,
-                        padding: EdgeInsets.zero,
-                      ),
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: Colors.blue[600],
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 4,
+                          offset: Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                    child: IconButton(
+                      onPressed: () {
+                        setState(() {
+                          _isMenuExpanded = !_isMenuExpanded;
+                        });
+                      },
+                      icon: Icon(Icons.more_vert, color: Colors.white),
+                      iconSize: 16,
+                      padding: EdgeInsets.zero,
                     ),
                   ),
                 ],
@@ -9066,32 +9438,29 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
               Spacer(), // Flexible space to push three dots to right
               // Three dots menu button positioned on the right
-              CompositedTransformTarget(
-                link: _menuLink,
-                child: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 8,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: IconButton(
-                    onPressed: () {
-                      setState(() {
-                        _isMenuExpanded = !_isMenuExpanded;
-                      });
-                    },
-                    icon: Icon(Icons.more_vert, color: Colors.grey[600]),
-                    iconSize: 24,
-                    padding: EdgeInsets.zero,
-                  ),
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.blue[600],
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: IconButton(
+                  onPressed: () {
+                    setState(() {
+                      _isMenuExpanded = !_isMenuExpanded;
+                    });
+                  },
+                  icon: Icon(Icons.more_vert, color: Colors.white),
+                  iconSize: 24,
+                  padding: EdgeInsets.zero,
                 ),
               ),
             ],
@@ -9100,6 +9469,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       },
     );
   }
+
   Widget _buildDashboardContent() {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -9148,6 +9518,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                     ),
                                   ],
                                 ),
+                                // Inquiry Pipeline Graph (animated)
+                                _buildInquiryPipelineGraph(),
+                                // Expected to Close Graph (animated)
+                                _buildExpectedToCloseGraph(),
                                 SizedBox(height: 16),
                                 // Lead Status Cards Section (without title) - Merged with dividers
                                 Container(
@@ -9291,6 +9665,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         children: [
                           // First row with merged inquiries card
                           _buildMergedInquiriesCard(),
+                          // Inquiry Pipeline Graph (animated) - Mobile
+                          _buildInquiryPipelineGraph(),
+                          // Expected to Close Graph (animated) - Mobile
+                          _buildExpectedToCloseGraph(),
                           SizedBox(height: 12),
                           // Second row with Order Received taking full width
                           _buildTotalRevenueCard(),
@@ -9888,6 +10266,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       ],
     );
   }
+
   // Build Order Received card with dual currency display and integrated sections
   Widget _buildTotalRevenueCard() {
     final isPositive = _dashboardData['totalRevenue']['percentage'].startsWith(
@@ -10456,6 +10835,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       ),
     );
   }
+
   // Build Merged Inquiries Card with 4 sections
   Widget _buildMergedInquiriesCard() {
     return Container(
@@ -10496,68 +10876,104 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               children: [
                 // Left side - Total Inquiries
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Value centered
-                      Center(
-                        child: Text(
-                          '94',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[800],
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _showInquiryPipelineGraph = !_showInquiryPipelineGraph;
+                      });
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        color: _showInquiryPipelineGraph
+                            ? Colors.blue[50]
+                            : Colors.transparent,
                       ),
-                      SizedBox(height: 4),
-                      // Label centered
-                      Text(
-                        'Inquiry Pipeline',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.grey[600],
-                          fontWeight: FontWeight.w500,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      SizedBox(height: 4),
-                      // Percentage row
-                      Row(
+                      padding: EdgeInsets.all(8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            _leadStatusData['starredLeads']?['isPositive'] ==
-                                    true
-                                ? Icons.trending_up
-                                : Icons.trending_down,
-                            color:
-                                _leadStatusData['starredLeads']?['isPositive'] ==
-                                    true
-                                ? Colors.green
-                                : Colors.red,
-                            size: 10,
-                          ),
-                          SizedBox(width: 2),
-                          Text(
-                            _leadStatusData['starredLeads']?['percentage'] ??
-                                '+0.0%',
-                            style: TextStyle(
-                              fontSize: 9,
-                              color:
-                                  _leadStatusData['starredLeads']?['isPositive'] ==
-                                      true
-                                  ? Colors.green
-                                  : Colors.red,
-                              fontWeight: FontWeight.w600,
+                          // Value centered
+                          Center(
+                            child: Text(
+                              '${_leadStatusData['inquiryPipeline']?['value'] ?? '0'} / ${_selectedCurrency == 'INR' ? _formatRevenueInCrore((_leadStatusData['inquiryPipeline']?['amount'] ?? 0.0) as double) : _formatCurrencyInMillions((_leadStatusData['inquiryPipeline']?['amount'] ?? 0.0) as double, 'CHF')}',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: _showInquiryPipelineGraph
+                                    ? Colors.blue[700]
+                                    : Colors.grey[800],
+                              ),
+                              textAlign: TextAlign.center,
                             ),
+                          ),
+                          SizedBox(height: 4),
+                          // Label centered
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Inquiry Pipeline',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: _showInquiryPipelineGraph
+                                      ? Colors.blue[600]
+                                      : Colors.grey[600],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              SizedBox(width: 4),
+                              Icon(
+                                _showInquiryPipelineGraph
+                                    ? Icons.keyboard_arrow_up
+                                    : Icons.keyboard_arrow_down,
+                                color: _showInquiryPipelineGraph
+                                    ? Colors.blue[600]
+                                    : Colors.grey[600],
+                                size: 12,
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 4),
+                          // Percentage row
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _leadStatusData['inquiryPipeline']?['isPositive'] ==
+                                        true
+                                    ? Icons.trending_up
+                                    : Icons.trending_down,
+                                color:
+                                    _leadStatusData['inquiryPipeline']?['isPositive'] ==
+                                        true
+                                    ? Colors.green
+                                    : Colors.red,
+                                size: 10,
+                              ),
+                              SizedBox(width: 2),
+                              Text(
+                                _leadStatusData['inquiryPipeline']?['percentage'] ??
+                                    '+0.0%',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  color:
+                                      _leadStatusData['inquiryPipeline']?['isPositive'] ==
+                                          true
+                                      ? Colors.green
+                                      : Colors.red,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
                 // Vertical divider
@@ -10569,65 +10985,90 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 ),
                 // Right side - Expected to Close
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Center(
-                        child: Text(
-                          '${_leadStatusData['starredLeads']?['value'] ?? '0'} / ${_selectedCurrency == 'INR' ? _formatRevenueInCrore((_leadStatusData['starredLeads']?['amount'] ?? 0.0) as double) : _formatCurrencyInMillions((_leadStatusData['starredLeads']?['amount'] ?? 0.0) as double, 'CHF')}',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[800],
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Expected to Close',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.grey[600],
-                          fontWeight: FontWeight.w500,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      SizedBox(height: 4),
-                      Row(
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _showExpectedToCloseGraph = !_showExpectedToCloseGraph;
+                        if (_showExpectedToCloseGraph) {
+                          _fetchExpectedToCloseGraphData();
+                        }
+                      });
+                    },
+                    child: Container(
+                      color: _showExpectedToCloseGraph
+                          ? Colors.blue[50]
+                          : Colors.transparent,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            _leadStatusData['starredLeads']?['isPositive'] ==
-                                    true
-                                ? Icons.trending_up
-                                : Icons.trending_down,
-                            color:
-                                _leadStatusData['starredLeads']?['isPositive'] ==
-                                    true
-                                ? Colors.green
-                                : Colors.red,
-                            size: 10,
-                          ),
-                          SizedBox(width: 2),
-                          Text(
-                            _leadStatusData['starredLeads']?['percentage'] ??
-                                '+0.0%',
-                            style: TextStyle(
-                              fontSize: 9,
-                              color:
-                                  _leadStatusData['starredLeads']?['isPositive'] ==
-                                      true
-                                  ? Colors.green
-                                  : Colors.red,
-                              fontWeight: FontWeight.w600,
+                          Center(
+                            child: Text(
+                              '${_leadStatusData['starredLeads']?['value'] ?? '0'} / ${_selectedCurrency == 'INR' ? _formatRevenueInCrore((_leadStatusData['starredLeads']?['amount'] ?? 0.0) as double) : _formatCurrencyInMillions((_leadStatusData['starredLeads']?['amount'] ?? 0.0) as double, 'CHF')}',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey[800],
+                              ),
+                              textAlign: TextAlign.center,
                             ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Expected to Close',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _leadStatusData['starredLeads']?['isPositive'] ==
+                                        true
+                                    ? Icons.trending_up
+                                    : Icons.trending_down,
+                                color:
+                                    _leadStatusData['starredLeads']?['isPositive'] ==
+                                        true
+                                    ? Colors.green
+                                    : Colors.red,
+                                size: 10,
+                              ),
+                              SizedBox(width: 2),
+                              Text(
+                                _leadStatusData['starredLeads']?['percentage'] ??
+                                    '+0.0%',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  color:
+                                      _leadStatusData['starredLeads']?['isPositive'] ==
+                                          true
+                                      ? Colors.green
+                                      : Colors.red,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 4),
+                          Icon(
+                            _showExpectedToCloseGraph
+                                ? Icons.keyboard_arrow_up
+                                : Icons.keyboard_arrow_down,
+                            color: _showExpectedToCloseGraph
+                                ? Colors.blue[600]
+                                : Colors.grey[600],
+                            size: 20,
                           ),
                         ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ],
@@ -10905,6 +11346,792 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         ),
       ),
     );
+  }
+
+  // Build Inquiry Pipeline Graph widget
+  Widget _buildInquiryPipelineGraph() {
+    if (!_showInquiryPipelineGraph) {
+      return SizedBox.shrink();
+    }
+
+    return AnimatedContainer(
+      duration: Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      height: 400,
+      margin: EdgeInsets.only(top: 16),
+      child: Container(
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 4,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.bar_chart, color: Colors.blue[600], size: 20),
+                SizedBox(width: 8),
+                Text(
+                  'Inquiry Pipeline - Project Revenue',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                ),
+                Spacer(),
+                IconButton(
+                  onPressed: () {
+                    setState(() {
+                      _showInquiryPipelineGraph = false;
+                    });
+                  },
+                  icon: Icon(Icons.close, color: Colors.grey[600], size: 20),
+                  tooltip: 'Close Graph',
+                ),
+              ],
+            ),
+            SizedBox(height: 16),
+            Expanded(
+              child: _isInquiryPipelineGraphLoading
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text(
+                            'Loading Inquiry Pipeline data...',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : _inquiryPipelineGraphData.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.bar_chart_outlined,
+                            size: 48,
+                            color: Colors.grey[400],
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            'No Inquiry Pipeline data available',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'No projects found in Inquiry Pipeline for the selected period',
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : LayoutBuilder(
+                      builder: (context, constraints) {
+                        // Calculate dynamic bar spacing
+                        final cardWidth =
+                            constraints.maxWidth - 32; // Account for padding
+                        final numberOfLeads = _inquiryPipelineGraphData.length;
+                        final minGap = 150.0;
+
+                        // Calculate optimal gap
+                        double barGap;
+                        double chartWidth;
+                        bool needsScroll = false;
+
+                        if (numberOfLeads > 0) {
+                          final availableWidthPerBar =
+                              cardWidth / numberOfLeads;
+                          // Force scroll if bars exceed threshold count
+                          final forceScrollForManyBars = numberOfLeads > 6;
+                          if (!forceScrollForManyBars &&
+                              availableWidthPerBar > minGap) {
+                            // If we have enough space, use the calculated gap
+                            barGap = availableWidthPerBar;
+                            chartWidth = cardWidth;
+                          } else {
+                            // If not enough space, use minimum gap and enable scroll
+                            barGap = minGap;
+                            chartWidth =
+                                numberOfLeads * minGap +
+                                (numberOfLeads - 1) *
+                                    20; // Account for bar widths
+                            needsScroll = true;
+                          }
+                        } else {
+                          barGap = minGap;
+                          chartWidth = cardWidth;
+                        }
+
+                        // Create chart with dynamic spacing
+                        final chart = BarChart(
+                          BarChartData(
+                            alignment: BarChartAlignment.spaceBetween,
+                            maxY: _inquiryPipelineMaxY * 1.1,
+                            groupsSpace:
+                                barGap -
+                                20, // Apply the calculated gap minus bar width (20 is bar width)
+                            barTouchData: BarTouchData(
+                              enabled: true,
+                              touchTooltipData: BarTouchTooltipData(
+                                getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                                  final projectIndex = group.x.toInt();
+                                  if (projectIndex <
+                                      _inquiryPipelineGraphData.length) {
+                                    final project =
+                                        _inquiryPipelineGraphData[projectIndex];
+                                    final projectName =
+                                        project['project_name'] ??
+                                        'Unknown Project';
+                                    final amount =
+                                        project['total_amount_gst']
+                                            as double? ??
+                                        0.0;
+                                    final amountInCrore =
+                                        amount / 10000000; // Convert to Crore
+
+                                    return BarTooltipItem(
+                                      '$projectName\n',
+                                      const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                      children: <TextSpan>[
+                                        TextSpan(
+                                          text:
+                                              '₹${amountInCrore.toStringAsFixed(2)} CR',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ),
+                            titlesData: FlTitlesData(
+                              show: true,
+                              rightTitles: AxisTitles(
+                                sideTitles: SideTitles(showTitles: false),
+                              ),
+                              topTitles: AxisTitles(
+                                sideTitles: SideTitles(showTitles: false),
+                              ),
+                              bottomTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  getTitlesWidget: (value, meta) {
+                                    final projectIndex = value.toInt();
+                                    if (projectIndex <
+                                        _inquiryPipelineGraphData.length) {
+                                      final project =
+                                          _inquiryPipelineGraphData[projectIndex];
+                                      final projectName =
+                                          project['project_name'] ?? 'Unknown';
+                                      // Truncate long project names
+                                      final displayName =
+                                          projectName.length > 15
+                                          ? '${projectName.substring(0, 15)}...'
+                                          : projectName;
+                                      return Padding(
+                                        padding: EdgeInsets.only(top: 8),
+                                        child: Text(
+                                          displayName,
+                                          style: TextStyle(
+                                            color: Colors.grey[700],
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      );
+                                    }
+                                    return Text('');
+                                  },
+                                  reservedSize: 40,
+                                ),
+                              ),
+                              leftTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  getTitlesWidget: (value, meta) {
+                                    final amountInCrore =
+                                        value / 10000000; // Convert to Crore
+                                    return Text(
+                                      '₹${amountInCrore.toStringAsFixed(1)} CR',
+                                      style: TextStyle(
+                                        color: Colors.grey[700],
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    );
+                                  },
+                                  reservedSize: 60,
+                                  interval: _inquiryPipelineMaxY > 0
+                                      ? _inquiryPipelineMaxY / 5
+                                      : 1,
+                                ),
+                              ),
+                            ),
+                            borderData: FlBorderData(
+                              show: true,
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: Colors.grey[300]!,
+                                  width: 1,
+                                ),
+                                left: BorderSide(
+                                  color: Colors.grey[300]!,
+                                  width: 1,
+                                ),
+                              ),
+                            ),
+                            gridData: FlGridData(
+                              show: true,
+                              horizontalInterval: _inquiryPipelineMaxY > 0
+                                  ? _inquiryPipelineMaxY / 5
+                                  : 1,
+                              drawVerticalLine: false,
+                              getDrawingHorizontalLine: (value) {
+                                return FlLine(
+                                  color: Colors.grey[300]!,
+                                  strokeWidth: 1,
+                                );
+                              },
+                            ),
+                            barGroups: _createDynamicBarGroups(barGap),
+                          ),
+                        );
+
+                        // Wrap in SingleChildScrollView if horizontal scroll is needed
+                        if (needsScroll) {
+                          return Scrollbar(
+                            controller: _inquiryPipelineScrollController,
+                            thumbVisibility: true,
+                            interactive: true,
+                            child: SingleChildScrollView(
+                              controller: _inquiryPipelineScrollController,
+                              scrollDirection: Axis.horizontal,
+                              child: SizedBox(
+                                width: chartWidth,
+                                height: constraints.maxHeight,
+                                child: chart,
+                              ),
+                            ),
+                          );
+                        } else {
+                          return chart;
+                        }
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Build Expected to Close Graph widget
+  Widget _buildExpectedToCloseGraph() {
+    if (!_showExpectedToCloseGraph) {
+      return SizedBox.shrink();
+    }
+
+    // Responsive card height for better readability on larger screens
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final double chartCardHeight = screenWidth >= 1200
+        ? 520.0 // Desktop
+        : (screenWidth >= 600
+              ? 500.0 // Tablet
+              : 460.0); // Mobile
+
+    return AnimatedContainer(
+      duration: Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      height: chartCardHeight,
+      margin: EdgeInsets.only(top: 16),
+      child: Container(
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 4,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.bar_chart, color: const Color(0xFF1E4B8A), size: 20),
+                SizedBox(width: 8),
+                Text(
+                  'Expected to Close - Project Revenue',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                ),
+                Spacer(),
+                IconButton(
+                  onPressed: () {
+                    setState(() {
+                      _showExpectedToCloseGraph = false;
+                    });
+                  },
+                  icon: Icon(Icons.close, color: Colors.grey[600], size: 20),
+                  tooltip: 'Close Graph',
+                ),
+              ],
+            ),
+            SizedBox(height: 16),
+            Expanded(
+              child: _isExpectedToCloseGraphLoading
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text(
+                            'Loading Expected to Close data...',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : _expectedToCloseGraphData.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.bar_chart_outlined,
+                            size: 48,
+                            color: Colors.grey[400],
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            'No Expected to Close data available',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'No projects found in Expected to Close for the selected period',
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : LayoutBuilder(
+                      builder: (context, constraints) {
+                        // Calculate dynamic bar spacing for Expected to Close with responsive initial visible bars
+                        final cardWidth =
+                            constraints.maxWidth - 32; // Account for padding
+                        final numberOfLeads = _expectedToCloseGraphData.length;
+
+                        // Determine device type by width (mobile <600, tablet 600-1200, desktop >=1200)
+                        final bool isDesktop = constraints.maxWidth >= 1200;
+                        final bool isTablet =
+                            constraints.maxWidth >= 600 &&
+                            constraints.maxWidth < 1200;
+
+                        int visibleInitialBars;
+                        if (isDesktop) {
+                          visibleInitialBars = 8;
+                        } else if (isTablet) {
+                          visibleInitialBars = 6;
+                        } else {
+                          visibleInitialBars = 4;
+                        }
+
+                        // Always show a horizontal scrollbar at the bottom on all layouts
+                        final bool forceScrollbar = true;
+
+                        const double barWidth = 20.0;
+                        const double minGroupSpace = 8.0;
+                        const double maxGroupSpace = 200.0;
+                        const double rightEdgePaddingForLabels =
+                            56.0; // prevent last label clipping
+
+                        double
+                        barGapPerGroup; // total width per bar group = barWidth + groupsSpace
+                        double
+                        groupsSpace; // space between groups as expected by fl_chart
+                        double chartWidth;
+
+                        if (numberOfLeads <= 0) {
+                          // No data
+                          barGapPerGroup = barWidth + minGroupSpace;
+                          groupsSpace = minGroupSpace;
+                          chartWidth = cardWidth;
+                          // not scrolling by content, but scrollbar is still shown
+                        } else if (numberOfLeads <= visibleInitialBars) {
+                          // Fit all bars within card width without scrolling
+                          barGapPerGroup = (cardWidth / numberOfLeads).clamp(
+                            barWidth + minGroupSpace,
+                            barWidth + maxGroupSpace,
+                          );
+                          groupsSpace = (barGapPerGroup - barWidth).clamp(
+                            minGroupSpace,
+                            maxGroupSpace,
+                          );
+                          chartWidth = cardWidth;
+                          // Force a visible scrollbar on all layouts by adding minimal overflow
+                          if (forceScrollbar) {
+                            chartWidth =
+                                cardWidth +
+                                1; // minimal overflow to render scrollbar
+                          }
+                          // scrollbar is forced regardless of overflow
+                        } else {
+                          // More bars than initial visible count: make viewport show exactly visibleInitialBars and enable scroll
+                          barGapPerGroup = (cardWidth / visibleInitialBars)
+                              .clamp(
+                                barWidth + minGroupSpace,
+                                barWidth + maxGroupSpace,
+                              );
+                          groupsSpace = (barGapPerGroup - barWidth).clamp(
+                            minGroupSpace,
+                            maxGroupSpace,
+                          );
+                          chartWidth = (numberOfLeads * barGapPerGroup);
+                          // content overflows, scrollbar enabled
+                        }
+
+                        // Ensure scrollbar shows whenever content exceeds the available width
+                        // no-op; scrollbar is always present
+
+                        // Create chart with calculated spacing
+                        final double chartMaxY = _expectedToCloseMaxY * 1.25;
+                        final chart = BarChart(
+                          BarChartData(
+                            alignment: BarChartAlignment.spaceBetween,
+                            maxY: chartMaxY, // add headroom for tooltip
+                            groupsSpace: groupsSpace, // space between groups
+                            barTouchData: BarTouchData(
+                              enabled: true,
+                              touchTooltipData: BarTouchTooltipData(
+                                fitInsideHorizontally: true,
+                                fitInsideVertically: true,
+                                tooltipPadding: EdgeInsets.all(8),
+                                tooltipMargin: 8,
+                                // Rounded tooltip not supported in this version
+                                tooltipBorder: BorderSide(
+                                  color: Colors.black26,
+                                ),
+                                getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                                  final projectIndex = group.x.toInt();
+                                  if (projectIndex <
+                                      _expectedToCloseGraphData.length) {
+                                    final project =
+                                        _expectedToCloseGraphData[projectIndex];
+                                    final projectName =
+                                        project['project_name'] ??
+                                        'Unknown Project';
+                                    final amount =
+                                        project['total_amount_gst']
+                                            as double? ??
+                                        0.0;
+                                    final totalArea =
+                                        project['total_area'] as double? ?? 0.0;
+
+                                    // Dynamic currency in tooltip
+                                    String currencyText;
+                                    if (_selectedCurrency == 'INR') {
+                                      final amountInCrore = amount / 10000000;
+                                      currencyText =
+                                          '₹${amountInCrore.toStringAsFixed(2)} CR';
+                                    } else {
+                                      final amountInMillions = amount / 1000000;
+                                      currencyText =
+                                          'CHF ${amountInMillions.toStringAsFixed(2)}M';
+                                    }
+
+                                    return BarTooltipItem(
+                                      '$projectName\n',
+                                      const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                      children: <TextSpan>[
+                                        TextSpan(
+                                          text: currencyText,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        TextSpan(
+                                          text:
+                                              '\n${totalArea.toStringAsFixed(0)} m²',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w400,
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ),
+                            titlesData: FlTitlesData(
+                              show: true,
+                              rightTitles: AxisTitles(
+                                sideTitles: SideTitles(showTitles: false),
+                              ),
+                              topTitles: AxisTitles(
+                                sideTitles: SideTitles(showTitles: false),
+                              ),
+                              bottomTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  getTitlesWidget: (value, meta) {
+                                    final projectIndex = value.toInt();
+                                    if (projectIndex <
+                                        _expectedToCloseGraphData.length) {
+                                      final project =
+                                          _expectedToCloseGraphData[projectIndex];
+                                      final projectName =
+                                          project['project_name'] ?? 'Unknown';
+                                      // Truncate long project names
+                                      final displayName =
+                                          projectName.length > 15
+                                          ? '${projectName.substring(0, 15)}...'
+                                          : projectName;
+                                      return Padding(
+                                        padding: EdgeInsets.only(top: 8),
+                                        child: Text(
+                                          displayName,
+                                          style: TextStyle(
+                                            color: Colors.grey[700],
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      );
+                                    }
+                                    return Text('');
+                                  },
+                                  reservedSize:
+                                      56, // Extra space for labels + scrollbar
+                                ),
+                              ),
+                              leftTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  getTitlesWidget: (value, meta) {
+                                    // Hide the top-most label to avoid clipping at chart edge
+                                    if (value >= chartMaxY - 0.0001) {
+                                      return const SizedBox.shrink();
+                                    }
+                                    // Dynamic currency display based on selected currency
+                                    if (_selectedCurrency == 'INR') {
+                                      final amountInCrore =
+                                          value / 10000000; // Convert to Crore
+                                      return Text(
+                                        '₹${amountInCrore.toStringAsFixed(1)} CR',
+                                        style: TextStyle(
+                                          color: Colors.grey[700],
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      );
+                                    } else {
+                                      // CHF currency
+                                      final amountInMillions =
+                                          value /
+                                          1000000; // Convert to Millions
+                                      return Text(
+                                        'CHF ${amountInMillions.toStringAsFixed(1)}M',
+                                        style: TextStyle(
+                                          color: Colors.grey[700],
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      );
+                                    }
+                                  },
+                                  reservedSize: 80,
+                                  interval: _expectedToCloseMaxY > 0
+                                      ? _expectedToCloseMaxY / 5
+                                      : 1,
+                                ),
+                              ),
+                            ),
+                            borderData: FlBorderData(
+                              show: true,
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: Colors.grey[300]!,
+                                  width: 1,
+                                ),
+                                left: BorderSide(
+                                  color: Colors.grey[300]!,
+                                  width: 1,
+                                ),
+                              ),
+                            ),
+                            gridData: FlGridData(
+                              show: true,
+                              horizontalInterval: _expectedToCloseMaxY > 0
+                                  ? _expectedToCloseMaxY / 5
+                                  : 1,
+                              drawVerticalLine: false,
+                              getDrawingHorizontalLine: (value) {
+                                // Skip drawing the top-most horizontal line to prevent clipping
+                                if (value >= chartMaxY - 0.0001) {
+                                  return FlLine(
+                                    color: Colors.transparent,
+                                    strokeWidth: 0,
+                                  );
+                                }
+                                return FlLine(
+                                  color: Colors.grey[300]!,
+                                  strokeWidth: 1,
+                                );
+                              },
+                            ),
+                            barGroups: _createExpectedToCloseBarGroups(
+                              barGapPerGroup,
+                            ),
+                          ),
+                        );
+
+                        // Always use a horizontal Scrollbar wrapper for consistent UX across devices
+                        return Scrollbar(
+                          controller: _expectedToCloseScrollController,
+                          thumbVisibility: true,
+                          trackVisibility: true,
+                          interactive: true,
+                          thickness: 8,
+                          radius: Radius.circular(6),
+                          scrollbarOrientation: ScrollbarOrientation.bottom,
+                          child: SingleChildScrollView(
+                            controller: _expectedToCloseScrollController,
+                            scrollDirection: Axis.horizontal,
+                            child: Padding(
+                              padding: EdgeInsets.only(
+                                right: rightEdgePaddingForLabels,
+                              ),
+                              child: SizedBox(
+                                width: chartWidth,
+                                height: constraints.maxHeight,
+                                child: chart,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Create dynamic bar groups with calculated spacing
+  List<BarChartGroupData> _createDynamicBarGroups(double barGap) {
+    final List<BarChartGroupData> barGroups = [];
+
+    for (int i = 0; i < _inquiryPipelineGraphData.length; i++) {
+      final project = _inquiryPipelineGraphData[i];
+      final amount = project['total_amount_gst'] as double? ?? 0.0;
+
+      barGroups.add(
+        BarChartGroupData(
+          x: i,
+          barRods: [
+            BarChartRodData(
+              toY: amount,
+              color: Colors.blue[600]!,
+              width: 20,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return barGroups;
+  }
+
+  // Create dynamic bar groups for Expected to Close with calculated spacing
+  List<BarChartGroupData> _createExpectedToCloseBarGroups(double barGap) {
+    final List<BarChartGroupData> barGroups = [];
+
+    for (int i = 0; i < _expectedToCloseGraphData.length; i++) {
+      final project = _expectedToCloseGraphData[i];
+      final amount = project['total_amount_gst'] as double? ?? 0.0;
+
+      barGroups.add(
+        BarChartGroupData(
+          x: i,
+          barRods: [
+            BarChartRodData(
+              toY: amount,
+              color: const Color(
+                0xFF1E4B8A,
+              ), // Blue color same as Sales Analytics
+              width: 20,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return barGroups;
   }
 
   Widget _buildQualifiedAreaVsRevenueChart() {
@@ -11193,6 +12420,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   List<BarChartGroupData> _buildBarGroups() {
     return _barChartData;
   }
+
   Widget _buildLeadPerformanceTable() {
     return Container(
       padding: EdgeInsets.all(16),
@@ -11955,6 +13183,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       ],
     );
   }
+
   Widget _buildLeadTable() {
     if (_isLoadingLeadData) {
       return Center(
@@ -12750,6 +13979,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         return Colors.grey[700]!;
     }
   }
+
   Widget _buildPagination() {
     final totalResults = _filteredLeadData.length;
     final totalOriginalResults = _leadPerformanceData.length;
@@ -13445,6 +14675,7 @@ class AdminRoleManagementPage extends StatefulWidget {
   State<AdminRoleManagementPage> createState() =>
       _AdminRoleManagementPageState();
 }
+
 class _AdminRoleManagementPageState extends State<AdminRoleManagementPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
@@ -14242,6 +15473,7 @@ class _AdminRoleManagementPageState extends State<AdminRoleManagementPage>
       ),
     );
   }
+
   Widget _buildActiveUsersList() {
     if (_isLoadingUsers) {
       return Container(
@@ -14443,7 +15675,7 @@ class _AdminRoleManagementPageState extends State<AdminRoleManagementPage>
                 ),
               ),
             ],
-            icon: Icon(Icons.more_vert, color: Colors.grey[600]),
+            icon: Icon(Icons.more_vert, color: Colors.blue[600]),
           ),
         ],
       ),
