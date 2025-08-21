@@ -1233,9 +1233,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
         const SizedBox(height: 12),
         
         // Status Buttons
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
+        Row(
           children: statusOptions.map((status) {
             final bool isSelected = _offerStatus == status;
             Color buttonColor;
@@ -1264,28 +1262,34 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                 textColor = isSelected ? Colors.white : Colors.blue[700]!;
             }
             
-            return InkWell(
-              onTap: () {
-                setState(() {
-                  _offerStatus = status;
-                });
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: buttonColor,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isSelected ? buttonColor : buttonColor.withOpacity(0.3),
-                    width: 1.5,
-                  ),
-                ),
-                child: Text(
-                  status,
-                  style: TextStyle(
-                    color: textColor,
-                    fontSize: 12,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            return Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      _offerStatus = status;
+                    });
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: buttonColor,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected ? buttonColor : buttonColor.withOpacity(0.3),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Text(
+                      status,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: textColor,
+                        fontSize: 11,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
                   ),
                 ),
               ),
