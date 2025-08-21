@@ -2535,7 +2535,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     if (!signaturePlaced) {
       pages.add(_buildOfferSignaturePage(context));
     }
-    // Append Technical Specification pages as the last pages (fit to available height)
+    // Append Technical Specification pages as the last pages (17 rows per page)
     pages.addAll(_buildTechnicalSpecificationPages(
       context,
       maxWidth: contentWidth,
@@ -3041,7 +3041,9 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     );
   }
 
-  // Technical Specification pages: paginate rows to fit available page height, repeat header per page
+  // Technical Specification pages: exactly 17 rows per page, repeat header per page
+  /// Builds Technical Specification pages with exactly 17 rows per page
+  /// maxWidth is used for table width constraints, maxHeight parameter is kept for compatibility but not used
   List<Widget> _buildTechnicalSpecificationPages(BuildContext context, {double? maxWidth, double? maxHeight}) {
     TextStyle headStyle = _baseTextStyle.copyWith(fontWeight: FontWeight.w800);
     TextStyle cellStyle = _baseTextStyle;
@@ -3135,68 +3137,29 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
 
     final List<Widget> pages = [];
 
-    // If no height budget provided, fall back to a conservative default to avoid overflow
-    final double availableHeight = (maxHeight ?? 700).clamp(400.0, 2000.0);
     final double tableMaxWidth = maxWidth ?? double.infinity;
 
     // Column widths (must match Table columnWidths)
     const double col0Width = 70;
     const double col1Width = 200;
-    final double col2Width = math.max(120.0, tableMaxWidth.isFinite ? (tableMaxWidth - col0Width - col1Width) : 400.0);
 
-    // Measure helpers
-    double measureTextHeight(String text, TextStyle style, double maxW) {
-      final tp = TextPainter(
-        text: TextSpan(text: text, style: style),
-        textDirection: ui.TextDirection.ltr,
-        maxLines: null,
-      )..layout(maxWidth: maxW);
-      return tp.height;
-    }
-
-    double measureCellHeight(String text, TextStyle style, double colW, {double minH = 40, double maxH = 80}) {
-      // Subtract horizontal padding (6 left + 6 right) for layout
-      final double textHeight = measureTextHeight(text, style, math.max(0, colW - 12));
-      final double cellH = textHeight + 12; // add vertical padding (6 + 6)
-      return cellH.clamp(minH, maxH);
-    }
-
-    // Title height + spacing
-    final double titleHeight = measureTextHeight('TECHNICAL SPECIFICATION SHEET', headStyle, tableMaxWidth) + 12;
-
-    // Header row height (max of cells, with header constraints 40..60)
+    // Header columns for table
     final List<String> headerCols = ['Sr. No', 'PARAMETERS', 'SPECIFICATIONS'];
-    double headerRowHeight = math.max(
-      measureCellHeight(headerCols[0], headStyle, col0Width, minH: 40, maxH: 60),
-      math.max(
-        measureCellHeight(headerCols[1], headStyle, col1Width, minH: 40, maxH: 60),
-        measureCellHeight(headerCols[2], headStyle, col2Width, minH: 40, maxH: 60),
-      ),
-    );
 
     int index = 0;
+    const int rowsPerPage = 17; // Fixed: exactly 17 rows per page
+
     while (index < data.length) {
-      double used = titleHeight; // title + spacing
       final List<List<String>> chunk = [];
 
-      // Pack as many rows as fit within availableHeight
-      while (index < data.length) {
-        final rowData = data[index];
-        final double h0 = measureCellHeight(rowData[0], cellStyle, col0Width);
-        final double h1 = measureCellHeight(rowData[1], cellStyle, col1Width);
-        final double h2 = measureCellHeight(rowData[2], cellStyle, col2Width);
-        final double rowH = math.max(h0, math.max(h1, h2));
-
-        // Include header row height only once per page
-        final double projected = used + headerRowHeight + rowH;
-        if (projected <= availableHeight || chunk.isEmpty) {
-          used = projected;
-          chunk.add(rowData);
-          index++;
-        } else {
-          break;
-        }
+      // Take exactly 17 rows per page (or remaining rows if less than 17)
+      final int remainingRows = data.length - index;
+      final int rowsToTake = math.min(rowsPerPage, remainingRows);
+      
+      for (int i = 0; i < rowsToTake; i++) {
+        chunk.add(data[index + i]);
       }
+      index += rowsToTake;
 
       final List<TableRow> tableRows = [
         header(headerCols),
