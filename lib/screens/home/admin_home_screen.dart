@@ -9980,7 +9980,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         ),
                         SizedBox(height: 1),
                         Text(
-                          '$entry.value leads ($percentage%)',
+                          '${entry.value} leads ($percentage%)',
                           style: TextStyle(
                             fontSize: 10,
                             color: Colors.grey[600],
@@ -11354,10 +11354,18 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       return SizedBox.shrink();
     }
 
+    // Responsive card height for better readability on larger screens
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final double chartCardHeight = screenWidth >= 1200
+        ? 520.0 // Desktop
+        : (screenWidth >= 600
+            ? 500.0 // Tablet
+            : 460.0); // Mobile
+
     return AnimatedContainer(
       duration: Duration(milliseconds: 300),
       curve: Curves.easeInOut,
-      height: 400,
+      height: chartCardHeight,
       margin: EdgeInsets.only(top: 16),
       child: Container(
         padding: EdgeInsets.all(16),
@@ -11450,52 +11458,72 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                     )
                   : LayoutBuilder(
                       builder: (context, constraints) {
-                        // Calculate dynamic bar spacing
+                        // Calculate dynamic bar spacing for Inquiry Pipeline with responsive initial visible bars
                         final cardWidth =
                             constraints.maxWidth - 32; // Account for padding
                         final numberOfLeads = _inquiryPipelineGraphData.length;
-                        final minGap = 150.0;
+                        // Determine device type by width (mobile <600, tablet 600-1200, desktop >=1200)
+                        final bool isDesktop = constraints.maxWidth >= 1200;
+                        final bool isTablet = constraints.maxWidth >= 600 && constraints.maxWidth < 1200;
 
-                        // Calculate optimal gap
-                        double barGap;
-                        double chartWidth;
-                        bool needsScroll = false;
-
-                        if (numberOfLeads > 0) {
-                          final availableWidthPerBar =
-                              cardWidth / numberOfLeads;
-                          // Force scroll if bars exceed threshold count
-                          final forceScrollForManyBars = numberOfLeads > 6;
-                          if (!forceScrollForManyBars &&
-                              availableWidthPerBar > minGap) {
-                            // If we have enough space, use the calculated gap
-                            barGap = availableWidthPerBar;
-                            chartWidth = cardWidth;
-                          } else {
-                            // If not enough space, use minimum gap and enable scroll
-                            barGap = minGap;
-                            chartWidth =
-                                numberOfLeads * minGap +
-                                (numberOfLeads - 1) *
-                                    20; // Account for bar widths
-                            needsScroll = true;
-                          }
+                        int visibleInitialBars;
+                        if (isDesktop) {
+                          visibleInitialBars = 8;
+                        } else if (isTablet) {
+                          visibleInitialBars = 6;
                         } else {
-                          barGap = minGap;
-                          chartWidth = cardWidth;
+                          visibleInitialBars = 4;
                         }
 
-                        // Create chart with dynamic spacing
+                        // Always show a horizontal scrollbar at the bottom on all layouts
+                        final bool forceScrollbar = true;
+
+                        const double barWidth = 20.0;
+                        const double minGroupSpace = 8.0;
+                        const double maxGroupSpace = 200.0;
+                        const double rightEdgePaddingForLabels = 56.0; // prevent last label clipping
+
+                        double barGapPerGroup; // total width per bar group = barWidth + groupsSpace
+                        double groupsSpace; // space between groups as expected by fl_chart
+                        double chartWidth;
+
+                        if (numberOfLeads <= 0) {
+                          // No data
+                          barGapPerGroup = barWidth + minGroupSpace;
+                          groupsSpace = minGroupSpace;
+                          chartWidth = cardWidth;
+                        } else if (numberOfLeads <= visibleInitialBars) {
+                          // Fit all bars within card width without scrolling
+                          barGapPerGroup = (cardWidth / numberOfLeads)
+                              .clamp(barWidth + minGroupSpace, barWidth + maxGroupSpace);
+                          groupsSpace = (barGapPerGroup - barWidth).clamp(minGroupSpace, maxGroupSpace);
+                          chartWidth = cardWidth;
+                          // Force a visible scrollbar on all layouts by adding minimal overflow
+                          if (forceScrollbar) {
+                            chartWidth = cardWidth + 1; // minimal overflow to render scrollbar
+                          }
+                        } else {
+                          // More bars than initial visible count: make viewport show exactly visibleInitialBars and enable scroll
+                          barGapPerGroup = (cardWidth / visibleInitialBars)
+                              .clamp(barWidth + minGroupSpace, barWidth + maxGroupSpace);
+                          groupsSpace = (barGapPerGroup - barWidth).clamp(minGroupSpace, maxGroupSpace);
+                          chartWidth = (numberOfLeads * barGapPerGroup);
+                        }
+
+                        // Create chart with calculated spacing
                         final chart = BarChart(
                           BarChartData(
                             alignment: BarChartAlignment.spaceBetween,
-                            maxY: _inquiryPipelineMaxY * 1.1,
-                            groupsSpace:
-                                barGap -
-                                20, // Apply the calculated gap minus bar width (20 is bar width)
+                            maxY: _inquiryPipelineMaxY * 1.25, // add headroom for tooltip
+                            groupsSpace: groupsSpace, // space between groups
                             barTouchData: BarTouchData(
                               enabled: true,
                               touchTooltipData: BarTouchTooltipData(
+                                fitInsideHorizontally: true,
+                                fitInsideVertically: true,
+                                tooltipPadding: EdgeInsets.all(8),
+                                tooltipMargin: 8,
+                                tooltipBorder: BorderSide(color: Colors.black26),
                                 getTooltipItem: (group, groupIndex, rod, rodIndex) {
                                   final projectIndex = group.x.toInt();
                                   if (projectIndex <
@@ -11575,13 +11603,17 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                     }
                                     return Text('');
                                   },
-                                  reservedSize: 40,
+                                  reservedSize: 56, // Extra space for labels + scrollbar
                                 ),
                               ),
                               leftTitles: AxisTitles(
                                 sideTitles: SideTitles(
                                   showTitles: true,
                                   getTitlesWidget: (value, meta) {
+                                    // Hide the top-most label to avoid clipping at chart edge
+                                    if (value >= _inquiryPipelineMaxY * 1.25 - 0.0001) {
+                                      return const SizedBox.shrink();
+                                    }
                                     final amountInCrore =
                                         value / 10000000; // Convert to Crore
                                     return Text(
@@ -11593,7 +11625,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                       ),
                                     );
                                   },
-                                  reservedSize: 60,
+                                  reservedSize: 80,
                                   interval: _inquiryPipelineMaxY > 0
                                       ? _inquiryPipelineMaxY / 5
                                       : 1,
@@ -11620,35 +11652,39 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                   : 1,
                               drawVerticalLine: false,
                               getDrawingHorizontalLine: (value) {
-                                return FlLine(
-                                  color: Colors.grey[300]!,
-                                  strokeWidth: 1,
-                                );
+                                // Skip drawing the top-most horizontal line to prevent clipping
+                                if (value >= _inquiryPipelineMaxY * 1.25 - 0.0001) {
+                                  return FlLine(color: Colors.transparent, strokeWidth: 0);
+                                }
+                                return FlLine(color: Colors.grey[300]!, strokeWidth: 1);
                               },
                             ),
-                            barGroups: _createDynamicBarGroups(barGap),
+                            barGroups: _createDynamicBarGroups(barGapPerGroup),
                           ),
                         );
 
-                        // Wrap in SingleChildScrollView if horizontal scroll is needed
-                        if (needsScroll) {
-                          return Scrollbar(
+                        // Always use a horizontal Scrollbar wrapper for consistent UX across devices
+                        return Scrollbar(
+                          controller: _inquiryPipelineScrollController,
+                          thumbVisibility: true,
+                          trackVisibility: true,
+                          interactive: true,
+                          thickness: 8,
+                          radius: Radius.circular(6),
+                          scrollbarOrientation: ScrollbarOrientation.bottom,
+                          child: SingleChildScrollView(
                             controller: _inquiryPipelineScrollController,
-                            thumbVisibility: true,
-                            interactive: true,
-                            child: SingleChildScrollView(
-                              controller: _inquiryPipelineScrollController,
-                              scrollDirection: Axis.horizontal,
+                            scrollDirection: Axis.horizontal,
+                            child: Padding(
+                              padding: EdgeInsets.only(right: rightEdgePaddingForLabels),
                               child: SizedBox(
                                 width: chartWidth,
                                 height: constraints.maxHeight,
                                 child: chart,
                               ),
                             ),
-                          );
-                        } else {
-                          return chart;
-                        }
+                          ),
+                        );
                       },
                     ),
             ),
