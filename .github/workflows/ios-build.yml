@@ -72,61 +72,42 @@ jobs:
         flutter config --no-enable-web
         flutter config --enable-ios
         
-    - name: Build iOS (Debug)
+    - name: Build iOS Bundle
       run: |
-        echo "Building iOS Debug for device..."
-        flutter build ios --debug --no-codesign --target-platform ios-arm64
+        echo "Building iOS bundle..."
+        flutter build bundle --target-platform ios
         
-    - name: Build iOS (Release)
+    - name: Build iOS for Simulator
       run: |
-        echo "Building iOS Release for device..."
-        flutter build ios --release --no-codesign --target-platform ios-arm64
+        echo "Building iOS for simulator..."
+        flutter build bundle --target-platform ios
         
-    - name: Build iOS Simulator (Debug)
+    - name: Build iOS App using Xcode
       run: |
-        echo "Building iOS Debug for simulator..."
-        flutter build ios --debug --simulator --no-codesign --target-platform ios-x86_64
-        
-    - name: Build iOS Simulator (Release)
-      run: |
-        echo "Building iOS Release for simulator..."
-        flutter build ios --release --simulator --no-codesign --target-platform ios-x86_64
+        echo "Building iOS app using Xcode..."
+        cd ios
+        xcodebuild -workspace Runner.xcworkspace -scheme Runner -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath build/derivedData clean build
+        cd ..
       
     - name: Verify iOS build output
       run: |
         echo "Checking iOS build output structure..."
-        ls -la build/ios/
-        echo "Checking device build output..."
-        ls -la build/ios/iphoneos/ || echo "Device build not found"
-        echo "Checking simulator build output..."
-        ls -la build/ios/iphonesimulator/ || echo "Simulator build not found"
+        ls -la build/
+        echo "Checking bundle output..."
+        ls -la build/app/outputs/flutter_assets/ || echo "Bundle not found"
         
-    - name: Upload iOS Debug Build (Device)
+    - name: Upload iOS Bundle
       uses: actions/upload-artifact@v4
       with:
-        name: ios-debug-build-device
-        path: build/ios/iphoneos/
+        name: ios-bundle
+        path: build/app/outputs/flutter_assets/
         retention-days: 7
         
-    - name: Upload iOS Release Build (Device)
+    - name: Upload iOS Xcode Build
       uses: actions/upload-artifact@v4
       with:
-        name: ios-release-build-device
-        path: build/ios/iphoneos/
-        retention-days: 7
-        
-    - name: Upload iOS Debug Build (Simulator)
-      uses: actions/upload-artifact@v4
-      with:
-        name: ios-debug-build-simulator
-        path: build/ios/iphonesimulator/
-        retention-days: 7
-        
-    - name: Upload iOS Release Build (Simulator)
-      uses: actions/upload-artifact@v4
-      with:
-        name: ios-release-build-simulator
-        path: build/ios/iphonesimulator/
+        name: ios-xcode-build
+        path: ios/build/derivedData/
         retention-days: 7
         
     - name: Create IPA (if signing is configured)
