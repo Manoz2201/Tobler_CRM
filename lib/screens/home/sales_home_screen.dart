@@ -1940,6 +1940,9 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
   // Export quality settings
   double _exportPixelRatio = 1.0; // 1.0 for speed, 2.0 for quality
   
+  // Mobile sidebar state
+  bool _showSidebar = false;
+  
   // Sidebar input controllers
   late final TextEditingController _deliveryTimeCtl;
   late final TextEditingController _nalcoPriceCtl;
@@ -2362,102 +2365,108 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
   
   /// Builds the left sidebar with input fields for project details
   Widget _buildLeftSidebar() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Offer Status Buttons
-        _buildOfferStatusSection(),
-        const SizedBox(height: 20),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 600;
         
-        // Header
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.orange[50],
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.orange.shade200),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.settings, color: Colors.orange[700], size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Project Details',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.orange[700],
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Offer Status Buttons
+            _buildOfferStatusSection(),
+            SizedBox(height: isMobile ? 16 : 20),
+            
+            // Header
+            Container(
+              padding: EdgeInsets.all(isMobile ? 10 : 12),
+              decoration: BoxDecoration(
+                color: Colors.orange[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.settings, color: Colors.orange[700], size: isMobile ? 18 : 20),
+                  SizedBox(width: isMobile ? 6 : 8),
+                  Text(
+                    'Project Details',
+                    style: TextStyle(
+                      fontSize: isMobile ? 14 : 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange[700],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: isMobile ? 16 : 20),
+            
+            // Project Name
+            _buildInputField(
+              label: 'Project Name',
+              controller: _projectNameCtl,
+              icon: Icons.business,
+            ),
+            SizedBox(height: isMobile ? 12 : 16),
+            
+            // Location/Address
+            _buildInputField(
+              label: 'Location/Address',
+              controller: _addressCtl,
+              icon: Icons.location_on,
+              maxLines: 3,
+            ),
+            SizedBox(height: isMobile ? 12 : 16),
+            
+            // Delivery Time
+            _buildInputField(
+              label: 'Delivery Time',
+              controller: _deliveryTimeCtl,
+              icon: Icons.schedule,
+            ),
+            SizedBox(height: isMobile ? 12 : 16),
+            
+            // Payment Terms Section
+            _buildPaymentTermsSection(),
+            SizedBox(height: isMobile ? 12 : 16),
+            
+            // Nalco Price
+            _buildInputField(
+              label: 'Nalco Price',
+              controller: _nalcoPriceCtl,
+              icon: Icons.attach_money,
+            ),
+            SizedBox(height: isMobile ? 16 : 20),
+            
+            // Save Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  // Update offer content with new sidebar values
+                  setState(() {
+                    // Trigger rebuild to update commercial rows and other content
+                  });
+                  
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Project details saved! Offer content updated.'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.save),
+                label: const Text('Save Details'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange[600],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
               ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
-        
-        // Project Name
-        _buildInputField(
-          label: 'Project Name',
-          controller: _projectNameCtl,
-          icon: Icons.business,
-        ),
-        const SizedBox(height: 16),
-        
-        // Location/Address
-        _buildInputField(
-          label: 'Location/Address',
-          controller: _addressCtl,
-          icon: Icons.location_on,
-          maxLines: 3,
-        ),
-        const SizedBox(height: 16),
-        
-        // Delivery Time
-        _buildInputField(
-          label: 'Delivery Time',
-          controller: _deliveryTimeCtl,
-          icon: Icons.schedule,
-        ),
-        const SizedBox(height: 16),
-        
-        // Payment Terms Section
-        _buildPaymentTermsSection(),
-        const SizedBox(height: 16),
-        
-        // Nalco Price
-        _buildInputField(
-          label: 'Nalco Price',
-          controller: _nalcoPriceCtl,
-          icon: Icons.attach_money,
-        ),
-        const SizedBox(height: 20),
-        
-        // Save Button
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: () {
-              // Update offer content with new sidebar values
-              setState(() {
-                // Trigger rebuild to update commercial rows and other content
-              });
-              
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Project details saved! Offer content updated.'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
-            },
-            icon: const Icon(Icons.save),
-            label: const Text('Save Details'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange[600],
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 12),
             ),
-          ),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 
@@ -3625,23 +3634,145 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                       topRight: Radius.circular(isMobile ? 0 : 12),
                     ),
                   ),
-                  child: Row(
+                  child: Column(
                     children: [
-                      Icon(Icons.local_offer, color: Colors.white, size: 24),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Row(
-                          children: [
-                            const Text(
+                      // Main header row
+                      Row(
+                        children: [
+                          Icon(Icons.local_offer, color: Colors.white, size: isMobile ? 20 : 24),
+                          SizedBox(width: isMobile ? 8 : 12),
+                          Expanded(
+                            child: Text(
                               'Offer Editor',
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 20,
+                                fontSize: isMobile ? 16 : 20,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
+                          ),
+                          // Mobile: Show sidebar toggle button
+                          if (isMobile)
+                            IconButton(
+                              icon: Icon(_showSidebar ? Icons.close : Icons.menu, color: Colors.white),
+                              tooltip: _showSidebar ? 'Hide Sidebar' : 'Show Sidebar',
+                              onPressed: () {
+                                setState(() {
+                                  _showSidebar = !_showSidebar;
+                                });
+                              },
+                            ),
+                          IconButton(
+                            icon: Icon(_isEditing ? Icons.visibility : Icons.edit, color: Colors.white),
+                            tooltip: _isEditing ? 'Preview Mode' : 'Edit Mode',
+                            onPressed: () {
+                              setState(() {
+                                _isEditing = !_isEditing;
+                              });
+                            },
+                          ),
+                          if (!isMobile) ...[
+                            IconButton(
+                              icon: const Icon(Icons.format_size, color: Colors.white),
+                              tooltip: 'Text Formatting',
+                              onPressed: () => _showTextFormattingDialog(),
+                            ),
+                          ],
+                          IconButton(
+                            icon: const Icon(Icons.save, color: Colors.white),
+                            tooltip: 'Save Offer',
+                            onPressed: _saveOfferToSupabase,
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close, color: Colors.white),
+                            tooltip: 'Close',
+                            onPressed: () => Navigator.of(context).pop(),
+                          ),
+                        ],
+                      ),
+                      // Mobile: Show essential controls in second row
+                      if (isMobile) ...[
+                        SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            // Zoom controls for mobile
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.zoom_out, color: Colors.white, size: 16),
+                                  tooltip: 'Zoom Out',
+                                  onPressed: () {
+                                    setState(() {
+                                      _zoomLevel = math.max(0.5, _zoomLevel - 0.1);
+                                      _zoomTextController.text = '${(_zoomLevel * 100).round()}%';
+                                    });
+                                  },
+                                ),
+                                Container(
+                                  width: 60,
+                                  child: SliderTheme(
+                                    data: SliderTheme.of(context).copyWith(
+                                      activeTrackColor: Colors.white,
+                                      inactiveTrackColor: Colors.white.withValues(alpha: 0.3),
+                                      thumbColor: Colors.white,
+                                      overlayColor: Colors.white.withValues(alpha: 0.2),
+                                      trackHeight: 2,
+                                    ),
+                                    child: Slider(
+                                      value: _zoomLevel,
+                                      min: 0.5,
+                                      max: 2.0,
+                                      divisions: 15,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          _zoomLevel = value;
+                                          _zoomTextController.text = '${(value * 100).round()}%';
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.zoom_in, color: Colors.white, size: 16),
+                                  tooltip: 'Zoom In',
+                                  onPressed: () {
+                                    setState(() {
+                                      _zoomLevel = math.min(2.0, _zoomLevel + 0.1);
+                                      _zoomTextController.text = '${(_zoomLevel * 100).round()}%';
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                            // Export buttons for mobile
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.picture_as_pdf, color: Colors.white, size: 16),
+                                  tooltip: 'Export PDF',
+                                  onPressed: () => _exportToPDF(),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.description, color: Colors.white, size: 16),
+                                  tooltip: 'Export Word',
+                                  onPressed: () => _exportToWord(),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ],
+                      // Desktop: Show full controls in single row
+                      if (!isMobile) ...[
+                        SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            // Text formatting and editing info
                             if (_isEditing) ...[
-                              const SizedBox(width: 16),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
@@ -3671,29 +3802,169 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                 ),
                               ),
                             ],
-                            // Zoom level indicator
-                            const SizedBox(width: 16),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.zoom_in, color: Colors.white, size: 12),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '${(_zoomLevel * 100).round()}%',
-                                    style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
+                            // Zoom controls
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.zoom_out, color: Colors.white, size: 18),
+                                  tooltip: 'Zoom Out',
+                                  onPressed: () {
+                                    setState(() {
+                                      _zoomLevel = math.max(0.5, _zoomLevel - 0.1);
+                                      _zoomTextController.text = '${(_zoomLevel * 100).round()}%';
+                                    });
+                                  },
+                                ),
+                                const SizedBox(width: 4),
+                                SizedBox(
+                                  width: 80,
+                                  child: SliderTheme(
+                                    data: SliderTheme.of(context).copyWith(
+                                      activeTrackColor: Colors.white,
+                                      inactiveTrackColor: Colors.white.withValues(alpha: 0.3),
+                                      thumbColor: Colors.white,
+                                      overlayColor: Colors.white.withValues(alpha: 0.2),
+                                      trackHeight: 2,
+                                    ),
+                                    child: Slider(
+                                      value: _zoomLevel,
+                                      min: 0.5,
+                                      max: 2.0,
+                                      divisions: 15,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          _zoomLevel = value;
+                                          _zoomTextController.text = '${(value * 100).round()}%';
+                                        });
+                                      },
+                                    ),
                                   ),
-                                ],
-                              ),
+                                ),
+                                const SizedBox(width: 4),
+                                IconButton(
+                                  icon: const Icon(Icons.zoom_in, color: Colors.white, size: 18),
+                                  tooltip: 'Zoom In',
+                                  onPressed: () {
+                                    setState(() {
+                                      _zoomLevel = math.min(2.0, _zoomLevel + 0.1);
+                                      _zoomTextController.text = '${(_zoomLevel * 100).round()}%';
+                                    });
+                                  },
+                                ),
+                                const SizedBox(width: 8),
+                                // Zoom percentage input
+                                Container(
+                                  width: 50,
+                                  height: 28,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: TextField(
+                                    controller: _zoomTextController,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    decoration: const InputDecoration(
+                                      border: InputBorder.none,
+                                      contentPadding: EdgeInsets.symmetric(vertical: 4),
+                                      isDense: true,
+                                    ),
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    onSubmitted: (value) {
+                                      // Parse percentage input (e.g., "150" -> 1.5)
+                                      final percentage = double.tryParse(value);
+                                      if (percentage != null && percentage >= 50 && percentage <= 200) {
+                                        final zoom = percentage / 100;
+                                        setState(() {
+                                          _zoomLevel = zoom;
+                                          _zoomTextController.text = '${(zoom * 100).round()}%';
+                                        });
+                                      } else {
+                                        // Reset to current zoom level if invalid
+                                        _zoomTextController.text = '${(_zoomLevel * 100).round()}%';
+                                      }
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                // Reset zoom button
+                                IconButton(
+                                  icon: const Icon(Icons.refresh, color: Colors.white, size: 16),
+                                  tooltip: 'Reset Zoom',
+                                  onPressed: () {
+                                    setState(() {
+                                      _zoomLevel = 1.0;
+                                      _zoomTextController.text = '100%';
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                            // Export controls
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Export quality selector
+                                Container(
+                                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        'Quality:',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      DropdownButton<double>(
+                                        value: _exportPixelRatio,
+                                        dropdownColor: Colors.grey[800],
+                                        style: const TextStyle(color: Colors.white, fontSize: 12),
+                                        underline: Container(),
+                                        items: const [
+                                          DropdownMenuItem(
+                                            value: 1.0,
+                                            child: Text('Fast', style: TextStyle(color: Colors.white)),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 2.0,
+                                            child: Text('High', style: TextStyle(color: Colors.white)),
+                                          ),
+                                        ],
+                                        onChanged: (value) {
+                                          if (value != null) {
+                                            setState(() {
+                                              _exportPixelRatio = value;
+                                            });
+                                          }
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
+                                  tooltip: 'Export PDF',
+                                  onPressed: () => _exportToPDF(),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.description, color: Colors.white),
+                                  tooltip: 'Export Word',
+                                  onPressed: () => _exportToWord(),
+                                ),
+                              ],
                             ),
                           ],
                         ),
-                      ),
+                      ],
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -3891,29 +4162,31 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                     color: Colors.grey[100],
                     child: Row(
                       children: [
-                        // Left sidebar with input fields
-                        Container(
-                          width: 300,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            border: Border(
-                              right: BorderSide(color: Colors.grey.shade300, width: 1),
+                        // Left sidebar with input fields - responsive behavior
+                        if (!isMobile || _showSidebar)
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            width: isMobile ? screenWidth * 0.9 : 300,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              border: Border(
+                                right: BorderSide(color: Colors.grey.shade300, width: 1),
+                              ),
+                            ),
+                            child: SingleChildScrollView(
+                              padding: EdgeInsets.all(isMobile ? 12 : 16),
+                              child: _buildLeftSidebar(),
                             ),
                           ),
-                          child: SingleChildScrollView(
-                            padding: const EdgeInsets.all(16),
-                            child: _buildLeftSidebar(),
-                          ),
-                        ),
                         // Offer content area
                         Expanded(
                           child: Center(
                             child: SingleChildScrollView(
-                              padding: const EdgeInsets.all(16),
+                              padding: EdgeInsets.all(isMobile ? 8 : 16),
                               child: LayoutBuilder(
                                 builder: (context, constraints) {
                                   final double maxAvailableWidth = constraints.maxWidth;
-                                  final double targetWidth = math.min(maxAvailableWidth, 900);
+                                  final double targetWidth = math.min(maxAvailableWidth, isMobile ? maxAvailableWidth * 0.95 : 900);
                                   final double aspect = _a4HeightMm / _a4WidthMm; // ~1.414
                                   final double targetHeight = targetWidth * aspect;
 
@@ -3935,7 +4208,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                       children: [
                                         for (int i = 0; i < pageBodies.length; i++)
                                           Padding(
-                                            padding: const EdgeInsets.only(bottom: 16),
+                                            padding: EdgeInsets.only(bottom: isMobile ? 8 : 16),
                                             child: RepaintBoundary(
                                               key: _pageKeys[i],
                                               child: Stack(
@@ -3944,10 +4217,10 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                                   Positioned(
                                                     left: 0,
                                                     right: 0,
-                                                    bottom: 16,
+                                                    bottom: isMobile ? 8 : 16,
                                                     child: Center(
                                                       child: Container(
-                                                        padding: const EdgeInsets.all(8),
+                                                        padding: EdgeInsets.all(isMobile ? 6 : 8),
                                                         decoration: BoxDecoration(
                                                           shape: BoxShape.circle,
                                                           border: Border.all(color: Colors.grey.shade600),
@@ -3955,7 +4228,10 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                                         ),
                                                         child: Text(
                                                           '${i + 1}',
-                                                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                                                          style: TextStyle(
+                                                            fontSize: isMobile ? 8 : 10, 
+                                                            fontWeight: FontWeight.bold
+                                                          ),
                                                         ),
                                                       ),
                                                     ),
