@@ -19,13 +19,33 @@ jobs:
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.24.5'
+        flutter-version: '3.35.1'
         channel: 'stable'
         cache: true
+        
+    - name: Show Flutter and Dart versions
+      run: |
+        flutter --version
+        dart --version
         
     - name: Install dependencies
       run: flutter pub get
       
+    - name: Show available devices
+      run: flutter devices
+      
+    - name: Clean and regenerate
+      run: |
+        flutter clean
+        flutter pub get
+        
+    - name: Verify project setup
+      run: |
+        echo "Checking project structure..."
+        ls -la
+        echo "Checking Flutter configuration..."
+        flutter config
+        
     - name: Analyze code
       run: flutter analyze
       
@@ -38,12 +58,34 @@ jobs:
     - name: Verify pub dependencies
       run: flutter pub deps
       
+    - name: Ensure we're building for web
+      run: |
+        echo "Current Flutter target platforms:"
+        flutter devices
+        echo "Available build targets:"
+        flutter build --help | grep -E "(web|ios|android)" || echo "No specific platform info found"
+        echo "Ensuring we're in web mode..."
+        flutter config --enable-web
+        
     - name: Build web (for testing)
       run: flutter build web --release
       
+    - name: Verify web build output
+      run: |
+        echo "Checking web build output structure..."
+        ls -la build/
+        echo "Checking web output..."
+        ls -la build/web/ || echo "Web build not found"
+        
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
         name: web-build
         path: build/web/
-        retention-days: 1 
+        retention-days: 1
+        
+    - name: Note about CI workflow
+      run: |
+        echo "CI workflow completed successfully!"
+        echo "This workflow runs tests, analyzes code, and builds web for verification"
+        echo "For full builds, see the dedicated Android, iOS, and Web deployment workflows" 
