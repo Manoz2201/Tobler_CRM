@@ -18,6 +18,7 @@ import 'package:crm_app/widgets/custom_radio_group.dart';
 import 'admin_user_management_page.dart';
 import '../settings/currency_settings_card.dart';
 import '../settings/time_period_card.dart';
+import 'sales_home_screen.dart'; // Import for OffersManagementScreen
 
 import '../../utils/navigation_utils.dart';
 import '../../utils/timezone_utils.dart';
@@ -85,10 +86,11 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       onNavigateToLeadManagement: _navigateToLeadManagementWithFilter,
     ), // Dashboard
     LeadTable(initialFilter: _leadTableFilter), // Leads Management
+    OffersManagementScreen(), // Offers Management
     SalesPerformancePage(), // Sales Performance
     AdminUserManagementPage(
       onNavigateToRoleManagement: () =>
-          _onItemTapped(4), // Role Management index
+          _onItemTapped(5), // Role Management index (updated)
     ), // User Management
     AdminRoleManagementPage(), // Role Management
     ProfilePage(), // Profile
