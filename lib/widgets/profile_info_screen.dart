@@ -42,6 +42,13 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
   String? _updateMessage;
   bool _updateAvailable = false;
 
+  // Profile editing functionality
+  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _employeeCodeController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  bool _isProfileUpdateLoading = false;
+  bool _isEditingProfile = false;
+
   // Settings functionality
   final TextEditingController _projectCodeController = TextEditingController();
   bool _isSettingsLoading = false;
@@ -57,6 +64,9 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
   @override
   void dispose() {
     _projectCodeController.dispose(); // Dispose the project code controller
+    _usernameController.dispose();
+    _employeeCodeController.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 
@@ -82,28 +92,74 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
 
       final client = Supabase.instance.client;
 
+      // Debug: Check if device_type field exists and has data
+      try {
+        debugPrint('[DEBUG] Checking users table structure and sample data...');
+        final sampleUser = await client
+            .from('users')
+            .select('device_type, user_type')
+            .limit(5)
+            .maybeSingle();
+        debugPrint('[DEBUG] Sample user data: $sampleUser');
+
+        // Check if device_type field exists
+        if (sampleUser != null) {
+          debugPrint('[DEBUG] Available fields: ${sampleUser.keys.toList()}');
+          debugPrint(
+            '[DEBUG] Sample device_type: ${sampleUser['device_type']}',
+          );
+        }
+      } catch (e) {
+        debugPrint('[DEBUG] Error checking table structure: $e');
+      }
+
       // Step 2: Look up user in Supabase users table
+      debugPrint(
+        '[SUPABASE] Looking up user with ID: $cachedUserId in users table',
+      );
+      debugPrint('[SUPABASE] User ID type: ${cachedUserId.runtimeType}');
+      debugPrint('[SUPABASE] User ID length: ${cachedUserId.length}');
+
       var userData = await client
           .from('users')
           .select(
-            'id, username, employee_code, email, user_type, session_id, session_active, is_user_online',
+            'id, username, employee_code, email, user_type, session_id, session_active, is_user_online, device_type',
           )
           .eq('id', cachedUserId)
           .maybeSingle();
 
       debugPrint('[SUPABASE] Users table lookup result: $userData');
+      if (userData != null) {
+        debugPrint(
+          '[SUPABASE] Users table - device_type field: ${userData['device_type']}',
+        );
+        debugPrint(
+          '[SUPABASE] Users table - all available fields: ${userData.keys.toList()}',
+        );
+      }
 
       // Step 3: If not found in users table, try dev_user table
       if (userData == null) {
+        debugPrint(
+          '[SUPABASE] User not found in users table, trying dev_user table',
+        );
         userData = await client
             .from('dev_user')
             .select(
-              'id, username, employee_code, email, user_type, session_id, session_active, is_user_online',
+              'id, username, employee_code, email, user_type, session_id, session_active, is_user_online, device_type',
             )
             .eq('id', cachedUserId)
             .maybeSingle();
 
         debugPrint('[SUPABASE] Dev_user table lookup result: $userData');
+        if (userData != null) {
+          debugPrint(
+            '[SUPABASE] Dev_user table - device_type field: ${userData['device_type']}',
+          );
+          debugPrint(
+            '[SUPABASE] Dev_user table - all available fields: ${userData.keys.toList()}',
+          );
+        }
       }
 
       // Step 4: Validate if user is active and session matches
@@ -116,15 +172,37 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
         );
 
         if (isActive && sessionMatches) {
-          // Step 5: Fetch device info from dev_user table if needed
+          // Step 5: Get device type from the current user table
           String? deviceType;
-          if (userData['user_type'] == 'developer') {
-            final devUserData = await client
-                .from('dev_user')
-                .select('device_type')
-                .eq('id', cachedUserId)
-                .maybeSingle();
-            deviceType = devUserData?['device_type'];
+          try {
+            debugPrint('[DEVICE] Raw userData: $userData');
+            debugPrint(
+              '[DEVICE] userData device_type: ${userData['device_type']}',
+            );
+            debugPrint(
+              '[DEVICE] userData device_type type: ${userData['device_type']?.runtimeType}',
+            );
+
+            // Get device type and handle various cases
+            final rawDeviceType = userData['device_type'];
+            if (rawDeviceType != null &&
+                rawDeviceType.toString().isNotEmpty &&
+                rawDeviceType.toString() != 'null') {
+              deviceType = rawDeviceType.toString();
+              debugPrint(
+                '[DEVICE] Device type successfully extracted: $deviceType',
+              );
+            } else {
+              debugPrint(
+                '[DEVICE] Device type is null, empty, or "null" string',
+              );
+              deviceType = null;
+            }
+
+            debugPrint('[DEVICE] Final device type value: $deviceType');
+          } catch (e) {
+            debugPrint('[DEVICE] Error getting device type: $e');
+            deviceType = null;
           }
 
           // Step 6: Create final user data with only required profile columns
@@ -135,15 +213,23 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
             'email': userData['email'],
             'user_type': userData['user_type'],
             'is_user_online': userData['is_user_online'],
-            'device_type': deviceType,
+            'device_type': deviceType ?? 'N/A',
           };
 
           debugPrint('[PROFILE] Final user data: $finalUserData');
+          debugPrint(
+            '[DEVICE] Final device type: ${finalUserData['device_type']}',
+          );
 
           setState(() {
             _userData = finalUserData;
             _isLoading = false;
           });
+
+          // Initialize profile editing controllers
+          _usernameController.text = finalUserData['username'] ?? '';
+          _employeeCodeController.text = finalUserData['employee_code'] ?? '';
+          _emailController.text = finalUserData['email'] ?? '';
         } else {
           debugPrint('[VALIDATION] User not active or session mismatch');
           setState(() {
@@ -541,17 +627,33 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
     }
   }
 
+  String _getDeviceTypeDisplay() {
+    final deviceType = _userData?['device_type'];
+    if (deviceType == null || deviceType.toString().isEmpty) {
+      return 'N/A';
+    }
+    return deviceType.toString();
+  }
+
   Widget _buildProfileImage() {
     return Stack(
       children: [
         CircleAvatar(
           radius: 60,
-          backgroundColor: Colors.grey[200],
+          backgroundColor: const Color(
+            0xFFF3E5F5,
+          ), // Light purple background for profile image
           backgroundImage: _profileImageUrl != null
               ? FileImage(File(_profileImageUrl!))
               : null,
           child: _profileImageUrl == null
-              ? const Icon(Icons.person, size: 60, color: Colors.grey)
+              ? Icon(
+                  Icons.person,
+                  size: 60,
+                  color: const Color(
+                    0xFF7B1FA2,
+                  ), // Purple icon matching app theme
+                )
               : null,
         ),
         Positioned(
@@ -559,7 +661,9 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
           right: 0,
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.blue,
+              color: const Color(
+                0xFF2196F3,
+              ), // Blue background matching app theme
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white, width: 2),
             ),
@@ -596,7 +700,7 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
     bool isMobile = false,
   }) {
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: isMobile ? 6.0 : 8.0),
+      padding: EdgeInsets.symmetric(vertical: isMobile ? 8.0 : 10.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -607,6 +711,9 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: isMobile ? 14 : 16,
+                color: const Color(
+                  0xFF424242,
+                ), // Dark grey text matching app theme
               ),
             ),
           ),
@@ -636,7 +743,81 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                   )
                 : Text(
                     value.isEmpty ? 'N/A' : value,
-                    style: TextStyle(fontSize: isMobile ? 14 : 16),
+                    style: TextStyle(
+                      fontSize: isMobile ? 14 : 16,
+                      color: const Color(
+                        0xFF424242,
+                      ), // Dark grey text matching app theme
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEditableInfoRow(
+    String label,
+    String value,
+    TextEditingController controller, {
+    bool isMobile = false,
+    bool isEditing = false,
+  }) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: isMobile ? 8.0 : 10.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: isMobile ? 100 : 120,
+            child: Text(
+              '$label:',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: isMobile ? 14 : 16,
+                color: const Color(
+                  0xFF424242,
+                ), // Dark grey text matching app theme
+              ),
+            ),
+          ),
+          SizedBox(width: isMobile ? 12 : 16),
+          Expanded(
+            child: isEditing
+                ? TextField(
+                    controller: controller,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: const Color(0xFFE0E0E0)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: const Color(0xFFE0E0E0)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(
+                          color: const Color(0xFF2196F3),
+                          width: 2,
+                        ),
+                      ),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                    ),
+                  )
+                : Text(
+                    value.isEmpty ? 'N/A' : value,
+                    style: TextStyle(
+                      fontSize: isMobile ? 14 : 16,
+                      color: const Color(
+                        0xFF424242,
+                      ), // Dark grey text matching app theme
+                    ),
                   ),
           ),
         ],
@@ -649,73 +830,153 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: EdgeInsets.all(isMobile ? 12.0 : 16.0), // Reduced padding
-        child: Column(
-          children: [
-            // Profile Image Section
-            Center(
-              child: Column(
-                children: [
-                  _buildProfileImage(),
-                  SizedBox(height: isMobile ? 8 : 12), // Reduced spacing
-                  Text(
-                    _userData?['username'] ?? 'Unknown User',
-                    style: TextStyle(
-                      fontSize: isMobile ? 18 : 22, // Slightly reduced font
-                      fontWeight: FontWeight.bold,
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _isEditingProfile = !_isEditingProfile;
+          });
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white, // White background matching navigation bar
+            borderRadius: BorderRadius.circular(16),
+          ),
+          padding: EdgeInsets.all(isMobile ? 16.0 : 20.0),
+          child: Column(
+            children: [
+              // Profile Image Section
+              Center(
+                child: Column(
+                  children: [
+                    _buildProfileImage(),
+                    SizedBox(height: isMobile ? 12 : 16),
+                    Text(
+                      _userData?['username'] ?? 'Unknown User',
+                      style: TextStyle(
+                        fontSize: isMobile ? 20 : 24,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(
+                          0xFF424242,
+                        ), // Dark grey text matching app theme
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                  SizedBox(height: 4), // Reduced spacing
-                  Text(
-                    _userData?['user_type'] ?? 'Unknown Type',
-                    style: TextStyle(
-                      fontSize: isMobile ? 12 : 14, // Slightly reduced font
-                      color: Colors.grey[600],
+                    SizedBox(height: 6),
+                    Text(
+                      _userData?['user_type'] ?? 'Unknown Type',
+                      style: TextStyle(
+                        fontSize: isMobile ? 14 : 16,
+                        color: const Color(
+                          0xFF424242,
+                        ), // Dark grey text matching app theme
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            SizedBox(height: isMobile ? 16 : 20), // Reduced spacing
-            // User Info Section
-            const Divider(),
-            SizedBox(height: isMobile ? 8 : 12), // Reduced spacing
+              SizedBox(height: isMobile ? 20 : 24),
+              // User Info Section
+              const Divider(color: Color(0xFFE0E0E0)),
+              SizedBox(height: isMobile ? 12 : 16),
 
-            _buildInfoRow(
-              'Name',
-              _userData?['username'] ?? '',
-              isMobile: isMobile,
-            ),
-            _buildInfoRow(
-              'Employee Code',
-              _userData?['employee_code'] ?? '',
-              isMobile: isMobile,
-            ),
-            _buildInfoRow(
-              'Email ID',
-              _userData?['email'] ?? '',
-              isMobile: isMobile,
-            ),
-            _buildInfoRow(
-              'Device',
-              _userData?['device_type'] ?? '',
-              isMobile: isMobile,
-            ),
-            _buildInfoRow(
-              'User Type',
-              _userData?['user_type'] ?? '',
-              isMobile: isMobile,
-            ),
-            _buildInfoRow(
-              'Online Status',
-              _userData?['is_user_online']?.toString() ?? 'false',
-              isOnlineStatus: true,
-              isMobile: isMobile,
-            ),
-          ],
+              _buildEditableInfoRow(
+                'Name',
+                _userData?['username'] ?? '',
+                _usernameController,
+                isMobile: isMobile,
+                isEditing: _isEditingProfile,
+              ),
+              _buildEditableInfoRow(
+                'Employee Code',
+                _userData?['employee_code'] ?? '',
+                _employeeCodeController,
+                isMobile: isMobile,
+                isEditing: _isEditingProfile,
+              ),
+              _buildEditableInfoRow(
+                'Email ID',
+                _userData?['email'] ?? '',
+                _emailController,
+                isMobile: isMobile,
+                isEditing: _isEditingProfile,
+              ),
+              _buildInfoRow(
+                'Device',
+                _getDeviceTypeDisplay(),
+                isMobile: isMobile,
+              ),
+              _buildInfoRow(
+                'User Type',
+                _userData?['user_type'] ?? '',
+                isMobile: isMobile,
+              ),
+              _buildInfoRow(
+                'Online Status',
+                _userData?['is_user_online']?.toString() ?? 'false',
+                isOnlineStatus: true,
+                isMobile: isMobile,
+              ),
+
+              // Action buttons (only show when editing)
+              if (_isEditingProfile) ...[
+                SizedBox(height: isMobile ? 16 : 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    ElevatedButton(
+                      onPressed: _isProfileUpdateLoading
+                          ? null
+                          : _updateProfile,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF4CAF50),
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                      ),
+                      child: _isProfileUpdateLoading
+                          ? SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
+                            )
+                          : const Text('Save'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        setState(() {
+                          _isEditingProfile = false;
+                          // Reset controllers to original values
+                          _usernameController.text =
+                              _userData?['username'] ?? '';
+                          _employeeCodeController.text =
+                              _userData?['employee_code'] ?? '';
+                          _emailController.text = _userData?['email'] ?? '';
+                        });
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFF44336),
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                      ),
+                      child: const Text('Cancel'),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
@@ -726,25 +987,37 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: EdgeInsets.all(isMobile ? 12.0 : 16.0), // Reduced padding
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white, // White background matching navigation bar
+          borderRadius: BorderRadius.circular(16),
+        ),
+        padding: EdgeInsets.all(isMobile ? 16.0 : 20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'Project Code Configuration',
               style: TextStyle(
-                fontSize: isMobile ? 16 : 18,
+                fontSize: isMobile ? 18 : 20,
                 fontWeight: FontWeight.bold,
-                color: Colors.grey[800],
+                color: const Color(
+                  0xFF424242,
+                ), // Dark grey text matching app theme
               ),
             ),
-            SizedBox(height: 8), // Reduced spacing
+            SizedBox(height: 12),
             Text(
               'Set the base project code. The system will automatically generate sequential codes like "Tobler-00001", "Tobler-00002", etc.',
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              style: TextStyle(
+                fontSize: 14,
+                color: const Color(
+                  0xFF424242,
+                ), // Dark grey text matching app theme
+                height: 1.4,
+              ),
             ),
-            SizedBox(height: 16), // Reduced spacing
+            SizedBox(height: 20),
             TextField(
               controller: _projectCodeController,
               decoration: InputDecoration(
@@ -752,59 +1025,74 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                 hintText: 'e.g., Tobler',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: const Color(0xFFE0E0E0)),
                 ),
-                prefixIcon: Icon(Icons.code),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: const Color(0xFFE0E0E0)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(
+                    color: const Color(0xFF2196F3),
+                    width: 2,
+                  ),
+                ),
+                prefixIcon: Icon(Icons.code, color: const Color(0xFF424242)),
                 contentPadding: EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ), // Reduced padding
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                filled: true,
+                fillColor: Colors.white,
               ),
             ),
-            SizedBox(height: 12), // Reduced spacing
+            SizedBox(height: 16),
             if (_currentProjectCode != null)
               Container(
-                padding: EdgeInsets.all(8),
+                padding: EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.blue[50],
+                  color: const Color(0xFFE3F2FD), // Light blue background
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue[200]!),
+                  border: Border.all(color: const Color(0xFF2196F3)),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.info, color: Colors.blue[700], size: 16),
-                    SizedBox(width: 8),
+                    Icon(Icons.info, color: const Color(0xFF2196F3), size: 18),
+                    SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         'Current: $_currentProjectCode',
                         style: TextStyle(
-                          color: Colors.blue[700],
+                          color: const Color(0xFF1976D2),
                           fontWeight: FontWeight.w500,
-                          fontSize: 12,
+                          fontSize: 14,
                         ),
                       ),
                     ),
                   ],
                 ),
               ),
-            SizedBox(height: 12), // Reduced spacing
+            SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: _isSettingsLoading ? null : _saveProjectCode,
                 style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(
-                    vertical: 12,
-                  ), // Reduced padding
-                  backgroundColor: Colors.blue[600],
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: const Color(
+                    0xFF2196F3,
+                  ), // Blue button matching app theme
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
+                  elevation: 2,
                 ),
                 child: _isSettingsLoading
                     ? SizedBox(
-                        width: 16,
-                        height: 16,
+                        width: 20,
+                        height: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
                           valueColor: AlwaysStoppedAnimation<Color>(
@@ -812,7 +1100,13 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                           ),
                         ),
                       )
-                    : Text('Save Project Code'),
+                    : Text(
+                        'Save Project Code',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
               ),
             ),
           ],
@@ -821,13 +1115,174 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
     );
   }
 
+  // Update profile information
+  Future<void> _updateProfile() async {
+    if (_usernameController.text.trim().isEmpty ||
+        _employeeCodeController.text.trim().isEmpty ||
+        _emailController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('All fields are required')));
+      return;
+    }
+
+    setState(() {
+      _isProfileUpdateLoading = true;
+    });
+
+    try {
+      final client = Supabase.instance.client;
+
+      // Get the active user ID from loaded user data or cached preferences
+      String userId = '';
+
+      if (_userData != null && _userData!['id'] != null) {
+        userId = _userData!['id'].toString();
+        debugPrint('[PROFILE_UPDATE] Using user ID from loaded data: $userId');
+      } else {
+        // Fallback to cached user ID from SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        final cachedUserId = prefs.getString('user_id');
+        if (cachedUserId != null && cachedUserId.isNotEmpty) {
+          userId = cachedUserId;
+          debugPrint('[PROFILE_UPDATE] Using cached user ID: $userId');
+        } else {
+          throw Exception('User ID not found. Please try logging in again.');
+        }
+      }
+
+      debugPrint('[PROFILE_UPDATE] Updating profile for user ID: $userId');
+      debugPrint('[PROFILE_UPDATE] New values:');
+      debugPrint(
+        '[PROFILE_UPDATE] - Name (username): ${_usernameController.text.trim()}',
+      );
+      debugPrint(
+        '[PROFILE_UPDATE] - Employee Code (employee_code): ${_employeeCodeController.text.trim()}',
+      );
+      debugPrint(
+        '[PROFILE_UPDATE] - Email ID (email): ${_emailController.text.trim()}',
+      );
+
+      // First try to update in the users table
+      debugPrint('[PROFILE_UPDATE] Attempting to update users table...');
+
+      try {
+        final response = await client
+            .from('users')
+            .update({
+              'username': _usernameController.text
+                  .trim(), // Override Name value in username column
+              'employee_code': _employeeCodeController.text
+                  .trim(), // Override Employee Code value in employee_code column
+              'email': _emailController.text
+                  .trim(), // Override Email ID value in email column
+            })
+            .eq('id', userId); // Use the specific user ID
+
+        debugPrint(
+          '[PROFILE_UPDATE] Users table update completed successfully',
+        );
+        debugPrint('[PROFILE_UPDATE] Response: $response');
+      } catch (usersError) {
+        debugPrint('[PROFILE_UPDATE] Users table update failed: $usersError');
+        debugPrint('[PROFILE_UPDATE] Trying dev_user table as fallback...');
+
+        // Try dev_user table if users table fails
+        try {
+          final devResponse = await client
+              .from('dev_user')
+              .update({
+                'username': _usernameController.text
+                    .trim(), // Override Name value in username column
+                'employee_code': _employeeCodeController.text
+                    .trim(), // Override Employee Code value in employee_code column
+                'email': _emailController.text
+                    .trim(), // Override Email ID value in email column
+              })
+              .eq('id', userId); // Use the specific user ID
+
+          debugPrint(
+            '[PROFILE_UPDATE] Dev_user table update completed successfully',
+          );
+          debugPrint('[PROFILE_UPDATE] Dev response: $devResponse');
+        } catch (devError) {
+          debugPrint(
+            '[PROFILE_UPDATE] Dev_user table update also failed: $devError',
+          );
+          throw Exception(
+            'Failed to update profile in both tables. Users error: $usersError, Dev error: $devError',
+          );
+        }
+      }
+
+      // Verify the update by fetching the updated data
+      final verificationResponse = await client
+          .from('users')
+          .select('username, employee_code, email')
+          .eq('id', userId)
+          .maybeSingle();
+
+      if (verificationResponse != null) {
+        debugPrint(
+          '[PROFILE_UPDATE] Verification - Updated values in database:',
+        );
+        debugPrint(
+          '[PROFILE_UPDATE] - username: ${verificationResponse['username']}',
+        );
+        debugPrint(
+          '[PROFILE_UPDATE] - employee_code: ${verificationResponse['employee_code']}',
+        );
+        debugPrint(
+          '[PROFILE_UPDATE] - email: ${verificationResponse['email']}',
+        );
+      }
+
+      // Update local state
+      setState(() {
+        _userData = {
+          ..._userData!,
+          'username': _usernameController.text.trim(),
+          'employee_code': _employeeCodeController.text.trim(),
+          'email': _emailController.text.trim(),
+        };
+        _isProfileUpdateLoading = false;
+        _isEditingProfile = false; // Exit editing mode
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile updated successfully in database'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('[PROFILE_UPDATE] Error updating profile: $e');
+      setState(() {
+        _isProfileUpdateLoading = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating profile: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isMobile = screenWidth < 600;
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: const Color(
+        0xFFFAFAFA,
+      ), // Light grey background matching app theme
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
@@ -843,6 +1298,9 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                         style: TextStyle(
                           fontSize: isMobile ? 24 : 28,
                           fontWeight: FontWeight.bold,
+                          color: const Color(
+                            0xFF424242,
+                          ), // Dark grey text matching app theme
                         ),
                       ),
                       Row(
@@ -871,7 +1329,9 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                               style: TextStyle(color: Colors.white),
                             ),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue[600],
+                              backgroundColor: const Color(
+                                0xFF2196F3,
+                              ), // Blue button matching app theme
                               padding: EdgeInsets.symmetric(
                                 horizontal: 16,
                                 vertical: 8,
@@ -895,16 +1355,16 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                   if (_updateMessage != null)
                     Container(
                       margin: EdgeInsets.only(top: 8),
-                      padding: EdgeInsets.all(8),
+                      padding: EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: _updateAvailable
-                            ? Colors.green[50]
-                            : Colors.blue[50],
+                            ? const Color(0xFFE8F5E8) // Light green background
+                            : const Color(0xFFE3F2FD), // Light blue background
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
                           color: _updateAvailable
-                              ? Colors.green[200]!
-                              : Colors.blue[200]!,
+                              ? const Color(0xFF4CAF50) // Green border
+                              : const Color(0xFF2196F3), // Blue border
                         ),
                       ),
                       child: Row(
@@ -912,19 +1372,20 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                           Icon(
                             _updateAvailable ? Icons.check_circle : Icons.info,
                             color: _updateAvailable
-                                ? Colors.green
-                                : Colors.blue,
-                            size: 16,
+                                ? const Color(0xFF4CAF50) // Green icon
+                                : const Color(0xFF2196F3), // Blue icon
+                            size: 18,
                           ),
-                          SizedBox(width: 8),
+                          SizedBox(width: 10),
                           Expanded(
                             child: Text(
                               _updateMessage!,
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: 14,
                                 color: _updateAvailable
-                                    ? Colors.green[800]
-                                    : Colors.blue[800],
+                                    ? const Color(0xFF2E7D32) // Dark green text
+                                    : const Color(0xFF1976D2), // Dark blue text
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ),

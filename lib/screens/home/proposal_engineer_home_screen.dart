@@ -75,8 +75,16 @@ Future<List<String>> fetchAllUsernames() async {
 }
 
 class ProposalHomeScreen extends StatefulWidget {
-  final String? currentUserId;
-  const ProposalHomeScreen({super.key, this.currentUserId});
+  final String currentUserType;
+  final String currentUserEmail;
+  final String currentUserId;
+
+  const ProposalHomeScreen({
+    super.key,
+    required this.currentUserType,
+    required this.currentUserEmail,
+    required this.currentUserId,
+  });
 
   @override
   State<ProposalHomeScreen> createState() => _ProposalHomeScreenState();
@@ -87,8 +95,56 @@ class _ProposalHomeScreenState extends State<ProposalHomeScreen> {
   bool _isCollapsed = false;
   final Map<int, bool> _hoveredItems = {};
 
+  // User information state variables
+  String _username = '';
+  String _userType = '';
+  String _employeeCode = '';
+  bool _isLoadingUserInfo = true;
+
   List<NavItem> get _navItems {
     return NavigationUtils.getNavigationItemsForRole('proposal engineer');
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserInfo();
+  }
+
+  Future<void> _fetchUserInfo() async {
+    try {
+      final userId = widget.currentUserId;
+      if (userId.isEmpty) {
+        debugPrint('Error: currentUserId is empty');
+        return;
+      }
+
+      final userData = await Supabase.instance.client
+          .from('users')
+          .select('username, user_type, employee_code')
+          .eq('id', userId)
+          .maybeSingle();
+
+      if (userData != null) {
+        setState(() {
+          _username = userData['username'] ?? '';
+          _userType = userData['user_type'] ?? '';
+          _employeeCode = userData['employee_code'] ?? '';
+          _isLoadingUserInfo = false;
+        });
+        debugPrint('User info loaded: $_username $_userType($_employeeCode)');
+      } else {
+        debugPrint('No user data found for ID: $userId');
+        setState(() {
+          _isLoadingUserInfo = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching user info: $e');
+      setState(() {
+        _isLoadingUserInfo = false;
+      });
+    }
   }
 
   late final List<Widget> _pages = <Widget>[
@@ -97,7 +153,7 @@ class _ProposalHomeScreenState extends State<ProposalHomeScreen> {
     const Center(child: Text('Clients List')),
     const Center(child: Text('Reports')),
     const Center(child: Text('Chat')),
-    ProfilePage(currentUserId: widget.currentUserId ?? ''),
+    ProfilePage(currentUserId: widget.currentUserId),
   ];
 
   void _onItemTapped(int index) {
@@ -268,39 +324,115 @@ class _ProposalHomeScreenState extends State<ProposalHomeScreen> {
       ),
       child: Column(
         children: [
-          // Header Section
+          // Header Section with Logo and User Profile
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               border: Border(
-                bottom: BorderSide(color: Colors.grey.shade200, width: 1),
+                bottom: BorderSide(color: const Color(0xFFE0E0E0), width: 1),
               ),
             ),
-            child: Row(
+            child: Column(
               children: [
                 // Logo Section - Only show when expanded
                 if (!_isCollapsed)
-                  Expanded(
-                    child: SizedBox(
-                      height: 40,
-                      child: Image.asset(
-                        'assets/Tobler_logo.png',
-                        fit: BoxFit.contain,
-                      ),
+                  SizedBox(
+                    height: 40,
+                    child: Image.asset(
+                      'assets/Tobler_logo.png',
+                      fit: BoxFit.contain,
                     ),
                   ),
-                // Collapse/Expand Button
-                IconButton(
-                  onPressed: () {
-                    setState(() {
-                      _isCollapsed = !_isCollapsed;
-                    });
-                  },
-                  icon: Icon(
-                    _isCollapsed ? Icons.arrow_forward : Icons.arrow_back,
-                    color: Colors.grey,
+                const SizedBox(height: 16),
+                // User Profile Section (only show when expanded)
+                if (!_isCollapsed)
+                  Row(
+                    children: [
+                      // User Avatar
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF3E5F5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Text(
+                            _username.isNotEmpty
+                                ? _username[0].toUpperCase()
+                                : 'U',
+                            style: const TextStyle(
+                              color: Color(0xFF7B1FA2),
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      // User Info
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (_isLoadingUserInfo)
+                              const Text(
+                                'Loading...',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black,
+                                ),
+                              )
+                            else ...[
+                              Text(
+                                'Hi, $_username',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                '$_userType($_employeeCode)',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      // Collapse/Expand Button
+                      IconButton(
+                        onPressed: () {
+                          setState(() {
+                            _isCollapsed = !_isCollapsed;
+                          });
+                        },
+                        icon: Icon(
+                          _isCollapsed ? Icons.arrow_forward : Icons.arrow_back,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                // Collapse/Expand Button (when collapsed)
+                if (_isCollapsed)
+                  Align(
+                    alignment: Alignment.center,
+                    child: IconButton(
+                      onPressed: () {
+                        setState(() {
+                          _isCollapsed = !_isCollapsed;
+                        });
+                      },
+                      icon: const Icon(Icons.arrow_forward, color: Colors.grey),
+                    ),
+                  ),
               ],
             ),
           ),
