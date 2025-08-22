@@ -3662,32 +3662,32 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                 });
                               },
                             ),
-                          IconButton(
-                            icon: Icon(_isEditing ? Icons.visibility : Icons.edit, color: Colors.white),
-                            tooltip: _isEditing ? 'Preview Mode' : 'Edit Mode',
-                            onPressed: () {
-                              setState(() {
-                                _isEditing = !_isEditing;
-                              });
-                            },
-                          ),
                           if (!isMobile) ...[
+                            IconButton(
+                              icon: Icon(_isEditing ? Icons.visibility : Icons.edit, color: Colors.white),
+                              tooltip: _isEditing ? 'Preview Mode' : 'Edit Mode',
+                              onPressed: () {
+                                setState(() {
+                                  _isEditing = !_isEditing;
+                                });
+                              },
+                            ),
                             IconButton(
                               icon: const Icon(Icons.format_size, color: Colors.white),
                               tooltip: 'Text Formatting',
                               onPressed: () => _showTextFormattingDialog(),
                             ),
+                            IconButton(
+                              icon: const Icon(Icons.save, color: Colors.white),
+                              tooltip: 'Save Offer',
+                              onPressed: _saveOfferToSupabase,
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close, color: Colors.white),
+                              tooltip: 'Close',
+                              onPressed: () => Navigator.of(context).pop(),
+                            ),
                           ],
-                          IconButton(
-                            icon: const Icon(Icons.save, color: Colors.white),
-                            tooltip: 'Save Offer',
-                            onPressed: _saveOfferToSupabase,
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.close, color: Colors.white),
-                            tooltip: 'Close',
-                            onPressed: () => Navigator.of(context).pop(),
-                          ),
                         ],
                       ),
                       // Mobile: Show essential controls in second row
