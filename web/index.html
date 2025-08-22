@@ -33,22 +33,45 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <!-- Debug info -->
+  <div id="debug-info" style="position: fixed; top: 10px; left: 10px; background: red; color: white; padding: 10px; z-index: 9999; font-family: monospace;">
+    <div>Page loaded at: <span id="load-time"></span></div>
+    <div>Path: <span id="current-path"></span></div>
+    <div>Base href: <span id="base-href"></span></div>
+    <div>Flutter config: <span id="flutter-config"></span></div>
+  </div>
+  
   <!-- GitHub Pages routing support -->
   <script>
     // Handle client-side routing for GitHub Pages
     (function() {
+      console.log('GitHub Pages routing script starting...');
+      
       var pathSegmentsToKeep = 1; // Keep the repository name segment
       var l = location.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/';
+      
+      console.log('Calculated base href:', l);
+      console.log('Current pathname:', location.pathname);
       
       // Create and set base href
       var base = document.createElement('base');
       base.href = l;
       document.head.appendChild(base);
       
+      console.log('Base href set to:', base.href);
+      
       // Also handle Flutter's base href
       window.flutterConfiguration = {
         baseUrl: l
       };
+      
+      console.log('Flutter configuration set:', window.flutterConfiguration);
+      
+      // Update debug info
+      document.getElementById('load-time').textContent = new Date().toLocaleTimeString();
+      document.getElementById('current-path').textContent = location.pathname;
+      document.getElementById('base-href').textContent = l;
+      document.getElementById('flutter-config').textContent = JSON.stringify(window.flutterConfiguration);
     })();
   </script>
   
@@ -60,13 +83,26 @@
     var scriptLoaded = false;
     function loadMainDartJs() {
       if (scriptLoaded) {
+        console.log('Script already loaded, skipping...');
         return;
       }
       scriptLoaded = true;
+      console.log('Loading main.dart.js...');
+      
       var scriptTag = document.createElement('script');
       scriptTag.src = 'main.dart.js';
       scriptTag.type = 'application/javascript';
+      
+      scriptTag.onload = function() {
+        console.log('main.dart.js loaded successfully!');
+      };
+      
+      scriptTag.onerror = function() {
+        console.error('Failed to load main.dart.js from:', scriptTag.src);
+      };
+      
       document.body.appendChild(scriptTag);
+      console.log('Script tag added to body');
     }
 
     if ('serviceWorker' in navigator) {
