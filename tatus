@@ -1,0 +1,5 @@
+[33m3e3fc46[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m fix: Comprehensive GitHub Pages routing and loading fixes for Flutter web app
+[33m9e68d3d[m fix: Correct GitHub Pages base href for proper routing
+[33mca4ab4b[m fix: Add null check for downloadsDir to fix web build compilation error
+[33m1eeeb5c[m feat: Recreate web deployment workflow and update admin screen
+[33m46dd439[m Update deploy-web.yml
