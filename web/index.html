@@ -36,9 +36,20 @@
   <!-- GitHub Pages routing support -->
   <script>
     // Handle client-side routing for GitHub Pages
-    var pathSegmentsToKeep = 1; // Keep the repository name segment
-    var l = location.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/';
-    document.write('<base href="' + l + '" />');
+    (function() {
+      var pathSegmentsToKeep = 1; // Keep the repository name segment
+      var l = location.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/';
+      
+      // Create and set base href
+      var base = document.createElement('base');
+      base.href = l;
+      document.head.appendChild(base);
+      
+      // Also handle Flutter's base href
+      window.flutterConfiguration = {
+        baseUrl: l
+      };
+    })();
   </script>
   
   <!-- This script installs service_worker.js to provide PWA functionality to
@@ -128,6 +139,29 @@
       // Service workers not supported. Just drop the <script> tag.
       loadMainDartJs();
     }
+    
+    // Fallback: ensure main.dart.js loads even if service worker fails
+    window.addEventListener('load', function() {
+      setTimeout(function() {
+        if (!scriptLoaded) {
+          console.log('Fallback: Loading main.dart.js directly');
+          loadMainDartJs();
+        }
+      }, 1000);
+    });
+  </script>
+  
+  <!-- Fallback loading for main.dart.js -->
+  <script>
+    // Ensure Flutter app loads
+    window.addEventListener('load', function() {
+      if (!window.flutterConfiguration) {
+        console.log('Setting up Flutter configuration');
+        window.flutterConfiguration = {
+          baseUrl: '/Tobler_CRM/'
+        };
+      }
+    });
   </script>
 </body>
 </html>
