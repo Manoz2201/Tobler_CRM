@@ -194,11 +194,19 @@ void main() async {
     if (user != null) {
       // Route to home screen based on user_type
       if (user['user_type'] == 'Admin') {
-        startScreen = const AdminHomeScreen();
+        startScreen = AdminHomeScreen(
+          currentUserType: user['user_type'],
+          currentUserEmail: user['email'] ?? '',
+          currentUserId: user['id'].toString(),
+        );
       } else if (user['user_type'] == 'Developer') {
         startScreen = const DeveloperHomeScreen();
       } else if (user['user_type'] == 'Proposal Engineer') {
-        startScreen = const ProposalHomeScreen();
+        startScreen = ProposalHomeScreen(
+          currentUserType: user['user_type'],
+          currentUserEmail: user['email'] ?? '',
+          currentUserId: user['id'].toString(),
+        );
       } else if (user['user_type'] == 'Sales') {
         startScreen = SalesHomeScreen(
           currentUserType: user['user_type'],

@@ -389,6 +389,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                     context,
                                     MaterialPageRoute(
                                       builder: (context) => ProposalHomeScreen(
+                                        currentUserType: userType,
+                                        currentUserEmail: email,
                                         currentUserId: result['id'].toString(),
                                       ),
                                     ),
@@ -398,7 +400,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                   if (userType == 'Developer') {
                                     homeScreen = const DeveloperHomeScreen();
                                   } else if (userType == 'Admin') {
-                                    homeScreen = const AdminHomeScreen();
+                                    homeScreen = AdminHomeScreen(
+                                      currentUserType: userType,
+                                      currentUserEmail: email,
+                                      currentUserId: result['id'].toString(),
+                                    );
                                   } else {
                                     homeScreen = const Center(
                                       child: Text('User Home Removed'),

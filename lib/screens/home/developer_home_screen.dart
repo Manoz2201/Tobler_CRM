@@ -686,7 +686,13 @@ class _ScreenManagementPageState extends State<ScreenManagementPage> {
   Widget _buildPreviewForType(String type, String mode) {
     switch (type) {
       case 'Admin':
-        return _PreviewNoScaffold(child: AdminHomeScreen());
+        return _PreviewNoScaffold(
+          child: AdminHomeScreen(
+            currentUserType: 'PreviewType',
+            currentUserEmail: 'preview@example.com',
+            currentUserId: 'preview-user-id',
+          ),
+        );
       case 'User':
         return _PreviewNoScaffold(child: UserManagementPage());
       case 'Sales':
@@ -698,7 +704,13 @@ class _ScreenManagementPageState extends State<ScreenManagementPage> {
           ),
         );
       case 'Proposal':
-        return _PreviewNoScaffold(child: ProposalHomeScreen());
+        return _PreviewNoScaffold(
+          child: ProposalHomeScreen(
+            currentUserType: 'PreviewType',
+            currentUserEmail: 'preview@example.com',
+            currentUserId: 'preview-user-id',
+          ),
+        );
       case 'Human Resource':
         return _largePlaceholder(
           'Human Resource Screen Layout Preview',
