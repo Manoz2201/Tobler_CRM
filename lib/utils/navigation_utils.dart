@@ -21,6 +21,7 @@ class NavigationUtils {
           NavItem('Leads Management', Icons.leaderboard),
           NavItem('Offers', Icons.local_offer),
           NavItem('Customers', Icons.people),
+          NavItem('Settings', Icons.settings),
           NavItem('Profile', Icons.person),
           NavItem('Logout', Icons.logout),
         ];
