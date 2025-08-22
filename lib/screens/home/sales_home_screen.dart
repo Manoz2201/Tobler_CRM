@@ -542,6 +542,41 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
               height: 1.2,
             ),
           ),
+          const SizedBox(height: 12),
+          // Mobile Create New Offer button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => _showCreateOfferDialog(context),
+              icon: Icon(Icons.add, size: 18),
+              label: Text('Create New Offer'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange[600],
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Mobile Refresh button
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              IconButton(
+                onPressed: _loadOffers,
+                icon: Icon(Icons.refresh, size: 20),
+                tooltip: 'Refresh Offers',
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.orange[100],
+                  foregroundColor: Colors.orange[700],
+                  padding: EdgeInsets.all(8),
+                ),
+              ),
+            ],
+          ),
         ],
       );
     }
@@ -568,29 +603,33 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
         indicatorColor: Colors.orange[700],
         indicatorWeight: 3,
         labelStyle: TextStyle(
-          fontSize: isWide ? 14 : 12,
+          fontSize: isWide ? 14 : 11,
           fontWeight: FontWeight.w600,
         ),
         unselectedLabelStyle: TextStyle(
-          fontSize: isWide ? 14 : 12,
+          fontSize: isWide ? 14 : 11,
           fontWeight: FontWeight.w500,
         ),
+        // Make tabs scrollable on mobile
+        isScrollable: !isWide,
+        // Adjust padding for mobile
+        padding: EdgeInsets.symmetric(horizontal: isWide ? 0 : 8),
         tabs: [
           Tab(
-            icon: Icon(Icons.work, size: isWide ? 20 : 18),
-            text: 'Active Offers',
+            icon: Icon(Icons.work, size: isWide ? 20 : 16),
+            text: isWide ? 'Active Offers' : 'Active',
           ),
           Tab(
-            icon: Icon(Icons.edit_note, size: isWide ? 20 : 18),
-            text: 'Draft Offers',
+            icon: Icon(Icons.edit_note, size: isWide ? 20 : 16),
+            text: isWide ? 'Draft Offers' : 'Draft',
           ),
           Tab(
-            icon: Icon(Icons.schedule, size: isWide ? 20 : 18),
-            text: 'Expired Offers',
+            icon: Icon(Icons.schedule, size: isWide ? 20 : 16),
+            text: isWide ? 'Expired Offers' : 'Expired',
           ),
           Tab(
-            icon: Icon(Icons.analytics, size: isWide ? 20 : 18),
-            text: 'Analytics',
+            icon: Icon(Icons.analytics, size: isWide ? 20 : 16),
+            text: isWide ? 'Analytics' : 'Analytics',
           ),
         ],
       ),
@@ -716,15 +755,24 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
               ],
             )
           else
+            // Mobile: 2x2 grid layout for better mobile experience
             Column(
               children: [
-                _buildStatCard('Total Offers', totalOffers.toString(), Icons.local_offer, Colors.blue),
-                SizedBox(height: 12),
-                _buildStatCard('Active Offers', activeOffers.toString(), Icons.work, Colors.green),
-                SizedBox(height: 12),
-                _buildStatCard('Conversion Rate', '$conversionRate%', Icons.trending_up, Colors.orange),
-                SizedBox(height: 12),
-                _buildStatCard('Total Value', '₹${totalValue.toStringAsFixed(0)}', Icons.attach_money, Colors.purple),
+                Row(
+                  children: [
+                    Expanded(child: _buildStatCard('Total Offers', totalOffers.toString(), Icons.local_offer, Colors.blue)),
+                    SizedBox(width: 8),
+                    Expanded(child: _buildStatCard('Active Offers', activeOffers.toString(), Icons.work, Colors.green)),
+                  ],
+                ),
+                SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(child: _buildStatCard('Conversion Rate', '$conversionRate%', Icons.trending_up, Colors.orange)),
+                    SizedBox(width: 8),
+                    Expanded(child: _buildStatCard('Total Value', '₹${totalValue.toStringAsFixed(0)}', Icons.attach_money, Colors.purple)),
+                  ],
+                ),
               ],
             ),
           
@@ -753,49 +801,57 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
   }
 
   Widget _buildStatCard(String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
-            spreadRadius: 1,
-            blurRadius: 3,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: color, size: 24),
-              const Spacer(),
-              Icon(Icons.more_vert, color: Colors.grey[400], size: 20),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth > 700;
+        
+        return Container(
+          padding: EdgeInsets.all(isWide ? 20 : 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withValues(alpha: 0.1),
+                spreadRadius: 1,
+                blurRadius: 3,
+                offset: const Offset(0, 1),
+              ),
             ],
           ),
-          const SizedBox(height: 16),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[800],
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, color: color, size: isWide ? 24 : 20),
+                  const Spacer(),
+                  Icon(Icons.more_vert, color: Colors.grey[400], size: isWide ? 20 : 16),
+                ],
+              ),
+              SizedBox(height: isWide ? 16 : 12),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: isWide ? 28 : 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+              ),
+              SizedBox(height: 4),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: isWide ? 14 : 12,
+                  color: Colors.grey[600],
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -1145,27 +1201,45 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
               ],
             )
           else
+            // Mobile: 2x2 grid layout for better mobile experience
             Column(
               children: [
-                _buildMetricCard(
-                  'Average Offer Value',
-                  '₹${avgOfferValue.toStringAsFixed(0)}',
-                  Icons.analytics,
-                  Colors.indigo,
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildMetricCard(
+                        'Average Offer Value',
+                        '₹${avgOfferValue.toStringAsFixed(0)}',
+                        Icons.analytics,
+                        Colors.indigo,
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: _buildMetricCard(
+                        'Conversion Rate',
+                        '${conversionRate.toStringAsFixed(1)}%',
+                        Icons.trending_up,
+                        Colors.green,
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(height: 12),
-                _buildMetricCard(
-                  'Conversion Rate',
-                  '${conversionRate.toStringAsFixed(1)}%',
-                  Icons.trending_up,
-                  Colors.green,
-                ),
-                SizedBox(height: 12),
-                _buildMetricCard(
-                  'Total Pipeline Value',
-                  '₹${totalValue.toStringAsFixed(0)}',
-                  Icons.account_balance_wallet,
-                  Colors.orange,
+                SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildMetricCard(
+                        'Total Pipeline Value',
+                        '₹${totalValue.toStringAsFixed(0)}',
+                        Icons.account_balance_wallet,
+                        Colors.orange,
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    // Empty space to maintain grid alignment
+                    Expanded(child: SizedBox()),
+                  ],
                 ),
               ],
             ),
@@ -1175,36 +1249,47 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
   }
 
   Widget _buildMetricCard(String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 24),
-          SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth > 700;
+        
+        return Container(
+          padding: EdgeInsets.all(isWide ? 16 : 12),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: color.withValues(alpha: 0.2)),
           ),
-          SizedBox(height: 4),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-            ),
-            textAlign: TextAlign.center,
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: isWide ? 24 : 20),
+              SizedBox(height: isWide ? 8 : 6),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: isWide ? 18 : 16,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              SizedBox(height: 4),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: isWide ? 14 : 12,
+                  color: Colors.grey[600],
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -1285,10 +1370,20 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
         // Realtime search input
         TextField(
           decoration: InputDecoration(
-            hintText: 'Search by Project, Client, or Ref',
+            hintText: isWide ? 'Search by Project, Client, or Ref' : 'Search offers...',
             prefixIcon: const Icon(Icons.search),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             isDense: true,
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: isWide ? 16 : 12,
+              vertical: isWide ? 12 : 10,
+            ),
+            hintStyle: TextStyle(
+              fontSize: isWide ? 14 : 12,
+            ),
+          ),
+          style: TextStyle(
+            fontSize: isWide ? 14 : 12,
           ),
           onChanged: (value) => setState(() => _offersSearch = value),
         ),
@@ -1427,21 +1522,28 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
         final offer = offers[index];
         return Card(
           margin: EdgeInsets.only(bottom: 12),
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Padding(
             padding: EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Header row with project name and status
                 Row(
                   children: [
                     Expanded(
                       child: Text(
-                        offer['project_name'] ?? '',
+                        offer['project_name'] ?? 'Unknown Project',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                           color: Colors.grey[800],
                         ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     if (showStatus)
@@ -1456,69 +1558,91 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
                           offer['offer_status'] ?? '',
                           style: TextStyle(
                             color: statusColor ?? Colors.grey,
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
                   ],
                 ),
+                
+                // Reference number
                 if ((offer['ref'] ?? '').toString().isNotEmpty) ...[
-                  SizedBox(height: 6),
-                  Text(
-                    'Ref: ${offer['ref']}',
-                    style: TextStyle(fontWeight: FontWeight.w600, color: Colors.blue),
+                  SizedBox(height: 8),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+                    ),
+                    child: Text(
+                      'Ref: ${offer['ref']}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600, 
+                        color: Colors.blue[700],
+                        fontSize: 12,
+                      ),
+                    ),
                   ),
                 ],
-                SizedBox(height: 8),
-                Text(
-                  'Client: ${offer['client_name'] ?? ''}',
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Value: ₹${offer['grand_total']?.toString() ?? '0'}',
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Created: ${_formatDate(offer['offer_created'] ?? '')}',
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
+                
                 SizedBox(height: 12),
+                
+                // Offer details in a more organized layout
+                _buildMobileOfferDetail('Client', offer['client_name'] ?? 'Unknown Client'),
+                _buildMobileOfferDetail('Value', '₹${offer['grand_total']?.toString() ?? '0'}'),
+                _buildMobileOfferDetail('Created', _formatDate(offer['offer_created'] ?? '')),
+                
+                SizedBox(height: 16),
+                
+                // Action buttons with improved mobile layout
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     Expanded(
-                      child: OutlinedButton.icon(
+                      child: ElevatedButton.icon(
                         onPressed: () => _editOffer(offer),
                         icon: Icon(Icons.edit, size: 16),
-                        label: Text('Edit'),
-                        style: OutlinedButton.styleFrom(
-                          padding: EdgeInsets.symmetric(vertical: 8),
+                        label: Text('Edit', style: TextStyle(fontSize: 12)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue[600],
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                       ),
                     ),
                     SizedBox(width: 8),
                     Expanded(
-                      child: OutlinedButton.icon(
+                      child: ElevatedButton.icon(
                         onPressed: () => _viewOffer(offer),
                         icon: Icon(Icons.visibility, size: 16),
-                        label: Text('View'),
-                        style: OutlinedButton.styleFrom(
-                          padding: EdgeInsets.symmetric(vertical: 8),
+                        label: Text('View', style: TextStyle(fontSize: 12)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green[600],
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                       ),
                     ),
                     SizedBox(width: 8),
                     Expanded(
-                      child: OutlinedButton.icon(
+                      child: ElevatedButton.icon(
                         onPressed: () => _deleteOffer(offer),
                         icon: Icon(Icons.delete, size: 16),
-                        label: Text('Delete'),
-                        style: OutlinedButton.styleFrom(
-                          padding: EdgeInsets.symmetric(vertical: 8),
-                          foregroundColor: Colors.red,
+                        label: Text('Delete', style: TextStyle(fontSize: 12)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red[600],
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                       ),
                     ),
@@ -1529,6 +1653,41 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
           ),
         );
       },
+    );
+  }
+
+  // Helper method for mobile offer details
+  Widget _buildMobileOfferDetail(String label, String value) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 60,
+            child: Text(
+              '$label:',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                color: Colors.grey[800],
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
