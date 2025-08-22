@@ -3710,7 +3710,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                     });
                                   },
                                 ),
-                                Container(
+                                SizedBox(
                                   width: 60,
                                   child: SliderTheme(
                                     data: SliderTheme.of(context).copyWith(
@@ -7602,21 +7602,21 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                         children: [
                           Flexible(
                             child: _buildInteractiveIconButton(
-                              icon: Icons.star,
-                              onPressed: () => _toggleStarLead(lead),
-                              tooltip: 'Star Lead',
-                              leadId: leadId,
-                              isStarred: lead['starred'] ?? false,
-                            ),
+                            icon: Icons.star,
+                            onPressed: () => _toggleStarLead(lead),
+                            tooltip: 'Star Lead',
+                            leadId: leadId,
+                            isStarred: lead['starred'] ?? false,
+                          ),
                           ),
                           SizedBox(width: 2),
                           Flexible(
                             child: _buildInteractiveIconButton(
-                              icon: Icons.edit,
-                              onPressed: () => _editLead(lead),
-                              tooltip: 'Edit Lead',
-                              leadId: leadId,
-                            ),
+                            icon: Icons.edit,
+                            onPressed: () => _editLead(lead),
+                            tooltip: 'Edit Lead',
+                            leadId: leadId,
+                          ),
                           ),
                           SizedBox(width: 2),
                           Flexible(
@@ -7630,40 +7630,40 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                           SizedBox(width: 2),
                           Flexible(
                             child: _buildInteractiveIconButton(
-                              icon: Icons.notifications,
-                              onPressed: () => _showAlertsDialog(context, lead),
-                              tooltip: 'Alert',
-                              leadId: leadId,
-                              isAlert: true,
-                            ),
+                            icon: Icons.notifications,
+                            onPressed: () => _showAlertsDialog(context, lead),
+                            tooltip: 'Alert',
+                            leadId: leadId,
+                            isAlert: true,
+                          ),
                           ),
                           SizedBox(width: 2),
                           Flexible(
                             child: _buildInteractiveIconButton(
-                              icon: Icons.chat,
-                              onPressed: () => _showQueryDialog(context, lead),
-                              tooltip: 'Query',
-                              leadId: leadId,
-                              isQuery: true,
-                            ),
+                            icon: Icons.chat,
+                            onPressed: () => _showQueryDialog(context, lead),
+                            tooltip: 'Query',
+                            leadId: leadId,
+                            isQuery: true,
+                          ),
                           ),
                           SizedBox(width: 2),
                           Flexible(
                             child: _buildInteractiveIconButton(
-                              icon: Icons.flag,
-                              onPressed: () => _initializeStatus(lead),
-                              tooltip: 'Initialize Status',
-                              leadId: leadId,
-                            ),
+                            icon: Icons.flag,
+                            onPressed: () => _initializeStatus(lead),
+                            tooltip: 'Initialize Status',
+                            leadId: leadId,
+                          ),
                           ),
                           SizedBox(width: 2),
                           Flexible(
                             child: _buildInteractiveIconButton(
-                              icon: Icons.delete,
-                              onPressed: () => _deleteLead(lead),
-                              tooltip: 'Delete Lead',
-                              leadId: leadId,
-                              isDestructive: true,
+                            icon: Icons.delete,
+                            onPressed: () => _deleteLead(lead),
+                            tooltip: 'Delete Lead',
+                            leadId: leadId,
+                            isDestructive: true,
                             ),
                           ),
                         ],

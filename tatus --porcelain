@@ -1,0 +1,109 @@
+[1mdiff --git a/lib/screens/home/sales_home_screen.dart b/lib/screens/home/sales_home_screen.dart[m
+[1mindex 8ff9279..a188571 100644[m
+[1m--- a/lib/screens/home/sales_home_screen.dart[m
+[1m+++ b/lib/screens/home/sales_home_screen.dart[m
+[36m@@ -3710,7 +3710,7 @@[m [mclass _OfferEditorDialogState extends State<OfferEditorDialog> {[m
+                                     });[m
+                                   },[m
+                                 ),[m
+[31m-                                Container([m
+[32m+[m[32m                                SizedBox([m
+                                   width: 60,[m
+                                   child: SliderTheme([m
+                                     data: SliderTheme.of(context).copyWith([m
+[36m@@ -7602,21 +7602,21 @@[m [mclass _LeadManagementScreenState extends State<LeadManagementScreen> {[m
+                         children: [[m
+                           Flexible([m
+                             child: _buildInteractiveIconButton([m
+[31m-                              icon: Icons.star,[m
+[31m-                              onPressed: () => _toggleStarLead(lead),[m
+[31m-                              tooltip: 'Star Lead',[m
+[31m-                              leadId: leadId,[m
+[31m-                              isStarred: lead['starred'] ?? false,[m
+[31m-                            ),[m
+[32m+[m[32m                            icon: Icons.star,[m
+[32m+[m[32m                            onPressed: () => _toggleStarLead(lead),[m
+[32m+[m[32m                            tooltip: 'Star Lead',[m
+[32m+[m[32m                            leadId: leadId,[m
+[32m+[m[32m                            isStarred: lead['starred'] ?? false,[m
+[32m+[m[32m                          ),[m
+                           ),[m
+                           SizedBox(width: 2),[m
+                           Flexible([m
+                             child: _buildInteractiveIconButton([m
+[31m-                              icon: Icons.edit,[m
+[31m-                              onPressed: () => _editLead(lead),[m
+[31m-                              tooltip: 'Edit Lead',[m
+[31m-                              leadId: leadId,[m
+[31m-                            ),[m
+[32m+[m[32m                            icon: Icons.edit,[m
+[32m+[m[32m                            onPressed: () => _editLead(lead),[m
+[32m+[m[32m                            tooltip: 'Edit Lead',[m
+[32m+[m[32m                            leadId: leadId,[m
+[32m+[m[32m                          ),[m
+                           ),[m
+                           SizedBox(width: 2),[m
+                           Flexible([m
+[36m@@ -7630,40 +7630,40 @@[m [mclass _LeadManagementScreenState extends State<LeadManagementScreen> {[m
+                           SizedBox(width: 2),[m
+                           Flexible([m
+                             child: _buildInteractiveIconButton([m
+[31m-                              icon: Icons.notifications,[m
+[31m-                              onPressed: () => _showAlertsDialog(context, lead),[m
+[31m-                              tooltip: 'Alert',[m
+[31m-                              leadId: leadId,[m
+[31m-                              isAlert: true,[m
+[31m-                            ),[m
+[32m+[m[32m                            icon: Icons.notifications,[m
+[32m+[m[32m                            onPressed: () => _showAlertsDialog(context, lead),[m
+[32m+[m[32m                            tooltip: 'Alert',[m
+[32m+[m[32m                            leadId: leadId,[m
+[32m+[m[32m                            isAlert: true,[m
+[32m+[m[32m                          ),[m
+                           ),[m
+                           SizedBox(width: 2),[m
+                           Flexible([m
+                             child: _buildInteractiveIconButton([m
+[31m-                              icon: Icons.chat,[m
+[31m-                              onPressed: () => _showQueryDialog(context, lead),[m
+[31m-                              tooltip: 'Query',[m
+[31m-                              leadId: leadId,[m
+[31m-                              isQuery: true,[m
+[31m-                            ),[m
+[32m+[m[32m                            icon: Icons.chat,[m
+[32m+[m[32m                            onPressed: () => _showQueryDialog(context, lead),[m
+[32m+[m[32m                            tooltip: 'Query',[m
+[32m+[m[32m                            leadId: leadId,[m
+[32m+[m[32m                            isQuery: true,[m
+[32m+[m[32m                          ),[m
+                           ),[m
+                           SizedBox(width: 2),[m
+                           Flexible([m
+                             child: _buildInteractiveIconButton([m
+[31m-                              icon: Icons.flag,[m
+[31m-                              onPressed: () => _initializeStatus(lead),[m
+[31m-                              tooltip: 'Initialize Status',[m
+[31m-                              leadId: leadId,[m
+[31m-                            ),[m
+[32m+[m[32m                            icon: Icons.flag,[m
+[32m+[m[32m                            onPressed: () => _initializeStatus(lead),[m
+[32m+[m[32m                            tooltip: 'Initialize Status',[m
+[32m+[m[32m                            leadId: leadId,[m
+[32m+[m[32m                          ),[m
+                           ),[m
+                           SizedBox(width: 2),[m
+                           Flexible([m
+                             child: _buildInteractiveIconButton([m
+[31m-                              icon: Icons.delete,[m
+[31m-                              onPressed: () => _deleteLead(lead),[m
+[31m-                              tooltip: 'Delete Lead',[m
+[31m-                              leadId: leadId,[m
+[31m-                              isDestructive: true,[m
+[32m+[m[32m                            icon: Icons.delete,[m
+[32m+[m[32m                            onPressed: () => _deleteLead(lead),[m
+[32m+[m[32m                            tooltip: 'Delete Lead',[m
+[32m+[m[32m                            leadId: leadId,[m
+[32m+[m[32m                            isDestructive: true,[m
+                             ),[m
+                           ),[m
+                         ],[m
