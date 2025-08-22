@@ -77,11 +77,6 @@ jobs:
         echo "Building iOS bundle..."
         flutter build bundle --target-platform ios
         
-    - name: Build iOS for Simulator
-      run: |
-        echo "Building iOS for simulator..."
-        flutter build bundle --target-platform ios
-        
     - name: Build iOS App using Xcode
       run: |
         echo "Building iOS app using Xcode..."
