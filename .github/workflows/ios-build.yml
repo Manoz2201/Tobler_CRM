@@ -10,7 +10,9 @@ on:
 
 jobs:
   build-ios-bundle:
-    runs-on: macos-latest
+    # Using macOS 14 instead of macos-latest to avoid deprecation warnings
+    # macos-latest will migrate to macOS 15 on August 4, 2025
+    runs-on: macos-14
     
     steps:
     - name: Checkout code
