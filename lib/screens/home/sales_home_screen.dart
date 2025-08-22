@@ -4185,6 +4185,11 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                               padding: EdgeInsets.all(isMobile ? 8 : 16),
                               child: LayoutBuilder(
                                 builder: (context, constraints) {
+                                  // Validate constraints to prevent assertion errors
+                                  if (constraints.maxWidth <= 0 || constraints.maxHeight <= 0) {
+                                    return const Center(child: Text('Invalid layout constraints'));
+                                  }
+                                  
                                   final double maxAvailableWidth = constraints.maxWidth;
                                   final double targetWidth = math.min(maxAvailableWidth, isMobile ? maxAvailableWidth * 0.95 : 900);
                                   final double aspect = _a4HeightMm / _a4WidthMm; // ~1.414
@@ -4205,6 +4210,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                     scale: _zoomLevel,
                                     alignment: Alignment.topCenter,
                                     child: Column(
+                                      mainAxisSize: MainAxisSize.min,
                                       children: [
                                         for (int i = 0; i < pageBodies.length; i++)
                                           Padding(
@@ -4408,6 +4414,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
 
       pages.add(
         Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: children,
         ),
@@ -4459,7 +4466,11 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
         }
       }
 
-      pages.add(Column(crossAxisAlignment: CrossAxisAlignment.start, children: children));
+      pages.add(Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start, 
+        children: children
+      ));
     }
 
     // Remaining Commercial rows on new pages; put Signature on the last where possible
@@ -4493,7 +4504,11 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
         }
       }
 
-      pages.add(Column(crossAxisAlignment: CrossAxisAlignment.start, children: children));
+      pages.add(Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start, 
+        children: children
+      ));
     }
 
     if (!signaturePlaced) {
@@ -5153,6 +5168,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
 
       pages.add(
         Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Center(child: Text('TECHNICAL SPECIFICATION SHEET', style: headStyle)),
@@ -5255,6 +5271,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                   ],
                 )
               : Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     RichText(
@@ -5338,6 +5355,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
   Widget _buildToBlock() {
     TextStyle base = _baseTextStyle;
     return Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('To:', style: _baseTextStyle.copyWith(fontWeight: FontWeight.w700)),
