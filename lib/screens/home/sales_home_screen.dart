@@ -3049,7 +3049,8 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
       }
 
       final bytes = await pdf.save();
-      final fileName = 'Offer_${_refNoCtl.text}_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final safeRef = _refNoCtl.text.replaceAll('/', '_').replaceAll('\\', '_');
+      final fileName = 'Offer_${safeRef}_${DateTime.now().millisecondsSinceEpoch}.pdf';
       
       await Printing.sharePdf(bytes: bytes, filename: fileName);
       
@@ -3135,7 +3136,8 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
       }
       buffer.writeln('</body></html>');
 
-      final fileName = 'Offer_${_refNoCtl.text}_${DateTime.now().millisecondsSinceEpoch}.doc';
+      final safeRef = _refNoCtl.text.replaceAll('/', '_').replaceAll('\\', '_');
+      final fileName = 'Offer_${safeRef}_${DateTime.now().millisecondsSinceEpoch}.doc';
       
       // Save bytes with appropriate mime
       // ignore: undefined_function
