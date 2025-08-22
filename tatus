@@ -1,5 +1,10 @@
-[33m3e3fc46[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m fix: Comprehensive GitHub Pages routing and loading fixes for Flutter web app
-[33m9e68d3d[m fix: Correct GitHub Pages base href for proper routing
-[33mca4ab4b[m fix: Add null check for downloadsDir to fix web build compilation error
-[33m1eeeb5c[m feat: Recreate web deployment workflow and update admin screen
-[33m46dd439[m Update deploy-web.yml
+[33maa0368a[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m fix: Resolve Flutter analysis errors - correct constructor parameters for home screens
+[33m1718cbe[m feat: Update admin and sales home screens with navigation improvements
+[33m821aa33[m merge: Resolve conflicts and integrate remote changes with favicon fix
+[33m5d7e246[m fix: Update favicon path and resolve favicon display issue for GitHub Pages
+[33m82e4baa[m fix(admin_home): resolve Flutter rendering errors and improve chart layout
+[33m95c6e32[m fix: Correct favicon path for web build - use assets/toblerIcon.png instead of ../assets/
+[33m544415d[m fix: Update favicon and iOS icon to use toblerIcon.png from assets folder
+[33m7fa88e8[m cleanup: Remove debugging tools and console logs from index.html
+[33m1440814[m feat: Add debugging to identify GitHub Pages loading issues
+[33m3e3fc46[m fix: Comprehensive GitHub Pages routing and loading fixes for Flutter web app
