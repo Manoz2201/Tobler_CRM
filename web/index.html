@@ -36,7 +36,7 @@
   <!-- GitHub Pages routing support -->
   <script>
     // Handle client-side routing for GitHub Pages
-    var pathSegmentsToKeep = 0;
+    var pathSegmentsToKeep = 1; // Keep the repository name segment
     var l = location.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/';
     document.write('<base href="' + l + '" />');
   </script>
