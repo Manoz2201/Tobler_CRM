@@ -30,6 +30,9 @@ jobs:
         flutter --version
         dart --version
         
+    - name: Show available devices
+      run: flutter devices
+        
     - name: Install dependencies
       run: flutter pub get
       
@@ -42,24 +45,78 @@ jobs:
         pod install --repo-update
         cd ..
         
+    - name: Verify iOS project setup
+      run: |
+        echo "Checking iOS project structure..."
+        ls -la ios/
+        echo "Checking Podfile..."
+        cat ios/Podfile
+        
+    - name: Ensure we're building for iOS not web
+      run: |
+        echo "Current Flutter target platforms:"
+        flutter devices
+        echo "Available build targets:"
+        flutter build --help | grep -E "(ios|web)" || echo "No specific platform info found"
+        echo "Ensuring we're in iOS mode..."
+        flutter config --no-enable-web
+        flutter config --enable-ios
+        
     - name: Build iOS (Debug)
-      run: flutter build ios --debug --no-codesign
-      
+      run: |
+        echo "Building iOS Debug for device..."
+        flutter build ios --debug --no-codesign --target-platform ios-arm64
+        
     - name: Build iOS (Release)
-      run: flutter build ios --release --no-codesign
+      run: |
+        echo "Building iOS Release for device..."
+        flutter build ios --release --no-codesign --target-platform ios-arm64
+        
+    - name: Build iOS Simulator (Debug)
+      run: |
+        echo "Building iOS Debug for simulator..."
+        flutter build ios --debug --simulator --no-codesign --target-platform ios-x86_64
+        
+    - name: Build iOS Simulator (Release)
+      run: |
+        echo "Building iOS Release for simulator..."
+        flutter build ios --release --simulator --no-codesign --target-platform ios-x86_64
       
-    - name: Upload iOS Debug Build
+    - name: Verify iOS build output
+      run: |
+        echo "Checking iOS build output structure..."
+        ls -la build/ios/
+        echo "Checking device build output..."
+        ls -la build/ios/iphoneos/ || echo "Device build not found"
+        echo "Checking simulator build output..."
+        ls -la build/ios/iphonesimulator/ || echo "Simulator build not found"
+        
+    - name: Upload iOS Debug Build (Device)
       uses: actions/upload-artifact@v4
       with:
-        name: ios-debug-build
+        name: ios-debug-build-device
         path: build/ios/iphoneos/
         retention-days: 7
         
-    - name: Upload iOS Release Build
+    - name: Upload iOS Release Build (Device)
       uses: actions/upload-artifact@v4
       with:
-        name: ios-release-build
+        name: ios-release-build-device
         path: build/ios/iphoneos/
+        retention-days: 7
+        
+    - name: Upload iOS Debug Build (Simulator)
+      uses: actions/upload-artifact@v4
+      with:
+        name: ios-debug-build-simulator
+        path: build/ios/iphonesimulator/
+        retention-days: 7
+        
+    - name: Upload iOS Release Build (Simulator)
+      uses: actions/upload-artifact@v4
+      with:
+        name: ios-release-build-simulator
+        path: build/ios/iphonesimulator/
         retention-days: 7
         
     - name: Create IPA (if signing is configured)
