@@ -687,11 +687,7 @@ class _ScreenManagementPageState extends State<ScreenManagementPage> {
     switch (type) {
       case 'Admin':
         return _PreviewNoScaffold(
-          child: AdminHomeScreen(
-            currentUserType: 'PreviewType',
-            currentUserEmail: 'preview@example.com',
-            currentUserId: 'preview-user-id',
-          ),
+          child: const AdminHomeScreen(),
         );
       case 'User':
         return _PreviewNoScaffold(child: UserManagementPage());

@@ -400,11 +400,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   if (userType == 'Developer') {
                                     homeScreen = const DeveloperHomeScreen();
                                   } else if (userType == 'Admin') {
-                                    homeScreen = AdminHomeScreen(
-                                      currentUserType: userType,
-                                      currentUserEmail: email,
-                                      currentUserId: result['id'].toString(),
-                                    );
+                                    homeScreen = const AdminHomeScreen();
                                   } else {
                                     homeScreen = const Center(
                                       child: Text('User Home Removed'),

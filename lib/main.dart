@@ -194,11 +194,7 @@ void main() async {
     if (user != null) {
       // Route to home screen based on user_type
       if (user['user_type'] == 'Admin') {
-        startScreen = AdminHomeScreen(
-          currentUserType: user['user_type'],
-          currentUserEmail: user['email'] ?? '',
-          currentUserId: user['id'].toString(),
-        );
+        startScreen = const AdminHomeScreen();
       } else if (user['user_type'] == 'Developer') {
         startScreen = const DeveloperHomeScreen();
       } else if (user['user_type'] == 'Proposal Engineer') {
