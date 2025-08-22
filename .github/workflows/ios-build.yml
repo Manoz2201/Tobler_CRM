@@ -25,6 +25,12 @@ jobs:
         channel: 'stable'
         cache: true
         
+    - name: Setup CocoaPods
+      run: |
+        echo "Installing/updating CocoaPods..."
+        sudo gem install cocoapods
+        pod --version
+        
     - name: Show Flutter and Dart versions
       run: |
         flutter --version
@@ -42,6 +48,8 @@ jobs:
         flutter pub get
         cd ios
         rm -rf Pods Podfile.lock
+        # Update deployment target in project.pbxproj
+        sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = 12.0;/IPHONEOS_DEPLOYMENT_TARGET = 13.0;/g' Runner.xcodeproj/project.pbxproj
         pod install --repo-update
         cd ..
         
@@ -51,6 +59,8 @@ jobs:
         ls -la ios/
         echo "Checking Podfile..."
         cat ios/Podfile
+        echo "Checking deployment target in project.pbxproj..."
+        grep "IPHONEOS_DEPLOYMENT_TARGET" ios/Runner.xcodeproj/project.pbxproj
         
     - name: Ensure we're building for iOS not web
       run: |
