@@ -648,6 +648,38 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
   }
 
   Widget _buildAnalyticsTab(bool isWide) {
+    // Calculate real analytics from offers data
+    final totalOffers = _offers.length;
+    final activeOffers = _offers.where((offer) => offer['offer_status'] == 'Active offer').length;
+    final draftOffers = _offers.where((offer) => offer['offer_status'] == 'Draft Offer').length;
+    final expiredOffers = _offers.where((offer) => offer['offer_status'] == 'Expired Offer').length;
+    final closedOffers = _offers.where((offer) => offer['offer_status'] == 'Closed Offer').length;
+    
+    // Calculate total value and conversion rate
+    double totalValue = 0;
+    int convertedOffers = 0;
+    
+    for (final offer in _offers) {
+      final grandTotal = offer['grand_total'];
+      if (grandTotal != null) {
+        if (grandTotal is String) {
+          totalValue += double.tryParse(grandTotal.replaceAll(RegExp(r'[^\d.]'), '')) ?? 0;
+        } else if (grandTotal is num) {
+          totalValue += grandTotal.toDouble();
+        }
+      }
+      
+      // Consider closed offers as converted
+      if (offer['offer_status'] == 'Closed Offer') {
+        convertedOffers++;
+      }
+    }
+    
+    final conversionRate = totalOffers > 0 ? (convertedOffers / totalOffers * 100).toStringAsFixed(1) : '0.0';
+    
+    // Get recent offers for trend analysis
+    final recentOffers = _offers.take(5).toList();
+    
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -662,7 +694,7 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
           ),
           SizedBox(height: isWide ? 16 : 12),
           Text(
-            'Track performance and insights',
+            'Real-time performance insights based on your offers data',
             style: TextStyle(
               fontSize: isWide ? 16 : 14,
               color: Colors.grey[600],
@@ -674,60 +706,47 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
           if (isWide)
             Row(
               children: [
-                Expanded(child: _buildStatCard('Total Offers', '24', Icons.local_offer, Colors.blue)),
+                Expanded(child: _buildStatCard('Total Offers', totalOffers.toString(), Icons.local_offer, Colors.blue)),
                 SizedBox(width: 16),
-                Expanded(child: _buildStatCard('Active Offers', '8', Icons.work, Colors.green)),
+                Expanded(child: _buildStatCard('Active Offers', activeOffers.toString(), Icons.work, Colors.green)),
                 SizedBox(width: 16),
-                Expanded(child: _buildStatCard('Conversion Rate', '12.5%', Icons.trending_up, Colors.orange)),
+                Expanded(child: _buildStatCard('Conversion Rate', '$conversionRate%', Icons.trending_up, Colors.orange)),
                 SizedBox(width: 16),
-                Expanded(child: _buildStatCard('Total Value', '\$45,200', Icons.attach_money, Colors.purple)),
+                Expanded(child: _buildStatCard('Total Value', '₹${totalValue.toStringAsFixed(0)}', Icons.attach_money, Colors.purple)),
               ],
             )
           else
             Column(
               children: [
-                _buildStatCard('Total Offers', '24', Icons.local_offer, Colors.blue),
+                _buildStatCard('Total Offers', totalOffers.toString(), Icons.local_offer, Colors.blue),
                 SizedBox(height: 12),
-                _buildStatCard('Active Offers', '8', Icons.work, Colors.green),
+                _buildStatCard('Active Offers', activeOffers.toString(), Icons.work, Colors.green),
                 SizedBox(height: 12),
-                _buildStatCard('Conversion Rate', '12.5%', Icons.trending_up, Colors.orange),
+                _buildStatCard('Conversion Rate', '$conversionRate%', Icons.trending_up, Colors.orange),
                 SizedBox(height: 12),
-                _buildStatCard('Total Value', '\$45,200', Icons.attach_money, Colors.purple),
+                _buildStatCard('Total Value', '₹${totalValue.toStringAsFixed(0)}', Icons.attach_money, Colors.purple),
               ],
             ),
           
           SizedBox(height: isWide ? 32 : 24),
           
-          // Coming Soon Message
-          Center(
-            child: Column(
-              children: [
-                Icon(
-                  Icons.analytics_outlined,
-                  size: isWide ? 64 : 48,
-                  color: Colors.blue[400],
-                ),
-                SizedBox(height: isWide ? 16 : 8),
-                Text(
-                  'Analytics Dashboard Coming Soon',
-                  style: TextStyle(
-                    fontSize: isWide ? 20 : 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                SizedBox(height: isWide ? 8 : 4),
-                Text(
-                  'Advanced reporting and insights will be available soon',
-                  style: TextStyle(
-                    color: Colors.grey[500],
-                    fontSize: isWide ? 14 : 12,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
+          // Status Distribution Chart
+          _buildStatusDistributionChart(isWide, {
+            'Active': activeOffers,
+            'Draft': draftOffers,
+            'Expired': expiredOffers,
+            'Closed': closedOffers,
+          }),
+          
+          SizedBox(height: isWide ? 32 : 24),
+          
+          // Recent Offers
+          _buildRecentOffersSection(isWide, recentOffers),
+          
+          SizedBox(height: isWide ? 32 : 24),
+          
+          // Performance Metrics
+          _buildPerformanceMetrics(isWide, totalOffers, convertedOffers, totalValue),
         ],
       ),
     );
@@ -778,6 +797,430 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
         ],
       ),
     );
+  }
+
+  Widget _buildStatusDistributionChart(bool isWide, Map<String, int> statusData) {
+    final total = statusData.values.fold(0, (sum, count) => sum + count);
+    if (total == 0) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withValues(alpha: 0.1),
+              spreadRadius: 1,
+              blurRadius: 3,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Center(
+          child: Text(
+            'No offers data available',
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 16,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.1),
+            spreadRadius: 1,
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Offer Status Distribution',
+            style: TextStyle(
+              fontSize: isWide ? 18 : 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+          ),
+          SizedBox(height: isWide ? 20 : 16),
+          if (isWide)
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatusBar('Active', statusData['Active'] ?? 0, total, Colors.green),
+                ),
+                SizedBox(width: 16),
+                Expanded(
+                  child: _buildStatusBar('Draft', statusData['Draft'] ?? 0, total, Colors.blue),
+                ),
+                SizedBox(width: 16),
+                Expanded(
+                  child: _buildStatusBar('Expired', statusData['Expired'] ?? 0, total, Colors.orange),
+                ),
+                SizedBox(width: 16),
+                Expanded(
+                  child: _buildStatusBar('Closed', statusData['Closed'] ?? 0, total, Colors.purple),
+                ),
+              ],
+            )
+          else
+            Column(
+              children: [
+                _buildStatusBar('Active', statusData['Active'] ?? 0, total, Colors.green),
+                SizedBox(height: 12),
+                _buildStatusBar('Draft', statusData['Draft'] ?? 0, total, Colors.blue),
+                SizedBox(height: 12),
+                _buildStatusBar('Expired', statusData['Expired'] ?? 0, total, Colors.orange),
+                SizedBox(height: 12),
+                _buildStatusBar('Closed', statusData['Closed'] ?? 0, total, Colors.purple),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusBar(String label, int count, int total, Color color) {
+    final percentage = total > 0 ? (count / total * 100) : 0.0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey[700],
+              ),
+            ),
+            Text(
+              '$count',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 8),
+        LinearProgressIndicator(
+          value: percentage / 100,
+          backgroundColor: Colors.grey[200],
+          valueColor: AlwaysStoppedAnimation<Color>(color),
+        ),
+        SizedBox(height: 4),
+        Text(
+          '${percentage.toStringAsFixed(1)}%',
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[600],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRecentOffersSection(bool isWide, List<Map<String, dynamic>> recentOffers) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.1),
+            spreadRadius: 1,
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Recent Offers',
+            style: TextStyle(
+              fontSize: isWide ? 18 : 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+          ),
+          SizedBox(height: isWide ? 20 : 16),
+          if (recentOffers.isEmpty)
+            Center(
+              child: Text(
+                'No recent offers',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 16,
+                ),
+              ),
+            )
+          else
+            Column(
+              children: recentOffers.map((offer) {
+                final projectName = offer['project_name'] ?? 'Unknown Project';
+                final clientName = offer['client_name'] ?? 'Unknown Client';
+                final status = offer['offer_status'] ?? 'Unknown';
+                final grandTotal = offer['grand_total'] ?? '0';
+                final createdDate = offer['offer_created'];
+                
+                String formattedDate = 'Unknown Date';
+                if (createdDate != null) {
+                  try {
+                    final date = DateTime.parse(createdDate);
+                    formattedDate = '${date.day}/${date.month}/${date.year}';
+                  } catch (e) {
+                    formattedDate = 'Invalid Date';
+                  }
+                }
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[200]!),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              projectName,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey[800],
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              clientName,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        flex: 2,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: _getStatusColor(status).withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: _getStatusColor(status)),
+                              ),
+                              child: Text(
+                                status,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: _getStatusColor(status),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        flex: 2,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              '₹$grandTotal',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey[800],
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              formattedDate,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPerformanceMetrics(bool isWide, int totalOffers, int convertedOffers, double totalValue) {
+    final avgOfferValue = totalOffers > 0 ? totalValue / totalOffers : 0.0;
+    final conversionRate = totalOffers > 0 ? (convertedOffers / totalOffers * 100) : 0.0;
+    
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.1),
+            spreadRadius: 1,
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Performance Metrics',
+            style: TextStyle(
+              fontSize: isWide ? 18 : 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
+            ),
+          ),
+          SizedBox(height: isWide ? 20 : 16),
+          if (isWide)
+            Row(
+              children: [
+                Expanded(
+                  child: _buildMetricCard(
+                    'Average Offer Value',
+                    '₹${avgOfferValue.toStringAsFixed(0)}',
+                    Icons.analytics,
+                    Colors.indigo,
+                  ),
+                ),
+                SizedBox(width: 16),
+                Expanded(
+                  child: _buildMetricCard(
+                    'Conversion Rate',
+                    '${conversionRate.toStringAsFixed(1)}%',
+                    Icons.trending_up,
+                    Colors.green,
+                  ),
+                ),
+                SizedBox(width: 16),
+                Expanded(
+                  child: _buildMetricCard(
+                    'Total Pipeline Value',
+                    '₹${totalValue.toStringAsFixed(0)}',
+                    Icons.account_balance_wallet,
+                    Colors.orange,
+                  ),
+                ),
+              ],
+            )
+          else
+            Column(
+              children: [
+                _buildMetricCard(
+                  'Average Offer Value',
+                  '₹${avgOfferValue.toStringAsFixed(0)}',
+                  Icons.analytics,
+                  Colors.indigo,
+                ),
+                SizedBox(height: 12),
+                _buildMetricCard(
+                  'Conversion Rate',
+                  '${conversionRate.toStringAsFixed(1)}%',
+                  Icons.trending_up,
+                  Colors.green,
+                ),
+                SizedBox(height: 12),
+                _buildMetricCard(
+                  'Total Pipeline Value',
+                  '₹${totalValue.toStringAsFixed(0)}',
+                  Icons.account_balance_wallet,
+                  Colors.orange,
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetricCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 24),
+          SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'active offer':
+        return Colors.green;
+      case 'draft offer':
+        return Colors.blue;
+      case 'expired offer':
+        return Colors.orange;
+      case 'closed offer':
+        return Colors.purple;
+      default:
+        return Colors.grey;
+    }
   }
 
   Widget _buildOffersList({
@@ -4954,6 +5397,25 @@ class _OfferLeadSelectionDialogState extends State<OfferLeadSelectionDialog> {
     });
   }
 
+  void _createCustomOffer() {
+    // Close the current dialog
+    Navigator.of(context).pop();
+    
+    // Show the custom offer editor dialog with empty lead data
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => OfferEditorDialog(
+        lead: {
+          'lead_id': 'custom_${DateTime.now().millisecondsSinceEpoch}',
+          'project_name': 'Custom Project',
+          'client_name': 'Custom Client',
+          'project_location': 'Custom Location',
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -4961,7 +5423,20 @@ class _OfferLeadSelectionDialogState extends State<OfferLeadSelectionDialog> {
         children: [
           Icon(Icons.local_offer, color: Colors.orange[700]),
           const SizedBox(width: 8),
-          const Text('Select Lead for Offer'),
+          const Expanded(child: Text('Select Lead for Offer')),
+          ElevatedButton.icon(
+            onPressed: _createCustomOffer,
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('Custom Offer'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green[600],
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
         ],
       ),
       content: SizedBox(
