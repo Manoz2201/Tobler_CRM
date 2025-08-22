@@ -89,13 +89,13 @@ jobs:
         echo "Checking iOS build output structure..."
         ls -la build/
         echo "Checking bundle output..."
-        ls -la build/app/outputs/flutter_assets/ || echo "Bundle not found"
+        ls -la build/flutter_assets/ || echo "Bundle not found"
         
     - name: Upload iOS Bundle
       uses: actions/upload-artifact@v4
       with:
         name: ios-bundle
-        path: build/app/outputs/flutter_assets/
+        path: build/flutter_assets/
         retention-days: 7
         
     - name: Upload iOS Xcode Build
