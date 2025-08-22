@@ -7145,58 +7145,73 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          _buildInteractiveIconButton(
-                            icon: Icons.star,
-                            onPressed: () => _toggleStarLead(lead),
-                            tooltip: 'Star Lead',
-                            leadId: leadId,
-                            isStarred: lead['starred'] ?? false,
+                          Flexible(
+                            child: _buildInteractiveIconButton(
+                              icon: Icons.star,
+                              onPressed: () => _toggleStarLead(lead),
+                              tooltip: 'Star Lead',
+                              leadId: leadId,
+                              isStarred: lead['starred'] ?? false,
+                            ),
                           ),
-                          SizedBox(width: 4),
-                          _buildInteractiveIconButton(
-                            icon: Icons.edit,
-                            onPressed: () => _editLead(lead),
-                            tooltip: 'Edit Lead',
-                            leadId: leadId,
+                          SizedBox(width: 2),
+                          Flexible(
+                            child: _buildInteractiveIconButton(
+                              icon: Icons.edit,
+                              onPressed: () => _editLead(lead),
+                              tooltip: 'Edit Lead',
+                              leadId: leadId,
+                            ),
                           ),
-                          SizedBox(width: 4),
-                          _buildInteractiveIconButton(
-                            icon: Icons.local_offer,
-                            onPressed: () => _createOffer(lead),
-                            tooltip: 'Create Offer',
-                            leadId: leadId,
+                          SizedBox(width: 2),
+                          Flexible(
+                            child: _buildInteractiveIconButton(
+                              icon: Icons.local_offer,
+                              onPressed: () => _createOffer(lead),
+                              tooltip: 'Create Offer',
+                              leadId: leadId,
+                            ),
                           ),
-                          SizedBox(width: 4),
-                          _buildInteractiveIconButton(
-                            icon: Icons.notifications,
-                            onPressed: () => _showAlertsDialog(context, lead),
-                            tooltip: 'Alert',
-                            leadId: leadId,
-                            isAlert: true,
+                          SizedBox(width: 2),
+                          Flexible(
+                            child: _buildInteractiveIconButton(
+                              icon: Icons.notifications,
+                              onPressed: () => _showAlertsDialog(context, lead),
+                              tooltip: 'Alert',
+                              leadId: leadId,
+                              isAlert: true,
+                            ),
                           ),
-                          SizedBox(width: 4),
-                          _buildInteractiveIconButton(
-                            icon: Icons.chat,
-                            onPressed: () => _showQueryDialog(context, lead),
-                            tooltip: 'Query',
-                            leadId: leadId,
-                            isQuery: true,
+                          SizedBox(width: 2),
+                          Flexible(
+                            child: _buildInteractiveIconButton(
+                              icon: Icons.chat,
+                              onPressed: () => _showQueryDialog(context, lead),
+                              tooltip: 'Query',
+                              leadId: leadId,
+                              isQuery: true,
+                            ),
                           ),
-                          SizedBox(width: 4),
-                          _buildInteractiveIconButton(
-                            icon: Icons.flag,
-                            onPressed: () => _initializeStatus(lead),
-                            tooltip: 'Initialize Status',
-                            leadId: leadId,
+                          SizedBox(width: 2),
+                          Flexible(
+                            child: _buildInteractiveIconButton(
+                              icon: Icons.flag,
+                              onPressed: () => _initializeStatus(lead),
+                              tooltip: 'Initialize Status',
+                              leadId: leadId,
+                            ),
                           ),
-                          SizedBox(width: 4),
-                          _buildInteractiveIconButton(
-                            icon: Icons.delete,
-                            onPressed: () => _deleteLead(lead),
-                            tooltip: 'Delete Lead',
-                            leadId: leadId,
-                            isDestructive: true,
+                          SizedBox(width: 2),
+                          Flexible(
+                            child: _buildInteractiveIconButton(
+                              icon: Icons.delete,
+                              onPressed: () => _deleteLead(lead),
+                              tooltip: 'Delete Lead',
+                              leadId: leadId,
+                              isDestructive: true,
+                            ),
                           ),
                         ],
                       ),
