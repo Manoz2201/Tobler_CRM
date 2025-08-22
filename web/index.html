@@ -18,21 +18,29 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="Tobler CRM - Professional Customer Relationship Management System for Sales, Admin, and Proposal Engineers">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="Tobler">
+  <meta name="apple-mobile-web-app-title" content="Tobler CRM">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>Tobler</title>
+  <title>Tobler CRM</title>
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <!-- GitHub Pages routing support -->
+  <script>
+    // Handle client-side routing for GitHub Pages
+    var pathSegmentsToKeep = 0;
+    var l = location.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/';
+    document.write('<base href="' + l + '" />');
+  </script>
+  
   <!-- This script installs service_worker.js to provide PWA functionality to
        application. For more information, see:
        https://developers.google.com/web/fundamentals/primers/service-workers -->
