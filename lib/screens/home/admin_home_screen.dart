@@ -4153,7 +4153,7 @@ class _LeadTableState extends State<LeadTable> {
     try {
       // Try to get downloads directory
       Directory? downloadsDir = await getDownloadsDirectory();
-      if (downloadsDir != null && await downloadsDir.exists()) {
+      if (await downloadsDir.exists()) {
         return downloadsDir;
       }
 
