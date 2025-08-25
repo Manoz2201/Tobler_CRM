@@ -2359,6 +2359,14 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
   late final List<TextEditingController> _paymentTermControllers;
   int _paymentTermCount = 3; // Default count
 
+  // Offer letter signature controllers
+  late final TextEditingController _preparedByNameCtl;
+  late final TextEditingController _preparedByPhoneCtl;
+  late final TextEditingController _preparedByDesignationCtl;
+  late final TextEditingController _yoursFaithfullyNameCtl;
+  late final TextEditingController _yoursFaithfullyPhoneCtl;
+  late final TextEditingController _yoursFaithfullyDesignationCtl;
+
   // Offer status
   String _offerStatus = 'Draft Offer'; // Default status
 
@@ -3212,8 +3220,22 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     // Initialize zoom controller
     _zoomTextController = TextEditingController(text: '100%');
 
+    // Initialize offer letter signature controllers with placeholder values
+    // These will be populated with actual user data from the database
+    _preparedByNameCtl = TextEditingController(text: 'Loading...');
+    _preparedByPhoneCtl = TextEditingController(text: 'Loading...');
+    _preparedByDesignationCtl = TextEditingController(text: 'Loading...');
+    _yoursFaithfullyNameCtl = TextEditingController(text: 'Nitesh Sharma');
+    _yoursFaithfullyPhoneCtl = TextEditingController(text: '+91 9136223366');
+    _yoursFaithfullyDesignationCtl = TextEditingController(
+      text: 'Sr. Vice President',
+    );
+
     // Fetch lead information and admin_response data
     _fetchLeadInfoAndAdminResponseData();
+
+    // Fetch current user data for "Prepared By" section
+    _fetchCurrentUserData();
   }
 
   /// Fetches lead information and admin_response data
@@ -3376,6 +3398,208 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
       setState(() {
         _isLoadingAddress = false;
       });
+    }
+  }
+
+  /// Fetches current user data to populate the "Prepared By" section
+  Future<void> _fetchCurrentUserData() async {
+    try {
+      final client = Supabase.instance.client;
+
+      // Get current user ID from the widget
+      final String? currentUserId = widget.currentUserId;
+
+      if (currentUserId == null || currentUserId.isEmpty) {
+        debugPrint('DEBUG: No currentUserId available for fetching user data');
+        return;
+      }
+
+      debugPrint('DEBUG: Fetching user data for currentUserId: $currentUserId');
+
+      // First try to get user from users table
+      final userResponse = await client
+          .from('users')
+          .select('username, designation, mobile_number')
+          .eq('id', currentUserId)
+          .maybeSingle();
+
+      debugPrint('DEBUG: Users table response for Prepared By: $userResponse');
+
+      if (userResponse != null) {
+        setState(() {
+          _preparedByNameCtl.text =
+              userResponse['username'] ?? 'Vishwaranjan Singh';
+          _preparedByDesignationCtl.text =
+              userResponse['designation'] ??
+              'General Manager – Sales & Marketing';
+          _preparedByPhoneCtl.text =
+              userResponse['mobile_number'] ?? '+91 8928301075';
+        });
+        debugPrint('DEBUG: Prepared By fields updated from users table');
+        return;
+      }
+
+      // If not found in users table, try dev_user table
+      debugPrint(
+        'DEBUG: User not found in users table, trying dev_user table...',
+      );
+      final devUserResponse = await client
+          .from('dev_user')
+          .select('username, designation, mobile_number')
+          .eq('id', currentUserId)
+          .maybeSingle();
+
+      debugPrint(
+        'DEBUG: Dev_user table response for Prepared By: $devUserResponse',
+      );
+
+      if (devUserResponse != null) {
+        setState(() {
+          _preparedByNameCtl.text =
+              devUserResponse['username'] ?? 'Vishwaranjan Singh';
+          _preparedByDesignationCtl.text =
+              devUserResponse['designation'] ??
+              'General Manager – Sales & Marketing';
+          _preparedByPhoneCtl.text =
+              devUserResponse['mobile_number'] ?? '+91 8928301075';
+        });
+        debugPrint('DEBUG: Prepared By fields updated from dev_user table');
+        return;
+      }
+
+      // If still not found, try to get the current user from auth.users and then find their record in public.users
+      debugPrint(
+        'DEBUG: User not found in either table, trying auth.users approach...',
+      );
+      try {
+        final authUser = client.auth.currentUser;
+        if (authUser != null && authUser.email != null) {
+          debugPrint('DEBUG: Auth user found: ${authUser.email}');
+
+          // Try to find the user in public.users by email
+          final userByEmail = await client
+              .from('users')
+              .select('username, designation, mobile_number')
+              .eq('email', authUser.email!)
+              .maybeSingle();
+
+          debugPrint('DEBUG: User by email from users table: $userByEmail');
+
+          if (userByEmail != null) {
+            setState(() {
+              _preparedByNameCtl.text =
+                  userByEmail['username'] ?? 'Vishwaranjan Singh';
+              _preparedByDesignationCtl.text =
+                  userByEmail['designation'] ??
+                  'General Manager – Sales & Marketing';
+              _preparedByPhoneCtl.text =
+                  userByEmail['mobile_number'] ?? '+91 8928301075';
+            });
+            debugPrint(
+              'DEBUG: Prepared By fields updated by auth user email from users table',
+            );
+            return;
+          }
+
+          // Try to find the user in dev_user table by email
+          final devUserByEmail = await client
+              .from('dev_user')
+              .select('username, designation, mobile_number')
+              .eq('email', authUser.email!)
+              .maybeSingle();
+
+          debugPrint(
+            'DEBUG: User by email from dev_user table: $devUserByEmail',
+          );
+
+          if (devUserByEmail != null) {
+            setState(() {
+              _preparedByNameCtl.text =
+                  devUserByEmail['username'] ?? 'Vishwaranjan Singh';
+              _preparedByDesignationCtl.text =
+                  devUserByEmail['designation'] ??
+                  'General Manager – Sales & Marketing';
+              _preparedByPhoneCtl.text =
+                  devUserByEmail['mobile_number'] ?? '+91 8928301075';
+            });
+            debugPrint(
+              'DEBUG: Prepared By fields updated by auth user email from dev_user table',
+            );
+            return;
+          }
+        }
+      } catch (authError) {
+        debugPrint('DEBUG: Error with auth.users approach: $authError');
+      }
+
+      // If still not found, try alternative approach: fetch by email from SharedPreferences
+      debugPrint(
+        'DEBUG: User not found in either table, trying SharedPreferences email approach...',
+      );
+      final prefs = await SharedPreferences.getInstance();
+      final email = prefs.getString('user_email');
+
+      if (email != null) {
+        debugPrint('DEBUG: Email from SharedPreferences: $email');
+
+        // Try to get user from users table by email
+        final userByEmail = await client
+            .from('users')
+            .select('username, designation, mobile_number')
+            .eq('email', email)
+            .maybeSingle();
+
+        debugPrint('DEBUG: User by email from users table: $userByEmail');
+
+        if (userByEmail != null) {
+          setState(() {
+            _preparedByNameCtl.text =
+                userByEmail['username'] ?? 'Vishwaranjan Singh';
+            _preparedByDesignationCtl.text =
+                userByEmail['designation'] ??
+                'General Manager – Sales & Marketing';
+            _preparedByPhoneCtl.text =
+                userByEmail['mobile_number'] ?? '+91 8928301075';
+          });
+          debugPrint(
+            'DEBUG: Prepared By fields updated by SharedPreferences email from users table',
+          );
+          return;
+        }
+
+        // Try to get user from dev_user table by email
+        final devUserByEmail = await client
+            .from('dev_user')
+            .select('username, designation, mobile_number')
+            .eq('email', email)
+            .maybeSingle();
+
+        debugPrint('DEBUG: User by email from dev_user table: $devUserByEmail');
+
+        if (devUserByEmail != null) {
+          setState(() {
+            _preparedByNameCtl.text =
+                devUserByEmail['username'] ?? 'Vishwaranjan Singh';
+            _preparedByDesignationCtl.text =
+                devUserByEmail['designation'] ??
+                'General Manager – Sales & Marketing';
+            _preparedByPhoneCtl.text =
+                devUserByEmail['mobile_number'] ?? '+91 8928301075';
+          });
+          debugPrint(
+            'DEBUG: Prepared By fields updated by SharedPreferences email from dev_user table',
+          );
+          return;
+        }
+      }
+
+      // If all attempts fail, keep the default values
+      debugPrint(
+        'DEBUG: Could not fetch user data, keeping default values for Prepared By',
+      );
+    } catch (e) {
+      debugPrint('DEBUG: Error fetching current user data: $e');
+      // Keep default values on error
     }
   }
 
@@ -4268,6 +4492,13 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     for (final controller in _paymentTermControllers) {
       controller.dispose();
     }
+    // Dispose offer letter signature controllers
+    _preparedByNameCtl.dispose();
+    _preparedByPhoneCtl.dispose();
+    _preparedByDesignationCtl.dispose();
+    _yoursFaithfullyNameCtl.dispose();
+    _yoursFaithfullyPhoneCtl.dispose();
+    _yoursFaithfullyDesignationCtl.dispose();
     super.dispose();
   }
 
@@ -6063,18 +6294,18 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     final tp = TextPainter(
       text: TextSpan(
         style: _baseTextStyle,
-        children: const [
-          TextSpan(
+        children: [
+          const TextSpan(
             text:
                 'Our offer is open for acceptance for a period of 7 days from the date of quotation.\n\n',
           ),
           TextSpan(
             text:
-                'Prepared By:\nVishwaranjan Singh (+91 8928301075)\nGeneral Manager – Sales & Marketing\n\n',
+                'Prepared By:\n${_preparedByNameCtl.text} (${_preparedByPhoneCtl.text})\n${_preparedByDesignationCtl.text}\n\n',
           ),
           TextSpan(
             text:
-                'Yours Faithfully,\nNitesh Sharma (+91 9136223366)\nSr. Vice President',
+                'Yours Faithfully,\n${_yoursFaithfullyNameCtl.text} (${_yoursFaithfullyPhoneCtl.text})\n${_yoursFaithfullyDesignationCtl.text}',
           ),
         ],
       ),
@@ -6130,26 +6361,114 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
         // Prepared By
         Text('Prepared By:', style: emphBold, textAlign: _textAlignment),
         const SizedBox(height: 4),
-        Text(
-          'Vishwaranjan Singh (+91 8928301075)',
-          style: smallEmph,
-          textAlign: _textAlignment,
-        ),
-        Text(
-          'General Manager – Sales & Marketing',
-          style: smallEmph,
-          textAlign: _textAlignment,
-        ),
+        if (_isEditing) ...[
+          // Editable fields for Prepared By
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _preparedByNameCtl,
+                  style: smallEmph,
+                  decoration: const InputDecoration(
+                    labelText: 'Name',
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: _preparedByPhoneCtl,
+                  style: smallEmph,
+                  decoration: const InputDecoration(
+                    labelText: 'Phone',
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          TextField(
+            controller: _preparedByDesignationCtl,
+            style: smallEmph,
+            decoration: const InputDecoration(
+              labelText: 'Designation',
+              isDense: true,
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ] else ...[
+          // Display mode for Prepared By
+          Text(
+            '${_preparedByNameCtl.text} (${_preparedByPhoneCtl.text})',
+            style: smallEmph,
+            textAlign: _textAlignment,
+          ),
+          Text(
+            _preparedByDesignationCtl.text,
+            style: smallEmph,
+            textAlign: _textAlignment,
+          ),
+        ],
         const SizedBox(height: 24),
         // Yours Faithfully
         Text('Yours Faithfully,', style: emphBold, textAlign: _textAlignment),
         const SizedBox(height: 4),
-        Text(
-          'Nitesh Sharma (+91 9136223366)',
-          style: smallEmph,
-          textAlign: _textAlignment,
-        ),
-        Text('Sr. Vice President', style: smallEmph, textAlign: _textAlignment),
+        if (_isEditing) ...[
+          // Editable fields for Yours Faithfully
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _yoursFaithfullyNameCtl,
+                  style: smallEmph,
+                  decoration: const InputDecoration(
+                    labelText: 'Name',
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: _yoursFaithfullyPhoneCtl,
+                  style: smallEmph,
+                  decoration: const InputDecoration(
+                    labelText: 'Phone',
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          TextField(
+            controller: _yoursFaithfullyDesignationCtl,
+            style: smallEmph,
+            decoration: const InputDecoration(
+              labelText: 'Designation',
+              isDense: true,
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ] else ...[
+          // Display mode for Yours Faithfully
+          Text(
+            '${_yoursFaithfullyNameCtl.text} (${_yoursFaithfullyPhoneCtl.text})',
+            style: smallEmph,
+            textAlign: _textAlignment,
+          ),
+          Text(
+            _yoursFaithfullyDesignationCtl.text,
+            style: smallEmph,
+            textAlign: _textAlignment,
+          ),
+        ],
       ],
     );
   }
