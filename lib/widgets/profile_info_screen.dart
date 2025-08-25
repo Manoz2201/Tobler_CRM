@@ -46,6 +46,8 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _employeeCodeController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _designationController = TextEditingController();
+  final TextEditingController _mobileNumberController = TextEditingController();
   bool _isProfileUpdateLoading = false;
   bool _isEditingProfile = false;
 
@@ -67,6 +69,8 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
     _usernameController.dispose();
     _employeeCodeController.dispose();
     _emailController.dispose();
+    _designationController.dispose();
+    _mobileNumberController.dispose();
     super.dispose();
   }
 
@@ -123,7 +127,7 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
       var userData = await client
           .from('users')
           .select(
-            'id, username, employee_code, email, user_type, session_id, session_active, is_user_online, device_type',
+            'id, username, designation, mobile_number, employee_code, email, user_type, session_id, session_active, is_user_online, device_type',
           )
           .eq('id', cachedUserId)
           .maybeSingle();
@@ -146,7 +150,7 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
         userData = await client
             .from('dev_user')
             .select(
-              'id, username, employee_code, email, user_type, session_id, session_active, is_user_online, device_type',
+              'id, username, designation, mobile_number, employee_code, email, user_type, session_id, session_active, is_user_online, device_type',
             )
             .eq('id', cachedUserId)
             .maybeSingle();
@@ -209,6 +213,8 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
           final finalUserData = {
             'id': userData['id'],
             'username': userData['username'],
+            'designation': userData['designation'],
+            'mobile_number': userData['mobile_number'],
             'employee_code': userData['employee_code'],
             'email': userData['email'],
             'user_type': userData['user_type'],
@@ -228,6 +234,8 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
 
           // Initialize profile editing controllers
           _usernameController.text = finalUserData['username'] ?? '';
+          _designationController.text = finalUserData['designation'] ?? '';
+          _mobileNumberController.text = finalUserData['mobile_number'] ?? '';
           _employeeCodeController.text = finalUserData['employee_code'] ?? '';
           _emailController.text = finalUserData['email'] ?? '';
         } else {
@@ -889,6 +897,13 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                 isEditing: _isEditingProfile,
               ),
               _buildEditableInfoRow(
+                'Designation',
+                _userData?['designation'] ?? '',
+                _designationController,
+                isMobile: isMobile,
+                isEditing: _isEditingProfile,
+              ),
+              _buildEditableInfoRow(
                 'Employee Code',
                 _userData?['employee_code'] ?? '',
                 _employeeCodeController,
@@ -902,14 +917,21 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                 isMobile: isMobile,
                 isEditing: _isEditingProfile,
               ),
-              _buildInfoRow(
-                'Device',
-                _getDeviceTypeDisplay(),
+              _buildEditableInfoRow(
+                'Mobile Number',
+                _userData?['mobile_number'] ?? '',
+                _mobileNumberController,
                 isMobile: isMobile,
+                isEditing: _isEditingProfile,
               ),
               _buildInfoRow(
                 'User Type',
                 _userData?['user_type'] ?? '',
+                isMobile: isMobile,
+              ),
+              _buildInfoRow(
+                'Device',
+                _getDeviceTypeDisplay(),
                 isMobile: isMobile,
               ),
               _buildInfoRow(
@@ -957,6 +979,10 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                           // Reset controllers to original values
                           _usernameController.text =
                               _userData?['username'] ?? '';
+                          _designationController.text =
+                              _userData?['designation'] ?? '';
+                          _mobileNumberController.text =
+                              _userData?['mobile_number'] ?? '';
                           _employeeCodeController.text =
                               _userData?['employee_code'] ?? '';
                           _emailController.text = _userData?['email'] ?? '';
@@ -1118,7 +1144,6 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
   // Update profile information
   Future<void> _updateProfile() async {
     if (_usernameController.text.trim().isEmpty ||
-        _employeeCodeController.text.trim().isEmpty ||
         _emailController.text.trim().isEmpty) {
       ScaffoldMessenger.of(
         context,
@@ -1157,6 +1182,12 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
         '[PROFILE_UPDATE] - Name (username): ${_usernameController.text.trim()}',
       );
       debugPrint(
+        '[PROFILE_UPDATE] - Designation: ${_designationController.text.trim()}',
+      );
+      debugPrint(
+        '[PROFILE_UPDATE] - Mobile Number: ${_mobileNumberController.text.trim()}',
+      );
+      debugPrint(
         '[PROFILE_UPDATE] - Employee Code (employee_code): ${_employeeCodeController.text.trim()}',
       );
       debugPrint(
@@ -1172,6 +1203,8 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
             .update({
               'username': _usernameController.text
                   .trim(), // Override Name value in username column
+              'designation': _designationController.text.trim(),
+              'mobile_number': _mobileNumberController.text.trim(),
               'employee_code': _employeeCodeController.text
                   .trim(), // Override Employee Code value in employee_code column
               'email': _emailController.text
@@ -1194,6 +1227,8 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
               .update({
                 'username': _usernameController.text
                     .trim(), // Override Name value in username column
+                'designation': _designationController.text.trim(),
+                'mobile_number': _mobileNumberController.text.trim(),
                 'employee_code': _employeeCodeController.text
                     .trim(), // Override Employee Code value in employee_code column
                 'email': _emailController.text
@@ -1218,7 +1253,7 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
       // Verify the update by fetching the updated data
       final verificationResponse = await client
           .from('users')
-          .select('username, employee_code, email')
+          .select('username, designation, mobile_number, employee_code, email')
           .eq('id', userId)
           .maybeSingle();
 
@@ -1228,6 +1263,12 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
         );
         debugPrint(
           '[PROFILE_UPDATE] - username: ${verificationResponse['username']}',
+        );
+        debugPrint(
+          '[PROFILE_UPDATE] - designation: ${verificationResponse['designation']}',
+        );
+        debugPrint(
+          '[PROFILE_UPDATE] - mobile_number: ${verificationResponse['mobile_number']}',
         );
         debugPrint(
           '[PROFILE_UPDATE] - employee_code: ${verificationResponse['employee_code']}',
@@ -1242,6 +1283,8 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
         _userData = {
           ..._userData!,
           'username': _usernameController.text.trim(),
+          'designation': _designationController.text.trim(),
+          'mobile_number': _mobileNumberController.text.trim(),
           'employee_code': _employeeCodeController.text.trim(),
           'email': _emailController.text.trim(),
         };

@@ -75,7 +75,7 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
       currentUserEmail: widget.currentUserEmail,
     ),
     LeadManagementScreen(),
-    OffersManagementScreen(),
+    OffersManagementScreen(currentUserId: widget.currentUserId),
     const Center(child: Text('Customers Management')),
     const Center(child: Text('Sales Settings')),
     ProfilePage(),
@@ -637,7 +637,9 @@ class LeadManagementScreen extends StatefulWidget {
 }
 
 class OffersManagementScreen extends StatefulWidget {
-  const OffersManagementScreen({super.key});
+  final String? currentUserId;
+
+  const OffersManagementScreen({super.key, this.currentUserId});
 
   @override
   State<OffersManagementScreen> createState() => _OffersManagementScreenState();
@@ -2196,7 +2198,9 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
           context: context,
           barrierDismissible: true,
           builder: (BuildContext dialogContext) {
-            return const OfferLeadSelectionDialog();
+            return OfferLeadSelectionDialog(
+              currentUserId: widget.currentUserId,
+            );
           },
         );
 
@@ -2209,7 +2213,10 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
         context: context,
         barrierDismissible: false,
         builder: (BuildContext dialogContext) {
-          return OfferEditorDialog(lead: selectedLead);
+          return OfferEditorDialog(
+            lead: selectedLead,
+            currentUserId: widget.currentUserId,
+          );
         },
       );
     }
@@ -2228,6 +2235,7 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
             'ref': offer['ref'],
             'id': offer['lead_id'], // For backward compatibility
           },
+          currentUserId: widget.currentUserId,
         );
       },
     );
@@ -2246,6 +2254,7 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
             'ref': offer['ref'],
             'id': offer['lead_id'], // For backward compatibility
           },
+          currentUserId: widget.currentUserId,
         );
       },
     );
@@ -2312,8 +2321,9 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
 
 class OfferEditorDialog extends StatefulWidget {
   final Map<String, dynamic> lead;
+  final String? currentUserId;
 
-  const OfferEditorDialog({super.key, required this.lead});
+  const OfferEditorDialog({super.key, required this.lead, this.currentUserId});
 
   @override
   State<OfferEditorDialog> createState() => _OfferEditorDialogState();
@@ -3963,6 +3973,72 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
 
       // Prepare offer data - only store lead_id and offer-specific data
       // Lead information (project_id, project_name, client_name, location) will be fetched dynamically
+
+      final client = Supabase.instance.client;
+
+      // Ensure user_id exists in the users table for foreign key constraint
+      String? validUserId = widget.currentUserId;
+
+      debugPrint('DEBUG: Original currentUserId: ${widget.currentUserId}');
+      debugPrint('DEBUG: Starting user validation...');
+
+      // Check if the current user exists in the users table
+      try {
+        if (widget.currentUserId != null && widget.currentUserId!.isNotEmpty) {
+          debugPrint('DEBUG: Checking if user exists in users table...');
+          final userCheck = await client
+              .from('users')
+              .select('id')
+              .eq('id', widget.currentUserId!)
+              .maybeSingle();
+
+          debugPrint('DEBUG: User check result: $userCheck');
+
+          if (userCheck == null) {
+            debugPrint(
+              'DEBUG: User not found in users table, checking dev_user table...',
+            );
+            // If not in users table, check dev_user table and get the corresponding users table ID
+            final devUserCheck = await client
+                .from('dev_user')
+                .select('id')
+                .eq('id', widget.currentUserId!)
+                .maybeSingle();
+
+            debugPrint('DEBUG: Dev user check result: $devUserCheck');
+
+            if (devUserCheck != null) {
+              // For dev_user, we need to handle this differently since the foreign key expects users table ID
+              // Either create a mapping or use a different approach
+              debugPrint(
+                'DEBUG: User found in dev_user table, but foreign key constraint requires users table ID',
+              );
+              // For now, we'll skip the user_id to avoid the constraint violation
+              validUserId = null;
+            } else {
+              // User not found in either table, this might be an auth.users table ID
+              debugPrint(
+                'DEBUG: User not found in users or dev_user table, might be auth.users table ID',
+              );
+              debugPrint(
+                'DEBUG: Setting validUserId to null to avoid foreign key constraint violation',
+              );
+              validUserId = null;
+            }
+          }
+        } else {
+          debugPrint(
+            'DEBUG: currentUserId is null or empty, setting validUserId to null',
+          );
+          validUserId = null;
+        }
+      } catch (e) {
+        debugPrint('DEBUG: Error checking user existence: $e');
+        validUserId = null;
+      }
+
+      debugPrint('DEBUG: Final validUserId: $validUserId');
+
       final offerData = {
         'lead_id': widget.lead['lead_id'] ?? widget.lead['id'],
         'ref': _refNoCtl.text,
@@ -3975,9 +4051,11 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
         'nalco_rate': nalcoRate,
         'delivery_time': deliveryTime,
         'payment_terms': paymentTerms,
+        'user_id': validUserId, // Only set if valid user_id exists
       };
 
-      final client = Supabase.instance.client;
+      debugPrint('DEBUG: Final offerData: $offerData');
+      debugPrint('DEBUG: offerData user_id: ${offerData['user_id']}');
 
       Map<String, dynamic>? result;
 
@@ -7065,7 +7143,9 @@ class _NoteParagraph extends StatelessWidget {
 // Removed old generic OfferField editor inputs in favor of structured offer layout
 
 class OfferLeadSelectionDialog extends StatefulWidget {
-  const OfferLeadSelectionDialog({super.key});
+  final String? currentUserId;
+
+  const OfferLeadSelectionDialog({super.key, this.currentUserId});
 
   @override
   State<OfferLeadSelectionDialog> createState() =>
@@ -7141,6 +7221,7 @@ class _OfferLeadSelectionDialogState extends State<OfferLeadSelectionDialog> {
           'client_name': 'Custom Client',
           'project_location': 'Custom Location',
         },
+        currentUserId: widget.currentUserId,
       ),
     );
   }
@@ -9245,7 +9326,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext dialogContext) {
-        return OfferEditorDialog(lead: lead);
+        return OfferEditorDialog(lead: lead, currentUserId: _currentUserId);
       },
     );
   }

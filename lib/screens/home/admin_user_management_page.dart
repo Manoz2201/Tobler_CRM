@@ -1061,8 +1061,14 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
     final TextEditingController usernameController = TextEditingController(
       text: user['username'] ?? '',
     );
+    final TextEditingController designationController = TextEditingController(
+      text: user['designation'] ?? '',
+    );
     final TextEditingController emailController = TextEditingController(
       text: user['email'] ?? '',
+    );
+    final TextEditingController mobileNumberController = TextEditingController(
+      text: user['mobile_number'] ?? '',
     );
     final TextEditingController userTypeController = TextEditingController(
       text: user['user_type'] ?? '',
@@ -1143,14 +1149,24 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                             // Basic Information
                             _buildEditSection('Basic Information', [
                               _buildEditField(
-                                'Username',
+                                'Name',
                                 usernameController,
                                 Icons.person,
                               ),
                               _buildEditField(
-                                'Email',
+                                'Designation',
+                                designationController,
+                                Icons.work,
+                              ),
+                              _buildEditField(
+                                'Email ID',
                                 emailController,
                                 Icons.email,
+                              ),
+                              _buildEditField(
+                                'Mobile Number',
+                                mobileNumberController,
+                                Icons.phone,
                               ),
                               _buildEditField(
                                 'User Type',
@@ -1239,7 +1255,11 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                                       // Update user data
                                       final updatedData = {
                                         'username': usernameController.text,
+                                        'designation':
+                                            designationController.text,
                                         'email': emailController.text,
+                                        'mobile_number':
+                                            mobileNumberController.text,
                                         'user_type': userTypeController.text,
                                         'user_target':
                                             double.tryParse(
@@ -1620,11 +1640,16 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                       children: [
                         // Basic Information Section
                         _buildDetailSection('Basic Information', Icons.info, [
+                          _buildDetailRow('Name', user['username'] ?? 'N/A'),
                           _buildDetailRow(
-                            'Username',
-                            user['username'] ?? 'N/A',
+                            'Designation',
+                            user['designation'] ?? 'N/A',
                           ),
-                          _buildDetailRow('Email', user['email'] ?? 'N/A'),
+                          _buildDetailRow('Email ID', user['email'] ?? 'N/A'),
+                          _buildDetailRow(
+                            'Mobile Number',
+                            user['mobile_number'] ?? 'N/A',
+                          ),
                           _buildDetailRow(
                             'User Type',
                             user['user_type'] ?? 'N/A',
