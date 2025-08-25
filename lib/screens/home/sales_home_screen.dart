@@ -4276,7 +4276,6 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
         'delivery_time': deliveryTime,
         'payment_terms': paymentTerms,
         'user_id': validUserId, // Only set if valid user_id exists
-        
         // Project Details - Save complete input values
         'project_name': _projectNameCtl.text.trim(),
         'client_name': _clientNameCtl.text.trim(),
@@ -4284,10 +4283,13 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
         'project_status': _projectStatusCtl.text.trim(),
         'project_description': _descriptionCtl.text.trim(),
         'intro_note': _introNoteCtl.text.trim(),
-        
+
         // Additional Project Details
-        'nalco_price_text': _nalcoPriceCtl.text.trim(), // Save the complete nalco price text
-        'payment_terms_raw': _paymentTermControllers.map((c) => c.text.trim()).toList(), // Save individual payment terms
+        'nalco_price_text': _nalcoPriceCtl.text
+            .trim(), // Save the complete nalco price text
+        'payment_terms_raw': _paymentTermControllers
+            .map((c) => c.text.trim())
+            .toList(), // Save individual payment terms
       };
 
       debugPrint('DEBUG: Final offerData: $offerData');
