@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../user_management_service.dart';
 
@@ -1534,13 +1535,35 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                                 color: Colors.blue[800],
                               ),
                             ),
-                            Text(
-                              user['username'] ?? 'N/A',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.blue[600],
-                                fontWeight: FontWeight.w500,
-                              ),
+                            Row(
+                              children: [
+                                Text(
+                                  user['username'] ?? 'N/A',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.blue[600],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                SizedBox(width: 8),
+                                IconButton(
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                    _showDeleteUserDialog(context, user);
+                                  },
+                                  icon: Icon(
+                                    Icons.delete,
+                                    size: 18,
+                                    color: Colors.red[600],
+                                  ),
+                                  tooltip: 'Delete User',
+                                  padding: EdgeInsets.all(4),
+                                  constraints: BoxConstraints(
+                                    minWidth: 28,
+                                    minHeight: 28,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -1578,18 +1601,6 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                             ),
                             tooltip: 'Edit User',
                           ),
-                          IconButton(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                              _showDeleteUserDialog(context, user);
-                            },
-                            icon: Icon(
-                              Icons.delete,
-                              color: Colors.red[600],
-                              size: 20,
-                            ),
-                            tooltip: 'Delete User',
-                          ),
                           SizedBox(width: 8),
                           IconButton(
                             onPressed: () => Navigator.of(context).pop(),
@@ -1623,6 +1634,10 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
                             user['is_user_online'] == true
                                 ? 'Online'
                                 : 'Offline',
+                          ),
+                          _buildDetailRow(
+                            'Verification Code',
+                            user['verification_code'] ?? 'Not Set',
                           ),
                           _buildDetailRow(
                             'User Target',
@@ -1736,9 +1751,38 @@ class _AdminUserManagementPageState extends State<AdminUserManagementPage> {
             ),
           ),
           Expanded(
-            child: Text(
-              value,
-              style: TextStyle(fontSize: 14, color: Colors.grey[800]),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    value,
+                    style: TextStyle(fontSize: 14, color: Colors.grey[800]),
+                  ),
+                ),
+                // Add copy button for Verification Code
+                if (label == 'Verification Code' && value != 'Not Set')
+                  Padding(
+                    padding: EdgeInsets.only(left: 8),
+                    child: IconButton(
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: value));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Verification code copied to clipboard',
+                            ),
+                            duration: Duration(seconds: 2),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      },
+                      icon: Icon(Icons.copy, size: 18, color: Colors.blue[600]),
+                      tooltip: 'Copy verification code',
+                      padding: EdgeInsets.all(4),
+                      constraints: BoxConstraints(minWidth: 32, minHeight: 32),
+                    ),
+                  ),
+              ],
             ),
           ),
         ],

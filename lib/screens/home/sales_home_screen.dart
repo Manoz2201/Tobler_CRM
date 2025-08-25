@@ -90,24 +90,26 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
   Future<void> _loadUserInfo() async {
     try {
       final client = Supabase.instance.client;
-      
+
       // Get session from SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       final sessionId = prefs.getString('session_id');
       debugPrint('Session ID from SharedPreferences: $sessionId');
-      
+
       if (sessionId != null) {
-        debugPrint('Attempting to fetch user data using session_id: $sessionId');
-        
+        debugPrint(
+          'Attempting to fetch user data using session_id: $sessionId',
+        );
+
         // First try to get user from users table
         final userResponse = await client
             .from('users')
             .select('username, user_type, employee_code')
             .eq('session_id', sessionId)
             .maybeSingle();
-            
+
         debugPrint('Users table response: $userResponse');
-            
+
         if (userResponse != null) {
           setState(() {
             _username = userResponse['username'] ?? '';
@@ -115,10 +117,12 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
             _employeeCode = userResponse['employee_code'] ?? '';
             _isLoadingUserInfo = false;
           });
-          debugPrint('User info loaded from users table: $_username $_userType($_employeeCode)');
+          debugPrint(
+            'User info loaded from users table: $_username $_userType($_employeeCode)',
+          );
           return;
         }
-        
+
         // If not found in users table, try dev_user table
         debugPrint('User not found in users table, trying dev_user table...');
         final devUserResponse = await client
@@ -126,9 +130,9 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
             .select('username, user_type, employee_code')
             .eq('session_id', sessionId)
             .maybeSingle();
-            
+
         debugPrint('Dev_user table response: $devUserResponse');
-            
+
         if (devUserResponse != null) {
           setState(() {
             _username = devUserResponse['username'] ?? '';
@@ -136,27 +140,31 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
             _employeeCode = devUserResponse['employee_code'] ?? '';
             _isLoadingUserInfo = false;
           });
-          debugPrint('User info loaded from dev_user table: $_username $_userType($_employeeCode)');
+          debugPrint(
+            'User info loaded from dev_user table: $_username $_userType($_employeeCode)',
+          );
           return;
         }
-        
-        debugPrint('User not found in either users or dev_user table with session_id: $sessionId');
-        
+
+        debugPrint(
+          'User not found in either users or dev_user table with session_id: $sessionId',
+        );
+
         // Try alternative approach: fetch by email from SharedPreferences
         debugPrint('Trying alternative approach: fetch by email...');
         final email = prefs.getString('user_email');
         if (email != null) {
           debugPrint('Email from SharedPreferences: $email');
-          
+
           // Try to get user from users table by email
           final userByEmail = await client
               .from('users')
               .select('username, user_type, employee_code')
               .eq('email', email)
               .maybeSingle();
-              
+
           debugPrint('User by email from users table: $userByEmail');
-              
+
           if (userByEmail != null) {
             setState(() {
               _username = userByEmail['username'] ?? '';
@@ -164,19 +172,21 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
               _employeeCode = userByEmail['employee_code'] ?? '';
               _isLoadingUserInfo = false;
             });
-            debugPrint('User info loaded by email from users table: $_username $_userType($_employeeCode)');
+            debugPrint(
+              'User info loaded by email from users table: $_username $_userType($_employeeCode)',
+            );
             return;
           }
-          
+
           // Try to get user from dev_user table by email
           final devUserByEmail = await client
               .from('dev_user')
               .select('username, user_type, employee_code')
               .eq('email', email)
               .maybeSingle();
-              
+
           debugPrint('User by email from dev_user table: $devUserByEmail');
-              
+
           if (devUserByEmail != null) {
             setState(() {
               _username = devUserByEmail['username'] ?? '';
@@ -184,28 +194,30 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
               _employeeCode = devUserByEmail['employee_code'] ?? '';
               _isLoadingUserInfo = false;
             });
-            debugPrint('User info loaded by email from dev_user table: $_username $_userType($_employeeCode)');
+            debugPrint(
+              'User info loaded by email from dev_user table: $_username $_userType($_employeeCode)',
+            );
             return;
           }
         }
       } else {
         debugPrint('No session_id found in SharedPreferences');
-        
+
         // Try alternative approach: fetch by email from SharedPreferences
         debugPrint('Trying alternative approach: fetch by email...');
         final email = prefs.getString('user_email');
         if (email != null) {
           debugPrint('Email from SharedPreferences: $email');
-          
+
           // Try to get user from users table by email
           final userByEmail = await client
               .from('users')
               .select('username, user_type, employee_code')
               .eq('email', email)
               .maybeSingle();
-              
+
           debugPrint('User by email from users table: $userByEmail');
-              
+
           if (userByEmail != null) {
             setState(() {
               _username = userByEmail['username'] ?? '';
@@ -213,19 +225,21 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
               _employeeCode = userByEmail['employee_code'] ?? '';
               _isLoadingUserInfo = false;
             });
-            debugPrint('User info loaded by email from users table: $_username $_userType($_employeeCode)');
+            debugPrint(
+              'User info loaded by email from users table: $_username $_userType($_employeeCode)',
+            );
             return;
           }
-          
+
           // Try to get user from dev_user table by email
           final devUserByEmail = await client
               .from('dev_user')
               .select('username, user_type, employee_code')
               .eq('email', email)
               .maybeSingle();
-              
+
           debugPrint('User by email from dev_user table: $devUserByEmail');
-              
+
           if (devUserByEmail != null) {
             setState(() {
               _username = devUserByEmail['username'] ?? '';
@@ -233,26 +247,30 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
               _employeeCode = devUserByEmail['employee_code'] ?? '';
               _isLoadingUserInfo = false;
             });
-            debugPrint('User info loaded by email from dev_user table: $_username $_userType($_employeeCode)');
+            debugPrint(
+              'User info loaded by email from dev_user table: $_username $_userType($_employeeCode)',
+            );
             return;
           }
         }
       }
-      
+
       // Fallback: try to get user from auth if available
       final authUser = client.auth.currentUser;
       debugPrint('Auth user: $authUser');
-      
+
       if (authUser != null) {
-        debugPrint('Attempting to fetch user data using auth user ID: ${authUser.id}');
+        debugPrint(
+          'Attempting to fetch user data using auth user ID: ${authUser.id}',
+        );
         final response = await client
             .from('users')
             .select('username, user_type, employee_code')
             .eq('id', authUser.id)
             .maybeSingle();
-            
+
         debugPrint('Auth user response: $response');
-            
+
         if (response != null) {
           setState(() {
             _username = response['username'] ?? '';
@@ -260,11 +278,13 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
             _employeeCode = response['employee_code'] ?? '';
             _isLoadingUserInfo = false;
           });
-          debugPrint('User info loaded from auth user: $_username $_userType($_employeeCode)');
+          debugPrint(
+            'User info loaded from auth user: $_username $_userType($_employeeCode)',
+          );
           return;
         }
       }
-      
+
       // If no user data found, set default values
       setState(() {
         _username = 'User';
@@ -273,7 +293,6 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
         _isLoadingUserInfo = false;
       });
       debugPrint('No user data found, using default values');
-      
     } catch (e) {
       debugPrint('Error loading user info: $e');
       setState(() {
