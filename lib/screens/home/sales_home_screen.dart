@@ -57,7 +57,7 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
   int _selectedIndex = 0;
   final Map<int, bool> _hoveredItems = {};
   bool _isCollapsed = false;
-  
+
   // User information state variables
   String _username = '';
   String _userType = '';
@@ -90,27 +90,196 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
   Future<void> _loadUserInfo() async {
     try {
       final client = Supabase.instance.client;
-      final user = client.auth.currentUser;
       
-      if (user != null) {
+      // Get session from SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final sessionId = prefs.getString('session_id');
+      debugPrint('Session ID from SharedPreferences: $sessionId');
+      
+      if (sessionId != null) {
+        debugPrint('Attempting to fetch user data using session_id: $sessionId');
+        
+        // First try to get user from users table
+        final userResponse = await client
+            .from('users')
+            .select('username, user_type, employee_code')
+            .eq('session_id', sessionId)
+            .maybeSingle();
+            
+        debugPrint('Users table response: $userResponse');
+            
+        if (userResponse != null) {
+          setState(() {
+            _username = userResponse['username'] ?? '';
+            _userType = userResponse['user_type'] ?? '';
+            _employeeCode = userResponse['employee_code'] ?? '';
+            _isLoadingUserInfo = false;
+          });
+          debugPrint('User info loaded from users table: $_username $_userType($_employeeCode)');
+          return;
+        }
+        
+        // If not found in users table, try dev_user table
+        debugPrint('User not found in users table, trying dev_user table...');
+        final devUserResponse = await client
+            .from('dev_user')
+            .select('username, user_type, employee_code')
+            .eq('session_id', sessionId)
+            .maybeSingle();
+            
+        debugPrint('Dev_user table response: $devUserResponse');
+            
+        if (devUserResponse != null) {
+          setState(() {
+            _username = devUserResponse['username'] ?? '';
+            _userType = devUserResponse['user_type'] ?? '';
+            _employeeCode = devUserResponse['employee_code'] ?? '';
+            _isLoadingUserInfo = false;
+          });
+          debugPrint('User info loaded from dev_user table: $_username $_userType($_employeeCode)');
+          return;
+        }
+        
+        debugPrint('User not found in either users or dev_user table with session_id: $sessionId');
+        
+        // Try alternative approach: fetch by email from SharedPreferences
+        debugPrint('Trying alternative approach: fetch by email...');
+        final email = prefs.getString('user_email');
+        if (email != null) {
+          debugPrint('Email from SharedPreferences: $email');
+          
+          // Try to get user from users table by email
+          final userByEmail = await client
+              .from('users')
+              .select('username, user_type, employee_code')
+              .eq('email', email)
+              .maybeSingle();
+              
+          debugPrint('User by email from users table: $userByEmail');
+              
+          if (userByEmail != null) {
+            setState(() {
+              _username = userByEmail['username'] ?? '';
+              _userType = userByEmail['user_type'] ?? '';
+              _employeeCode = userByEmail['employee_code'] ?? '';
+              _isLoadingUserInfo = false;
+            });
+            debugPrint('User info loaded by email from users table: $_username $_userType($_employeeCode)');
+            return;
+          }
+          
+          // Try to get user from dev_user table by email
+          final devUserByEmail = await client
+              .from('dev_user')
+              .select('username, user_type, employee_code')
+              .eq('email', email)
+              .maybeSingle();
+              
+          debugPrint('User by email from dev_user table: $devUserByEmail');
+              
+          if (devUserByEmail != null) {
+            setState(() {
+              _username = devUserByEmail['username'] ?? '';
+              _userType = devUserByEmail['user_type'] ?? '';
+              _employeeCode = devUserByEmail['employee_code'] ?? '';
+              _isLoadingUserInfo = false;
+            });
+            debugPrint('User info loaded by email from dev_user table: $_username $_userType($_employeeCode)');
+            return;
+          }
+        }
+      } else {
+        debugPrint('No session_id found in SharedPreferences');
+        
+        // Try alternative approach: fetch by email from SharedPreferences
+        debugPrint('Trying alternative approach: fetch by email...');
+        final email = prefs.getString('user_email');
+        if (email != null) {
+          debugPrint('Email from SharedPreferences: $email');
+          
+          // Try to get user from users table by email
+          final userByEmail = await client
+              .from('users')
+              .select('username, user_type, employee_code')
+              .eq('email', email)
+              .maybeSingle();
+              
+          debugPrint('User by email from users table: $userByEmail');
+              
+          if (userByEmail != null) {
+            setState(() {
+              _username = userByEmail['username'] ?? '';
+              _userType = userByEmail['user_type'] ?? '';
+              _employeeCode = userByEmail['employee_code'] ?? '';
+              _isLoadingUserInfo = false;
+            });
+            debugPrint('User info loaded by email from users table: $_username $_userType($_employeeCode)');
+            return;
+          }
+          
+          // Try to get user from dev_user table by email
+          final devUserByEmail = await client
+              .from('dev_user')
+              .select('username, user_type, employee_code')
+              .eq('email', email)
+              .maybeSingle();
+              
+          debugPrint('User by email from dev_user table: $devUserByEmail');
+              
+          if (devUserByEmail != null) {
+            setState(() {
+              _username = devUserByEmail['username'] ?? '';
+              _userType = devUserByEmail['user_type'] ?? '';
+              _employeeCode = devUserByEmail['employee_code'] ?? '';
+              _isLoadingUserInfo = false;
+            });
+            debugPrint('User info loaded by email from dev_user table: $_username $_userType($_employeeCode)');
+            return;
+          }
+        }
+      }
+      
+      // Fallback: try to get user from auth if available
+      final authUser = client.auth.currentUser;
+      debugPrint('Auth user: $authUser');
+      
+      if (authUser != null) {
+        debugPrint('Attempting to fetch user data using auth user ID: ${authUser.id}');
         final response = await client
             .from('users')
             .select('username, user_type, employee_code')
-            .eq('id', user.id)
-            .single();
-        
-        setState(() {
-          _username = response['username'] ?? '';
-          _userType = response['user_type'] ?? '';
-          _employeeCode = response['employee_code'] ?? '';
-          _isLoadingUserInfo = false;
-        });
-        
-        debugPrint('User info loaded: $_username $_userType($_employeeCode)');
+            .eq('id', authUser.id)
+            .maybeSingle();
+            
+        debugPrint('Auth user response: $response');
+            
+        if (response != null) {
+          setState(() {
+            _username = response['username'] ?? '';
+            _userType = response['user_type'] ?? '';
+            _employeeCode = response['employee_code'] ?? '';
+            _isLoadingUserInfo = false;
+          });
+          debugPrint('User info loaded from auth user: $_username $_userType($_employeeCode)');
+          return;
+        }
       }
+      
+      // If no user data found, set default values
+      setState(() {
+        _username = 'User';
+        _userType = 'Unknown';
+        _employeeCode = 'N/A';
+        _isLoadingUserInfo = false;
+      });
+      debugPrint('No user data found, using default values');
+      
     } catch (e) {
       debugPrint('Error loading user info: $e');
       setState(() {
+        _username = 'Error';
+        _userType = 'Error';
+        _employeeCode = 'Error';
         _isLoadingUserInfo = false;
       });
     }
@@ -454,6 +623,7 @@ class OffersManagementScreen extends StatefulWidget {
   @override
   State<OffersManagementScreen> createState() => _OffersManagementScreenState();
 }
+
 class _OffersManagementScreenState extends State<OffersManagementScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
@@ -497,15 +667,13 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
                 // Header Section
                 _buildHeader(isWide),
                 SizedBox(height: isWide ? 24 : 16),
-                
+
                 // Tab Bar
                 _buildTabBar(isWide),
                 SizedBox(height: isWide ? 16 : 8),
-                
+
                 // Tab Content
-                Expanded(
-                  child: _buildTabContent(isWide),
-                ),
+                Expanded(child: _buildTabContent(isWide)),
               ],
             ),
           ),
@@ -737,42 +905,54 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
       emptyIcon: Icons.schedule_outlined,
       showStatus: true,
       statusColor: Colors.red,
-      );
+    );
   }
 
   Widget _buildAnalyticsTab(bool isWide) {
     // Calculate real analytics from offers data
     final totalOffers = _offers.length;
-    final activeOffers = _offers.where((offer) => offer['offer_status'] == 'Active offer').length;
-    final draftOffers = _offers.where((offer) => offer['offer_status'] == 'Draft Offer').length;
-    final expiredOffers = _offers.where((offer) => offer['offer_status'] == 'Expired Offer').length;
-    final closedOffers = _offers.where((offer) => offer['offer_status'] == 'Closed Offer').length;
-    
+    final activeOffers = _offers
+        .where((offer) => offer['offer_status'] == 'Active offer')
+        .length;
+    final draftOffers = _offers
+        .where((offer) => offer['offer_status'] == 'Draft Offer')
+        .length;
+    final expiredOffers = _offers
+        .where((offer) => offer['offer_status'] == 'Expired Offer')
+        .length;
+    final closedOffers = _offers
+        .where((offer) => offer['offer_status'] == 'Closed Offer')
+        .length;
+
     // Calculate total value and conversion rate
     double totalValue = 0;
     int convertedOffers = 0;
-    
+
     for (final offer in _offers) {
       final grandTotal = offer['grand_total'];
       if (grandTotal != null) {
         if (grandTotal is String) {
-          totalValue += double.tryParse(grandTotal.replaceAll(RegExp(r'[^\d.]'), '')) ?? 0;
+          totalValue +=
+              double.tryParse(grandTotal.replaceAll(RegExp(r'[^\d.]'), '')) ??
+              0;
         } else if (grandTotal is num) {
           totalValue += grandTotal.toDouble();
         }
       }
-      
+
       // Consider closed offers as converted
       if (offer['offer_status'] == 'Closed Offer') {
         convertedOffers++;
       }
     }
-    
-    final conversionRate = totalOffers > 0 ? (convertedOffers / totalOffers * 100).toStringAsFixed(1) : '0.0';
-    
+
+    final conversionRate = totalOffers > 0
+        ? (convertedOffers / totalOffers * 100).toStringAsFixed(1)
+        : '0.0';
+
     // Get recent offers for trend analysis
     final recentOffers = _offers.take(5).toList();
-    
+
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -794,18 +974,46 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
             ),
           ),
           SizedBox(height: isWide ? 24 : 16),
-          
+
           // Stats Cards
           if (isWide)
             Row(
               children: [
-                Expanded(child: _buildStatCard('Total Offers', totalOffers.toString(), Icons.local_offer, Colors.blue)),
+                Expanded(
+                  child: _buildStatCard(
+                    'Total Offers',
+                    totalOffers.toString(),
+                    Icons.local_offer,
+                    Colors.blue,
+                  ),
+                ),
                 SizedBox(width: 16),
-                Expanded(child: _buildStatCard('Active Offers', activeOffers.toString(), Icons.work, Colors.green)),
+                Expanded(
+                  child: _buildStatCard(
+                    'Active Offers',
+                    activeOffers.toString(),
+                    Icons.work,
+                    Colors.green,
+                  ),
+                ),
                 SizedBox(width: 16),
-                Expanded(child: _buildStatCard('Conversion Rate', '$conversionRate%', Icons.trending_up, Colors.orange)),
+                Expanded(
+                  child: _buildStatCard(
+                    'Conversion Rate',
+                    '$conversionRate%',
+                    Icons.trending_up,
+                    Colors.orange,
+                  ),
+                ),
                 SizedBox(width: 16),
-                Expanded(child: _buildStatCard('Total Value', '₹${totalValue.toStringAsFixed(0)}', Icons.attach_money, Colors.purple)),
+                Expanded(
+                  child: _buildStatCard(
+                    'Total Value',
+                    '₹${totalValue.toStringAsFixed(0)}',
+                    Icons.attach_money,
+                    Colors.purple,
+                  ),
+                ),
               ],
             )
           else
@@ -814,24 +1022,52 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
               children: [
                 Row(
                   children: [
-                    Expanded(child: _buildStatCard('Total Offers', totalOffers.toString(), Icons.local_offer, Colors.blue)),
+                    Expanded(
+                      child: _buildStatCard(
+                        'Total Offers',
+                        totalOffers.toString(),
+                        Icons.local_offer,
+                        Colors.blue,
+                      ),
+                    ),
                     SizedBox(width: 8),
-                    Expanded(child: _buildStatCard('Active Offers', activeOffers.toString(), Icons.work, Colors.green)),
+                    Expanded(
+                      child: _buildStatCard(
+                        'Active Offers',
+                        activeOffers.toString(),
+                        Icons.work,
+                        Colors.green,
+                      ),
+                    ),
                   ],
                 ),
                 SizedBox(height: 8),
                 Row(
                   children: [
-                    Expanded(child: _buildStatCard('Conversion Rate', '$conversionRate%', Icons.trending_up, Colors.orange)),
+                    Expanded(
+                      child: _buildStatCard(
+                        'Conversion Rate',
+                        '$conversionRate%',
+                        Icons.trending_up,
+                        Colors.orange,
+                      ),
+                    ),
                     SizedBox(width: 8),
-                    Expanded(child: _buildStatCard('Total Value', '₹${totalValue.toStringAsFixed(0)}', Icons.attach_money, Colors.purple)),
+                    Expanded(
+                      child: _buildStatCard(
+                        'Total Value',
+                        '₹${totalValue.toStringAsFixed(0)}',
+                        Icons.attach_money,
+                        Colors.purple,
+                      ),
+                    ),
                   ],
                 ),
               ],
             ),
-          
+
           SizedBox(height: isWide ? 32 : 24),
-          
+
           // Status Distribution Chart
           _buildStatusDistributionChart(isWide, {
             'Active': activeOffers,
@@ -839,26 +1075,36 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
             'Expired': expiredOffers,
             'Closed': closedOffers,
           }),
-          
+
           SizedBox(height: isWide ? 32 : 24),
-          
+
           // Recent Offers
           _buildRecentOffersSection(isWide, recentOffers),
-          
+
           SizedBox(height: isWide ? 32 : 24),
-          
+
           // Performance Metrics
-          _buildPerformanceMetrics(isWide, totalOffers, convertedOffers, totalValue),
+          _buildPerformanceMetrics(
+            isWide,
+            totalOffers,
+            convertedOffers,
+            totalValue,
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWide = constraints.maxWidth > 700;
-        
+
         return Container(
           padding: EdgeInsets.all(isWide ? 20 : 16),
           decoration: BoxDecoration(
@@ -880,7 +1126,11 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
                 children: [
                   Icon(icon, color: color, size: isWide ? 24 : 20),
                   const Spacer(),
-                  Icon(Icons.more_vert, color: Colors.grey[400], size: isWide ? 20 : 16),
+                  Icon(
+                    Icons.more_vert,
+                    color: Colors.grey[400],
+                    size: isWide ? 20 : 16,
+                  ),
                 ],
               ),
               SizedBox(height: isWide ? 16 : 12),
@@ -909,7 +1159,10 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
     );
   }
 
-  Widget _buildStatusDistributionChart(bool isWide, Map<String, int> statusData) {
+  Widget _buildStatusDistributionChart(
+    bool isWide,
+    Map<String, int> statusData,
+  ) {
     final total = statusData.values.fold(0, (sum, count) => sum + count);
     if (total == 0) {
       return Container(
@@ -929,10 +1182,7 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
         child: Center(
           child: Text(
             'No offers data available',
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 16,
-            ),
+            style: TextStyle(color: Colors.grey[600], fontSize: 16),
           ),
         ),
       );
@@ -968,32 +1218,72 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
             Row(
               children: [
                 Expanded(
-                  child: _buildStatusBar('Active', statusData['Active'] ?? 0, total, Colors.green),
+                  child: _buildStatusBar(
+                    'Active',
+                    statusData['Active'] ?? 0,
+                    total,
+                    Colors.green,
+                  ),
                 ),
                 SizedBox(width: 16),
                 Expanded(
-                  child: _buildStatusBar('Draft', statusData['Draft'] ?? 0, total, Colors.blue),
+                  child: _buildStatusBar(
+                    'Draft',
+                    statusData['Draft'] ?? 0,
+                    total,
+                    Colors.blue,
+                  ),
                 ),
                 SizedBox(width: 16),
                 Expanded(
-                  child: _buildStatusBar('Expired', statusData['Expired'] ?? 0, total, Colors.orange),
+                  child: _buildStatusBar(
+                    'Expired',
+                    statusData['Expired'] ?? 0,
+                    total,
+                    Colors.orange,
+                  ),
                 ),
                 SizedBox(width: 16),
                 Expanded(
-                  child: _buildStatusBar('Closed', statusData['Closed'] ?? 0, total, Colors.purple),
+                  child: _buildStatusBar(
+                    'Closed',
+                    statusData['Closed'] ?? 0,
+                    total,
+                    Colors.purple,
+                  ),
                 ),
               ],
             )
           else
             Column(
               children: [
-                _buildStatusBar('Active', statusData['Active'] ?? 0, total, Colors.green),
+                _buildStatusBar(
+                  'Active',
+                  statusData['Active'] ?? 0,
+                  total,
+                  Colors.green,
+                ),
                 SizedBox(height: 12),
-                _buildStatusBar('Draft', statusData['Draft'] ?? 0, total, Colors.blue),
+                _buildStatusBar(
+                  'Draft',
+                  statusData['Draft'] ?? 0,
+                  total,
+                  Colors.blue,
+                ),
                 SizedBox(height: 12),
-                _buildStatusBar('Expired', statusData['Expired'] ?? 0, total, Colors.orange),
+                _buildStatusBar(
+                  'Expired',
+                  statusData['Expired'] ?? 0,
+                  total,
+                  Colors.orange,
+                ),
                 SizedBox(height: 12),
-                _buildStatusBar('Closed', statusData['Closed'] ?? 0, total, Colors.purple),
+                _buildStatusBar(
+                  'Closed',
+                  statusData['Closed'] ?? 0,
+                  total,
+                  Colors.purple,
+                ),
               ],
             ),
         ],
@@ -1036,16 +1326,16 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
         SizedBox(height: 4),
         Text(
           '${percentage.toStringAsFixed(1)}%',
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-          ),
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
         ),
       ],
     );
   }
 
-  Widget _buildRecentOffersSection(bool isWide, List<Map<String, dynamic>> recentOffers) {
+  Widget _buildRecentOffersSection(
+    bool isWide,
+    List<Map<String, dynamic>> recentOffers,
+  ) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -1076,10 +1366,7 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
             Center(
               child: Text(
                 'No recent offers',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 16,
-                ),
+                style: TextStyle(color: Colors.grey[600], fontSize: 16),
               ),
             )
           else
@@ -1090,7 +1377,7 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
                 final status = offer['offer_status'] ?? 'Unknown';
                 final grandTotal = offer['grand_total'] ?? '0';
                 final createdDate = offer['offer_created'];
-                
+
                 String formattedDate = 'Unknown Date';
                 if (createdDate != null) {
                   try {
@@ -1141,11 +1428,18 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
-                                color: _getStatusColor(status).withValues(alpha: 0.1),
+                                color: _getStatusColor(
+                                  status,
+                                ).withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: _getStatusColor(status)),
+                                border: Border.all(
+                                  color: _getStatusColor(status),
+                                ),
                               ),
                               child: Text(
                                 status,
@@ -1193,10 +1487,17 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
     );
   }
 
-  Widget _buildPerformanceMetrics(bool isWide, int totalOffers, int convertedOffers, double totalValue) {
+  Widget _buildPerformanceMetrics(
+    bool isWide,
+    int totalOffers,
+    int convertedOffers,
+    double totalValue,
+  ) {
     final avgOfferValue = totalOffers > 0 ? totalValue / totalOffers : 0.0;
-    final conversionRate = totalOffers > 0 ? (convertedOffers / totalOffers * 100) : 0.0;
-    
+    final conversionRate = totalOffers > 0
+        ? (convertedOffers / totalOffers * 100)
+        : 0.0;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -1302,11 +1603,16 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
     );
   }
 
-  Widget _buildMetricCard(String title, String value, IconData icon, Color color) {
+  Widget _buildMetricCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWide = constraints.maxWidth > 700;
-        
+
         return Container(
           padding: EdgeInsets.all(isWide ? 16 : 12),
           decoration: BoxDecoration(
@@ -1377,11 +1683,7 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              emptyIcon,
-              size: isWide ? 64 : 48,
-              color: Colors.grey[400],
-            ),
+            Icon(emptyIcon, size: isWide ? 64 : 48, color: Colors.grey[400]),
             SizedBox(height: isWide ? 16 : 8),
             Text(
               emptyMessage,
@@ -1424,7 +1726,9 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
         // Realtime search input
         TextField(
           decoration: InputDecoration(
-            hintText: isWide ? 'Search by Project, Client, or Ref' : 'Search offers...',
+            hintText: isWide
+                ? 'Search by Project, Client, or Ref'
+                : 'Search offers...',
             prefixIcon: const Icon(Icons.search),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             isDense: true,
@@ -1432,13 +1736,9 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
               horizontal: isWide ? 16 : 12,
               vertical: isWide ? 12 : 10,
             ),
-            hintStyle: TextStyle(
-              fontSize: isWide ? 14 : 12,
-            ),
+            hintStyle: TextStyle(fontSize: isWide ? 14 : 12),
           ),
-          style: TextStyle(
-            fontSize: isWide ? 14 : 12,
-          ),
+          style: TextStyle(fontSize: isWide ? 14 : 12),
           onChanged: (value) => setState(() => _offersSearch = value),
         ),
         SizedBox(height: isWide ? 12 : 8),
@@ -1453,13 +1753,10 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
         SizedBox(height: isWide ? 8 : 4),
         Text(
           subtitle,
-          style: TextStyle(
-            fontSize: isWide ? 16 : 14,
-            color: Colors.grey[600],
-          ),
+          style: TextStyle(fontSize: isWide ? 16 : 14, color: Colors.grey[600]),
         ),
         SizedBox(height: isWide ? 24 : 16),
-        
+
         if (_isLoadingOffers)
           Center(
             child: Column(
@@ -1469,10 +1766,7 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
                 SizedBox(height: 16),
                 Text(
                   'Loading offers...',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(color: Colors.grey[600], fontSize: 16),
                 ),
               ],
             ),
@@ -1485,7 +1779,11 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
     );
   }
 
-  Widget _buildWideOffersTable(List<Map<String, dynamic>> offers, bool showStatus, Color? statusColor) {
+  Widget _buildWideOffersTable(
+    List<Map<String, dynamic>> offers,
+    bool showStatus,
+    Color? statusColor,
+  ) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -1568,7 +1866,11 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
     );
   }
 
-  Widget _buildMobileOffersList(List<Map<String, dynamic>> offers, bool showStatus, Color? statusColor) {
+  Widget _buildMobileOffersList(
+    List<Map<String, dynamic>> offers,
+    bool showStatus,
+    Color? statusColor,
+  ) {
     return ListView.builder(
       shrinkWrap: true,
       itemCount: offers.length,
@@ -1602,7 +1904,10 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
                     ),
                     if (showStatus)
                       Container(
-                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: statusColor?.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
@@ -1619,7 +1924,7 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
                       ),
                   ],
                 ),
-                
+
                 // Reference number
                 if ((offer['ref'] ?? '').toString().isNotEmpty) ...[
                   SizedBox(height: 8),
@@ -1628,28 +1933,39 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
                     decoration: BoxDecoration(
                       color: Colors.blue.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+                      border: Border.all(
+                        color: Colors.blue.withValues(alpha: 0.3),
+                      ),
                     ),
                     child: Text(
                       'Ref: ${offer['ref']}',
                       style: TextStyle(
-                        fontWeight: FontWeight.w600, 
+                        fontWeight: FontWeight.w600,
                         color: Colors.blue[700],
                         fontSize: 12,
                       ),
                     ),
                   ),
                 ],
-                
+
                 SizedBox(height: 12),
-                
+
                 // Offer details in a more organized layout
-                _buildMobileOfferDetail('Client', offer['client_name'] ?? 'Unknown Client'),
-                _buildMobileOfferDetail('Value', '₹${offer['grand_total']?.toString() ?? '0'}'),
-                _buildMobileOfferDetail('Created', _formatDate(offer['offer_created'] ?? '')),
-                
+                _buildMobileOfferDetail(
+                  'Client',
+                  offer['client_name'] ?? 'Unknown Client',
+                ),
+                _buildMobileOfferDetail(
+                  'Value',
+                  '₹${offer['grand_total']?.toString() ?? '0'}',
+                ),
+                _buildMobileOfferDetail(
+                  'Created',
+                  _formatDate(offer['offer_created'] ?? ''),
+                ),
+
                 SizedBox(height: 16),
-                
+
                 // Action buttons with improved mobile layout
                 Row(
                   children: [
@@ -1757,18 +2073,20 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
 
     try {
       final client = Supabase.instance.client;
-      
+
       // First, get all offers
       final offersResult = await client
           .from('offers')
           .select('*')
           .order('offer_created', ascending: false);
-      
-      final List<Map<String, dynamic>> offers = List<Map<String, dynamic>>.from(offersResult);
-      
+
+      final List<Map<String, dynamic>> offers = List<Map<String, dynamic>>.from(
+        offersResult,
+      );
+
       // Fetch lead information for each offer from admin_response table
       final List<Map<String, dynamic>> offersWithLeadInfo = [];
-      
+
       for (final offer in offers) {
         try {
           // Fetch lead info from admin_response table using lead_id
@@ -1777,7 +2095,7 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
               .select('project_id, project_name, client_name, location')
               .eq('lead_id', offer['lead_id'])
               .single();
-          
+
           // Merge offer data with lead info
           final Map<String, dynamic> offerWithLeadInfo = {
             ...offer,
@@ -1786,7 +2104,7 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
             'client_name': leadInfoResult['client_name'],
             'location': leadInfoResult['location'],
           };
-          
+
           offersWithLeadInfo.add(offerWithLeadInfo);
         } catch (e) {
           // If lead info not found, add offer with null values
@@ -1816,7 +2134,9 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
 
   List<Map<String, dynamic>> _getOffersByStatus(String status) {
     final query = _offersSearch.trim().toLowerCase();
-    Iterable<Map<String, dynamic>> filtered = _offers.where((offer) => offer['offer_status'] == status);
+    Iterable<Map<String, dynamic>> filtered = _offers.where(
+      (offer) => offer['offer_status'] == status,
+    );
     if (query.isNotEmpty) {
       filtered = filtered.where((o) {
         final pn = (o['project_name'] ?? '').toString().toLowerCase();
@@ -1852,13 +2172,14 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
 
   // Action methods
   Future<void> _showCreateOfferDialog(BuildContext context) async {
-    final Map<String, dynamic>? selectedLead = await showDialog<Map<String, dynamic>>(
-      context: context,
-      barrierDismissible: true,
-      builder: (BuildContext dialogContext) {
-        return const OfferLeadSelectionDialog();
-      },
-    );
+    final Map<String, dynamic>? selectedLead =
+        await showDialog<Map<String, dynamic>>(
+          context: context,
+          barrierDismissible: true,
+          builder: (BuildContext dialogContext) {
+            return const OfferLeadSelectionDialog();
+          },
+        );
 
     // After an async gap, guard the incoming BuildContext from this method
     if (!context.mounted) return;
@@ -1874,6 +2195,7 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
       );
     }
   }
+
   void _editOffer(Map<String, dynamic> offer) {
     // Show Offer Editor with the selected offer data in edit mode
     // Lead information will be fetched dynamically in the OfferEditorDialog
@@ -1881,11 +2203,13 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
       context: context,
       barrierDismissible: false,
       builder: (BuildContext dialogContext) {
-        return OfferEditorDialog(lead: {
-          'lead_id': offer['lead_id'],
-          'ref': offer['ref'],
-          'id': offer['lead_id'], // For backward compatibility
-        });
+        return OfferEditorDialog(
+          lead: {
+            'lead_id': offer['lead_id'],
+            'ref': offer['ref'],
+            'id': offer['lead_id'], // For backward compatibility
+          },
+        );
       },
     );
   }
@@ -1897,14 +2221,17 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
       context: context,
       barrierDismissible: false,
       builder: (BuildContext dialogContext) {
-        return OfferEditorDialog(lead: {
-          'lead_id': offer['lead_id'],
-          'ref': offer['ref'],
-          'id': offer['lead_id'], // For backward compatibility
-        });
+        return OfferEditorDialog(
+          lead: {
+            'lead_id': offer['lead_id'],
+            'ref': offer['ref'],
+            'id': offer['lead_id'], // For backward compatibility
+          },
+        );
       },
     );
   }
+
   void _deleteOffer(Map<String, dynamic> offer) {
     final String projectName = offer['project_name'] ?? 'Unknown Project';
     showDialog(
@@ -1912,7 +2239,9 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text('Delete Offer'),
-          content: Text('Are you sure you want to delete "$projectName"? This action cannot be undone.'),
+          content: Text(
+            'Are you sure you want to delete "$projectName"? This action cannot be undone.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -1923,17 +2252,14 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
                 try {
                   // Delete from Supabase
                   final client = Supabase.instance.client;
-                  await client
-                      .from('offers')
-                      .delete()
-                      .eq('id', offer['id']);
-                  
+                  await client.from('offers').delete().eq('id', offer['id']);
+
                   if (!context.mounted) return;
                   Navigator.of(context).pop();
-                  
+
                   // Reload offers
                   _loadOffers();
-                  
+
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -1980,46 +2306,78 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
   final List<GlobalKey> _pageKeys = <GlobalKey>[];
 
   bool _isEditing = false;
-  final bool _isRevision = false; // If true, use R-series in Ref instead of I-series
-  
+  final bool _isRevision =
+      false; // If true, use R-series in Ref instead of I-series
+
   // Text formatting controls
   double _textHeight = 1.4;
   Color _textColor = Colors.black;
   TextAlign _textAlignment = TextAlign.left;
-  
+
   // Zoom controls
   double _zoomLevel = 1.0;
   late final TextEditingController _zoomTextController;
-  
+
   // Export quality settings
   double _exportPixelRatio = 1.0; // 1.0 for speed, 2.0 for quality
-  
+
   // Mobile sidebar state
   bool _showSidebar = false;
-  
+
   // Sidebar input controllers
   late final TextEditingController _deliveryTimeCtl;
   late final TextEditingController _nalcoPriceCtl;
   late final List<TextEditingController> _paymentTermControllers;
   int _paymentTermCount = 3; // Default count
-  
+
   // Offer status
   String _offerStatus = 'Draft Offer'; // Default status
-  
+
   // Convert integer amount to Indian Rupees in words for display
   String _toIndianRupeesWords(int amount) {
     if (amount == 0) return 'Zero Rupees Only';
     final List<String> units = ['', 'Thousand', 'Lakh', 'Crore'];
     final List<String> belowTwenty = [
-      'Zero','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'
+      'Zero',
+      'One',
+      'Two',
+      'Three',
+      'Four',
+      'Five',
+      'Six',
+      'Seven',
+      'Eight',
+      'Nine',
+      'Ten',
+      'Eleven',
+      'Twelve',
+      'Thirteen',
+      'Fourteen',
+      'Fifteen',
+      'Sixteen',
+      'Seventeen',
+      'Eighteen',
+      'Nineteen',
     ];
-    final List<String> tensNames = ['', '', 'Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+    final List<String> tensNames = [
+      '',
+      '',
+      'Twenty',
+      'Thirty',
+      'Forty',
+      'Fifty',
+      'Sixty',
+      'Seventy',
+      'Eighty',
+      'Ninety',
+    ];
     String twoDigits(int n) {
       if (n < 20) return belowTwenty[n];
       final int t = n ~/ 10;
       final int r = n % 10;
       return r == 0 ? tensNames[t] : '${tensNames[t]} ${belowTwenty[r]}';
     }
+
     String threeDigits(int n) {
       final int h = n ~/ 100;
       final int r = n % 100;
@@ -2028,6 +2386,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
       if (r == 0) return head;
       return '$head ${twoDigits(r)}';
     }
+
     final int hundreds = amount % 1000;
     int rest = amount ~/ 1000;
     final List<int> parts = [hundreds];
@@ -2050,11 +2409,8 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
   }
 
   // Helper method to get consistent text style
-  TextStyle get _baseTextStyle => TextStyle(
-    fontSize: 12,
-    height: _textHeight,
-    color: _textColor,
-  );
+  TextStyle get _baseTextStyle =>
+      TextStyle(fontSize: 12, height: _textHeight, color: _textColor);
 
   // Generates session string like 25-26 for the offer date's financial year
   String _computeSessionString(DateTime date) {
@@ -2063,7 +2419,9 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     final String yy = year.toString().padLeft(2, '0');
     final String nn = next.toString().padLeft(2, '0');
     final result = '$yy-$nn';
-    debugPrint('DEBUG: Session calculation - year: ${date.year}, year%100: $year, next: $next, result: $result');
+    debugPrint(
+      'DEBUG: Session calculation - year: ${date.year}, year%100: $year, next: $next, result: $result',
+    );
     return result;
   }
 
@@ -2071,8 +2429,9 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
   String _extractProjectCode() {
     // First try to get project_id from admin_response data if available
     String? raw;
-    
-    if (_adminResponseData != null && _adminResponseData!['project_id'] != null) {
+
+    if (_adminResponseData != null &&
+        _adminResponseData!['project_id'] != null) {
       raw = _adminResponseData!['project_id'].toString();
       debugPrint('DEBUG: Using project_id from admin_response: $raw');
     } else if (widget.lead['project_id'] != null) {
@@ -2082,16 +2441,18 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
       debugPrint('DEBUG: No project_id available, using fallback');
       return '0000';
     }
-    
+
     // First try to extract part after "Tobler-" prefix (e.g., "Tobler-8224" -> "8224", "Tobler-ADE1" -> "ADE1")
     if (raw.startsWith('Tobler-')) {
       final suffix = raw.substring(7); // Remove "Tobler-" prefix
       if (suffix.isNotEmpty) {
-        debugPrint('DEBUG: Extracted project code after Tobler- prefix: $suffix');
+        debugPrint(
+          'DEBUG: Extracted project code after Tobler- prefix: $suffix',
+        );
         return suffix;
       }
     }
-    
+
     // Try to extract numeric part from end (e.g., "Tobler-8224" -> "8224")
     final match = RegExp(r'(\d+)$').firstMatch(raw);
     if (match != null) {
@@ -2099,7 +2460,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
       debugPrint('DEBUG: Extracted project code: $extracted');
       return extracted;
     }
-    
+
     // If no numeric part at end, try to find any numeric sequence
     final numericMatch = RegExp(r'(\d+)').firstMatch(raw);
     if (numericMatch != null) {
@@ -2107,10 +2468,12 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
       debugPrint('DEBUG: Found numeric sequence: $extracted');
       return extracted;
     }
-    
+
     // Fallback: remove non-alphanumeric characters and take first 4 characters
     final cleaned = raw.replaceAll(RegExp(r'[^0-9A-Za-z]'), '');
-    final result = cleaned.isNotEmpty ? cleaned.substring(0, cleaned.length > 4 ? 4 : cleaned.length) : '0000';
+    final result = cleaned.isNotEmpty
+        ? cleaned.substring(0, cleaned.length > 4 ? 4 : cleaned.length)
+        : '0000';
     debugPrint('DEBUG: Fallback project code: $result');
     return result;
   }
@@ -2123,31 +2486,36 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     final String projectCode = _extractProjectCode();
     final bool useRevision = revision ?? _isRevision;
     final String seriesPrefix = useRevision ? 'R' : 'I';
-    
-    final result = '$companyCode/$leadTypeCode/$session/$projectCode/$seriesPrefix$seriesNumber';
+
+    final result =
+        '$companyCode/$leadTypeCode/$session/$projectCode/$seriesPrefix$seriesNumber';
     debugPrint('DEBUG: Generated ref: $result');
-    debugPrint('DEBUG: Components - companyCode: $companyCode, leadTypeCode: $leadTypeCode, session: $session, projectCode: $projectCode, seriesPrefix: $seriesPrefix, seriesNumber: $seriesNumber');
-    
+    debugPrint(
+      'DEBUG: Components - companyCode: $companyCode, leadTypeCode: $leadTypeCode, session: $session, projectCode: $projectCode, seriesPrefix: $seriesPrefix, seriesNumber: $seriesNumber',
+    );
+
     return result;
   }
 
   // Computes the next revision Ref from an existing Ref string
   // _nextRevisionRef helper removed (unused)
-  
+
   // Helper method to get the next revision number for a lead
   Future<int> _getNextRevisionNumber(String leadId) async {
     try {
       final client = Supabase.instance.client;
       debugPrint('DEBUG: Fetching existing active offers for lead ID: $leadId');
-      
+
       final existingActiveOffers = await client
           .from('offers')
           .select('ref')
           .eq('lead_id', leadId)
           .eq('offer_status', 'Active Offer');
-      
-      debugPrint('DEBUG: Found ${existingActiveOffers.length} existing active offers');
-      
+
+      debugPrint(
+        'DEBUG: Found ${existingActiveOffers.length} existing active offers',
+      );
+
       int nextRevisionNumber = 1;
       for (final offer in existingActiveOffers) {
         final ref = offer['ref']?.toString() ?? '';
@@ -2158,11 +2526,13 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
           debugPrint('DEBUG: Found revision number: $revisionNum');
           if (revisionNum >= nextRevisionNumber) {
             nextRevisionNumber = revisionNum + 1;
-            debugPrint('DEBUG: Updated next revision number to: $nextRevisionNumber');
+            debugPrint(
+              'DEBUG: Updated next revision number to: $nextRevisionNumber',
+            );
           }
         }
       }
-      
+
       debugPrint('DEBUG: Final next revision number: $nextRevisionNumber');
       return nextRevisionNumber;
     } catch (e) {
@@ -2170,7 +2540,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
       return 1; // Fallback to 1 if there's an error
     }
   }
-  
+
   // Helper method to check if current ref is a revision and get its number
   int _getCurrentRevisionNumber() {
     final currentRef = _refNoCtl.text;
@@ -2180,50 +2550,53 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     }
     return 0; // Not a revision
   }
-  
+
   // Method to handle ref regeneration when offer status changes
   void _handleOfferStatusChange(String newStatus) {
     setState(() {
       _offerStatus = newStatus;
-      
-      // If changing to Active Offer and current ref is not a revision, 
+
+      // If changing to Active Offer and current ref is not a revision,
       // we might need to prepare for potential revision
       if (newStatus == 'Active Offer' && _getCurrentRevisionNumber() == 0) {
         // Keep the current ref as is - it will be handled during save
-        debugPrint('Offer status changed to Active Offer - ref will be handled during save');
+        debugPrint(
+          'Offer status changed to Active Offer - ref will be handled during save',
+        );
       }
     });
   }
-  
+
   // Method to show revision confirmation dialog
   Future<bool> _showRevisionConfirmationDialog() async {
     return await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Create Revision'),
-          content: const Text(
-            'You are about to create a revision of an existing Active Offer. '
-            'This will:\n'
-            '• Create a new offer with an updated reference number (R1, R2, etc.)\n'
-            '• Mark the previous offer as "Expired Offer"\n'
-            'Do you want to continue?'
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Continue'),
-            ),
-          ],
-        );
-      },
-    ) ?? false;
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Create Revision'),
+              content: const Text(
+                'You are about to create a revision of an existing Active Offer. '
+                'This will:\n'
+                '• Create a new offer with an updated reference number (R1, R2, etc.)\n'
+                '• Mark the previous offer as "Expired Offer"\n'
+                'Do you want to continue?',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Continue'),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
   }
-  
+
   // Method to validate and fix ref format
   void _validateAndFixRef() {
     final currentRef = _refNoCtl.text;
@@ -2235,7 +2608,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
           _refNoCtl.text = newRef;
         });
         debugPrint('DEBUG: Fixed ref from "$currentRef" to "$newRef"');
-        
+
         // Show user notification
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -2265,7 +2638,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
       'Expired Offer',
       'Closed Offer',
     ];
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -2293,14 +2666,14 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
           ),
         ),
         const SizedBox(height: 12),
-        
+
         // Status Buttons
         Row(
           children: statusOptions.map((status) {
             final bool isSelected = _offerStatus == status;
             Color buttonColor;
             Color textColor;
-            
+
             // Set colors based on status
             switch (status) {
               case 'Active Offer':
@@ -2323,7 +2696,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                 buttonColor = isSelected ? Colors.blue : Colors.blue[50]!;
                 textColor = isSelected ? Colors.white : Colors.blue[700]!;
             }
-            
+
             return Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -2332,12 +2705,17 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                     _handleOfferStatusChange(status);
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: buttonColor,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: isSelected ? buttonColor : buttonColor.withValues(alpha: 0.3),
+                        color: isSelected
+                            ? buttonColor
+                            : buttonColor.withValues(alpha: 0.3),
                         width: 1.5,
                       ),
                     ),
@@ -2347,7 +2725,9 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                       style: TextStyle(
                         color: textColor,
                         fontSize: 11,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.normal,
                       ),
                     ),
                   ),
@@ -2356,7 +2736,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
             );
           }).toList(),
         ),
-        
+
         // Status Info
         if (_offerStatus == 'Active Offer')
           Container(
@@ -2384,7 +2764,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
               ],
             ),
           ),
-        
+
         if (_offerStatus == 'Draft Offer')
           Container(
             margin: const EdgeInsets.only(top: 8),
@@ -2412,24 +2792,24 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
             ),
           ),
       ],
-        );
+    );
   }
 
   // _getStatusColor removed: no longer used in document view after status removal
-  
+
   /// Builds the left sidebar with input fields for project details
   Widget _buildLeftSidebar() {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth < 600;
-        
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Offer Status Buttons
             _buildOfferStatusSection(),
             SizedBox(height: isMobile ? 16 : 20),
-            
+
             // Header
             Container(
               padding: EdgeInsets.all(isMobile ? 10 : 12),
@@ -2440,7 +2820,11 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.settings, color: Colors.orange[700], size: isMobile ? 18 : 20),
+                  Icon(
+                    Icons.settings,
+                    color: Colors.orange[700],
+                    size: isMobile ? 18 : 20,
+                  ),
                   SizedBox(width: isMobile ? 6 : 8),
                   Text(
                     'Project Details',
@@ -2454,7 +2838,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
               ),
             ),
             SizedBox(height: isMobile ? 16 : 20),
-            
+
             // Project Name
             _buildInputField(
               label: 'Project Name',
@@ -2462,7 +2846,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
               icon: Icons.business,
             ),
             SizedBox(height: isMobile ? 12 : 16),
-            
+
             // Location/Address
             _buildInputField(
               label: 'Location/Address',
@@ -2471,7 +2855,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
               maxLines: 3,
             ),
             SizedBox(height: isMobile ? 12 : 16),
-            
+
             // Delivery Time
             _buildInputField(
               label: 'Delivery Time',
@@ -2479,11 +2863,11 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
               icon: Icons.schedule,
             ),
             SizedBox(height: isMobile ? 12 : 16),
-            
+
             // Payment Terms Section
             _buildPaymentTermsSection(),
             SizedBox(height: isMobile ? 12 : 16),
-            
+
             // Nalco Price
             _buildInputField(
               label: 'Nalco Price',
@@ -2491,7 +2875,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
               icon: Icons.attach_money,
             ),
             SizedBox(height: isMobile ? 16 : 20),
-            
+
             // Save Button
             SizedBox(
               width: double.infinity,
@@ -2501,10 +2885,12 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                   setState(() {
                     // Trigger rebuild to update commercial rows and other content
                   });
-                  
+
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Project details saved! Offer content updated.'),
+                      content: Text(
+                        'Project details saved! Offer content updated.',
+                      ),
                       duration: Duration(seconds: 2),
                     ),
                   );
@@ -2568,7 +2954,10 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
             ),
             filled: true,
             fillColor: Colors.grey[50],
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 8,
+            ),
           ),
           style: _textFieldStyle,
         ),
@@ -2607,11 +2996,18 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                       });
                     }
                   },
-                  icon: Icon(Icons.remove_circle_outline, size: 18, color: Colors.grey[600]),
+                  icon: Icon(
+                    Icons.remove_circle_outline,
+                    size: 18,
+                    color: Colors.grey[600],
+                  ),
                   tooltip: 'Remove term',
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.orange[100],
                     borderRadius: BorderRadius.circular(12),
@@ -2631,11 +3027,17 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                     if (_paymentTermCount < 5) {
                       setState(() {
                         _paymentTermCount++;
-                        _paymentTermControllers.add(TextEditingController(text: ''));
+                        _paymentTermControllers.add(
+                          TextEditingController(text: ''),
+                        );
                       });
                     }
                   },
-                  icon: Icon(Icons.add_circle_outline, size: 18, color: Colors.grey[600]),
+                  icon: Icon(
+                    Icons.add_circle_outline,
+                    size: 18,
+                    color: Colors.grey[600],
+                  ),
                   tooltip: 'Add term',
                 ),
               ],
@@ -2646,7 +3048,9 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
         // Payment term input fields
         ...List.generate(_paymentTermCount, (index) {
           return Padding(
-            padding: EdgeInsets.only(bottom: index < _paymentTermCount - 1 ? 8 : 0),
+            padding: EdgeInsets.only(
+              bottom: index < _paymentTermCount - 1 ? 8 : 0,
+            ),
             child: Row(
               children: [
                 Container(
@@ -2688,7 +3092,10 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                       ),
                       filled: true,
                       fillColor: Colors.grey[50],
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                     ),
                     style: _textFieldStyle,
                   ),
@@ -2700,13 +3107,10 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
       ],
     );
   }
-  
+
   // Helper method for TextField styles (TextFields handle height differently)
-  TextStyle get _textFieldStyle => TextStyle(
-    fontSize: 12,
-    color: _textColor,
-    height: _textHeight,
-  );
+  TextStyle get _textFieldStyle =>
+      TextStyle(fontSize: 12, color: _textColor, height: _textHeight);
 
   // Letter head editable fields
   late final TextEditingController _refNoCtl;
@@ -2720,7 +3124,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
 
   // Offer items
   late List<_OfferItem> _items;
-  
+
   // Admin response data
   Map<String, dynamic>? _adminResponseData;
   bool _isLoadingAddress = true;
@@ -2731,13 +3135,17 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     _offerDate = DateTime.now();
     // If a ref is provided (viewing an existing offer), prefer it; otherwise auto-generate
     final String? incomingRef = widget.lead['ref']?.toString();
-    _refNoCtl = TextEditingController(text: (incomingRef != null && incomingRef.isNotEmpty) ? incomingRef : _generateRef());
-    
+    _refNoCtl = TextEditingController(
+      text: (incomingRef != null && incomingRef.isNotEmpty)
+          ? incomingRef
+          : _generateRef(),
+    );
+
     // Initialize with placeholder values - will be updated when lead info is fetched
     _clientNameCtl = TextEditingController(text: 'Loading...');
     _addressCtl = TextEditingController(text: 'Loading address...');
     _projectNameCtl = TextEditingController(text: 'Loading...');
-    
+
     _introNoteCtl = TextEditingController(
       text:
           'We thank you for inviting us to quote for the supply of our Tobler Monolithic Formwork System.\nOur proposal is set out in the attached document for your kind consideration.',
@@ -2746,96 +3154,124 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     _descriptionCtl = TextEditingController(text: '100% New Formwork Set');
 
     _items = [
-      _OfferItem(srNo: 1, description: 'Supply of Aluminium formwork shuttering system.', qtySqm: 1238, rate: 9650),
-  ];
-  
-  // Initialize sidebar controllers
-  _deliveryTimeCtl = TextEditingController(text: '8 weeks from shell drawing confirmation');
-  _nalcoPriceCtl = TextEditingController(text: 'Rs. 267/kg');
-  _paymentTermControllers = List.generate(_paymentTermCount, (index) {
-    switch (index) {
-      case 0:
-        return TextEditingController(text: '25% Advance with Purchase Order');
-      case 1:
-        return TextEditingController(text: '25% after shell plan approval');
-      case 2:
-        return TextEditingController(text: '50% before dispatch');
-      default:
-        return TextEditingController(text: '');
-    }
-  });
-  
-  // Initialize zoom controller
-  _zoomTextController = TextEditingController(text: '100%');
-  
-  // Fetch lead information and admin_response data
-  _fetchLeadInfoAndAdminResponseData();
+      _OfferItem(
+        srNo: 1,
+        description: 'Supply of Aluminium formwork shuttering system.',
+        qtySqm: 1238,
+        rate: 9650,
+      ),
+    ];
+
+    // Initialize sidebar controllers
+    _deliveryTimeCtl = TextEditingController(
+      text: '8 weeks from shell drawing confirmation',
+    );
+    _nalcoPriceCtl = TextEditingController(text: 'Rs. 267/kg');
+    _paymentTermControllers = List.generate(_paymentTermCount, (index) {
+      switch (index) {
+        case 0:
+          return TextEditingController(text: '25% Advance with Purchase Order');
+        case 1:
+          return TextEditingController(text: '25% after shell plan approval');
+        case 2:
+          return TextEditingController(text: '50% before dispatch');
+        default:
+          return TextEditingController(text: '');
+      }
+    });
+
+    // Initialize zoom controller
+    _zoomTextController = TextEditingController(text: '100%');
+
+    // Fetch lead information and admin_response data
+    _fetchLeadInfoAndAdminResponseData();
   }
+
   /// Fetches lead information and admin_response data
   Future<void> _fetchLeadInfoAndAdminResponseData() async {
     setState(() {
       _isLoadingAddress = true;
     });
-    
+
     try {
       // Log the lead data passed to the dialog
-      debugPrint('DEBUG: _fetchLeadInfoAndAdminResponseData called. Lead data: ${widget.lead}');
+      debugPrint(
+        'DEBUG: _fetchLeadInfoAndAdminResponseData called. Lead data: ${widget.lead}',
+      );
       debugPrint('DEBUG: Lead data keys: ${widget.lead.keys.toList()}');
-      debugPrint('DEBUG: Lead data types: ${widget.lead.map((k, v) => MapEntry(k, v.runtimeType))}');
-      
-      final String? leadId = (widget.lead['lead_id'] ?? widget.lead['id'])?.toString();
+      debugPrint(
+        'DEBUG: Lead data types: ${widget.lead.map((k, v) => MapEntry(k, v.runtimeType))}',
+      );
+
+      final String? leadId = (widget.lead['lead_id'] ?? widget.lead['id'])
+          ?.toString();
       debugPrint('DEBUG: Extracted leadId: $leadId');
       debugPrint('DEBUG: Lead ID type: ${leadId.runtimeType}');
 
       if (leadId != null) {
         // Fetch lead information from admin_response table
-        debugPrint('DEBUG: About to call LeadUtils.fetchAdminResponseByLeadId with leadId: $leadId');
-        final adminResponse = await LeadUtils.fetchAdminResponseByLeadId(leadId);
+        debugPrint(
+          'DEBUG: About to call LeadUtils.fetchAdminResponseByLeadId with leadId: $leadId',
+        );
+        final adminResponse = await LeadUtils.fetchAdminResponseByLeadId(
+          leadId,
+        );
         debugPrint('DEBUG: Admin response for leadId $leadId: $adminResponse');
         debugPrint('DEBUG: Admin response type: ${adminResponse.runtimeType}');
-        
+
         if (adminResponse != null) {
-          debugPrint('DEBUG: Admin response keys: ${adminResponse.keys.toList()}');
-          debugPrint('DEBUG: Admin response values: ${adminResponse.values.toList()}');
-          
+          debugPrint(
+            'DEBUG: Admin response keys: ${adminResponse.keys.toList()}',
+          );
+          debugPrint(
+            'DEBUG: Admin response values: ${adminResponse.values.toList()}',
+          );
+
           setState(() {
             _adminResponseData = adminResponse;
-            
+
             // Update project name from admin_response
             final projectName = adminResponse['project_name']?.toString();
             if (projectName != null && projectName.isNotEmpty) {
               _projectNameCtl.text = projectName;
               debugPrint('DEBUG: Project name updated to: $projectName');
             }
-            
+
             // Update client name from admin_response
             final clientName = adminResponse['client_name']?.toString();
             if (clientName != null && clientName.isNotEmpty) {
               _clientNameCtl.text = clientName;
               debugPrint('DEBUG: Client name updated to: $clientName');
             }
-            
+
             // Update address from location column
             final location = adminResponse['location']?.toString();
             debugPrint('DEBUG: Fetched location: $location');
             debugPrint('DEBUG: Location type: ${location.runtimeType}');
             debugPrint('DEBUG: Location is empty: ${location?.isEmpty}');
             debugPrint('DEBUG: Location is null: ${location == null}');
-            
+
             if (location != null && location.isNotEmpty) {
               _addressCtl.text = location;
               debugPrint('DEBUG: Address controller updated to: $location');
             } else {
               // Fallback to hardcoded address if location is empty
-              _addressCtl.text = '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
-              debugPrint('DEBUG: Location is empty or null, using fallback address.');
+              _addressCtl.text =
+                  '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
+              debugPrint(
+                'DEBUG: Location is empty or null, using fallback address.',
+              );
             }
 
             // Update first "Sales Offer" row values from admin_response
             final dynamic aluminiumAreaRaw = adminResponse['aluminium_area'];
             final dynamic rateSqmRaw = adminResponse['rate_sqm'];
-            debugPrint('DEBUG: Raw aluminium_area: $aluminiumAreaRaw, Raw rate_sqm: $rateSqmRaw');
-            debugPrint('DEBUG: aluminium_area type: ${aluminiumAreaRaw.runtimeType}, rate_sqm type: ${rateSqmRaw.runtimeType}');
+            debugPrint(
+              'DEBUG: Raw aluminium_area: $aluminiumAreaRaw, Raw rate_sqm: $rateSqmRaw',
+            );
+            debugPrint(
+              'DEBUG: aluminium_area type: ${aluminiumAreaRaw.runtimeType}, rate_sqm type: ${rateSqmRaw.runtimeType}',
+            );
 
             int? qtySqm;
             if (aluminiumAreaRaw is int) {
@@ -2860,17 +3296,21 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
             if (qtySqm != null && rate != null) {
               if (_items.isNotEmpty) {
                 _items[0] = _items[0].copyWith(qtySqm: qtySqm, rate: rate);
-                debugPrint('DEBUG: Updated first item: qtySqm=$qtySqm, rate=$rate');
+                debugPrint(
+                  'DEBUG: Updated first item: qtySqm=$qtySqm, rate=$rate',
+                );
               }
             }
-            
+
             // Regenerate ref with the correct project code from admin_response
             if (_refNoCtl.text.isEmpty || _refNoCtl.text.contains('//')) {
               final newRef = _generateRef();
               _refNoCtl.text = newRef;
-              debugPrint('DEBUG: Regenerated ref with admin_response data: $newRef');
+              debugPrint(
+                'DEBUG: Regenerated ref with admin_response data: $newRef',
+              );
             }
-            
+
             // Validate and fix any malformed refs
             _validateAndFixRef();
           });
@@ -2880,7 +3320,8 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
           setState(() {
             _clientNameCtl.text = 'Client';
             _projectNameCtl.text = 'Project';
-            _addressCtl.text = '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
+            _addressCtl.text =
+                '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
           });
         }
       } else {
@@ -2889,7 +3330,8 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
         setState(() {
           _clientNameCtl.text = 'Client';
           _projectNameCtl.text = 'Project';
-          _addressCtl.text = '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
+          _addressCtl.text =
+              '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
         });
       }
     } catch (e) {
@@ -2898,7 +3340,8 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
       setState(() {
         _clientNameCtl.text = 'Client';
         _projectNameCtl.text = 'Project';
-        _addressCtl.text = '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
+        _addressCtl.text =
+            '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
       });
     } finally {
       setState(() {
@@ -2912,27 +3355,40 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     setState(() {
       _isLoadingAddress = true;
     });
-    
+
     try {
       // Log the lead data passed to the dialog
-      debugPrint('DEBUG: _fetchAdminResponseData called. Lead data: ${widget.lead}');
+      debugPrint(
+        'DEBUG: _fetchAdminResponseData called. Lead data: ${widget.lead}',
+      );
       debugPrint('DEBUG: Lead data keys: ${widget.lead.keys.toList()}');
-      debugPrint('DEBUG: Lead data types: ${widget.lead.map((k, v) => MapEntry(k, v.runtimeType))}');
-      
-      final String? leadId = (widget.lead['lead_id'] ?? widget.lead['id'])?.toString();
+      debugPrint(
+        'DEBUG: Lead data types: ${widget.lead.map((k, v) => MapEntry(k, v.runtimeType))}',
+      );
+
+      final String? leadId = (widget.lead['lead_id'] ?? widget.lead['id'])
+          ?.toString();
       debugPrint('DEBUG: Extracted leadId: $leadId');
       debugPrint('DEBUG: Lead ID type: ${leadId.runtimeType}');
 
       if (leadId != null) {
-        debugPrint('DEBUG: About to call LeadUtils.fetchAdminResponseByLeadId with leadId: $leadId');
-        final adminResponse = await LeadUtils.fetchAdminResponseByLeadId(leadId);
+        debugPrint(
+          'DEBUG: About to call LeadUtils.fetchAdminResponseByLeadId with leadId: $leadId',
+        );
+        final adminResponse = await LeadUtils.fetchAdminResponseByLeadId(
+          leadId,
+        );
         debugPrint('DEBUG: Admin response for leadId $leadId: $adminResponse');
         debugPrint('DEBUG: Admin response type: ${adminResponse.runtimeType}');
-        
+
         if (adminResponse != null) {
-          debugPrint('DEBUG: Admin response keys: ${adminResponse.keys.toList()}');
-          debugPrint('DEBUG: Admin response values: ${adminResponse.values.toList()}');
-          
+          debugPrint(
+            'DEBUG: Admin response keys: ${adminResponse.keys.toList()}',
+          );
+          debugPrint(
+            'DEBUG: Admin response values: ${adminResponse.values.toList()}',
+          );
+
           setState(() {
             _adminResponseData = adminResponse;
             // Update address from location column
@@ -2941,21 +3397,28 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
             debugPrint('DEBUG: Location type: ${location.runtimeType}');
             debugPrint('DEBUG: Location is empty: ${location?.isEmpty}');
             debugPrint('DEBUG: Location is null: ${location == null}');
-            
+
             if (location != null && location.isNotEmpty) {
               _addressCtl.text = location;
               debugPrint('DEBUG: Address controller updated to: $location');
             } else {
               // Fallback to hardcoded address if location is empty
-              _addressCtl.text = '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
-              debugPrint('DEBUG: Location is empty or null, using fallback address.');
+              _addressCtl.text =
+                  '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
+              debugPrint(
+                'DEBUG: Location is empty or null, using fallback address.',
+              );
             }
 
             // Update first "Sales Offer" row values from admin_response
             final dynamic aluminiumAreaRaw = adminResponse['aluminium_area'];
             final dynamic rateSqmRaw = adminResponse['rate_sqm'];
-            debugPrint('DEBUG: Raw aluminium_area: $aluminiumAreaRaw, Raw rate_sqm: $rateSqmRaw');
-            debugPrint('DEBUG: aluminium_area type: ${aluminiumAreaRaw.runtimeType}, rate_sqm type: ${rateSqmRaw.runtimeType}');
+            debugPrint(
+              'DEBUG: Raw aluminium_area: $aluminiumAreaRaw, Raw rate_sqm: $rateSqmRaw',
+            );
+            debugPrint(
+              'DEBUG: aluminium_area type: ${aluminiumAreaRaw.runtimeType}, rate_sqm type: ${rateSqmRaw.runtimeType}',
+            );
 
             int? qtySqm;
             if (aluminiumAreaRaw is int) {
@@ -2979,15 +3442,19 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
             }
             debugPrint('DEBUG: Parsed rate: $rate');
 
-            debugPrint('DEBUG: Current _items list: ${_items.map((i) => '${i.srNo}: ${i.description}').toList()}');
+            debugPrint(
+              'DEBUG: Current _items list: ${_items.map((i) => '${i.srNo}: ${i.description}').toList()}',
+            );
             int targetIndex = _items.indexWhere((i) {
               final d = i.description.toLowerCase();
-              return d.contains('supply of aluminium formwork shuttering system') ||
+              return d.contains(
+                    'supply of aluminium formwork shuttering system',
+                  ) ||
                   d.contains('supply of aluminum formwork shuttering system') ||
                   i.srNo == 1;
             });
             debugPrint('DEBUG: Target item index: $targetIndex');
-            
+
             if (targetIndex < 0 && _items.isNotEmpty) {
               targetIndex = 0;
               debugPrint('DEBUG: Target index was -1, setting to 0');
@@ -2995,30 +3462,42 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
 
             if (targetIndex >= 0 && targetIndex < _items.length) {
               final current = _items[targetIndex];
-              debugPrint('DEBUG: Current item at index $targetIndex: ${current.description}, qtySqm: ${current.qtySqm}, rate: ${current.rate}');
+              debugPrint(
+                'DEBUG: Current item at index $targetIndex: ${current.description}, qtySqm: ${current.qtySqm}, rate: ${current.rate}',
+              );
               _items[targetIndex] = current.copyWith(
                 description: 'Supply of Aluminium formwork shuttering system.',
                 qtySqm: qtySqm ?? current.qtySqm,
                 rate: rate ?? current.rate,
               );
-              debugPrint('DEBUG: First offer item updated. New qtySqm: ${_items[targetIndex].qtySqm}, New rate: ${_items[targetIndex].rate}');
+              debugPrint(
+                'DEBUG: First offer item updated. New qtySqm: ${_items[targetIndex].qtySqm}, New rate: ${_items[targetIndex].rate}',
+              );
             } else {
-              debugPrint('DEBUG: Could not find target item to update or _items list is empty.');
+              debugPrint(
+                'DEBUG: Could not find target item to update or _items list is empty.',
+              );
             }
             _isLoadingAddress = false;
           });
         } else {
-          debugPrint('DEBUG: No admin_response found for leadId $leadId. Using fallback address and default item values.');
+          debugPrint(
+            'DEBUG: No admin_response found for leadId $leadId. Using fallback address and default item values.',
+          );
           // Fallback to hardcoded address if no admin_response found
           setState(() {
-            _addressCtl.text = '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
+            _addressCtl.text =
+                '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
             _isLoadingAddress = false;
           });
         }
       } else {
-        debugPrint('DEBUG: Lead ID is null. Cannot fetch admin_response. Using fallback address and default item values.');
+        debugPrint(
+          'DEBUG: Lead ID is null. Cannot fetch admin_response. Using fallback address and default item values.',
+        );
         setState(() {
-          _addressCtl.text = '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
+          _addressCtl.text =
+              '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
           _isLoadingAddress = false;
         });
       }
@@ -3027,11 +3506,13 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
       debugPrint('ERROR: Error stack trace: ${StackTrace.current}');
       // Fallback to hardcoded address on error
       setState(() {
-        _addressCtl.text = '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
+        _addressCtl.text =
+            '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
         _isLoadingAddress = false;
       });
     }
   }
+
   void _showTextFormattingDialog() {
     showDialog(
       context: context,
@@ -3097,7 +3578,11 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Container(width: 16, height: 16, color: Colors.black),
+                                Container(
+                                  width: 16,
+                                  height: 16,
+                                  color: Colors.black,
+                                ),
                                 const SizedBox(width: 8),
                                 const Text('Black'),
                               ],
@@ -3108,7 +3593,11 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Container(width: 16, height: 16, color: Colors.blue),
+                                Container(
+                                  width: 16,
+                                  height: 16,
+                                  color: Colors.blue,
+                                ),
                                 const SizedBox(width: 8),
                                 const Text('Blue'),
                               ],
@@ -3119,7 +3608,11 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Container(width: 16, height: 16, color: Colors.red),
+                                Container(
+                                  width: 16,
+                                  height: 16,
+                                  color: Colors.red,
+                                ),
                                 const SizedBox(width: 8),
                                 const Text('Red'),
                               ],
@@ -3130,7 +3623,11 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Container(width: 16, height: 16, color: Colors.green),
+                                Container(
+                                  width: 16,
+                                  height: 16,
+                                  color: Colors.green,
+                                ),
                                 const SizedBox(width: 8),
                                 const Text('Green'),
                               ],
@@ -3196,15 +3693,15 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     );
   }
 
-
-
   /// Export offer to PDF using the pdf/printing packages with pagination
   Future<void> _exportToPDF() async {
     try {
       // Show progress feedback with estimated time
       final int totalPages = _pageKeys.length;
-      final String estimatedTime = totalPages <= 3 ? '10-15 seconds' : '20-30 seconds';
-      
+      final String estimatedTime = totalPages <= 3
+          ? '10-15 seconds'
+          : '20-30 seconds';
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -3216,18 +3713,19 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
 
       // Capture on-screen pages as images for WYSIWYG PDF
       final captured = <Uint8List>[];
-      
+
       for (int i = 0; i < totalPages; i++) {
         final key = _pageKeys[i];
-        final boundary = key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+        final boundary =
+            key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
         if (boundary == null) continue;
-        
+
         // Use configurable pixel ratio for quality vs speed trade-off
         final image = await boundary.toImage(pixelRatio: _exportPixelRatio);
         final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
         if (byteData != null) {
           captured.add(byteData.buffer.asUint8List());
-          
+
           // Show progress for each page
           if (mounted && totalPages > 1) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -3256,7 +3754,8 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
           pw.Page(
             pageFormat: PdfPageFormat.a4,
             margin: pw.EdgeInsets.zero,
-            build: (context) => pw.Center(child: pw.Image(pwImage, fit: pw.BoxFit.contain)),
+            build: (context) =>
+                pw.Center(child: pw.Image(pwImage, fit: pw.BoxFit.contain)),
           ),
         );
       }
@@ -3272,16 +3771,17 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
 
       final bytes = await pdf.save();
       final safeRef = _refNoCtl.text.replaceAll('/', '_').replaceAll('\\', '_');
-      final fileName = 'Offer_${safeRef}_${DateTime.now().millisecondsSinceEpoch}.pdf';
-      
+      final fileName =
+          'Offer_${safeRef}_${DateTime.now().millisecondsSinceEpoch}.pdf';
+
       await Printing.sharePdf(bytes: bytes, filename: fileName);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('PDF generated successfully: $fileName'),
             backgroundColor: Colors.green,
-        ),
+          ),
         );
       }
     } catch (e) {
@@ -3301,12 +3801,16 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     try {
       // Show progress feedback with estimated time
       final int totalPages = _pageKeys.length;
-      final String estimatedTime = totalPages <= 3 ? '10-15 seconds' : '20-30 seconds';
-      
+      final String estimatedTime = totalPages <= 3
+          ? '10-15 seconds'
+          : '20-30 seconds';
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Generating Word document... Estimated time: $estimatedTime'),
+            content: Text(
+              'Generating Word document... Estimated time: $estimatedTime',
+            ),
             duration: const Duration(seconds: 3),
           ),
         );
@@ -3314,18 +3818,19 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
 
       // Capture current A4 pages as images and embed in a .doc (HTML) for WYSIWYG export
       final images = <Uint8List>[];
-      
+
       for (int i = 0; i < totalPages; i++) {
         final key = _pageKeys[i];
-        final boundary = key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+        final boundary =
+            key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
         if (boundary == null) continue;
-        
+
         // Use configurable pixel ratio for quality vs speed trade-off
         final image = await boundary.toImage(pixelRatio: _exportPixelRatio);
         final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
         if (byteData != null) {
           images.add(byteData.buffer.asUint8List());
-          
+
           // Show progress for each page
           if (mounted && totalPages > 1) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -3349,21 +3854,29 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
 
       // Build a simple HTML-based .doc with each page as an <img>
       final buffer = StringBuffer();
-      buffer.writeln('<html><head><meta charset="utf-8"></head><body style="margin:0;">');
+      buffer.writeln(
+        '<html><head><meta charset="utf-8"></head><body style="margin:0;">',
+      );
       for (final bytes in images) {
         final base64 = base64Encode(bytes);
         buffer.writeln('<div style="page-break-after:always;">');
-        buffer.writeln('<img src="data:image/png;base64,$base64" style="width:100%;" />');
+        buffer.writeln(
+          '<img src="data:image/png;base64,$base64" style="width:100%;" />',
+        );
         buffer.writeln('</div>');
       }
       buffer.writeln('</body></html>');
 
       final safeRef = _refNoCtl.text.replaceAll('/', '_').replaceAll('\\', '_');
-      final fileName = 'Offer_${safeRef}_${DateTime.now().millisecondsSinceEpoch}.doc';
-      
+      final fileName =
+          'Offer_${safeRef}_${DateTime.now().millisecondsSinceEpoch}.doc';
+
       // Save bytes with appropriate mime
       // ignore: undefined_function
-      await saveBytes(fileName: fileName, bytes: utf8.encode(buffer.toString()));
+      await saveBytes(
+        fileName: fileName,
+        bytes: utf8.encode(buffer.toString()),
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -3405,17 +3918,29 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
       // Parse nalco rate from text (e.g., "Rs. 267/kg" -> 267)
       final nalcoRateText = _nalcoPriceCtl.text;
       final nalcoRateMatch = RegExp(r'Rs\.\s*(\d+)').firstMatch(nalcoRateText);
-      final int nalcoRate = nalcoRateMatch != null ? int.parse(nalcoRateMatch.group(1)!) : 0;
+      final int nalcoRate = nalcoRateMatch != null
+          ? int.parse(nalcoRateMatch.group(1)!)
+          : 0;
 
       // Parse delivery time (e.g., "8 weeks from shell drawing confirmation" -> "8")
       final deliveryTimeText = _deliveryTimeCtl.text;
-      final deliveryTimeMatch = RegExp(r'(\d+)\s*weeks?').firstMatch(deliveryTimeText);
-      final String deliveryTime = deliveryTimeMatch != null ? deliveryTimeMatch.group(1)! : deliveryTimeText;
+      final deliveryTimeMatch = RegExp(
+        r'(\d+)\s*weeks?',
+      ).firstMatch(deliveryTimeText);
+      final String deliveryTime = deliveryTimeMatch != null
+          ? deliveryTimeMatch.group(1)!
+          : deliveryTimeText;
 
       // Parse payment terms (e.g., "25% Advance with Purchase Order and 25% after shell plan approval and 50% before dispatch" -> "25,25,50")
-      final paymentTermsText = _paymentTermControllers.map((c) => c.text).join(' and ');
-      final paymentTermsMatches = RegExp(r'(\d+)%').allMatches(paymentTermsText);
-      final String paymentTerms = paymentTermsMatches.map((m) => m.group(1)!).join(',');
+      final paymentTermsText = _paymentTermControllers
+          .map((c) => c.text)
+          .join(' and ');
+      final paymentTermsMatches = RegExp(
+        r'(\d+)%',
+      ).allMatches(paymentTermsText);
+      final String paymentTerms = paymentTermsMatches
+          .map((m) => m.group(1)!)
+          .join(',');
 
       // Prepare offer data - only store lead_id and offer-specific data
       // Lead information (project_id, project_name, client_name, location) will be fetched dynamically
@@ -3476,8 +4001,10 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
 
         if (existingActive != null) {
           // If status remains "Active Offer" to "Active Offer", add new row with revision ref
-          debugPrint('DEBUG: Creating revision for existing Active Offer. Lead ID: ${offerData['lead_id']}');
-          
+          debugPrint(
+            'DEBUG: Creating revision for existing Active Offer. Lead ID: ${offerData['lead_id']}',
+          );
+
           // Show confirmation dialog for revision creation
           final shouldCreateRevision = await _showRevisionConfirmationDialog();
           if (!shouldCreateRevision) {
@@ -3485,29 +4012,38 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
             debugPrint('DEBUG: User cancelled revision creation');
             return;
           }
-          
+
           // Update the existing active offer status to "Expired Offer"
-          debugPrint('DEBUG: Updating existing active offer status to Expired Offer. Offer ID: ${existingActive['id']}');
+          debugPrint(
+            'DEBUG: Updating existing active offer status to Expired Offer. Offer ID: ${existingActive['id']}',
+          );
           await client
               .from('offers')
               .update({'offer_status': 'Expired Offer'})
               .eq('id', existingActive['id'] as String);
-          debugPrint('DEBUG: Existing active offer status updated to Expired Offer');
-          
+          debugPrint(
+            'DEBUG: Existing active offer status updated to Expired Offer',
+          );
+
           // Get the next revision number for this lead
-          final nextRevisionNumber = await _getNextRevisionNumber(offerData['lead_id'] as String);
+          final nextRevisionNumber = await _getNextRevisionNumber(
+            offerData['lead_id'] as String,
+          );
           debugPrint('DEBUG: Next revision number: $nextRevisionNumber');
-          
+
           // Generate new revision ref and update offerData
-          final newRevisionRef = _generateRef(revision: true, seriesNumber: nextRevisionNumber);
+          final newRevisionRef = _generateRef(
+            revision: true,
+            seriesNumber: nextRevisionNumber,
+          );
           debugPrint('DEBUG: Generated new revision ref: $newRevisionRef');
           offerData['ref'] = newRevisionRef;
-          
+
           // Update the ref controller text to show the new revision
           setState(() {
             _refNoCtl.text = newRevisionRef;
           });
-          
+
           // Insert new revision row
           final inserted = await client
               .from('offers')
@@ -3515,13 +4051,17 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
               .select()
               .single();
           result = Map<String, dynamic>.from(inserted as Map);
-          debugPrint('DEBUG: Revision offer created successfully with ID: ${result['id']}');
-          
+          debugPrint(
+            'DEBUG: Revision offer created successfully with ID: ${result['id']}',
+          );
+
           // Show success message about revision creation and previous offer expiration
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Revision created successfully! Previous offer marked as expired.'),
+                content: Text(
+                  'Revision created successfully! Previous offer marked as expired.',
+                ),
                 backgroundColor: Colors.orange,
                 duration: const Duration(seconds: 4),
               ),
@@ -3599,7 +4139,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
             backgroundColor: Colors.green,
           ),
         );
-        
+
         // Close the dialog and return the saved offer data
         Navigator.of(context).pop(result);
       }
@@ -3633,18 +4173,19 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     }
     super.dispose();
   }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final screenWidth = constraints.maxWidth;
         final screenHeight = constraints.maxHeight;
-        
+
         // Responsive sizing for different screen types
         double dialogWidth, dialogHeight;
         bool isMobile = screenWidth < 600;
         bool isTablet = screenWidth >= 600 && screenWidth < 1200;
-        
+
         if (isMobile) {
           // Mobile: Full screen dialog
           dialogWidth = screenWidth;
@@ -3658,7 +4199,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
           dialogWidth = math.min(screenWidth * 0.8, 1200);
           dialogHeight = screenHeight * 0.85;
         }
-        
+
         return Dialog(
           backgroundColor: Colors.transparent,
           insetPadding: EdgeInsets.zero,
@@ -3693,7 +4234,11 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                       // Main header row
                       Row(
                         children: [
-                          Icon(Icons.local_offer, color: Colors.white, size: isMobile ? 20 : 24),
+                          Icon(
+                            Icons.local_offer,
+                            color: Colors.white,
+                            size: isMobile ? 20 : 24,
+                          ),
                           SizedBox(width: isMobile ? 8 : 12),
                           Expanded(
                             child: Text(
@@ -3708,8 +4253,13 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                           // Mobile: Show sidebar toggle button
                           if (isMobile)
                             IconButton(
-                              icon: Icon(_showSidebar ? Icons.close : Icons.menu, color: Colors.white),
-                              tooltip: _showSidebar ? 'Hide Sidebar' : 'Show Sidebar',
+                              icon: Icon(
+                                _showSidebar ? Icons.close : Icons.menu,
+                                color: Colors.white,
+                              ),
+                              tooltip: _showSidebar
+                                  ? 'Hide Sidebar'
+                                  : 'Show Sidebar',
                               onPressed: () {
                                 setState(() {
                                   _showSidebar = !_showSidebar;
@@ -3718,8 +4268,13 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                             ),
                           if (!isMobile) ...[
                             IconButton(
-                              icon: Icon(_isEditing ? Icons.visibility : Icons.edit, color: Colors.white),
-                              tooltip: _isEditing ? 'Preview Mode' : 'Edit Mode',
+                              icon: Icon(
+                                _isEditing ? Icons.visibility : Icons.edit,
+                                color: Colors.white,
+                              ),
+                              tooltip: _isEditing
+                                  ? 'Preview Mode'
+                                  : 'Edit Mode',
                               onPressed: () {
                                 setState(() {
                                   _isEditing = !_isEditing;
@@ -3727,7 +4282,10 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                               },
                             ),
                             IconButton(
-                              icon: const Icon(Icons.format_size, color: Colors.white),
+                              icon: const Icon(
+                                Icons.format_size,
+                                color: Colors.white,
+                              ),
                               tooltip: 'Text Formatting',
                               onPressed: () => _showTextFormattingDialog(),
                             ),
@@ -3737,7 +4295,10 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                               onPressed: _saveOfferToSupabase,
                             ),
                             IconButton(
-                              icon: const Icon(Icons.close, color: Colors.white),
+                              icon: const Icon(
+                                Icons.close,
+                                color: Colors.white,
+                              ),
                               tooltip: 'Close',
                               onPressed: () => Navigator.of(context).pop(),
                             ),
@@ -3755,12 +4316,20 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(
-                                  icon: const Icon(Icons.zoom_out, color: Colors.white, size: 16),
+                                  icon: const Icon(
+                                    Icons.zoom_out,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
                                   tooltip: 'Zoom Out',
                                   onPressed: () {
                                     setState(() {
-                                      _zoomLevel = math.max(0.5, _zoomLevel - 0.1);
-                                      _zoomTextController.text = '${(_zoomLevel * 100).round()}%';
+                                      _zoomLevel = math.max(
+                                        0.5,
+                                        _zoomLevel - 0.1,
+                                      );
+                                      _zoomTextController.text =
+                                          '${(_zoomLevel * 100).round()}%';
                                     });
                                   },
                                 ),
@@ -3769,9 +4338,12 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                   child: SliderTheme(
                                     data: SliderTheme.of(context).copyWith(
                                       activeTrackColor: Colors.white,
-                                      inactiveTrackColor: Colors.white.withValues(alpha: 0.3),
+                                      inactiveTrackColor: Colors.white
+                                          .withValues(alpha: 0.3),
                                       thumbColor: Colors.white,
-                                      overlayColor: Colors.white.withValues(alpha: 0.2),
+                                      overlayColor: Colors.white.withValues(
+                                        alpha: 0.2,
+                                      ),
                                       trackHeight: 2,
                                     ),
                                     child: Slider(
@@ -3782,19 +4354,28 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                       onChanged: (value) {
                                         setState(() {
                                           _zoomLevel = value;
-                                          _zoomTextController.text = '${(value * 100).round()}%';
+                                          _zoomTextController.text =
+                                              '${(value * 100).round()}%';
                                         });
                                       },
                                     ),
                                   ),
                                 ),
                                 IconButton(
-                                  icon: const Icon(Icons.zoom_in, color: Colors.white, size: 16),
+                                  icon: const Icon(
+                                    Icons.zoom_in,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
                                   tooltip: 'Zoom In',
                                   onPressed: () {
                                     setState(() {
-                                      _zoomLevel = math.min(2.0, _zoomLevel + 0.1);
-                                      _zoomTextController.text = '${(_zoomLevel * 100).round()}%';
+                                      _zoomLevel = math.min(
+                                        2.0,
+                                        _zoomLevel + 0.1,
+                                      );
+                                      _zoomTextController.text =
+                                          '${(_zoomLevel * 100).round()}%';
                                     });
                                   },
                                 ),
@@ -3805,12 +4386,20 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(
-                                  icon: const Icon(Icons.picture_as_pdf, color: Colors.white, size: 16),
+                                  icon: const Icon(
+                                    Icons.picture_as_pdf,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
                                   tooltip: 'Export PDF',
                                   onPressed: () => _exportToPDF(),
                                 ),
                                 IconButton(
-                                  icon: const Icon(Icons.description, color: Colors.white, size: 16),
+                                  icon: const Icon(
+                                    Icons.description,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
                                   tooltip: 'Export Word',
                                   onPressed: () => _exportToWord(),
                                 ),
@@ -3828,7 +4417,10 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                             // Text formatting and editing info
                             if (_isEditing) ...[
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
                                 decoration: BoxDecoration(
                                   color: Colors.white.withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(4),
@@ -3837,20 +4429,29 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Container(
-                                      width: 12, 
-                                      height: 12, 
+                                      width: 12,
+                                      height: 12,
                                       color: _textColor,
                                       margin: const EdgeInsets.only(right: 4),
                                     ),
                                     Text(
                                       'H:${_textHeight.toStringAsFixed(1)}',
-                                      style: const TextStyle(fontSize: 10, color: Colors.white),
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.white,
+                                      ),
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
-                                      _textAlignment == TextAlign.left ? 'L' : 
-                                      _textAlignment == TextAlign.center ? 'C' : 'R',
-                                      style: const TextStyle(fontSize: 10, color: Colors.white),
+                                      _textAlignment == TextAlign.left
+                                          ? 'L'
+                                          : _textAlignment == TextAlign.center
+                                          ? 'C'
+                                          : 'R',
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.white,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -3861,12 +4462,20 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(
-                                  icon: const Icon(Icons.zoom_out, color: Colors.white, size: 18),
+                                  icon: const Icon(
+                                    Icons.zoom_out,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
                                   tooltip: 'Zoom Out',
                                   onPressed: () {
                                     setState(() {
-                                      _zoomLevel = math.max(0.5, _zoomLevel - 0.1);
-                                      _zoomTextController.text = '${(_zoomLevel * 100).round()}%';
+                                      _zoomLevel = math.max(
+                                        0.5,
+                                        _zoomLevel - 0.1,
+                                      );
+                                      _zoomTextController.text =
+                                          '${(_zoomLevel * 100).round()}%';
                                     });
                                   },
                                 ),
@@ -3876,9 +4485,12 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                   child: SliderTheme(
                                     data: SliderTheme.of(context).copyWith(
                                       activeTrackColor: Colors.white,
-                                      inactiveTrackColor: Colors.white.withValues(alpha: 0.3),
+                                      inactiveTrackColor: Colors.white
+                                          .withValues(alpha: 0.3),
                                       thumbColor: Colors.white,
-                                      overlayColor: Colors.white.withValues(alpha: 0.2),
+                                      overlayColor: Colors.white.withValues(
+                                        alpha: 0.2,
+                                      ),
                                       trackHeight: 2,
                                     ),
                                     child: Slider(
@@ -3889,7 +4501,8 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                       onChanged: (value) {
                                         setState(() {
                                           _zoomLevel = value;
-                                          _zoomTextController.text = '${(value * 100).round()}%';
+                                          _zoomTextController.text =
+                                              '${(value * 100).round()}%';
                                         });
                                       },
                                     ),
@@ -3897,12 +4510,20 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                 ),
                                 const SizedBox(width: 4),
                                 IconButton(
-                                  icon: const Icon(Icons.zoom_in, color: Colors.white, size: 18),
+                                  icon: const Icon(
+                                    Icons.zoom_in,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
                                   tooltip: 'Zoom In',
                                   onPressed: () {
                                     setState(() {
-                                      _zoomLevel = math.min(2.0, _zoomLevel + 0.1);
-                                      _zoomTextController.text = '${(_zoomLevel * 100).round()}%';
+                                      _zoomLevel = math.min(
+                                        2.0,
+                                        _zoomLevel + 0.1,
+                                      );
+                                      _zoomTextController.text =
+                                          '${(_zoomLevel * 100).round()}%';
                                     });
                                   },
                                 ),
@@ -3925,22 +4546,31 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                     ),
                                     decoration: const InputDecoration(
                                       border: InputBorder.none,
-                                      contentPadding: EdgeInsets.symmetric(vertical: 4),
+                                      contentPadding: EdgeInsets.symmetric(
+                                        vertical: 4,
+                                      ),
                                       isDense: true,
                                     ),
-                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    keyboardType:
+                                        const TextInputType.numberWithOptions(
+                                          decimal: true,
+                                        ),
                                     onSubmitted: (value) {
                                       // Parse percentage input (e.g., "150" -> 1.5)
                                       final percentage = double.tryParse(value);
-                                      if (percentage != null && percentage >= 50 && percentage <= 200) {
+                                      if (percentage != null &&
+                                          percentage >= 50 &&
+                                          percentage <= 200) {
                                         final zoom = percentage / 100;
                                         setState(() {
                                           _zoomLevel = zoom;
-                                          _zoomTextController.text = '${(zoom * 100).round()}%';
+                                          _zoomTextController.text =
+                                              '${(zoom * 100).round()}%';
                                         });
                                       } else {
                                         // Reset to current zoom level if invalid
-                                        _zoomTextController.text = '${(_zoomLevel * 100).round()}%';
+                                        _zoomTextController.text =
+                                            '${(_zoomLevel * 100).round()}%';
                                       }
                                     },
                                   ),
@@ -3948,7 +4578,11 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                 const SizedBox(width: 8),
                                 // Reset zoom button
                                 IconButton(
-                                  icon: const Icon(Icons.refresh, color: Colors.white, size: 16),
+                                  icon: const Icon(
+                                    Icons.refresh,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
                                   tooltip: 'Reset Zoom',
                                   onPressed: () {
                                     setState(() {
@@ -3965,7 +4599,9 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                               children: [
                                 // Export quality selector
                                 Container(
-                                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                  ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
@@ -3981,16 +4617,29 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                       DropdownButton<double>(
                                         value: _exportPixelRatio,
                                         dropdownColor: Colors.grey[800],
-                                        style: const TextStyle(color: Colors.white, fontSize: 12),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                        ),
                                         underline: Container(),
                                         items: const [
                                           DropdownMenuItem(
                                             value: 1.0,
-                                            child: Text('Fast', style: TextStyle(color: Colors.white)),
+                                            child: Text(
+                                              'Fast',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                              ),
+                                            ),
                                           ),
                                           DropdownMenuItem(
                                             value: 2.0,
-                                            child: Text('High', style: TextStyle(color: Colors.white)),
+                                            child: Text(
+                                              'High',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                              ),
+                                            ),
                                           ),
                                         ],
                                         onChanged: (value) {
@@ -4005,12 +4654,18 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                   ),
                                 ),
                                 IconButton(
-                                  icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
+                                  icon: const Icon(
+                                    Icons.picture_as_pdf,
+                                    color: Colors.white,
+                                  ),
                                   tooltip: 'Export PDF',
                                   onPressed: () => _exportToPDF(),
                                 ),
                                 IconButton(
-                                  icon: const Icon(Icons.description, color: Colors.white),
+                                  icon: const Icon(
+                                    Icons.description,
+                                    color: Colors.white,
+                                  ),
                                   tooltip: 'Export Word',
                                   onPressed: () => _exportToWord(),
                                 ),
@@ -4023,7 +4678,10 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
-                            icon: Icon(_isEditing ? Icons.visibility : Icons.edit, color: Colors.white),
+                            icon: Icon(
+                              _isEditing ? Icons.visibility : Icons.edit,
+                              color: Colors.white,
+                            ),
                             tooltip: _isEditing ? 'Preview Mode' : 'Edit Mode',
                             onPressed: () {
                               setState(() {
@@ -4032,7 +4690,10 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                             },
                           ),
                           IconButton(
-                            icon: const Icon(Icons.format_size, color: Colors.white),
+                            icon: const Icon(
+                              Icons.format_size,
+                              color: Colors.white,
+                            ),
                             tooltip: 'Text Formatting',
                             onPressed: () => _showTextFormattingDialog(),
                           ),
@@ -4044,12 +4705,20 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                               children: [
                                 // Quick zoom out button
                                 IconButton(
-                                  icon: const Icon(Icons.zoom_out, color: Colors.white, size: 18),
+                                  icon: const Icon(
+                                    Icons.zoom_out,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
                                   tooltip: 'Zoom Out',
                                   onPressed: () {
                                     setState(() {
-                                      _zoomLevel = math.max(0.5, _zoomLevel - 0.1);
-                                      _zoomTextController.text = '${(_zoomLevel * 100).round()}%';
+                                      _zoomLevel = math.max(
+                                        0.5,
+                                        _zoomLevel - 0.1,
+                                      );
+                                      _zoomTextController.text =
+                                          '${(_zoomLevel * 100).round()}%';
                                     });
                                   },
                                 ),
@@ -4059,9 +4728,12 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                   child: SliderTheme(
                                     data: SliderTheme.of(context).copyWith(
                                       activeTrackColor: Colors.white,
-                                      inactiveTrackColor: Colors.white.withValues(alpha: 0.3),
+                                      inactiveTrackColor: Colors.white
+                                          .withValues(alpha: 0.3),
                                       thumbColor: Colors.white,
-                                      overlayColor: Colors.white.withValues(alpha: 0.2),
+                                      overlayColor: Colors.white.withValues(
+                                        alpha: 0.2,
+                                      ),
                                       trackHeight: 2,
                                     ),
                                     child: Slider(
@@ -4072,7 +4744,8 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                       onChanged: (value) {
                                         setState(() {
                                           _zoomLevel = value;
-                                          _zoomTextController.text = '${(value * 100).round()}%';
+                                          _zoomTextController.text =
+                                              '${(value * 100).round()}%';
                                         });
                                       },
                                     ),
@@ -4081,12 +4754,20 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                 const SizedBox(width: 4),
                                 // Quick zoom in button
                                 IconButton(
-                                  icon: const Icon(Icons.zoom_in, color: Colors.white, size: 18),
+                                  icon: const Icon(
+                                    Icons.zoom_in,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
                                   tooltip: 'Zoom In',
                                   onPressed: () {
                                     setState(() {
-                                      _zoomLevel = math.min(2.0, _zoomLevel + 0.1);
-                                      _zoomTextController.text = '${(_zoomLevel * 100).round()}%';
+                                      _zoomLevel = math.min(
+                                        2.0,
+                                        _zoomLevel + 0.1,
+                                      );
+                                      _zoomTextController.text =
+                                          '${(_zoomLevel * 100).round()}%';
                                     });
                                   },
                                 ),
@@ -4109,22 +4790,31 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                     ),
                                     decoration: const InputDecoration(
                                       border: InputBorder.none,
-                                      contentPadding: EdgeInsets.symmetric(vertical: 4),
+                                      contentPadding: EdgeInsets.symmetric(
+                                        vertical: 4,
+                                      ),
                                       isDense: true,
                                     ),
-                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    keyboardType:
+                                        const TextInputType.numberWithOptions(
+                                          decimal: true,
+                                        ),
                                     onSubmitted: (value) {
                                       // Parse percentage input (e.g., "150" -> 1.5)
                                       final percentage = double.tryParse(value);
-                                      if (percentage != null && percentage >= 50 && percentage <= 200) {
+                                      if (percentage != null &&
+                                          percentage >= 50 &&
+                                          percentage <= 200) {
                                         final zoom = percentage / 100;
                                         setState(() {
                                           _zoomLevel = zoom;
-                                          _zoomTextController.text = '${(zoom * 100).round()}%';
+                                          _zoomTextController.text =
+                                              '${(zoom * 100).round()}%';
                                         });
                                       } else {
                                         // Reset to current zoom level if invalid
-                                        _zoomTextController.text = '${(_zoomLevel * 100).round()}%';
+                                        _zoomTextController.text =
+                                            '${(_zoomLevel * 100).round()}%';
                                       }
                                     },
                                   ),
@@ -4132,7 +4822,11 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                 const SizedBox(width: 8),
                                 // Reset zoom button
                                 IconButton(
-                                  icon: const Icon(Icons.refresh, color: Colors.white, size: 16),
+                                  icon: const Icon(
+                                    Icons.refresh,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
                                   tooltip: 'Reset Zoom',
                                   onPressed: () {
                                     setState(() {
@@ -4167,16 +4861,25 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                 DropdownButton<double>(
                                   value: _exportPixelRatio,
                                   dropdownColor: Colors.grey[800],
-                                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                  ),
                                   underline: Container(),
                                   items: const [
                                     DropdownMenuItem(
                                       value: 1.0,
-                                      child: Text('Fast', style: TextStyle(color: Colors.white)),
+                                      child: Text(
+                                        'Fast',
+                                        style: TextStyle(color: Colors.white),
+                                      ),
                                     ),
                                     DropdownMenuItem(
                                       value: 2.0,
-                                      child: Text('High', style: TextStyle(color: Colors.white)),
+                                      child: Text(
+                                        'High',
+                                        style: TextStyle(color: Colors.white),
+                                      ),
                                     ),
                                   ],
                                   onChanged: (value) {
@@ -4191,12 +4894,18 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                             ),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.picture_as_pdf, color: Colors.white),
+                            icon: const Icon(
+                              Icons.picture_as_pdf,
+                              color: Colors.white,
+                            ),
                             tooltip: 'Export PDF',
                             onPressed: () => _exportToPDF(),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.description, color: Colors.white),
+                            icon: const Icon(
+                              Icons.description,
+                              color: Colors.white,
+                            ),
                             tooltip: 'Export Word',
                             onPressed: () => _exportToWord(),
                           ),
@@ -4224,7 +4933,10 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               border: Border(
-                                right: BorderSide(color: Colors.grey.shade300, width: 1),
+                                right: BorderSide(
+                                  color: Colors.grey.shade300,
+                                  width: 1,
+                                ),
                               ),
                             ),
                             child: SingleChildScrollView(
@@ -4240,24 +4952,42 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                               child: LayoutBuilder(
                                 builder: (context, constraints) {
                                   // Validate constraints to prevent assertion errors
-                                  if (constraints.maxWidth <= 0 || constraints.maxHeight <= 0) {
-                                    return const Center(child: Text('Invalid layout constraints'));
+                                  if (constraints.maxWidth <= 0 ||
+                                      constraints.maxHeight <= 0) {
+                                    return const Center(
+                                      child: Text('Invalid layout constraints'),
+                                    );
                                   }
-                                  
-                                  final double maxAvailableWidth = constraints.maxWidth;
-                                  final double targetWidth = math.min(maxAvailableWidth, isMobile ? maxAvailableWidth * 0.95 : 900);
-                                  final double aspect = _a4HeightMm / _a4WidthMm; // ~1.414
-                                  final double targetHeight = targetWidth * aspect;
+
+                                  final double maxAvailableWidth =
+                                      constraints.maxWidth;
+                                  final double targetWidth = math.min(
+                                    maxAvailableWidth,
+                                    isMobile ? maxAvailableWidth * 0.95 : 900,
+                                  );
+                                  final double aspect =
+                                      _a4HeightMm / _a4WidthMm; // ~1.414
+                                  final double targetHeight =
+                                      targetWidth * aspect;
 
                                   final List<Widget> pageBodies = [
-                                    ..._buildOfferBodyPages(context, targetWidth, targetHeight),
+                                    ..._buildOfferBodyPages(
+                                      context,
+                                      targetWidth,
+                                      targetHeight,
+                                    ),
                                   ];
-                                  
+
                                   // Ensure keys list matches number of pages
                                   if (_pageKeys.length != pageBodies.length) {
                                     _pageKeys
                                       ..clear()
-                                      ..addAll(List.generate(pageBodies.length, (_) => GlobalKey()));
+                                      ..addAll(
+                                        List.generate(
+                                          pageBodies.length,
+                                          (_) => GlobalKey(),
+                                        ),
+                                      );
                                   }
 
                                   return Transform.scale(
@@ -4266,31 +4996,53 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                     child: Column(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        for (int i = 0; i < pageBodies.length; i++)
+                                        for (
+                                          int i = 0;
+                                          i < pageBodies.length;
+                                          i++
+                                        )
                                           Padding(
-                                            padding: EdgeInsets.only(bottom: isMobile ? 8 : 16),
+                                            padding: EdgeInsets.only(
+                                              bottom: isMobile ? 8 : 16,
+                                            ),
                                             child: RepaintBoundary(
                                               key: _pageKeys[i],
                                               child: Stack(
                                                 children: [
-                                                  _buildA4Page(targetWidth, targetHeight, pageBodies[i]),
+                                                  _buildA4Page(
+                                                    targetWidth,
+                                                    targetHeight,
+                                                    pageBodies[i],
+                                                  ),
                                                   Positioned(
                                                     left: 0,
                                                     right: 0,
                                                     bottom: isMobile ? 8 : 16,
                                                     child: Center(
                                                       child: Container(
-                                                        padding: EdgeInsets.all(isMobile ? 6 : 8),
-                                                        decoration: BoxDecoration(
-                                                          shape: BoxShape.circle,
-                                                          border: Border.all(color: Colors.grey.shade600),
-                                                          color: Colors.white,
+                                                        padding: EdgeInsets.all(
+                                                          isMobile ? 6 : 8,
                                                         ),
+                                                        decoration:
+                                                            BoxDecoration(
+                                                              shape: BoxShape
+                                                                  .circle,
+                                                              border: Border.all(
+                                                                color: Colors
+                                                                    .grey
+                                                                    .shade600,
+                                                              ),
+                                                              color:
+                                                                  Colors.white,
+                                                            ),
                                                         child: Text(
                                                           '${i + 1}',
                                                           style: TextStyle(
-                                                            fontSize: isMobile ? 8 : 10, 
-                                                            fontWeight: FontWeight.bold
+                                                            fontSize: isMobile
+                                                                ? 8
+                                                                : 10,
+                                                            fontWeight:
+                                                                FontWeight.bold,
                                                           ),
                                                         ),
                                                       ),
@@ -4319,25 +5071,38 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
       },
     );
   }
+
   /// Builds offer pages with proper content positioning
   /// Ensures content never overlaps with header/footer (letterhead)
   /// Uses conservative height estimates and safety margins
-  List<Widget> _buildOfferBodyPages(BuildContext context, double targetWidth, double targetHeight) {
+  List<Widget> _buildOfferBodyPages(
+    BuildContext context,
+    double targetWidth,
+    double targetHeight,
+  ) {
     // Calculate pixel-per-millimeter ratio for consistent margins
     final double pxPerMm = targetWidth / _a4WidthMm;
-    
+
     // Note: headerMargin and footerMargin are calculated here for reference
     // but the actual margins are applied in _buildA4Page method
-    
+
     // Estimate header/footer heights based on typical image dimensions
     // These are conservative estimates to ensure content never overlaps
     // Adding extra safety margins to prevent any content from touching header/footer
-    final double estimatedHeaderHeight = 120; // Increased from 100 to 120 for safety
-    final double estimatedFooterHeight = 80; // Increased from 60 to 80 for safety
-    final double verticalPadding = 32; // from EdgeInsets.symmetric(vertical: 16)
+    final double estimatedHeaderHeight =
+        120; // Increased from 100 to 120 for safety
+    final double estimatedFooterHeight =
+        80; // Increased from 60 to 80 for safety
+    final double verticalPadding =
+        32; // from EdgeInsets.symmetric(vertical: 16)
     final double safetyMargin = 20; // Additional safety margin
 
-    final double bodyHeightBudget = targetHeight - estimatedHeaderHeight - estimatedFooterHeight - verticalPadding - safetyMargin;
+    final double bodyHeightBudget =
+        targetHeight -
+        estimatedHeaderHeight -
+        estimatedFooterHeight -
+        verticalPadding -
+        safetyMargin;
 
     // Measure dynamic text blocks to estimate heights
     double measure(String text, TextStyle style, double maxWidth) {
@@ -4361,26 +5126,54 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     h += 12;
     h += 18; // "To:" and client line
     h += 4;
-    h += measure(_addressCtl.text, textStyle, contentWidth) + 6; // address + spacing
+    h +=
+        measure(_addressCtl.text, textStyle, contentWidth) +
+        6; // address + spacing
     h += 12;
-    h += measure('RE: Sales Offer for Tobler Monolithic - Formwork System for "${_projectNameCtl.text}"', textStyle, contentWidth) + 12;
+    h +=
+        measure(
+          'RE: Sales Offer for Tobler Monolithic - Formwork System for "${_projectNameCtl.text}"',
+          textStyle,
+          contentWidth,
+        ) +
+        12;
     h += 8 + 18; // SALES OFFER title and spacing
-    h += measure('Project Reference ${_projectStatusCtl.text} – ${_projectNameCtl.text}.', textStyle, contentWidth) + 6;
-    h += measure('Description: ${_descriptionCtl.text}', textStyle, contentWidth);
+    h +=
+        measure(
+          'Project Reference ${_projectStatusCtl.text} – ${_projectNameCtl.text}.',
+          textStyle,
+          contentWidth,
+        ) +
+        6;
+    h += measure(
+      'Description: ${_descriptionCtl.text}',
+      textStyle,
+      contentWidth,
+    );
     h += 12;
-    h += measure(_introNoteCtl.text, textStyle, contentWidth) + 8 + 8; // note + padding + border fudge
+    h +=
+        measure(_introNoteCtl.text, textStyle, contentWidth) +
+        8 +
+        8; // note + padding + border fudge
 
     // Table measurements
     const double tableHeaderHeight = 40;
-    const double tableRowHeight = 40; // rough fixed row height for our cell style
+    const double tableRowHeight =
+        40; // rough fixed row height for our cell style
     const double tableFooterRowsHeight = 40 * 3; // Subtotal + GST + Grand Total
 
     // Smarter capacity: only reserve footer rows height on the last table page
     int remainingRows = _items.length;
-    final int firstRowsCapNoTotals = ((bodyHeightBudget - h - tableHeaderHeight) / tableRowHeight).floor().clamp(0, remainingRows);
+    final int firstRowsCapNoTotals =
+        ((bodyHeightBudget - h - tableHeaderHeight) / tableRowHeight)
+            .floor()
+            .clamp(0, remainingRows);
     int firstRowsCapacity = firstRowsCapNoTotals;
     if (firstRowsCapacity >= remainingRows) {
-      final int withTotals = ((bodyHeightBudget - h - tableHeaderHeight - tableFooterRowsHeight) / tableRowHeight).floor();
+      final int withTotals =
+          ((bodyHeightBudget - h - tableHeaderHeight - tableFooterRowsHeight) /
+                  tableRowHeight)
+              .floor();
       firstRowsCapacity = withTotals.clamp(0, remainingRows);
     }
 
@@ -4404,13 +5197,21 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
       const SizedBox(height: 8),
       _buildProjectDetails(),
       const SizedBox(height: 12),
-      _buildOfferTableSection(context, firstChunk, showEditorControls: true, showTotals: _items.length == firstChunk.length),
+      _buildOfferTableSection(
+        context,
+        firstChunk,
+        showEditorControls: true,
+        showTotals: _items.length == firstChunk.length,
+      ),
     ];
 
     if (firstChunk.length == _items.length) {
       // All rows on first page. Compute leftover and try shifting Area Statement here.
       final double areaHeight = _measureAreaStatementHeight(contentWidth);
-      final double usedByTable = tableHeaderHeight + (tableRowHeight * firstChunk.length) + tableFooterRowsHeight;
+      final double usedByTable =
+          tableHeaderHeight +
+          (tableRowHeight * firstChunk.length) +
+          tableFooterRowsHeight;
       final double usedBeforeTable = h; // dynamic header blocks height
       final double leftover = bodyHeightBudget - usedBeforeTable - usedByTable;
       if (leftover >= areaHeight) {
@@ -4432,32 +5233,52 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     while (index < _items.length) {
       final int remaining = _items.length - index;
       // Capacity without reserving totals space
-      final int contCapNoTotals = ((bodyHeightBudget - tableHeaderHeight) / tableRowHeight).floor().clamp(1, remaining);
+      final int contCapNoTotals =
+          ((bodyHeightBudget - tableHeaderHeight) / tableRowHeight)
+              .floor()
+              .clamp(1, remaining);
       bool isLast = false;
       int takeCount;
       if (contCapNoTotals >= remaining) {
         // This page can be the last: reserve space for totals
-        final int contCapWithTotals = ((bodyHeightBudget - tableHeaderHeight - tableFooterRowsHeight) / tableRowHeight).floor().clamp(1, remaining);
+        final int contCapWithTotals =
+            ((bodyHeightBudget - tableHeaderHeight - tableFooterRowsHeight) /
+                    tableRowHeight)
+                .floor()
+                .clamp(1, remaining);
         takeCount = contCapWithTotals;
         isLast = true;
       } else {
         takeCount = contCapNoTotals;
       }
 
-      final List<_OfferItem> chunk = _items.skip(index).take(takeCount).toList();
+      final List<_OfferItem> chunk = _items
+          .skip(index)
+          .take(takeCount)
+          .toList();
       index += chunk.length;
       if (index >= _items.length) {
         isLast = true;
       }
 
       final List<Widget> children = [
-        _buildOfferTableSection(context, chunk, showEditorControls: false, showTotals: isLast),
+        _buildOfferTableSection(
+          context,
+          chunk,
+          showEditorControls: false,
+          showTotals: isLast,
+        ),
       ];
 
       if (isLast && !areaStatementShifted) {
         // Try to shift Area Statement into the remaining space of this last table page
-        final double usedByTable = tableHeaderHeight + (tableRowHeight * chunk.length) + tableFooterRowsHeight;
-        final double leftover = bodyHeightBudget - usedByTable; // continuation pages have no dynamic pre-table blocks
+        final double usedByTable =
+            tableHeaderHeight +
+            (tableRowHeight * chunk.length) +
+            tableFooterRowsHeight;
+        final double leftover =
+            bodyHeightBudget -
+            usedByTable; // continuation pages have no dynamic pre-table blocks
         final double areaHeight = _measureAreaStatementHeight(contentWidth);
         if (leftover >= areaHeight) {
           children.add(const SizedBox(height: 16));
@@ -4498,7 +5319,10 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
 
       // Try to pack initial Commercial rows on this Terms page
       while (commercialStart < commercialRows.length) {
-        final rowHeight = _measureCommercialRowHeight(contentWidth, commercialRows[commercialStart]);
+        final rowHeight = _measureCommercialRowHeight(
+          contentWidth,
+          commercialRows[commercialStart],
+        );
         if (rowHeight <= leftover) {
           children.add(const SizedBox(height: 12));
           children.add(_buildCommercialRowsTable(commercialStart, 1));
@@ -4520,11 +5344,13 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
         }
       }
 
-      pages.add(Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start, 
-        children: children
-      ));
+      pages.add(
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: children,
+        ),
+      );
     }
 
     // Remaining Commercial rows on new pages; put Signature on the last where possible
@@ -4534,9 +5360,16 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
 
       int taken = 0;
       while (commercialStart + taken < commercialRows.length) {
-        final rowHeight = _measureCommercialRowHeight(contentWidth, commercialRows[commercialStart + taken]);
+        final rowHeight = _measureCommercialRowHeight(
+          contentWidth,
+          commercialRows[commercialStart + taken],
+        );
         if (rowHeight <= leftover) {
-          children.add(taken == 0 ? _buildCommercialRowsTable(commercialStart + taken, 1) : _buildCommercialRowsTable(commercialStart + taken, 1));
+          children.add(
+            taken == 0
+                ? _buildCommercialRowsTable(commercialStart + taken, 1)
+                : _buildCommercialRowsTable(commercialStart + taken, 1),
+          );
           leftover -= rowHeight + 12;
           if (commercialStart + taken < commercialRows.length - 1) {
             children.add(const SizedBox(height: 12));
@@ -4558,29 +5391,29 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
         }
       }
 
-      pages.add(Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start, 
-        children: children
-      ));
+      pages.add(
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: children,
+        ),
+      );
     }
 
     if (!signaturePlaced) {
       pages.add(_buildOfferSignaturePage(context));
     }
     // Append Technical Specification pages as the last pages (17 rows per page)
-    pages.addAll(_buildTechnicalSpecificationPages(
-      context,
-      maxWidth: contentWidth,
-      maxHeight: bodyHeightBudget,
-    ));
+    pages.addAll(
+      _buildTechnicalSpecificationPages(
+        context,
+        maxWidth: contentWidth,
+        maxHeight: bodyHeightBudget,
+      ),
+    );
 
     return pages;
   }
-
-
-
-
 
   /// Builds an A4 page with proper letterhead positioning
   /// Ensures content never overlaps with header or footer images
@@ -4588,7 +5421,8 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
   Widget _buildA4Page(double targetWidth, double targetHeight, Widget body) {
     final double pxPerMm = targetWidth / _a4WidthMm;
     final double headerMargin = 5 * pxPerMm; // 5mm from left/top/right
-    final double footerMargin = 6 * pxPerMm; // 6mm from left/bottom/right (increased from 3mm)
+    final double footerMargin =
+        6 * pxPerMm; // 6mm from left/bottom/right (increased from 3mm)
     final double contentLeft = 14 * pxPerMm; // 14mm from left
     final double contentRight = 10 * pxPerMm; // 10mm from right
 
@@ -4613,7 +5447,12 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
-                padding: EdgeInsets.fromLTRB(headerMargin, headerMargin, headerMargin, 0),
+                padding: EdgeInsets.fromLTRB(
+                  headerMargin,
+                  headerMargin,
+                  headerMargin,
+                  0,
+                ),
                 child: Image.asset(
                   'assets/Header.png',
                   fit: BoxFit.fitWidth,
@@ -4622,12 +5461,22 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
               ),
               Expanded(
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(contentLeft, 16, contentRight, 16),
+                  padding: EdgeInsets.fromLTRB(
+                    contentLeft,
+                    16,
+                    contentRight,
+                    16,
+                  ),
                   child: body,
                 ),
               ),
               Padding(
-                padding: EdgeInsets.fromLTRB(footerMargin, 0, footerMargin, footerMargin),
+                padding: EdgeInsets.fromLTRB(
+                  footerMargin,
+                  0,
+                  footerMargin,
+                  footerMargin,
+                ),
                 child: Image.asset(
                   'assets/Footer.png',
                   fit: BoxFit.fitWidth,
@@ -4682,7 +5531,10 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                 padding: const EdgeInsets.symmetric(horizontal: 6),
                 child: const Text(
                   'Area Statement:',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontStyle: FontStyle.italic),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontStyle: FontStyle.italic,
+                  ),
                 ),
               ),
             ),
@@ -4706,7 +5558,10 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
               _NoteParagraph(
                 textSpans: [
                   TextSpan(text: 'Quantity quoted shall be '),
-                  TextSpan(text: 'PROVISIONAL', style: TextStyle(fontWeight: FontWeight.w700)),
+                  TextSpan(
+                    text: 'PROVISIONAL',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
                   TextSpan(
                     text:
                         ' and is subject to final measurement of the formwork supplied to site. The formwork quantity shall be based on (sq.m.) of panels supplied. The raw material used for the aluminium formwork shall be aluminium alloy 6061-T6. All materials shall be 100% brand new.',
@@ -4735,7 +5590,10 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                     text:
                         'Embedded MS ties (more than 400mm, expansion joint, etc.) if required, shall be provided with extra charge. These accessories will have an additional allowance of ',
                   ),
-                  TextSpan(text: 'Ten Percent (10%)', style: TextStyle(fontWeight: FontWeight.w700)),
+                  TextSpan(
+                    text: 'Ten Percent (10%)',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
                   TextSpan(
                     text:
                         ' for site wastage. Kicker Soldier to be used for further ensuring the horizontality of the kicker and Waller (square pipe) to be used for further ensuring the horizontality of the wall shall be provided by Seller.',
@@ -4766,13 +5624,13 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
 
   // Helper: the Area Statement bullet list items used in Terms section
   List<String> _areaStatementItems() => [
-        'Quantity mentioned above is only tentative and subject to change based on the final design.',
-        'The above-mentioned quantity is calculated for typical floor only.',
-        'Any extra accessories required like embedded ties will be charged extra.',
-        'The Monolithic formwork set will be manufactured and supplied from Tobler India factory in India.',
-        'The price quoted above is Inclusive of transportation charges from factory to site.',
-        'Unloading of the material at site is under the buyer\'s scope.',
-      ];
+    'Quantity mentioned above is only tentative and subject to change based on the final design.',
+    'The above-mentioned quantity is calculated for typical floor only.',
+    'Any extra accessories required like embedded ties will be charged extra.',
+    'The Monolithic formwork set will be manufactured and supplied from Tobler India factory in India.',
+    'The price quoted above is Inclusive of transportation charges from factory to site.',
+    'Unloading of the material at site is under the buyer\'s scope.',
+  ];
 
   // Helper: a standalone Area Statement section for shifting into leftover space
   Widget _buildAreaStatementSection() {
@@ -4794,13 +5652,17 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
             padding: const EdgeInsets.symmetric(horizontal: 6),
             child: const Text(
               'Area Statement:',
-              style: TextStyle(fontWeight: FontWeight.w700, fontStyle: FontStyle.italic),
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontStyle: FontStyle.italic,
+              ),
             ),
           ),
         ),
       ],
     );
   }
+
   // Helper: the remainder of Terms page when Area Statement is moved elsewhere
   Widget _buildTermsRemainderSection() {
     return Column(
@@ -4822,7 +5684,10 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
               _NoteParagraph(
                 textSpans: [
                   TextSpan(text: 'Quantity quoted shall be '),
-                  TextSpan(text: 'PROVISIONAL', style: TextStyle(fontWeight: FontWeight.w700)),
+                  TextSpan(
+                    text: 'PROVISIONAL',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
                   TextSpan(
                     text:
                         ' and is subject to final measurement of the formwork supplied to site. The formwork quantity shall be based on (sq.m.) of panels supplied. The raw material used for the aluminium formwork shall be aluminium alloy 6061-T6. All materials shall be 100% brand new.',
@@ -4851,7 +5716,10 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                     text:
                         'Embedded MS ties (more than 400mm, expansion joint, etc.) if required, shall be provided with extra charge. These accessories will have an additional allowance of ',
                   ),
-                  TextSpan(text: 'Ten Percent (10%)', style: TextStyle(fontWeight: FontWeight.w700)),
+                  TextSpan(
+                    text: 'Ten Percent (10%)',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
                   TextSpan(
                     text:
                         ' for site wastage. Kicker Soldier to be used for further ensuring the horizontality of the kicker and Waller (square pipe) to be used for further ensuring the horizontality of the wall shall be provided by Seller.',
@@ -4894,7 +5762,8 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
         textDirection: ui.TextDirection.ltr,
         maxLines: null,
       )..layout(maxWidth: textWidth);
-      final rowHeight = math.max(tp.height, 14) + 8; // bullet font 14, vertical padding 4*2
+      final rowHeight =
+          math.max(tp.height, 14) + 8; // bullet font 14, vertical padding 4*2
       total += rowHeight;
     }
     // Add container paddings top 18 + bottom 12
@@ -4905,9 +5774,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
   Widget _buildBulletedList(List<String> items) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (final line in items) _bulletRow(line),
-      ],
+      children: [for (final line in items) _bulletRow(line)],
     );
   }
 
@@ -4923,25 +5790,22 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              text, 
-              style: _baseTextStyle,
-              textAlign: _textAlignment,
-            ),
+            child: Text(text, style: _baseTextStyle, textAlign: _textAlignment),
           ),
         ],
       ),
     );
   }
 
-  
-
   // Commercial rows abstraction for granular measurement/packing
 
   /// Builds payment terms spans from sidebar controllers
   List<InlineSpan> _buildPaymentTermsSpans() {
-    InlineSpan span(String text, {bool bold = false}) => TextSpan(text: text, style: bold ? const TextStyle(fontWeight: FontWeight.w700) : null);
-    
+    InlineSpan span(String text, {bool bold = false}) => TextSpan(
+      text: text,
+      style: bold ? const TextStyle(fontWeight: FontWeight.w700) : null,
+    );
+
     List<InlineSpan> paymentTermsSpans = [];
     for (int i = 0; i < _paymentTermControllers.length; i++) {
       final controller = _paymentTermControllers[i];
@@ -4950,38 +5814,80 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
         paymentTermsSpans.add(span(controller.text, bold: true));
       }
     }
-    
+
     // Return default terms if no custom terms are set
     if (paymentTermsSpans.isEmpty) {
       return [
-        span('25% ', bold: true), 
-        const TextSpan(text: 'Advance Along with Purchase Order\n'), 
-        span('25% ', bold: true), 
-        const TextSpan(text: 'Payment after shell plan approval\n'), 
-        span('50% ', bold: true), 
-        const TextSpan(text: 'Payment Before Dispatch of the material')
+        span('25% ', bold: true),
+        const TextSpan(text: 'Advance Along with Purchase Order\n'),
+        span('25% ', bold: true),
+        const TextSpan(text: 'Payment after shell plan approval\n'),
+        span('50% ', bold: true),
+        const TextSpan(text: 'Payment Before Dispatch of the material'),
       ];
     }
-    
+
     return paymentTermsSpans;
   }
 
   List<_CommercialRow> _commercialRows() {
     final String dateStr = DateFormat('dd/MM/yyyy').format(DateTime.now());
-    InlineSpan span(String text, {bool bold = false}) => TextSpan(text: text, style: bold ? const TextStyle(fontWeight: FontWeight.w700) : null);
+    InlineSpan span(String text, {bool bold = false}) => TextSpan(
+      text: text,
+      style: bold ? const TextStyle(fontWeight: FontWeight.w700) : null,
+    );
     return [
-      _CommercialRow('Delivery Date:', TextSpan(text: _deliveryTimeCtl.text.isNotEmpty ? _deliveryTimeCtl.text : 'The first shipment shall leave the factory within (08) working weeks from the date of shell drawing confirmation by client.')),
-      _CommercialRow('Technical Services:', TextSpan(text: "Tobler's shell drawings will be ready in two (02) weeks' time (from date of receive full complete set of architectural and structural drawings for construction and full reply to our technical queries whichever is later) and will be sent to Client for verifying of all the dimensions, positioning, opening etc. Client shall sign and return to us after confirmation of acceptance of the shell drawings.")),
-      _CommercialRow('Setting Up Support:', TextSpan(children: [span('Two (02) Supervisor per set will be provided '), span('Free of charge', bold: true), span(' by Tobler to assist in the first erection of the formwork equipment until 2 levels of casting or for a period of not exceeding Eight (08) weeks. The seller\'s site engineer shall visit the site for site training prior to arrival of materials. The Client shall provide suitable local accommodation (at least 1 room per field specialist) and transportation for the field specialist during his course of work/stay. If the client cannot arrange the accommodation, Tobler will arrange the accommodation & shall be reimbursed or charged back to the client.')])),
-      _CommercialRow('Payment Terms:', TextSpan(children: _buildPaymentTermsSpans())),
-      _CommercialRow('Nalco Rates:', TextSpan(text: '${_nalcoPriceCtl.text.isNotEmpty ? _nalcoPriceCtl.text : 'Rs. 267/kg'} Nalco has been considered of date: $dateStr.')),
+      _CommercialRow(
+        'Delivery Date:',
+        TextSpan(
+          text: _deliveryTimeCtl.text.isNotEmpty
+              ? _deliveryTimeCtl.text
+              : 'The first shipment shall leave the factory within (08) working weeks from the date of shell drawing confirmation by client.',
+        ),
+      ),
+      _CommercialRow(
+        'Technical Services:',
+        TextSpan(
+          text:
+              "Tobler's shell drawings will be ready in two (02) weeks' time (from date of receive full complete set of architectural and structural drawings for construction and full reply to our technical queries whichever is later) and will be sent to Client for verifying of all the dimensions, positioning, opening etc. Client shall sign and return to us after confirmation of acceptance of the shell drawings.",
+        ),
+      ),
+      _CommercialRow(
+        'Setting Up Support:',
+        TextSpan(
+          children: [
+            span('Two (02) Supervisor per set will be provided '),
+            span('Free of charge', bold: true),
+            span(
+              ' by Tobler to assist in the first erection of the formwork equipment until 2 levels of casting or for a period of not exceeding Eight (08) weeks. The seller\'s site engineer shall visit the site for site training prior to arrival of materials. The Client shall provide suitable local accommodation (at least 1 room per field specialist) and transportation for the field specialist during his course of work/stay. If the client cannot arrange the accommodation, Tobler will arrange the accommodation & shall be reimbursed or charged back to the client.',
+            ),
+          ],
+        ),
+      ),
+      _CommercialRow(
+        'Payment Terms:',
+        TextSpan(children: _buildPaymentTermsSpans()),
+      ),
+      _CommercialRow(
+        'Nalco Rates:',
+        TextSpan(
+          text:
+              '${_nalcoPriceCtl.text.isNotEmpty ? _nalcoPriceCtl.text : 'Rs. 267/kg'} Nalco has been considered of date: $dateStr.',
+        ),
+      ),
     ];
   }
 
-  double _measureCommercialRowHeight(double maxContentWidth, _CommercialRow row) {
+  double _measureCommercialRowHeight(
+    double maxContentWidth,
+    _CommercialRow row,
+  ) {
     // Table has two columns: label fixed 160, value flexible, 1 px borders approximated ignored for height
     const double labelWidth = 160;
-    final double valueWidth = (maxContentWidth - labelWidth).clamp(0, double.infinity);
+    final double valueWidth = (maxContentWidth - labelWidth).clamp(
+      0,
+      double.infinity,
+    );
     final tp = TextPainter(
       text: TextSpan(style: _baseTextStyle, children: [row.content]),
       textDirection: ui.TextDirection.ltr,
@@ -4993,7 +5899,9 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
   }
 
   double _measureTermsFullHeight(double maxContentWidth) {
-    return _measureAreaStatementHeight(maxContentWidth) + 20 + _measureTermsRemainderHeight(maxContentWidth);
+    return _measureAreaStatementHeight(maxContentWidth) +
+        20 +
+        _measureTermsRemainderHeight(maxContentWidth);
   }
 
   double _measureTermsRemainderHeight(double maxContentWidth) {
@@ -5002,19 +5910,40 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     final List<List<InlineSpan>> paras = [
       [
         const TextSpan(text: 'Quantity quoted shall be '),
-        const TextSpan(text: 'PROVISIONAL', style: TextStyle(fontWeight: FontWeight.w700)),
-        const TextSpan(text: ' and is subject to final measurement of the formwork supplied to site. The formwork quantity shall be based on (sq.m.) of panels supplied. The raw material used for the aluminium formwork shall be aluminium alloy 6061-T6. All materials shall be 100% brand new.'),
+        const TextSpan(
+          text: 'PROVISIONAL',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        const TextSpan(
+          text:
+              ' and is subject to final measurement of the formwork supplied to site. The formwork quantity shall be based on (sq.m.) of panels supplied. The raw material used for the aluminium formwork shall be aluminium alloy 6061-T6. All materials shall be 100% brand new.',
+        ),
       ],
       [
-        const TextSpan(text: 'This formwork system to be supplied shall include accessories such as reusable flat ties, PVC sleeves and reusable pins & wedges for the Construction of one typical floor unit as per current drawings furnished.'),
+        const TextSpan(
+          text:
+              'This formwork system to be supplied shall include accessories such as reusable flat ties, PVC sleeves and reusable pins & wedges for the Construction of one typical floor unit as per current drawings furnished.',
+        ),
       ],
       [
-        const TextSpan(text: 'Embedded MS ties (more than 400mm, expansion joint, etc.) if required, shall be provided with extra charge. These accessories will have an additional allowance of '),
-        const TextSpan(text: 'Ten Percent (10%)', style: TextStyle(fontWeight: FontWeight.w700)),
-        const TextSpan(text: ' for site wastage. Kicker Soldier to be used for further ensuring the horizontality of the kicker and Waller (square pipe) to be used for further ensuring the horizontality of the wall shall be provided by Seller.'),
+        const TextSpan(
+          text:
+              'Embedded MS ties (more than 400mm, expansion joint, etc.) if required, shall be provided with extra charge. These accessories will have an additional allowance of ',
+        ),
+        const TextSpan(
+          text: 'Ten Percent (10%)',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        const TextSpan(
+          text:
+              ' for site wastage. Kicker Soldier to be used for further ensuring the horizontality of the kicker and Waller (square pipe) to be used for further ensuring the horizontality of the wall shall be provided by Seller.',
+        ),
       ],
       [
-        const TextSpan(text: 'System formwork and its accessories, data sheets, relevant engineering drawing and design deliverable shall be supplied in accordance to specifications provided by us.'),
+        const TextSpan(
+          text:
+              'System formwork and its accessories, data sheets, relevant engineering drawing and design deliverable shall be supplied in accordance to specifications provided by us.',
+        ),
       ],
     ];
 
@@ -5038,9 +5967,18 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
       text: TextSpan(
         style: _baseTextStyle,
         children: const [
-          TextSpan(text: 'Our offer is open for acceptance for a period of 7 days from the date of quotation.\n\n'),
-          TextSpan(text: 'Prepared By:\nVishwaranjan Singh (+91 8928301075)\nGeneral Manager – Sales & Marketing\n\n'),
-          TextSpan(text: 'Yours Faithfully,\nNitesh Sharma (+91 9136223366)\nSr. Vice President'),
+          TextSpan(
+            text:
+                'Our offer is open for acceptance for a period of 7 days from the date of quotation.\n\n',
+          ),
+          TextSpan(
+            text:
+                'Prepared By:\nVishwaranjan Singh (+91 8928301075)\nGeneral Manager – Sales & Marketing\n\n',
+          ),
+          TextSpan(
+            text:
+                'Yours Faithfully,\nNitesh Sharma (+91 9136223366)\nSr. Vice President',
+          ),
         ],
       ),
       textDirection: ui.TextDirection.ltr,
@@ -5054,10 +5992,21 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     final rows = _commercialRows().skip(startIndex).take(count).toList();
     TextStyle labelStyle = _baseTextStyle.copyWith(fontWeight: FontWeight.w700);
     TextStyle valueStyle = _baseTextStyle;
-    TableRow row(_CommercialRow r) => TableRow(children: [
-          Container(color: Colors.grey.shade200, padding: const EdgeInsets.all(8), child: Text(r.label, style: labelStyle)),
-          Container(padding: const EdgeInsets.all(8), child: RichText(text: TextSpan(style: valueStyle, children: [r.content]))),
-        ]);
+    TableRow row(_CommercialRow r) => TableRow(
+      children: [
+        Container(
+          color: Colors.grey.shade200,
+          padding: const EdgeInsets.all(8),
+          child: Text(r.label, style: labelStyle),
+        ),
+        Container(
+          padding: const EdgeInsets.all(8),
+          child: RichText(
+            text: TextSpan(style: valueStyle, children: [r.content]),
+          ),
+        ),
+      ],
+    );
     return Table(
       columnWidths: const {0: FixedColumnWidth(160), 1: FlexColumnWidth()},
       border: TableBorder.all(color: Colors.grey.shade500, width: 1),
@@ -5068,7 +6017,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
   Widget _buildOfferSignaturePage(BuildContext context) {
     TextStyle smallEmph = _baseTextStyle.copyWith(fontStyle: FontStyle.italic);
     TextStyle emphBold = _baseTextStyle.copyWith(
-      fontStyle: FontStyle.italic, 
+      fontStyle: FontStyle.italic,
       fontWeight: FontWeight.w700,
     );
 
@@ -5084,109 +6033,208 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
         // Prepared By
         Text('Prepared By:', style: emphBold, textAlign: _textAlignment),
         const SizedBox(height: 4),
-        Text('Vishwaranjan Singh (+91 8928301075)', style: smallEmph, textAlign: _textAlignment),
-        Text('General Manager – Sales & Marketing', style: smallEmph, textAlign: _textAlignment),
+        Text(
+          'Vishwaranjan Singh (+91 8928301075)',
+          style: smallEmph,
+          textAlign: _textAlignment,
+        ),
+        Text(
+          'General Manager – Sales & Marketing',
+          style: smallEmph,
+          textAlign: _textAlignment,
+        ),
         const SizedBox(height: 24),
         // Yours Faithfully
         Text('Yours Faithfully,', style: emphBold, textAlign: _textAlignment),
         const SizedBox(height: 4),
-        Text('Nitesh Sharma (+91 9136223366)', style: smallEmph, textAlign: _textAlignment),
+        Text(
+          'Nitesh Sharma (+91 9136223366)',
+          style: smallEmph,
+          textAlign: _textAlignment,
+        ),
         Text('Sr. Vice President', style: smallEmph, textAlign: _textAlignment),
       ],
     );
   }
+
   // Technical Specification pages: exactly 17 rows per page, repeat header per page
   /// Builds Technical Specification pages with exactly 17 rows per page
   /// maxWidth is used for table width constraints, maxHeight parameter is kept for compatibility but not used
-  List<Widget> _buildTechnicalSpecificationPages(BuildContext context, {double? maxWidth, double? maxHeight}) {
+  List<Widget> _buildTechnicalSpecificationPages(
+    BuildContext context, {
+    double? maxWidth,
+    double? maxHeight,
+  }) {
     TextStyle headStyle = _baseTextStyle.copyWith(fontWeight: FontWeight.w800);
     TextStyle cellStyle = _baseTextStyle;
 
-    TableRow header(List<String> cols) => TableRow(children: [
-          for (final c in cols)
-            Container(
-              color: Colors.grey.shade300,
-              padding: const EdgeInsets.all(6),
-              constraints: const BoxConstraints(
-                minHeight: 40,
-                maxHeight: 60,
-              ),
-              child: Text(
-                c, 
-                style: headStyle,
-                softWrap: true,
-                overflow: TextOverflow.visible,
-                maxLines: null,
-              ),
+    TableRow header(List<String> cols) => TableRow(
+      children: [
+        for (final c in cols)
+          Container(
+            color: Colors.grey.shade300,
+            padding: const EdgeInsets.all(6),
+            constraints: const BoxConstraints(minHeight: 40, maxHeight: 60),
+            child: Text(
+              c,
+              style: headStyle,
+              softWrap: true,
+              overflow: TextOverflow.visible,
+              maxLines: null,
             ),
-        ]);
+          ),
+      ],
+    );
 
-    TableRow row(List<String> cols) => TableRow(children: [
-          for (final c in cols)
-            Container(
-              padding: const EdgeInsets.all(6),
-              constraints: const BoxConstraints(
-                minHeight: 40,
-                maxHeight: 80,
-              ),
-              child: Text(
-                c, 
-                style: cellStyle,
-                softWrap: true,
-                overflow: TextOverflow.visible,
-                maxLines: null,
-              ),
+    TableRow row(List<String> cols) => TableRow(
+      children: [
+        for (final c in cols)
+          Container(
+            padding: const EdgeInsets.all(6),
+            constraints: const BoxConstraints(minHeight: 40, maxHeight: 80),
+            child: Text(
+              c,
+              style: cellStyle,
+              softWrap: true,
+              overflow: TextOverflow.visible,
+              maxLines: null,
             ),
-        ]);
+          ),
+      ],
+    );
 
     final List<List<String>> data = [
-      ['1', 'Load calculation details of Aluform panels', 'Wall Panel-65KN/Sqm, Deck Panel-15KN/Sqm'],
-      ['2', 'Load calculation details of MS Bracket', 'SWL-343 kg with FOS 2:1'],
+      [
+        '1',
+        'Load calculation details of Aluform panels',
+        'Wall Panel-65KN/Sqm, Deck Panel-15KN/Sqm',
+      ],
+      [
+        '2',
+        'Load calculation details of MS Bracket',
+        'SWL-343 kg with FOS 2:1',
+      ],
       ['3', 'Load calculation details of MS props/Powder Coated', '15 KN/Sqm'],
       ['4', 'Aluminium Grade & skin thickness', '6061 T6, 4mm±0.2mm'],
       ['5', 'Std Wall Panel Weight 600x2400mm', '27 Kg / M²'],
       ['6', 'Stiffener in Std wall Panels (Heavy 55x75mm)', '8 Nos'],
-      ['7', 'Modulation Drawing Timeline', '15 Working Days after Shell Plan Approval'],
-      ['8', 'Material Dispatch Timeline After Completion of Modulation Drawings', '30 Days'],
+      [
+        '7',
+        'Modulation Drawing Timeline',
+        '15 Working Days after Shell Plan Approval',
+      ],
+      [
+        '8',
+        'Material Dispatch Timeline After Completion of Modulation Drawings',
+        '30 Days',
+      ],
       ['9', 'Aluminium average weight', '22–23 Kg'],
-      ['10', 'Standers panel sizes (Wall/Deck/DP width/Kicker width)', '600*2400mm/600*1200mm/150*300mm/150mm'],
-      ['11', 'Spacing of stiffeners', 'Wall Panel-225-325mm c/c, Deck Panel- 300mm c/c'],
+      [
+        '10',
+        'Standers panel sizes (Wall/Deck/DP width/Kicker width)',
+        '600*2400mm/600*1200mm/150*300mm/150mm',
+      ],
+      [
+        '11',
+        'Spacing of stiffeners',
+        'Wall Panel-225-325mm c/c, Deck Panel- 300mm c/c',
+      ],
       ['12', 'Material Repitation', '150 Nos'],
-      ['13', 'Mode of Measurement', 'Concrete surface area, contact with formwork panels.'],
+      [
+        '13',
+        'Mode of Measurement',
+        'Concrete surface area, contact with formwork panels.',
+      ],
       ['14', 'Stiffeners in Beam Panels, T-Panels', 'U-Stiffener'],
       ['15', 'Stiffeners in Deck Panels', 'I-stiffener'],
       ['16', 'Stiffener Placing', 'Mandatory wherever FSW.'],
-      ['17', 'Double set items', 'Kicker, Brackets, Prop Head, Props, CP components, Staircase Starting Panels'],
-      ['18', 'Chajja Top Panels', 'Single stiffener by using lazer cutting in 8mm'],
+      [
+        '17',
+        'Double set items',
+        'Kicker, Brackets, Prop Head, Props, CP components, Staircase Starting Panels',
+      ],
+      [
+        '18',
+        'Chajja Top Panels',
+        'Single stiffener by using lazer cutting in 8mm',
+      ],
       ['19', 'Slab Attached Brackets', 'As per design requirements'],
       ['20', 'Panel replacement in case of design failure', 'Free of cost'],
-      ['21', 'Site Support Strength per tower', 'Per tower-2 representative till the completion of three floors'],
+      [
+        '21',
+        'Site Support Strength per tower',
+        'Per tower-2 representative till the completion of three floors',
+      ],
       ['22', 'Usage of MS items', 'As per usage shown in offer pages'],
-      ['23', 'Accessories quantities calculation Factors consideration', 'As per site requirement and design'],
-      ['24', 'Aluform Plumbing groove with screw/nuts & diverter box screw/nuts consideration (Yes/No)', 'Yes'],
-      ['25', 'Aluform Drip mould–any Elevation groove consideration (Yes/No)', 'Yes'],
+      [
+        '23',
+        'Accessories quantities calculation Factors consideration',
+        'As per site requirement and design',
+      ],
+      [
+        '24',
+        'Aluform Plumbing groove with screw/nuts & diverter box screw/nuts consideration (Yes/No)',
+        'Yes',
+      ],
+      [
+        '25',
+        'Aluform Drip mould–any Elevation groove consideration (Yes/No)',
+        'Yes',
+      ],
       ['26', 'MS stool per Tower Qty.', '2 Nos/ 500 Sqm'],
       ['27', 'Pin wedge qty. Factor per Sq.m', '15 Nos/ Sqm (Additional-10%)'],
       ['28', 'Props MS or GI coated', 'Powder coated'],
       ['29', 'Wall attached MS Bracket size', '350*1000 mm'],
       ['30', 'MS Bracket Spacing', 'Max- 1200 mm c/c'],
-      ['31', 'Hard pvc sleeves or PP corrugated sheets', 'PP corrugated sheets'],
-      ['32', 'Consumables items quantity for how many floors considering', '1st Floor'],
-      ['33', '3rd Party Checks for Aluform material & all MS accessories testing reports (Yes/No)', 'Yes'],
+      [
+        '31',
+        'Hard pvc sleeves or PP corrugated sheets',
+        'PP corrugated sheets',
+      ],
+      [
+        '32',
+        'Consumables items quantity for how many floors considering',
+        '1st Floor',
+      ],
+      [
+        '33',
+        '3rd Party Checks for Aluform material & all MS accessories testing reports (Yes/No)',
+        'Yes',
+      ],
       ['34', 'C or SL making with (Extrusion/Panel Sheet)', 'Extrusion'],
-      ['35', 'Beam Bottom panel making with (Extrusion/Panel Sheet)', 'Extrusion'],
-      ['36', 'Waller/Tie rod provisions for staircase & any special areas', 'Yes'],
+      [
+        '35',
+        'Beam Bottom panel making with (Extrusion/Panel Sheet)',
+        'Extrusion',
+      ],
+      [
+        '36',
+        'Waller/Tie rod provisions for staircase & any special areas',
+        'Yes',
+      ],
       ['37', 'Chajja top closing (Yes/No)', 'Yes'],
       ['38', 'Staircase mid-landing top closing (Yes/No)', 'Yes'],
       ['39', 'Right Angle Alignment Pipe Consideration for Lifts', 'Yes'],
       ['40', 'Riv welded or Bolted', 'Bolted'],
       ['41', 'SL cap with hole (Yes/No)', 'Yes'],
-      ['42', 'Sunken material (Aluform/MS)', 'Upto 50 mm providing in MS, above 50mm in providing Aluminium'],
+      [
+        '42',
+        'Sunken material (Aluform/MS)',
+        'Upto 50 mm providing in MS, above 50mm in providing Aluminium',
+      ],
       ['43', '75mm & above height Rocker stiffeners provision (Yes/No)', 'Yes'],
-      ['44', 'Beam side panel (If beam panel height is 600mm and above) 2 wall ties provision (Yes/No)', 'Yes'],
+      [
+        '44',
+        'Beam side panel (If beam panel height is 600mm and above) 2 wall ties provision (Yes/No)',
+        'Yes',
+      ],
       ['45', 'Panel edges Copeing, (Yes/No) of sets?', '2 Set'],
       ['46', 'Hard degreased design, laminated?', '2 Set'],
-      ['47', 'Remark on design', 'No escalation or de-escalation after PO confirmation'],
+      [
+        '47',
+        'Remark on design',
+        'No escalation or de-escalation after PO confirmation',
+      ],
     ];
 
     final List<Widget> pages = [];
@@ -5209,7 +6257,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
       // Take exactly 17 rows per page (or remaining rows if less than 17)
       final int remainingRows = data.length - index;
       final int rowsToTake = math.min(rowsPerPage, remainingRows);
-      
+
       for (int i = 0; i < rowsToTake; i++) {
         chunk.add(data[index + i]);
       }
@@ -5225,7 +6273,9 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(child: Text('TECHNICAL SPECIFICATION SHEET', style: headStyle)),
+            Center(
+              child: Text('TECHNICAL SPECIFICATION SHEET', style: headStyle),
+            ),
             const SizedBox(height: 12),
             ConstrainedBox(
               constraints: BoxConstraints(maxWidth: tableMaxWidth),
@@ -5256,15 +6306,22 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
           child: _isEditing
               ? Row(
                   children: [
-                    Text('Ref: ', style: _baseTextStyle.copyWith(fontWeight: FontWeight.w700)),
+                    Text(
+                      'Ref: ',
+                      style: _baseTextStyle.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     SizedBox(
                       width: 220,
                       child: TextField(
                         controller: _refNoCtl,
                         decoration: InputDecoration(
-                          isDense: true, 
+                          isDense: true,
                           border: OutlineInputBorder(),
-                          errorText: _refNoCtl.text.contains('//') ? 'Missing project code' : null,
+                          errorText: _refNoCtl.text.contains('//')
+                              ? 'Missing project code'
+                              : null,
                           errorStyle: const TextStyle(fontSize: 10),
                         ),
                         style: _textFieldStyle,
@@ -5294,9 +6351,13 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                           // Force regeneration using admin_response data
                           if (_adminResponseData != null) {
                             _refNoCtl.text = _generateRef();
-                            debugPrint('DEBUG: Manually regenerated ref: ${_refNoCtl.text}');
+                            debugPrint(
+                              'DEBUG: Manually regenerated ref: ${_refNoCtl.text}',
+                            );
                           } else {
-                            debugPrint('DEBUG: Cannot regenerate ref - admin_response data not available');
+                            debugPrint(
+                              'DEBUG: Cannot regenerate ref - admin_response data not available',
+                            );
                           }
                         });
                       },
@@ -5304,21 +6365,32 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                     ),
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
-                        color: _getCurrentRevisionNumber() > 0 ? Colors.orange[100] : Colors.blue[100],
+                        color: _getCurrentRevisionNumber() > 0
+                            ? Colors.orange[100]
+                            : Colors.blue[100],
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: _getCurrentRevisionNumber() > 0 ? Colors.orange : Colors.blue,
+                          color: _getCurrentRevisionNumber() > 0
+                              ? Colors.orange
+                              : Colors.blue,
                           width: 1,
                         ),
                       ),
                       child: Text(
-                        _getCurrentRevisionNumber() > 0 ? 'Revision ${_getCurrentRevisionNumber()}' : 'Initial Offer',
+                        _getCurrentRevisionNumber() > 0
+                            ? 'Revision ${_getCurrentRevisionNumber()}'
+                            : 'Initial Offer',
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
-                          color: _getCurrentRevisionNumber() > 0 ? Colors.orange[700] : Colors.blue[700],
+                          color: _getCurrentRevisionNumber() > 0
+                              ? Colors.orange[700]
+                              : Colors.blue[700],
                         ),
                       ),
                     ),
@@ -5337,29 +6409,45 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                             style: TextStyle(fontWeight: FontWeight.w700),
                           ),
                           TextSpan(
-                            text: _refNoCtl.text.isNotEmpty ? _refNoCtl.text : autoRef,
-                            style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.blue),
+                            text: _refNoCtl.text.isNotEmpty
+                                ? _refNoCtl.text
+                                : autoRef,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: Colors.blue,
+                            ),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
-                        color: _getCurrentRevisionNumber() > 0 ? Colors.orange[100] : Colors.blue[100],
+                        color: _getCurrentRevisionNumber() > 0
+                            ? Colors.orange[100]
+                            : Colors.blue[100],
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: _getCurrentRevisionNumber() > 0 ? Colors.orange : Colors.blue,
+                          color: _getCurrentRevisionNumber() > 0
+                              ? Colors.orange
+                              : Colors.blue,
                           width: 1,
                         ),
                       ),
                       child: Text(
-                        _getCurrentRevisionNumber() > 0 ? 'Revision ${_getCurrentRevisionNumber()}' : 'Initial Offer',
+                        _getCurrentRevisionNumber() > 0
+                            ? 'Revision ${_getCurrentRevisionNumber()}'
+                            : 'Initial Offer',
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
-                          color: _getCurrentRevisionNumber() > 0 ? Colors.orange[700] : Colors.blue[700],
+                          color: _getCurrentRevisionNumber() > 0
+                              ? Colors.orange[700]
+                              : Colors.blue[700],
                         ),
                       ),
                     ),
@@ -5369,7 +6457,10 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
         _isEditing
             ? Row(
                 children: [
-                  Text('Date: ', style: _baseTextStyle.copyWith(fontWeight: FontWeight.w700)),
+                  Text(
+                    'Date: ',
+                    style: _baseTextStyle.copyWith(fontWeight: FontWeight.w700),
+                  ),
                   TextButton.icon(
                     icon: const Icon(Icons.calendar_today, size: 14),
                     label: Text(dateStr, style: _baseTextStyle),
@@ -5395,8 +6486,8 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                   style: _baseTextStyle,
                   children: [
                     TextSpan(
-                      text: 'Date: ', 
-                      style: TextStyle(fontWeight: FontWeight.w700)
+                      text: 'Date: ',
+                      style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                     TextSpan(text: dateStr),
                   ],
@@ -5412,18 +6503,28 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('To:', style: _baseTextStyle.copyWith(fontWeight: FontWeight.w700)),
+        Text(
+          'To:',
+          style: _baseTextStyle.copyWith(fontWeight: FontWeight.w700),
+        ),
         const SizedBox(height: 4),
         _isEditing
             ? SizedBox(
                 width: 320,
                 child: TextField(
                   controller: _clientNameCtl,
-                  decoration: const InputDecoration(isDense: true, border: OutlineInputBorder(), labelText: 'Client name (M/s ...)'),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                    labelText: 'Client name (M/s ...)',
+                  ),
                   style: base.copyWith(fontWeight: FontWeight.w700),
                 ),
               )
-            : Text('M/s ${_clientNameCtl.text}', style: base.copyWith(fontWeight: FontWeight.w700)),
+            : Text(
+                'M/s ${_clientNameCtl.text}',
+                style: base.copyWith(fontWeight: FontWeight.w700),
+              ),
         const SizedBox(height: 4),
         _isEditing
             ? Row(
@@ -5433,23 +6534,25 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                       controller: _addressCtl,
                       maxLines: 4,
                       decoration: InputDecoration(
-                        isDense: true, 
-                        border: const OutlineInputBorder(), 
+                        isDense: true,
+                        border: const OutlineInputBorder(),
                         labelText: 'Address',
-                        suffixIcon: _isLoadingAddress 
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: Padding(
-                                padding: EdgeInsets.all(8.0),
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                        suffixIcon: _isLoadingAddress
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: Padding(
+                                  padding: EdgeInsets.all(8.0),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              )
+                            : IconButton(
+                                icon: const Icon(Icons.refresh, size: 20),
+                                tooltip: 'Refresh address from database',
+                                onPressed: _fetchAdminResponseData,
                               ),
-                            )
-                          : IconButton(
-                              icon: const Icon(Icons.refresh, size: 20),
-                              tooltip: 'Refresh address from database',
-                              onPressed: _fetchAdminResponseData,
-                            ),
                       ),
                       style: base,
                     ),
@@ -5491,12 +6594,19 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
         ? Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text('RE: ', style: _baseTextStyle.copyWith(fontWeight: FontWeight.w700)),
+              Text(
+                'RE: ',
+                style: _baseTextStyle.copyWith(fontWeight: FontWeight.w700),
+              ),
               const SizedBox(width: 6),
               Expanded(
                 child: TextField(
                   controller: _projectNameCtl,
-                  decoration: const InputDecoration(isDense: true, border: OutlineInputBorder(), labelText: 'Project name'),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                    labelText: 'Project name',
+                  ),
                   style: base,
                 ),
               ),
@@ -5506,8 +6616,14 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
             text: TextSpan(
               style: base,
               children: [
-                const TextSpan(text: 'RE: ', style: TextStyle(fontWeight: FontWeight.w700)),
-                TextSpan(text: 'Sales Offer for Tobler Monolithic - Formwork System for "${_projectNameCtl.text}"'),
+                const TextSpan(
+                  text: 'RE: ',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                TextSpan(
+                  text:
+                      'Sales Offer for Tobler Monolithic - Formwork System for "${_projectNameCtl.text}"',
+                ),
               ],
             ),
           );
@@ -5558,7 +6674,10 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                     width: 120,
                     child: TextField(
                       controller: _projectStatusCtl,
-                      decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        border: OutlineInputBorder(),
+                      ),
                       style: base.copyWith(fontWeight: FontWeight.w700),
                     ),
                   ),
@@ -5567,7 +6686,10 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                     width: 260,
                     child: TextField(
                       controller: _projectNameCtl,
-                      decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        border: OutlineInputBorder(),
+                      ),
                       style: base,
                     ),
                   ),
@@ -5578,14 +6700,17 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                   style: base,
                   children: [
                     const TextSpan(text: 'Project Reference  '),
-                    TextSpan(text: _projectStatusCtl.text, style: const TextStyle(fontWeight: FontWeight.w700)),
+                    TextSpan(
+                      text: _projectStatusCtl.text,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
                     const TextSpan(text: ' – '),
                     TextSpan(text: '${_projectNameCtl.text}.'),
                   ],
                 ),
               ),
         const SizedBox(height: 6),
-        
+
         // Offer Status Display (removed from document view as requested)
         const SizedBox(height: 0),
         _isEditing
@@ -5596,8 +6721,14 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                   Expanded(
                     child: TextField(
                       controller: _descriptionCtl,
-                      decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
-                      style: base.copyWith(fontWeight: FontWeight.w700, decoration: TextDecoration.underline),
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        border: OutlineInputBorder(),
+                      ),
+                      style: base.copyWith(
+                        fontWeight: FontWeight.w700,
+                        decoration: TextDecoration.underline,
+                      ),
                     ),
                   ),
                 ],
@@ -5609,7 +6740,10 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                     const TextSpan(text: 'Description: '),
                     TextSpan(
                       text: _descriptionCtl.text,
-                      style: const TextStyle(fontWeight: FontWeight.w700, decoration: TextDecoration.underline),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        decoration: TextDecoration.underline,
+                      ),
                     ),
                   ],
                 ),
@@ -5617,107 +6751,164 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
       ],
     );
   }
+
   // Internal: render a partial table section. If showTotals=false, omit totals rows.
-  Widget _buildOfferTableSection(BuildContext context, List<_OfferItem> items,
-      {required bool showEditorControls, required bool showTotals}) {
+  Widget _buildOfferTableSection(
+    BuildContext context,
+    List<_OfferItem> items, {
+    required bool showEditorControls,
+    required bool showTotals,
+  }) {
     final int subTotal = _items.fold(0, (sum, i) => sum + i.amount);
     final int gst = (subTotal * 0.18).round();
     final int grandTotal = subTotal + gst;
 
-            final TextStyle cellStyle = _baseTextStyle;
+    final TextStyle cellStyle = _baseTextStyle;
 
     Widget headerCell(String text, {TextAlign align = TextAlign.left}) =>
-        Container(color: Colors.grey.shade200, padding: const EdgeInsets.all(8), child: Text(text, textAlign: align, style: cellStyle));
+        Container(
+          color: Colors.grey.shade200,
+          padding: const EdgeInsets.all(8),
+          child: Text(text, textAlign: align, style: cellStyle),
+        );
 
-    Widget textCell(String text, {TextAlign align = TextAlign.left}) =>
-        Padding(padding: const EdgeInsets.all(8), child: Text(text, textAlign: align, style: cellStyle));
+    Widget textCell(String text, {TextAlign align = TextAlign.left}) => Padding(
+      padding: const EdgeInsets.all(8),
+      child: Text(text, textAlign: align, style: cellStyle),
+    );
 
     String n(int v) => v.toString();
 
     List<TableRow> rows = [];
 
-    rows.add(TableRow(children: [
-      headerCell('Sr.No', align: TextAlign.center),
-      headerCell('Description'),
-      headerCell('Qty (sq.m)', align: TextAlign.center),
-      headerCell('Rate', align: TextAlign.center),
-      headerCell('Amount', align: TextAlign.center),
-    ]));
+    rows.add(
+      TableRow(
+        children: [
+          headerCell('Sr.No', align: TextAlign.center),
+          headerCell('Description'),
+          headerCell('Qty (sq.m)', align: TextAlign.center),
+          headerCell('Rate', align: TextAlign.center),
+          headerCell('Amount', align: TextAlign.center),
+        ],
+      ),
+    );
 
     for (int idx = 0; idx < items.length; idx++) {
       final item = items[idx];
       final globalIndex = _items.indexOf(item);
       rows.add(
-        TableRow(children: [
-          textCell(item.srNo.toString(), align: TextAlign.center),
-          (_isEditing && showEditorControls)
-              ? Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: TextField(
-                    controller: TextEditingController(text: item.description)
-                      ..selection = TextSelection.collapsed(offset: item.description.length),
-                    onChanged: (v) => _items[globalIndex] = _items[globalIndex].copyWith(description: v),
-                    style: cellStyle,
-                    maxLines: 2,
-                    decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
-                  ),
-                )
-              : textCell(item.description),
-          (_isEditing && showEditorControls)
-              ? Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: TextField(
-                    controller: TextEditingController(text: n(item.qtySqm))
-                      ..selection = TextSelection.collapsed(offset: n(item.qtySqm).length),
-                    keyboardType: TextInputType.number,
-                    onChanged: (v) => setState(() => _items[globalIndex] = _items[globalIndex].copyWith(qtySqm: int.tryParse(v) ?? item.qtySqm)),
-                    textAlign: TextAlign.center,
-                    style: cellStyle,
-                    decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
-                  ),
-                )
-              : textCell(n(item.qtySqm), align: TextAlign.center),
-          (_isEditing && showEditorControls)
-              ? Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: TextField(
-                    controller: TextEditingController(text: n(item.rate))
-                      ..selection = TextSelection.collapsed(offset: n(item.rate).length),
-                    keyboardType: TextInputType.number,
-                    onChanged: (v) => setState(() => _items[globalIndex] = _items[globalIndex].copyWith(rate: int.tryParse(v) ?? item.rate)),
-                    textAlign: TextAlign.center,
-                    style: cellStyle,
-                    decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
-                  ),
-                )
-              : textCell(n(item.rate), align: TextAlign.center),
-          textCell(n(item.amount), align: TextAlign.right),
-        ]),
+        TableRow(
+          children: [
+            textCell(item.srNo.toString(), align: TextAlign.center),
+            (_isEditing && showEditorControls)
+                ? Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: TextField(
+                      controller: TextEditingController(text: item.description)
+                        ..selection = TextSelection.collapsed(
+                          offset: item.description.length,
+                        ),
+                      onChanged: (v) => _items[globalIndex] =
+                          _items[globalIndex].copyWith(description: v),
+                      style: cellStyle,
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  )
+                : textCell(item.description),
+            (_isEditing && showEditorControls)
+                ? Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: TextField(
+                      controller: TextEditingController(text: n(item.qtySqm))
+                        ..selection = TextSelection.collapsed(
+                          offset: n(item.qtySqm).length,
+                        ),
+                      keyboardType: TextInputType.number,
+                      onChanged: (v) => setState(
+                        () => _items[globalIndex] = _items[globalIndex]
+                            .copyWith(qtySqm: int.tryParse(v) ?? item.qtySqm),
+                      ),
+                      textAlign: TextAlign.center,
+                      style: cellStyle,
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  )
+                : textCell(n(item.qtySqm), align: TextAlign.center),
+            (_isEditing && showEditorControls)
+                ? Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: TextField(
+                      controller: TextEditingController(text: n(item.rate))
+                        ..selection = TextSelection.collapsed(
+                          offset: n(item.rate).length,
+                        ),
+                      keyboardType: TextInputType.number,
+                      onChanged: (v) => setState(
+                        () => _items[globalIndex] = _items[globalIndex]
+                            .copyWith(rate: int.tryParse(v) ?? item.rate),
+                      ),
+                      textAlign: TextAlign.center,
+                      style: cellStyle,
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  )
+                : textCell(n(item.rate), align: TextAlign.center),
+            textCell(n(item.amount), align: TextAlign.right),
+          ],
+        ),
       );
     }
 
     if (showTotals) {
-      rows.add(TableRow(children: [
-        textCell(''),
-        textCell('Sub - Total', align: TextAlign.left),
-        textCell(''),
-        textCell(''),
-        textCell(n(subTotal), align: TextAlign.right),
-      ]));
-      rows.add(TableRow(children: [
-        textCell(''),
-        textCell('GST @ 18%', align: TextAlign.left),
-        textCell(''),
-        textCell(''),
-        textCell(n(gst), align: TextAlign.right),
-      ]));
-      rows.add(TableRow(children: [
-        Container(color: Colors.green.shade300, child: textCell('')),
-        Container(color: Colors.green.shade300, child: textCell('Grand Total', align: TextAlign.left)),
-        Container(color: Colors.green.shade300, child: textCell('')),
-        Container(color: Colors.green.shade300, child: textCell('')),
-        Container(color: Colors.green.shade300, child: textCell(n(grandTotal), align: TextAlign.right)),
-      ]));
+      rows.add(
+        TableRow(
+          children: [
+            textCell(''),
+            textCell('Sub - Total', align: TextAlign.left),
+            textCell(''),
+            textCell(''),
+            textCell(n(subTotal), align: TextAlign.right),
+          ],
+        ),
+      );
+      rows.add(
+        TableRow(
+          children: [
+            textCell(''),
+            textCell('GST @ 18%', align: TextAlign.left),
+            textCell(''),
+            textCell(''),
+            textCell(n(gst), align: TextAlign.right),
+          ],
+        ),
+      );
+      rows.add(
+        TableRow(
+          children: [
+            Container(color: Colors.green.shade300, child: textCell('')),
+            Container(
+              color: Colors.green.shade300,
+              child: textCell('Grand Total', align: TextAlign.left),
+            ),
+            Container(color: Colors.green.shade300, child: textCell('')),
+            Container(color: Colors.green.shade300, child: textCell('')),
+            Container(
+              color: Colors.green.shade300,
+              child: textCell(n(grandTotal), align: TextAlign.right),
+            ),
+          ],
+        ),
+      );
     }
 
     return Column(
@@ -5733,12 +6924,14 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                   label: const Text('Add Row'),
                   onPressed: () {
                     setState(() {
-                      _items.add(_OfferItem(
-                        srNo: _items.length + 1,
-                        description: 'New item',
-                        qtySqm: 0,
-                        rate: 0,
-                      ));
+                      _items.add(
+                        _OfferItem(
+                          srNo: _items.length + 1,
+                          description: 'New item',
+                          qtySqm: 0,
+                          rate: 0,
+                        ),
+                      );
                     });
                   },
                 ),
@@ -5780,7 +6973,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
               textAlign: TextAlign.right,
             ),
           ),
-        ]
+        ],
       ],
     );
   }
@@ -5801,11 +6994,21 @@ class _OfferItem {
   final int qtySqm;
   final int rate;
 
-  const _OfferItem({required this.srNo, required this.description, required this.qtySqm, required this.rate});
+  const _OfferItem({
+    required this.srNo,
+    required this.description,
+    required this.qtySqm,
+    required this.rate,
+  });
 
   int get amount => qtySqm * rate;
 
-  _OfferItem copyWith({int? srNo, String? description, int? qtySqm, int? rate}) {
+  _OfferItem copyWith({
+    int? srNo,
+    String? description,
+    int? qtySqm,
+    int? rate,
+  }) {
     return _OfferItem(
       srNo: srNo ?? this.srNo,
       description: description ?? this.description,
@@ -5820,7 +7023,7 @@ class _NoteParagraph extends StatelessWidget {
   final double textHeight;
   final Color textColor;
   final TextAlign textAlignment;
-  
+
   const _NoteParagraph({
     required this.textSpans,
     required this.textHeight,
@@ -5833,12 +7036,8 @@ class _NoteParagraph extends StatelessWidget {
     return RichText(
       textAlign: textAlignment,
       text: TextSpan(
-        style: TextStyle(
-          color: textColor, 
-          fontSize: 12, 
-          height: textHeight
-        ), 
-        children: textSpans
+        style: TextStyle(color: textColor, fontSize: 12, height: textHeight),
+        children: textSpans,
       ),
     );
   }
@@ -5850,8 +7049,10 @@ class OfferLeadSelectionDialog extends StatefulWidget {
   const OfferLeadSelectionDialog({super.key});
 
   @override
-  State<OfferLeadSelectionDialog> createState() => _OfferLeadSelectionDialogState();
+  State<OfferLeadSelectionDialog> createState() =>
+      _OfferLeadSelectionDialogState();
 }
+
 class _OfferLeadSelectionDialogState extends State<OfferLeadSelectionDialog> {
   List<Map<String, dynamic>> _allLeads = [];
   List<Map<String, dynamic>> _filteredLeads = [];
@@ -5885,9 +7086,9 @@ class _OfferLeadSelectionDialogState extends State<OfferLeadSelectionDialog> {
       setState(() {
         _loading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load leads: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to load leads: $e')));
     }
   }
 
@@ -5909,7 +7110,7 @@ class _OfferLeadSelectionDialogState extends State<OfferLeadSelectionDialog> {
   void _createCustomOffer() {
     // Close the current dialog
     Navigator.of(context).pop();
-    
+
     // Show the custom offer editor dialog with empty lead data
     showDialog(
       context: context,
@@ -5959,12 +7160,17 @@ class _OfferLeadSelectionDialogState extends State<OfferLeadSelectionDialog> {
                 prefixIcon: const Icon(Icons.search),
                 hintText: 'Search by project name or client name',
                 isDense: true,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
             ),
             const SizedBox(height: 12),
             if (_loading)
-              const SizedBox(height: 120, child: Center(child: CircularProgressIndicator()))
+              const SizedBox(
+                height: 120,
+                child: Center(child: CircularProgressIndicator()),
+              )
             else
               Flexible(
                 child: _filteredLeads.isEmpty
@@ -5978,7 +7184,9 @@ class _OfferLeadSelectionDialogState extends State<OfferLeadSelectionDialog> {
                           return ListTile(
                             title: Text(
                               lead['project_name'] ?? '',
-                              style: const TextStyle(fontWeight: FontWeight.w700),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                             subtitle: Text(lead['client_name'] ?? ''),
                             trailing: const Icon(Icons.chevron_right),
@@ -5999,6 +7207,7 @@ class _OfferLeadSelectionDialogState extends State<OfferLeadSelectionDialog> {
     );
   }
 }
+
 class _LeadManagementScreenState extends State<LeadManagementScreen> {
   List<Map<String, dynamic>> _leads = [];
   List<Map<String, dynamic>> _filteredLeads = [];
@@ -6582,6 +7791,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       },
     );
   }
+
   Widget _buildHeader(bool isWide) {
     if (isWide) {
       // Desktop layout - matching admin design exactly
@@ -6795,6 +8005,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       ],
     );
   }
+
   Widget _buildStatCard(
     String title,
     String value,
@@ -7379,6 +8590,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       ),
     );
   }
+
   Widget _buildTableRow(Map<String, dynamic> lead, int index) {
     final leadId = lead['lead_id'].toString();
     final totalAmount = _totalAmounts[leadId] ?? 0.0;
@@ -7656,21 +8868,21 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                         children: [
                           Flexible(
                             child: _buildInteractiveIconButton(
-                            icon: Icons.star,
-                            onPressed: () => _toggleStarLead(lead),
-                            tooltip: 'Star Lead',
-                            leadId: leadId,
-                            isStarred: lead['starred'] ?? false,
-                          ),
+                              icon: Icons.star,
+                              onPressed: () => _toggleStarLead(lead),
+                              tooltip: 'Star Lead',
+                              leadId: leadId,
+                              isStarred: lead['starred'] ?? false,
+                            ),
                           ),
                           SizedBox(width: 2),
                           Flexible(
                             child: _buildInteractiveIconButton(
-                            icon: Icons.edit,
-                            onPressed: () => _editLead(lead),
-                            tooltip: 'Edit Lead',
-                            leadId: leadId,
-                          ),
+                              icon: Icons.edit,
+                              onPressed: () => _editLead(lead),
+                              tooltip: 'Edit Lead',
+                              leadId: leadId,
+                            ),
                           ),
                           SizedBox(width: 2),
                           Flexible(
@@ -7684,40 +8896,40 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                           SizedBox(width: 2),
                           Flexible(
                             child: _buildInteractiveIconButton(
-                            icon: Icons.notifications,
-                            onPressed: () => _showAlertsDialog(context, lead),
-                            tooltip: 'Alert',
-                            leadId: leadId,
-                            isAlert: true,
-                          ),
-                          ),
-                          SizedBox(width: 2),
-                          Flexible(
-                            child: _buildInteractiveIconButton(
-                            icon: Icons.chat,
-                            onPressed: () => _showQueryDialog(context, lead),
-                            tooltip: 'Query',
-                            leadId: leadId,
-                            isQuery: true,
-                          ),
+                              icon: Icons.notifications,
+                              onPressed: () => _showAlertsDialog(context, lead),
+                              tooltip: 'Alert',
+                              leadId: leadId,
+                              isAlert: true,
+                            ),
                           ),
                           SizedBox(width: 2),
                           Flexible(
                             child: _buildInteractiveIconButton(
-                            icon: Icons.flag,
-                            onPressed: () => _initializeStatus(lead),
-                            tooltip: 'Initialize Status',
-                            leadId: leadId,
-                          ),
+                              icon: Icons.chat,
+                              onPressed: () => _showQueryDialog(context, lead),
+                              tooltip: 'Query',
+                              leadId: leadId,
+                              isQuery: true,
+                            ),
                           ),
                           SizedBox(width: 2),
                           Flexible(
                             child: _buildInteractiveIconButton(
-                            icon: Icons.delete,
-                            onPressed: () => _deleteLead(lead),
-                            tooltip: 'Delete Lead',
-                            leadId: leadId,
-                            isDestructive: true,
+                              icon: Icons.flag,
+                              onPressed: () => _initializeStatus(lead),
+                              tooltip: 'Initialize Status',
+                              leadId: leadId,
+                            ),
+                          ),
+                          SizedBox(width: 2),
+                          Flexible(
+                            child: _buildInteractiveIconButton(
+                              icon: Icons.delete,
+                              onPressed: () => _deleteLead(lead),
+                              tooltip: 'Delete Lead',
+                              leadId: leadId,
+                              isDestructive: true,
                             ),
                           ),
                         ],
@@ -8018,6 +9230,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       },
     );
   }
+
   Future<void> _deleteLead(Map<String, dynamic> lead) async {
     final leadId = lead['lead_id'].toString();
 
@@ -8818,6 +10031,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       ),
     );
   }
+
   Widget _buildCompleteLeadDetailsHeader(Map<String, dynamic> leadsData) {
     final isMobile = MediaQuery.of(context).size.width < 600;
 
@@ -9367,6 +10581,7 @@ class AddLeadDialog extends StatefulWidget {
   @override
   State<AddLeadDialog> createState() => _AddLeadDialogState();
 }
+
 class _AddLeadDialogState extends State<AddLeadDialog> {
   final _formKey = GlobalKey<FormState>();
   final _projectNameController = TextEditingController();
@@ -9779,6 +10994,7 @@ class _AddLeadDialogState extends State<AddLeadDialog> {
       }
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -11157,6 +12373,7 @@ class _EditLeadDialogState extends State<EditLeadDialog> {
       ),
     );
   }
+
   Future<void> _updateLead() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -12097,6 +13314,7 @@ class SalesDashboardPage extends StatefulWidget {
   @override
   State<SalesDashboardPage> createState() => _SalesDashboardPageState();
 }
+
 class _SalesDashboardPageState extends State<SalesDashboardPage> {
   bool _isSearchExpanded = false;
   final TextEditingController _searchController = TextEditingController();
@@ -12874,6 +14092,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
       },
     );
   }
+
   // Show time period dialog
   void _showTimePeriodDialog() {
     final timePeriods = [
@@ -13608,6 +14827,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
       ),
     );
   }
+
   // Build tablet lead row
   DataRow _buildTabletLeadRow(Map<String, dynamic> lead) {
     final projectId = lead['project_id'] ?? 'N/A';
@@ -14211,6 +15431,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
       ),
     );
   }
+
   Widget _buildHeader() {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -14463,9 +15684,9 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                 size: 48,
                 iconSize: 20,
                 onTap: () {
-                    // Show currency selection dialog
-                    _showCurrencyDialog();
-                  },
+                  // Show currency selection dialog
+                  _showCurrencyDialog();
+                },
               ),
 
               SizedBox(width: 16),
@@ -14478,9 +15699,9 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                 size: 48,
                 iconSize: 20,
                 onTap: () {
-                    // Show time period selection dialog
-                    _showTimePeriodDialog();
-                  },
+                  // Show time period selection dialog
+                  _showTimePeriodDialog();
+                },
               ),
 
               SizedBox(width: 16),
@@ -14494,14 +15715,14 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                 iconSize: 20,
                 hasBadge: true,
                 onTap: () {
-                        // Handle notification tap
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Notifications'),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      },
+                  // Handle notification tap
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Notifications'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
               ),
 
               SizedBox(width: 16),
@@ -14515,14 +15736,14 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                 iconSize: 20,
                 hasBadge: true,
                 onTap: () {
-                        // Handle chat tap
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Chat'),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      },
+                  // Handle chat tap
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Chat'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
               ),
             ],
           );
@@ -14998,6 +16219,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
   List<BarChartGroupData> _buildBarGroups() {
     return _barChartData;
   }
+
   Widget _buildLeadStatusDistributionChart() {
     return Container(
       height: 300,
@@ -15784,6 +17006,7 @@ class AlertsDialog extends StatefulWidget {
   @override
   State<AlertsDialog> createState() => _AlertsDialogState();
 }
+
 class _AlertsDialogState extends State<AlertsDialog> {
   List<Map<String, dynamic>> _alerts = [];
   bool _isLoading = true;

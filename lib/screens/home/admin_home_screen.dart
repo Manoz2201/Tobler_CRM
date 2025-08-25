@@ -73,7 +73,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   int _selectedIndex = 0;
   bool _isCollapsed = false;
   final Map<int, bool> _hoveredItems = {};
-  
+
   // User information state variables
   String _username = '';
   String _userType = '';
@@ -112,29 +112,456 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   Future<void> _loadUserInfo() async {
     try {
       final client = Supabase.instance.client;
-      final user = client.auth.currentUser;
-      
-      if (user != null) {
-        final response = await client
+
+      // Get session from SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final sessionId = prefs.getString('session_id');
+      debugPrint('Session ID from SharedPreferences: $sessionId');
+
+      // Test database connection and see what data is available
+      await _testDatabaseConnection();
+
+      if (sessionId != null) {
+        debugPrint(
+          'Attempting to fetch user data using session_id: $sessionId',
+        );
+
+        // First try to get user from users table
+        var userResponse = await client
             .from('users')
             .select('username, user_type, employee_code')
-            .eq('id', user.id)
-            .single();
-        
-        setState(() {
-          _username = response['username'] ?? '';
-          _userType = response['user_type'] ?? '';
-          _employeeCode = response['employee_code'] ?? '';
-          _isLoadingUserInfo = false;
-        });
-        
-        debugPrint('User info loaded: $_username $_userType($_employeeCode)');
+            .eq('session_id', sessionId)
+            .maybeSingle();
+
+        debugPrint('Users table response (username): $userResponse');
+
+        // If that fails, try with 'Name' column
+        if (userResponse == null) {
+          try {
+            userResponse = await client
+                .from('users')
+                .select('Name, user_type, employee_code')
+                .eq('session_id', sessionId)
+                .maybeSingle();
+            debugPrint('Users table response (Name): $userResponse');
+          } catch (e) {
+            debugPrint('Error fetching with Name column: $e');
+          }
+        }
+
+        if (userResponse != null) {
+          // Handle both column name variations
+          final username =
+              userResponse['username'] ?? userResponse['Name'] ?? '';
+          final userType = userResponse['user_type'] ?? '';
+          final employeeCode = userResponse['employee_code'] ?? '';
+
+          setState(() {
+            _username = username;
+            _userType = userType;
+            _employeeCode = employeeCode;
+            _isLoadingUserInfo = false;
+          });
+          debugPrint(
+            'User info loaded from users table: $_username $_userType($_employeeCode)',
+          );
+          return;
+        }
+
+        // If not found in users table, try dev_user table
+        debugPrint('User not found in users table, trying dev_user table...');
+        var devUserResponse = await client
+            .from('dev_user')
+            .select('username, user_type, employee_code')
+            .eq('session_id', sessionId)
+            .maybeSingle();
+
+        debugPrint('Dev_user table response (username): $devUserResponse');
+
+        // If that fails, try with 'Name' column
+        if (devUserResponse == null) {
+          try {
+            devUserResponse = await client
+                .from('dev_user')
+                .select('Name, user_type, employee_code')
+                .eq('session_id', sessionId)
+                .maybeSingle();
+            debugPrint('Dev_user table response (Name): $devUserResponse');
+          } catch (e) {
+            debugPrint('Error fetching with Name column: $e');
+          }
+        }
+
+        if (devUserResponse != null) {
+          // Handle both column name variations
+          final username =
+              devUserResponse['username'] ?? devUserResponse['Name'] ?? '';
+          final userType = devUserResponse['user_type'] ?? '';
+          final employeeCode = devUserResponse['employee_code'] ?? '';
+
+          setState(() {
+            _username = username;
+            _userType = userType;
+            _employeeCode = employeeCode;
+            _isLoadingUserInfo = false;
+          });
+          debugPrint(
+            'User info loaded from dev_user table: $_username $_userType($_employeeCode)',
+          );
+          return;
+        }
+
+        debugPrint(
+          'User not found in either users or dev_user table with session_id: $sessionId',
+        );
+
+        // Try alternative approach: fetch by email from SharedPreferences
+        debugPrint('Trying alternative approach: fetch by email...');
+        final email = prefs.getString('user_email');
+        if (email != null) {
+          debugPrint('Email from SharedPreferences: $email');
+
+          // Try to get user from users table by email with different column names
+          debugPrint(
+            'Trying to fetch user data with different column name variations...',
+          );
+
+          // First try with 'username' column
+          var userByEmail = await client
+              .from('users')
+              .select('username, user_type, employee_code')
+              .eq('email', email)
+              .maybeSingle();
+
+          debugPrint('User by email from users table (username): $userByEmail');
+
+          // If that fails, try with 'Name' column (as mentioned by user)
+          if (userByEmail == null) {
+            try {
+              userByEmail = await client
+                  .from('users')
+                  .select('Name, user_type, employee_code')
+                  .eq('email', email)
+                  .maybeSingle();
+              debugPrint('User by email from users table (Name): $userByEmail');
+            } catch (e) {
+              debugPrint('Error fetching with Name column: $e');
+            }
+          }
+
+          if (userByEmail != null) {
+            // Handle both column name variations
+            final username =
+                userByEmail['username'] ?? userByEmail['Name'] ?? '';
+            final userType = userByEmail['user_type'] ?? '';
+            final employeeCode = userByEmail['employee_code'] ?? '';
+
+            setState(() {
+              _username = username;
+              _userType = userType;
+              _employeeCode = employeeCode;
+              _isLoadingUserInfo = false;
+            });
+            debugPrint(
+              'User info loaded by email from users table: $_username $_userType($_employeeCode)',
+            );
+            return;
+          }
+
+          // Try to get user from dev_user table by email
+          var devUserByEmail = await client
+              .from('dev_user')
+              .select('username, user_type, employee_code')
+              .eq('email', email)
+              .maybeSingle();
+
+          debugPrint(
+            'User by email from dev_user table (username): $devUserByEmail',
+          );
+
+          // If that fails, try with 'Name' column
+          if (devUserByEmail == null) {
+            try {
+              devUserByEmail = await client
+                  .from('dev_user')
+                  .select('Name, user_type, employee_code')
+                  .eq('email', email)
+                  .maybeSingle();
+              debugPrint(
+                'User by email from dev_user table (Name): $devUserByEmail',
+              );
+            } catch (e) {
+              debugPrint('Error fetching with Name column: $e');
+            }
+          }
+
+          if (devUserByEmail != null) {
+            // Handle both column name variations
+            final username =
+                devUserByEmail['username'] ?? devUserByEmail['Name'] ?? '';
+            final userType = devUserByEmail['user_type'] ?? '';
+            final employeeCode = devUserByEmail['employee_code'] ?? '';
+
+            setState(() {
+              _username = username;
+              _userType = userType;
+              _employeeCode = employeeCode;
+              _isLoadingUserInfo = false;
+            });
+            debugPrint(
+              'User info loaded by email from dev_user table: $_username $_userType($_employeeCode)',
+            );
+            return;
+          }
+        }
+      } else {
+        debugPrint('No session_id found in SharedPreferences');
+
+        // Try alternative approach: fetch by email from SharedPreferences
+        debugPrint('Trying alternative approach: fetch by email...');
+        final email = prefs.getString('user_email');
+        if (email != null) {
+          debugPrint('Email from SharedPreferences: $email');
+
+          // Try to get user from users table by email with different column names
+          debugPrint(
+            'Trying to fetch user data with different column name variations...',
+          );
+
+          // First try with 'username' column
+          var userByEmail = await client
+              .from('users')
+              .select('username, user_type, employee_code')
+              .eq('email', email)
+              .maybeSingle();
+
+          debugPrint('User by email from users table (username): $userByEmail');
+
+          // If that fails, try with 'Name' column (as mentioned by user)
+          if (userByEmail == null) {
+            try {
+              userByEmail = await client
+                  .from('users')
+                  .select('Name, user_type, employee_code')
+                  .eq('email', email)
+                  .maybeSingle();
+              debugPrint('User by email from users table (Name): $userByEmail');
+            } catch (e) {
+              debugPrint('Error fetching with Name column: $e');
+            }
+          }
+
+          if (userByEmail != null) {
+            // Handle both column name variations
+            final username =
+                userByEmail['username'] ?? userByEmail['Name'] ?? '';
+            final userType = userByEmail['user_type'] ?? '';
+            final employeeCode = userByEmail['employee_code'] ?? '';
+
+            setState(() {
+              _username = username;
+              _userType = userType;
+              _employeeCode = employeeCode;
+              _isLoadingUserInfo = false;
+            });
+            debugPrint(
+              'User info loaded by email from users table: $_username $_userType($_employeeCode)',
+            );
+            return;
+          }
+
+          // Try to get user from dev_user table by email
+          var devUserByEmail = await client
+              .from('dev_user')
+              .select('username, user_type, employee_code')
+              .eq('email', email)
+              .maybeSingle();
+
+          debugPrint(
+            'User by email from dev_user table (username): $devUserByEmail',
+          );
+
+          // If that fails, try with 'Name' column
+          if (devUserByEmail == null) {
+            try {
+              devUserByEmail = await client
+                  .from('dev_user')
+                  .select('Name, user_type, employee_code')
+                  .eq('email', email)
+                  .maybeSingle();
+              debugPrint(
+                'User by email from dev_user table (Name): $devUserByEmail',
+              );
+            } catch (e) {
+              debugPrint('Error fetching with Name column: $e');
+            }
+          }
+
+          if (devUserByEmail != null) {
+            // Handle both column name variations
+            final username =
+                devUserByEmail['username'] ?? devUserByEmail['Name'] ?? '';
+            final userType = devUserByEmail['user_type'] ?? '';
+            final employeeCode = devUserByEmail['employee_code'] ?? '';
+
+            setState(() {
+              _username = username;
+              _userType = userType;
+              _employeeCode = employeeCode;
+              _isLoadingUserInfo = false;
+            });
+            debugPrint(
+              'User info loaded by email from dev_user table: $_username $_userType($_employeeCode)',
+            );
+            return;
+          }
+        }
       }
+
+      // Fallback: try to get user from auth if available
+      final authUser = client.auth.currentUser;
+      debugPrint('Auth user: $authUser');
+
+      if (authUser != null) {
+        debugPrint(
+          'Attempting to fetch user data using auth user ID: ${authUser.id}',
+        );
+        var response = await client
+            .from('users')
+            .select('username, user_type, employee_code')
+            .eq('id', authUser.id)
+            .maybeSingle();
+
+        debugPrint('Auth user response (username): $response');
+
+        // If that fails, try with 'Name' column
+        if (response == null) {
+          try {
+            response = await client
+                .from('users')
+                .select('Name, user_type, employee_code')
+                .eq('id', authUser.id)
+                .maybeSingle();
+            debugPrint('Auth user response (Name): $response');
+          } catch (e) {
+            debugPrint('Error fetching with Name column: $e');
+          }
+        }
+
+        if (response != null) {
+          // Handle both column name variations
+          final username = response['username'] ?? response['Name'] ?? '';
+          final userType = response['user_type'] ?? '';
+          final employeeCode = response['employee_code'] ?? '';
+
+          setState(() {
+            _username = username;
+            _userType = userType;
+            _employeeCode = employeeCode;
+            _isLoadingUserInfo = false;
+          });
+          debugPrint(
+            'User info loaded from auth user: $_username $_userType($_employeeCode)',
+          );
+          return;
+        }
+      }
+
+      // If no user data found, set default values
+      setState(() {
+        _username = 'User';
+        _userType = 'Unknown';
+        _employeeCode = 'N/A';
+        _isLoadingUserInfo = false;
+      });
+      debugPrint('No user data found, using default values');
     } catch (e) {
       debugPrint('Error loading user info: $e');
       setState(() {
+        _username = 'Error';
+        _userType = 'Error';
+        _employeeCode = 'Error';
         _isLoadingUserInfo = false;
       });
+    }
+  }
+
+  // Test database connection and see what data is available
+  Future<void> _testDatabaseConnection() async {
+    try {
+      final client = Supabase.instance.client;
+      debugPrint('Testing database connection...');
+
+      // Get a sample user to see the structure
+      final sampleUser = await client
+          .from('users')
+          .select('*')
+          .limit(1)
+          .maybeSingle();
+      debugPrint('Sample user data: $sampleUser');
+
+      // Get a sample dev_user to see the structure
+      final sampleDevUser = await client
+          .from('dev_user')
+          .select('*')
+          .limit(1)
+          .maybeSingle();
+      debugPrint('Sample dev_user data: $sampleDevUser');
+
+      // Try to fetch user data with different column names to see what works
+      if (sampleUser != null) {
+        debugPrint('Testing different column name variations...');
+
+        // Try 'username' column
+        try {
+          final usernameTest = await client
+              .from('users')
+              .select('username')
+              .limit(1)
+              .maybeSingle();
+          debugPrint('Username column test: $usernameTest');
+        } catch (e) {
+          debugPrint('Username column test failed: $e');
+        }
+
+        // Try 'Name' column (as mentioned by user)
+        try {
+          final nameTest = await client
+              .from('users')
+              .select('Name')
+              .limit(1)
+              .maybeSingle();
+          debugPrint('Name column test: $nameTest');
+        } catch (e) {
+          debugPrint('Name column test failed: $e');
+        }
+
+        // Try 'user_type' column
+        try {
+          final userTypeTest = await client
+              .from('users')
+              .select('user_type')
+              .limit(1)
+              .maybeSingle();
+          debugPrint('User_type column test: $userTypeTest');
+        } catch (e) {
+          debugPrint('User_type column test failed: $e');
+        }
+
+        // Try 'employee_code' column
+        try {
+          final employeeCodeTest = await client
+              .from('users')
+              .select('employee_code')
+              .limit(1)
+              .maybeSingle();
+          debugPrint('Employee_code column test: $employeeCodeTest');
+        } catch (e) {
+          debugPrint('Employee_code column test failed: $e');
+        }
+      }
+    } catch (e) {
+      debugPrint('Error testing database connection: $e');
     }
   }
 
@@ -317,9 +744,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                     ),
                     child: Center(
                       child: Text(
-                        _username.isNotEmpty
-                            ? _username[0].toUpperCase()
-                            : 'A',
+                        _username.isNotEmpty ? _username[0].toUpperCase() : 'A',
                         style: const TextStyle(
                           color: Color(0xFF7B1FA2),
                           fontSize: 20,
