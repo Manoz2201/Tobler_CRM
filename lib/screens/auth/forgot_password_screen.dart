@@ -50,7 +50,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Enter your email and we’ll send you a reset link.',
+                  'Enter your email and we\'ll send you a verification code.',
                   style: TextStyle(fontSize: 16, color: Colors.black54),
                   textAlign: TextAlign.center,
                 ),
@@ -97,20 +97,20 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         if (!context.mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Reset link sent! Check your email.'),
+                            content: Text('Verification code sent! Check your email.'),
                           ),
                         );
                       } catch (e) {
                         if (!context.mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Failed to send reset link: $e'),
+                            content: Text('Failed to send verification code: $e'),
                           ),
                         );
                       }
                     }
                   },
-                  child: const Text('Send Reset Link'),
+                  child: const Text('Get Verification Code'),
                 ),
                 const SizedBox(height: 16),
                 Row(
