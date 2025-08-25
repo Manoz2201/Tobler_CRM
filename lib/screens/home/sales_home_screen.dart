@@ -57,6 +57,12 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
   int _selectedIndex = 0;
   final Map<int, bool> _hoveredItems = {};
   bool _isCollapsed = false;
+  
+  // User information state variables
+  String _username = '';
+  String _userType = '';
+  String _employeeCode = '';
+  bool _isLoadingUserInfo = true;
 
   List<NavItem> get _navItems {
     // Sales users get Leads Management navigation item
@@ -74,6 +80,41 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
     const Center(child: Text('Sales Settings')),
     ProfilePage(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserInfo();
+  }
+
+  Future<void> _loadUserInfo() async {
+    try {
+      final client = Supabase.instance.client;
+      final user = client.auth.currentUser;
+      
+      if (user != null) {
+        final response = await client
+            .from('users')
+            .select('username, user_type, employee_code')
+            .eq('id', user.id)
+            .single();
+        
+        setState(() {
+          _username = response['username'] ?? '';
+          _userType = response['user_type'] ?? '';
+          _employeeCode = response['employee_code'] ?? '';
+          _isLoadingUserInfo = false;
+        });
+        
+        debugPrint('User info loaded: $_username $_userType($_employeeCode)');
+      }
+    } catch (e) {
+      debugPrint('Error loading user info: $e');
+      setState(() {
+        _isLoadingUserInfo = false;
+      });
+    }
+  }
 
   void _onItemTapped(int index) {
     // Check if logout button was tapped
@@ -189,10 +230,12 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
                           color: const Color(0xFFF3E5F5),
                           shape: BoxShape.circle,
                         ),
-                        child: const Center(
+                        child: Center(
                           child: Text(
-                            'U',
-                            style: TextStyle(
+                            _username.isNotEmpty
+                                ? _username[0].toUpperCase()
+                                : 'S',
+                            style: const TextStyle(
                               color: Color(0xFF7B1FA2),
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
@@ -206,23 +249,34 @@ class _SalesHomeScreenState extends State<SalesHomeScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Hi,',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black,
+                            if (_isLoadingUserInfo)
+                              const Text(
+                                'Loading...',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black,
+                                ),
+                              )
+                            else ...[
+                              Text(
+                                'Hi, $_username',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black,
+                                ),
                               ),
-                            ),
-                            Text(
-                              'Sales User',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Color(0xFF757575),
+                              Text(
+                                '$_userType($_employeeCode)',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Color(0xFF757575),
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
                               ),
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                            ),
+                            ],
                           ],
                         ),
                       ),

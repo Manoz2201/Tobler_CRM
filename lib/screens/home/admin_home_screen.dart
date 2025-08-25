@@ -73,6 +73,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   int _selectedIndex = 0;
   bool _isCollapsed = false;
   final Map<int, bool> _hoveredItems = {};
+  
+  // User information state variables
+  String _username = '';
+  String _userType = '';
+  String _employeeCode = '';
+  bool _isLoadingUserInfo = true;
 
   List<NavItem> get _navItems {
     // Admin users get all navigation items including Leads Management
@@ -96,6 +102,41 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     ProfilePage(), // Profile
     // Logout is handled separately in _onItemTapped
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserInfo();
+  }
+
+  Future<void> _loadUserInfo() async {
+    try {
+      final client = Supabase.instance.client;
+      final user = client.auth.currentUser;
+      
+      if (user != null) {
+        final response = await client
+            .from('users')
+            .select('username, user_type, employee_code')
+            .eq('id', user.id)
+            .single();
+        
+        setState(() {
+          _username = response['username'] ?? '';
+          _userType = response['user_type'] ?? '';
+          _employeeCode = response['employee_code'] ?? '';
+          _isLoadingUserInfo = false;
+        });
+        
+        debugPrint('User info loaded: $_username $_userType($_employeeCode)');
+      }
+    } catch (e) {
+      debugPrint('Error loading user info: $e');
+      setState(() {
+        _isLoadingUserInfo = false;
+      });
+    }
+  }
 
   void _onItemTapped(int index) {
     // Check if logout button was tapped
@@ -255,6 +296,78 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               ],
             ),
           ),
+          // User Context Section
+          if (!_isCollapsed)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: Colors.grey.shade200, width: 1),
+                ),
+              ),
+              child: Row(
+                children: [
+                  // User Avatar
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF3E5F5),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        _username.isNotEmpty
+                            ? _username[0].toUpperCase()
+                            : 'A',
+                        style: const TextStyle(
+                          color: Color(0xFF7B1FA2),
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // User Info
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_isLoadingUserInfo)
+                          const Text(
+                            'Loading...',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          )
+                        else ...[
+                          Text(
+                            'Hi, $_username',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            '$_userType($_employeeCode)',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           // Navigation Items
           Expanded(
             child: Padding(
