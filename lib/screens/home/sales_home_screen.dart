@@ -2095,11 +2095,20 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
     try {
       final client = Supabase.instance.client;
 
-      // First, get all offers
-      final offersResult = await client
-          .from('offers')
-          .select('*')
-          .order('offer_created', ascending: false);
+      // Admin users see all offers, sales users see only their own offers
+      PostgrestFilterBuilder offersQuery;
+      
+      if (widget.currentUserId == null || widget.currentUserId!.isEmpty) {
+        // Admin user - fetch all offers
+        debugPrint('Admin user: Fetching all offers');
+        offersQuery = client.from('offers').select('*');
+      } else {
+        // Sales user - filter offers by current user ID
+        debugPrint('Sales user: Fetching offers for user ${widget.currentUserId}');
+        offersQuery = client.from('offers').select('*').eq('user_id', widget.currentUserId!);
+      }
+
+      final offersResult = await offersQuery.order('offer_created', ascending: false);
 
       final List<Map<String, dynamic>> offers = List<Map<String, dynamic>>.from(
         offersResult,
