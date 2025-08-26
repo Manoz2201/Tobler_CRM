@@ -1857,8 +1857,8 @@ class _SalesPerformancePageState extends State<SalesPerformancePage> {
           final adminHomeScreen = context
               .findAncestorStateOfType<_AdminHomeScreenState>();
           if (adminHomeScreen != null) {
-            // Sales Performance is at index 2 in the _pages list
-            adminHomeScreen._onItemTapped(2);
+            // Sales Performance is at index 3 in the _pages list
+            adminHomeScreen._onItemTapped(3);
           }
         }
       },
@@ -13701,8 +13701,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           final adminHomeScreen = context
               .findAncestorStateOfType<_AdminHomeScreenState>();
           if (adminHomeScreen != null) {
-            // Sales Performance is at index 2 in the _pages list
-            adminHomeScreen._onItemTapped(2);
+            // Sales Performance is at index 3 in the _pages list
+            adminHomeScreen._onItemTapped(3);
           }
         }
       },
