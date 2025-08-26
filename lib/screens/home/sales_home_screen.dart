@@ -2344,8 +2344,8 @@ class OfferEditorDialog extends StatefulWidget {
   final Map<String, dynamic>? offer; // Add optional offer parameter
 
   const OfferEditorDialog({
-    super.key, 
-    required this.lead, 
+    super.key,
+    required this.lead,
     this.currentUserId,
     this.offer, // Add offer parameter
   });
@@ -3195,7 +3195,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
   void initState() {
     super.initState();
     _offerDate = DateTime.now();
-    
+
     // If editing/viewing an existing offer, load its data
     if (widget.offer != null) {
       _loadExistingOfferData();
@@ -3237,7 +3237,9 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
       _paymentTermControllers = List.generate(_paymentTermCount, (index) {
         switch (index) {
           case 0:
-            return TextEditingController(text: '25% Advance with Purchase Order');
+            return TextEditingController(
+              text: '25% Advance with Purchase Order',
+            );
           case 1:
             return TextEditingController(text: '25% after shell plan approval');
           case 2:
@@ -3272,18 +3274,14 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
   /// Loads existing offer data when editing/viewing an offer
   void _loadExistingOfferData() {
     final offer = widget.offer!;
-    
+
     // Load reference number
     _refNoCtl = TextEditingController(text: offer['ref']?.toString() ?? '');
-    
-    // Load project details
-    _clientNameCtl = TextEditingController(text: offer['client_name']?.toString() ?? '');
-    _addressCtl = TextEditingController(text: offer['project_address']?.toString() ?? '');
-    _projectNameCtl = TextEditingController(text: offer['project_name']?.toString() ?? '');
-    _introNoteCtl = TextEditingController(text: offer['intro_note']?.toString() ?? '');
-    _projectStatusCtl = TextEditingController(text: offer['project_status']?.toString() ?? '');
-    _descriptionCtl = TextEditingController(text: offer['project_description']?.toString() ?? '');
-    
+
+    // Note: Project details (client_name, project_name, address, etc.) are not stored in offers table
+    // They are fetched dynamically from admin_response table in _fetchLeadInfoAndAdminResponseData()
+    // So we'll use default/placeholder values here and let the fetch method populate them
+
     // Load offer items
     _items = [
       _OfferItem(
@@ -3293,11 +3291,15 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
         rate: offer['rate'] ?? 0,
       ),
     ];
-    
+
     // Load sidebar controllers
-    _deliveryTimeCtl = TextEditingController(text: offer['delivery_time']?.toString() ?? '');
-    _nalcoPriceCtl = TextEditingController(text: offer['nalco_price_text']?.toString() ?? '');
-    
+    _deliveryTimeCtl = TextEditingController(
+      text: offer['delivery_time']?.toString() ?? '',
+    );
+    _nalcoPriceCtl = TextEditingController(
+      text: offer['nalco_price_text']?.toString() ?? '',
+    );
+
     // Load payment terms
     List<String> paymentTerms = [];
     if (offer['payment_terms_raw'] != null) {
@@ -3307,9 +3309,13 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
       }
     } else if (offer['payment_terms'] != null) {
       // Fallback to payment_terms (comma-separated string)
-      paymentTerms = offer['payment_terms'].toString().split(',').map((e) => e.trim()).toList();
+      paymentTerms = offer['payment_terms']
+          .toString()
+          .split(',')
+          .map((e) => e.trim())
+          .toList();
     }
-    
+
     // Ensure we have at least 3 payment term controllers
     _paymentTermCount = paymentTerms.length > 3 ? paymentTerms.length : 3;
     _paymentTermControllers = List.generate(_paymentTermCount, (index) {
@@ -3319,7 +3325,9 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
         // Default values for additional controllers
         switch (index) {
           case 0:
-            return TextEditingController(text: '25% Advance with Purchase Order');
+            return TextEditingController(
+              text: '25% Advance with Purchase Order',
+            );
           case 1:
             return TextEditingController(text: '25% after shell plan approval');
           case 2:
@@ -3329,23 +3337,28 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
         }
       }
     });
-    
+
     // Load zoom controller
     _zoomTextController = TextEditingController(text: '100%');
-    
+
     // Load offer letter signature controllers
     _preparedByNameCtl = TextEditingController(text: 'Loading...');
     _preparedByPhoneCtl = TextEditingController(text: 'Loading...');
     _preparedByDesignationCtl = TextEditingController(text: 'Loading...');
     _yoursFaithfullyNameCtl = TextEditingController(text: 'Nitesh Sharma');
     _yoursFaithfullyPhoneCtl = TextEditingController(text: '+91 9136223366');
-    _yoursFaithfullyDesignationCtl = TextEditingController(text: 'Sr. Vice President');
-    
+    _yoursFaithfullyDesignationCtl = TextEditingController(
+      text: 'Sr. Vice President',
+    );
+
     // Set offer status
     _offerStatus = offer['offer_status']?.toString() ?? 'Draft Offer';
-    
+
     // Fetch current user data for "Prepared By" section
     _fetchCurrentUserData();
+    
+    // Fetch lead information and admin_response data to populate project details
+    _fetchLeadInfoAndAdminResponseData();
   }
 
   /// Fetches lead information and admin_response data
@@ -4373,22 +4386,14 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
         'grand_total': grandTotal,
         'nalco_rate': nalcoRate,
         'delivery_time': deliveryTime,
-        'payment_terms': paymentTerms.join(','), // Join as comma-separated string for backward compatibility
+        'payment_terms': paymentTerms.join(
+          ',',
+        ), // Join as comma-separated string for backward compatibility
         'user_id': validUserId, // Only set if valid user_id exists
-        // Project Details - Save complete input values
-        'project_name': _projectNameCtl.text.trim(),
-        'client_name': _clientNameCtl.text.trim(),
-        'project_address': _addressCtl.text.trim(),
-        'project_status': _projectStatusCtl.text.trim(),
-        'project_description': _descriptionCtl.text.trim(),
-        'intro_note': _introNoteCtl.text.trim(),
-
-        // Additional Project Details
-        'nalco_price_text': _nalcoPriceCtl.text
-            .trim(), // Save the complete nalco price text
-        'payment_terms_raw': _paymentTermControllers
-            .map((c) => c.text.trim())
-            .toList(), // Save individual payment terms
+        
+        // Only save columns that exist in the offers table
+        // Note: Project details are fetched dynamically from admin_response table
+        // so we don't need to store them in offers table
       };
 
       debugPrint('DEBUG: Final offerData: $offerData');
