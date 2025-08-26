@@ -2097,18 +2097,26 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
 
       // Admin users see all offers, sales users see only their own offers
       PostgrestFilterBuilder offersQuery;
-      
+
       if (widget.currentUserId == null || widget.currentUserId!.isEmpty) {
         // Admin user - fetch all offers
         debugPrint('Admin user: Fetching all offers');
         offersQuery = client.from('offers').select('*');
       } else {
         // Sales user - filter offers by current user ID
-        debugPrint('Sales user: Fetching offers for user ${widget.currentUserId}');
-        offersQuery = client.from('offers').select('*').eq('user_id', widget.currentUserId!);
+        debugPrint(
+          'Sales user: Fetching offers for user ${widget.currentUserId}',
+        );
+        offersQuery = client
+            .from('offers')
+            .select('*')
+            .eq('user_id', widget.currentUserId!);
       }
 
-      final offersResult = await offersQuery.order('offer_created', ascending: false);
+      final offersResult = await offersQuery.order(
+        'offer_created',
+        ascending: false,
+      );
 
       final List<Map<String, dynamic>> offers = List<Map<String, dynamic>>.from(
         offersResult,
@@ -2233,7 +2241,7 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
 
   void _editOffer(Map<String, dynamic> offer) {
     // Show Offer Editor with the selected offer data in edit mode
-    // Lead information will be fetched dynamically in the OfferEditorDialog
+    // Pass the complete offer data to populate the form
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -2245,6 +2253,7 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
             'id': offer['lead_id'], // For backward compatibility
           },
           currentUserId: widget.currentUserId,
+          offer: offer, // Pass the complete offer data
         );
       },
     );
@@ -2252,7 +2261,7 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
 
   void _viewOffer(Map<String, dynamic> offer) {
     // Show Offer Editor with the selected offer data
-    // Lead information will be fetched dynamically in the OfferEditorDialog
+    // Pass the complete offer data to populate the form
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -2264,6 +2273,7 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
             'id': offer['lead_id'], // For backward compatibility
           },
           currentUserId: widget.currentUserId,
+          offer: offer, // Pass the complete offer data
         );
       },
     );
@@ -2331,8 +2341,14 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
 class OfferEditorDialog extends StatefulWidget {
   final Map<String, dynamic> lead;
   final String? currentUserId;
+  final Map<String, dynamic>? offer; // Add optional offer parameter
 
-  const OfferEditorDialog({super.key, required this.lead, this.currentUserId});
+  const OfferEditorDialog({
+    super.key, 
+    required this.lead, 
+    this.currentUserId,
+    this.offer, // Add offer parameter
+  });
 
   @override
   State<OfferEditorDialog> createState() => _OfferEditorDialogState();
@@ -3179,70 +3195,155 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
   void initState() {
     super.initState();
     _offerDate = DateTime.now();
-    // If a ref is provided (viewing an existing offer), prefer it; otherwise auto-generate
-    final String? incomingRef = widget.lead['ref']?.toString();
-    _refNoCtl = TextEditingController(
-      text: (incomingRef != null && incomingRef.isNotEmpty)
-          ? incomingRef
-          : _generateRef(),
-    );
+    
+    // If editing/viewing an existing offer, load its data
+    if (widget.offer != null) {
+      _loadExistingOfferData();
+    } else {
+      // If a ref is provided (viewing an existing offer), prefer it; otherwise auto-generate
+      final String? incomingRef = widget.lead['ref']?.toString();
+      _refNoCtl = TextEditingController(
+        text: (incomingRef != null && incomingRef.isNotEmpty)
+            ? incomingRef
+            : _generateRef(),
+      );
 
-    // Initialize with placeholder values - will be updated when lead info is fetched
-    _clientNameCtl = TextEditingController(text: 'Loading...');
-    _addressCtl = TextEditingController(text: 'Loading address...');
-    _projectNameCtl = TextEditingController(text: 'Loading...');
+      // Initialize with placeholder values - will be updated when lead info is fetched
+      _clientNameCtl = TextEditingController(text: 'Loading...');
+      _addressCtl = TextEditingController(text: 'Loading address...');
+      _projectNameCtl = TextEditingController(text: 'Loading...');
 
-    _introNoteCtl = TextEditingController(
-      text:
-          'We thank you for inviting us to quote for the supply of our Tobler Monolithic Formwork System.\nOur proposal is set out in the attached document for your kind consideration.',
-    );
-    _projectStatusCtl = TextEditingController(text: 'PROPOSED');
-    _descriptionCtl = TextEditingController(text: '100% New Formwork Set');
+      _introNoteCtl = TextEditingController(
+        text:
+            'We thank you for inviting us to quote for the supply of our Tobler Monolithic Formwork System.\nOur proposal is set out in the attached document for your kind consideration.',
+      );
+      _projectStatusCtl = TextEditingController(text: 'PROPOSED');
+      _descriptionCtl = TextEditingController(text: '100% New Formwork Set');
 
+      _items = [
+        _OfferItem(
+          srNo: 1,
+          description: 'Supply of Aluminium formwork shuttering system.',
+          qtySqm: 1238,
+          rate: 9650,
+        ),
+      ];
+
+      // Initialize sidebar controllers
+      _deliveryTimeCtl = TextEditingController(
+        text: '8 weeks from shell drawing confirmation',
+      );
+      _nalcoPriceCtl = TextEditingController(text: 'Rs. 267/kg');
+      _paymentTermControllers = List.generate(_paymentTermCount, (index) {
+        switch (index) {
+          case 0:
+            return TextEditingController(text: '25% Advance with Purchase Order');
+          case 1:
+            return TextEditingController(text: '25% after shell plan approval');
+          case 2:
+            return TextEditingController(text: '50% before dispatch');
+          default:
+            return TextEditingController(text: '');
+        }
+      });
+
+      // Initialize zoom controller
+      _zoomTextController = TextEditingController(text: '100%');
+
+      // Initialize offer letter signature controllers with placeholder values
+      // These will be populated with actual user data from the database
+      _preparedByNameCtl = TextEditingController(text: 'Loading...');
+      _preparedByPhoneCtl = TextEditingController(text: 'Loading...');
+      _preparedByDesignationCtl = TextEditingController(text: 'Loading...');
+      _yoursFaithfullyNameCtl = TextEditingController(text: 'Nitesh Sharma');
+      _yoursFaithfullyPhoneCtl = TextEditingController(text: '+91 9136223366');
+      _yoursFaithfullyDesignationCtl = TextEditingController(
+        text: 'Sr. Vice President',
+      );
+
+      // Fetch lead information and admin_response data
+      _fetchLeadInfoAndAdminResponseData();
+
+      // Fetch current user data for "Prepared By" section
+      _fetchCurrentUserData();
+    }
+  }
+
+  /// Loads existing offer data when editing/viewing an offer
+  void _loadExistingOfferData() {
+    final offer = widget.offer!;
+    
+    // Load reference number
+    _refNoCtl = TextEditingController(text: offer['ref']?.toString() ?? '');
+    
+    // Load project details
+    _clientNameCtl = TextEditingController(text: offer['client_name']?.toString() ?? '');
+    _addressCtl = TextEditingController(text: offer['project_address']?.toString() ?? '');
+    _projectNameCtl = TextEditingController(text: offer['project_name']?.toString() ?? '');
+    _introNoteCtl = TextEditingController(text: offer['intro_note']?.toString() ?? '');
+    _projectStatusCtl = TextEditingController(text: offer['project_status']?.toString() ?? '');
+    _descriptionCtl = TextEditingController(text: offer['project_description']?.toString() ?? '');
+    
+    // Load offer items
     _items = [
       _OfferItem(
         srNo: 1,
         description: 'Supply of Aluminium formwork shuttering system.',
-        qtySqm: 1238,
-        rate: 9650,
+        qtySqm: offer['qty_sqm'] ?? 0,
+        rate: offer['rate'] ?? 0,
       ),
     ];
-
-    // Initialize sidebar controllers
-    _deliveryTimeCtl = TextEditingController(
-      text: '8 weeks from shell drawing confirmation',
-    );
-    _nalcoPriceCtl = TextEditingController(text: 'Rs. 267/kg');
+    
+    // Load sidebar controllers
+    _deliveryTimeCtl = TextEditingController(text: offer['delivery_time']?.toString() ?? '');
+    _nalcoPriceCtl = TextEditingController(text: offer['nalco_price_text']?.toString() ?? '');
+    
+    // Load payment terms
+    List<String> paymentTerms = [];
+    if (offer['payment_terms_raw'] != null) {
+      // Try to load from payment_terms_raw first
+      if (offer['payment_terms_raw'] is List) {
+        paymentTerms = List<String>.from(offer['payment_terms_raw']);
+      }
+    } else if (offer['payment_terms'] != null) {
+      // Fallback to payment_terms (comma-separated string)
+      paymentTerms = offer['payment_terms'].toString().split(',').map((e) => e.trim()).toList();
+    }
+    
+    // Ensure we have at least 3 payment term controllers
+    _paymentTermCount = paymentTerms.length > 3 ? paymentTerms.length : 3;
     _paymentTermControllers = List.generate(_paymentTermCount, (index) {
-      switch (index) {
-        case 0:
-          return TextEditingController(text: '25% Advance with Purchase Order');
-        case 1:
-          return TextEditingController(text: '25% after shell plan approval');
-        case 2:
-          return TextEditingController(text: '50% before dispatch');
-        default:
-          return TextEditingController(text: '');
+      if (index < paymentTerms.length) {
+        return TextEditingController(text: paymentTerms[index]);
+      } else {
+        // Default values for additional controllers
+        switch (index) {
+          case 0:
+            return TextEditingController(text: '25% Advance with Purchase Order');
+          case 1:
+            return TextEditingController(text: '25% after shell plan approval');
+          case 2:
+            return TextEditingController(text: '50% before dispatch');
+          default:
+            return TextEditingController(text: '');
+        }
       }
     });
-
-    // Initialize zoom controller
+    
+    // Load zoom controller
     _zoomTextController = TextEditingController(text: '100%');
-
-    // Initialize offer letter signature controllers with placeholder values
-    // These will be populated with actual user data from the database
+    
+    // Load offer letter signature controllers
     _preparedByNameCtl = TextEditingController(text: 'Loading...');
     _preparedByPhoneCtl = TextEditingController(text: 'Loading...');
     _preparedByDesignationCtl = TextEditingController(text: 'Loading...');
     _yoursFaithfullyNameCtl = TextEditingController(text: 'Nitesh Sharma');
     _yoursFaithfullyPhoneCtl = TextEditingController(text: '+91 9136223366');
-    _yoursFaithfullyDesignationCtl = TextEditingController(
-      text: 'Sr. Vice President',
-    );
-
-    // Fetch lead information and admin_response data
-    _fetchLeadInfoAndAdminResponseData();
-
+    _yoursFaithfullyDesignationCtl = TextEditingController(text: 'Sr. Vice President');
+    
+    // Set offer status
+    _offerStatus = offer['offer_status']?.toString() ?? 'Draft Offer';
+    
     // Fetch current user data for "Prepared By" section
     _fetchCurrentUserData();
   }
@@ -4184,25 +4285,14 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
           ? int.parse(nalcoRateMatch.group(1)!)
           : 0;
 
-      // Parse delivery time (e.g., "8 weeks from shell drawing confirmation" -> "8")
-      final deliveryTimeText = _deliveryTimeCtl.text;
-      final deliveryTimeMatch = RegExp(
-        r'(\d+)\s*weeks?',
-      ).firstMatch(deliveryTimeText);
-      final String deliveryTime = deliveryTimeMatch != null
-          ? deliveryTimeMatch.group(1)!
-          : deliveryTimeText;
+      // Save delivery time as-is (e.g., "8 weeks from shell drawing confirmation")
+      final String deliveryTime = _deliveryTimeCtl.text.trim();
 
-      // Parse payment terms (e.g., "25% Advance with Purchase Order and 25% after shell plan approval and 50% before dispatch" -> "25,25,50")
-      final paymentTermsText = _paymentTermControllers
-          .map((c) => c.text)
-          .join(' and ');
-      final paymentTermsMatches = RegExp(
-        r'(\d+)%',
-      ).allMatches(paymentTermsText);
-      final String paymentTerms = paymentTermsMatches
-          .map((m) => m.group(1)!)
-          .join(',');
+      // Save payment terms as-is (e.g., ["25% Advance with Purchase Order", "25% after shell plan approval", "50% before dispatch"])
+      final List<String> paymentTerms = _paymentTermControllers
+          .map((c) => c.text.trim())
+          .where((text) => text.isNotEmpty)
+          .toList();
 
       // Prepare offer data - only store lead_id and offer-specific data
       // Lead information (project_id, project_name, client_name, location) will be fetched dynamically
@@ -4283,7 +4373,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
         'grand_total': grandTotal,
         'nalco_rate': nalcoRate,
         'delivery_time': deliveryTime,
-        'payment_terms': paymentTerms,
+        'payment_terms': paymentTerms.join(','), // Join as comma-separated string for backward compatibility
         'user_id': validUserId, // Only set if valid user_id exists
         // Project Details - Save complete input values
         'project_name': _projectNameCtl.text.trim(),
