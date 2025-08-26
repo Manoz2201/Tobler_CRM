@@ -3278,6 +3278,15 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
     // Load reference number
     _refNoCtl = TextEditingController(text: offer['ref']?.toString() ?? '');
 
+    // Initialize project detail controllers with empty values
+    // These will be populated by _fetchLeadInfoAndAdminResponseData()
+    _clientNameCtl = TextEditingController();
+    _projectNameCtl = TextEditingController();
+    _addressCtl = TextEditingController();
+    _introNoteCtl = TextEditingController();
+    _projectStatusCtl = TextEditingController();
+    _descriptionCtl = TextEditingController();
+
     // Note: Project details (client_name, project_name, address, etc.) are not stored in offers table
     // They are fetched dynamically from admin_response table in _fetchLeadInfoAndAdminResponseData()
     // So we'll use default/placeholder values here and let the fetch method populate them
@@ -3356,7 +3365,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
 
     // Fetch current user data for "Prepared By" section
     _fetchCurrentUserData();
-    
+
     // Fetch lead information and admin_response data to populate project details
     _fetchLeadInfoAndAdminResponseData();
   }
@@ -4390,7 +4399,6 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
           ',',
         ), // Join as comma-separated string for backward compatibility
         'user_id': validUserId, // Only set if valid user_id exists
-        
         // Only save columns that exist in the offers table
         // Note: Project details are fetched dynamically from admin_response table
         // so we don't need to store them in offers table
