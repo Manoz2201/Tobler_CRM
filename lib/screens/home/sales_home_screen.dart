@@ -2226,23 +2226,29 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
 
     if (selectedLead != null) {
       // Show Offer Editor as a responsive dialog instead of full screen
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext dialogContext) {
-          return OfferEditorDialog(
-            lead: selectedLead,
-            currentUserId: widget.currentUserId,
+      final Map<String, dynamic>? result =
+          await showDialog<Map<String, dynamic>?>(
+            context: context,
+            barrierDismissible: false,
+            builder: (BuildContext dialogContext) {
+              return OfferEditorDialog(
+                lead: selectedLead,
+                currentUserId: widget.currentUserId,
+              );
+            },
           );
-        },
-      );
+
+      if (!context.mounted) return;
+      if (result != null) {
+        // Saved successfully -> refresh offers
+        await _loadOffers();
+      }
     }
   }
 
   void _editOffer(Map<String, dynamic> offer) {
     // Show Offer Editor with the selected offer data in edit mode
-    // Pass the complete offer data to populate the form
-    showDialog(
+    showDialog<Map<String, dynamic>?>(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext dialogContext) {
@@ -2253,16 +2259,20 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
             'id': offer['lead_id'], // For backward compatibility
           },
           currentUserId: widget.currentUserId,
-          offer: offer, // Pass the complete offer data
+          existingOffer: offer, // Pass the existing offer data for editing
         );
       },
-    );
+    ).then((result) async {
+      if (!context.mounted) return;
+      if (result != null) {
+        await _loadOffers();
+      }
+    });
   }
 
   void _viewOffer(Map<String, dynamic> offer) {
     // Show Offer Editor with the selected offer data
-    // Pass the complete offer data to populate the form
-    showDialog(
+    showDialog<Map<String, dynamic>?>(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext dialogContext) {
@@ -2273,10 +2283,15 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
             'id': offer['lead_id'], // For backward compatibility
           },
           currentUserId: widget.currentUserId,
-          offer: offer, // Pass the complete offer data
+          existingOffer: offer, // Pass the existing offer data for viewing
         );
       },
-    );
+    ).then((result) async {
+      if (!context.mounted) return;
+      if (result != null) {
+        await _loadOffers();
+      }
+    });
   }
 
   void _deleteOffer(Map<String, dynamic> offer) {
@@ -2341,13 +2356,13 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
 class OfferEditorDialog extends StatefulWidget {
   final Map<String, dynamic> lead;
   final String? currentUserId;
-  final Map<String, dynamic>? offer; // Add optional offer parameter
+  final Map<String, dynamic>? existingOffer; // For editing existing offers
 
   const OfferEditorDialog({
     super.key,
     required this.lead,
     this.currentUserId,
-    this.offer, // Add offer parameter
+    this.existingOffer,
   });
 
   @override
@@ -3195,162 +3210,58 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
   void initState() {
     super.initState();
     _offerDate = DateTime.now();
+    // If a ref is provided (viewing an existing offer), prefer it; otherwise auto-generate
+    final String? incomingRef = widget.lead['ref']?.toString();
+    _refNoCtl = TextEditingController(
+      text: (incomingRef != null && incomingRef.isNotEmpty)
+          ? incomingRef
+          : _generateRef(),
+    );
 
-    // If editing/viewing an existing offer, load its data
-    if (widget.offer != null) {
-      _loadExistingOfferData();
-    } else {
-      // If a ref is provided (viewing an existing offer), prefer it; otherwise auto-generate
-      final String? incomingRef = widget.lead['ref']?.toString();
-      _refNoCtl = TextEditingController(
-        text: (incomingRef != null && incomingRef.isNotEmpty)
-            ? incomingRef
-            : _generateRef(),
-      );
+    // Initialize with placeholder values - will be updated when lead info is fetched
+    _clientNameCtl = TextEditingController(text: 'Loading...');
+    _addressCtl = TextEditingController(text: 'Loading address...');
+    _projectNameCtl = TextEditingController(text: 'Loading...');
 
-      // Initialize with placeholder values - will be updated when lead info is fetched
-      _clientNameCtl = TextEditingController(text: 'Loading...');
-      _addressCtl = TextEditingController(text: 'Loading address...');
-      _projectNameCtl = TextEditingController(text: 'Loading...');
+    _introNoteCtl = TextEditingController(
+      text:
+          'We thank you for inviting us to quote for the supply of our Tobler Monolithic Formwork System.\nOur proposal is set out in the attached document for your kind consideration.',
+    );
+    _projectStatusCtl = TextEditingController(text: 'PROPOSED');
+    _descriptionCtl = TextEditingController(text: '100% New Formwork Set');
 
-      _introNoteCtl = TextEditingController(
-        text:
-            'We thank you for inviting us to quote for the supply of our Tobler Monolithic Formwork System.\nOur proposal is set out in the attached document for your kind consideration.',
-      );
-      _projectStatusCtl = TextEditingController(text: 'PROPOSED');
-      _descriptionCtl = TextEditingController(text: '100% New Formwork Set');
-
-      _items = [
-        _OfferItem(
-          srNo: 1,
-          description: 'Supply of Aluminium formwork shuttering system.',
-          qtySqm: 1238,
-          rate: 9650,
-        ),
-      ];
-
-      // Initialize sidebar controllers
-      _deliveryTimeCtl = TextEditingController(
-        text: '8 weeks from shell drawing confirmation',
-      );
-      _nalcoPriceCtl = TextEditingController(text: 'Rs. 267/kg');
-      _paymentTermControllers = List.generate(_paymentTermCount, (index) {
-        switch (index) {
-          case 0:
-            return TextEditingController(
-              text: '25% Advance with Purchase Order',
-            );
-          case 1:
-            return TextEditingController(text: '25% after shell plan approval');
-          case 2:
-            return TextEditingController(text: '50% before dispatch');
-          default:
-            return TextEditingController(text: '');
-        }
-      });
-
-      // Initialize zoom controller
-      _zoomTextController = TextEditingController(text: '100%');
-
-      // Initialize offer letter signature controllers with placeholder values
-      // These will be populated with actual user data from the database
-      _preparedByNameCtl = TextEditingController(text: 'Loading...');
-      _preparedByPhoneCtl = TextEditingController(text: 'Loading...');
-      _preparedByDesignationCtl = TextEditingController(text: 'Loading...');
-      _yoursFaithfullyNameCtl = TextEditingController(text: 'Nitesh Sharma');
-      _yoursFaithfullyPhoneCtl = TextEditingController(text: '+91 9136223366');
-      _yoursFaithfullyDesignationCtl = TextEditingController(
-        text: 'Sr. Vice President',
-      );
-
-      // Fetch lead information and admin_response data
-      _fetchLeadInfoAndAdminResponseData();
-
-      // Fetch current user data for "Prepared By" section
-      _fetchCurrentUserData();
-    }
-  }
-
-  /// Loads existing offer data when editing/viewing an offer
-  void _loadExistingOfferData() {
-    final offer = widget.offer!;
-
-    // Load reference number
-    _refNoCtl = TextEditingController(text: offer['ref']?.toString() ?? '');
-
-    // Initialize project detail controllers with empty values
-    // These will be populated by _fetchLeadInfoAndAdminResponseData()
-    _clientNameCtl = TextEditingController();
-    _projectNameCtl = TextEditingController();
-    _addressCtl = TextEditingController();
-    _introNoteCtl = TextEditingController();
-    _projectStatusCtl = TextEditingController();
-    _descriptionCtl = TextEditingController();
-
-    // Note: Project details (client_name, project_name, address, etc.) are not stored in offers table
-    // They are fetched dynamically from admin_response table in _fetchLeadInfoAndAdminResponseData()
-    // So we'll use default/placeholder values here and let the fetch method populate them
-
-    // Load offer items
     _items = [
       _OfferItem(
         srNo: 1,
         description: 'Supply of Aluminium formwork shuttering system.',
-        qtySqm: offer['qty_sqm'] ?? 0,
-        rate: offer['rate'] ?? 0,
+        qtySqm: 1238,
+        rate: 9650,
       ),
     ];
 
-    // Load sidebar controllers
+    // Initialize sidebar controllers
     _deliveryTimeCtl = TextEditingController(
-      text: offer['delivery_time']?.toString() ?? '',
+      text: '8 weeks from shell drawing confirmation',
     );
-    _nalcoPriceCtl = TextEditingController(
-      text: offer['nalco_price_text']?.toString() ?? '',
-    );
-
-    // Load payment terms
-    List<String> paymentTerms = [];
-    if (offer['payment_terms_raw'] != null) {
-      // Try to load from payment_terms_raw first
-      if (offer['payment_terms_raw'] is List) {
-        paymentTerms = List<String>.from(offer['payment_terms_raw']);
-      }
-    } else if (offer['payment_terms'] != null) {
-      // Fallback to payment_terms (comma-separated string)
-      paymentTerms = offer['payment_terms']
-          .toString()
-          .split(',')
-          .map((e) => e.trim())
-          .toList();
-    }
-
-    // Ensure we have at least 3 payment term controllers
-    _paymentTermCount = paymentTerms.length > 3 ? paymentTerms.length : 3;
+    _nalcoPriceCtl = TextEditingController(text: 'Rs. 267/kg');
     _paymentTermControllers = List.generate(_paymentTermCount, (index) {
-      if (index < paymentTerms.length) {
-        return TextEditingController(text: paymentTerms[index]);
-      } else {
-        // Default values for additional controllers
-        switch (index) {
-          case 0:
-            return TextEditingController(
-              text: '25% Advance with Purchase Order',
-            );
-          case 1:
-            return TextEditingController(text: '25% after shell plan approval');
-          case 2:
-            return TextEditingController(text: '50% before dispatch');
-          default:
-            return TextEditingController(text: '');
-        }
+      switch (index) {
+        case 0:
+          return TextEditingController(text: '25% Advance with Purchase Order');
+        case 1:
+          return TextEditingController(text: '25% after shell plan approval');
+        case 2:
+          return TextEditingController(text: '50% before dispatch');
+        default:
+          return TextEditingController(text: '');
       }
     });
 
-    // Load zoom controller
+    // Initialize zoom controller
     _zoomTextController = TextEditingController(text: '100%');
 
-    // Load offer letter signature controllers
+    // Initialize offer letter signature controllers with placeholder values
+    // These will be populated with actual user data from the database
     _preparedByNameCtl = TextEditingController(text: 'Loading...');
     _preparedByPhoneCtl = TextEditingController(text: 'Loading...');
     _preparedByDesignationCtl = TextEditingController(text: 'Loading...');
@@ -3360,14 +3271,133 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
       text: 'Sr. Vice President',
     );
 
-    // Set offer status
-    _offerStatus = offer['offer_status']?.toString() ?? 'Draft Offer';
+    // Load existing offer data if editing/viewing an existing offer
+    if (widget.existingOffer != null) {
+      debugPrint('DEBUG: initState: Loading existing offer data first...');
+      _loadExistingOfferData();
+    } else {
+      debugPrint(
+        'DEBUG: initState: No existing offer - will use admin_response data',
+      );
+    }
+
+    // Fetch lead information and admin_response data
+    debugPrint(
+      'DEBUG: initState: Fetching lead info and admin response data...',
+    );
+    _fetchLeadInfoAndAdminResponseData();
 
     // Fetch current user data for "Prepared By" section
+    debugPrint('DEBUG: initState: Fetching current user data...');
     _fetchCurrentUserData();
+  }
 
-    // Fetch lead information and admin_response data to populate project details
-    _fetchLeadInfoAndAdminResponseData();
+  /// Loads existing offer data into the form fields
+  void _loadExistingOfferData() {
+    final offer = widget.existingOffer!;
+
+    debugPrint(
+      'DEBUG: _loadExistingOfferData called with offer: ${offer.keys.toList()}',
+    );
+    debugPrint(
+      'DEBUG: Offer data: project_name=${offer['project_name']}, client_name=${offer['client_name']}, delivery_time=${offer['delivery_time']}, payment_terms=${offer['payment_terms']}',
+    );
+
+    // Load project details
+    if (offer['project_name'] != null) {
+      _projectNameCtl.text = offer['project_name'].toString();
+      debugPrint('DEBUG: Set project_name to: ${offer['project_name']}');
+    }
+    if (offer['client_name'] != null) {
+      _clientNameCtl.text = offer['client_name'].toString();
+      debugPrint('DEBUG: Set client_name to: ${offer['client_name']}');
+    }
+    if (offer['project_address'] != null) {
+      _addressCtl.text = offer['project_address'].toString();
+      debugPrint('DEBUG: Set project_address to: ${offer['project_address']}');
+    }
+    if (offer['project_status'] != null) {
+      _projectStatusCtl.text = offer['project_status'].toString();
+      debugPrint('DEBUG: Set project_status to: ${offer['project_status']}');
+    }
+    if (offer['project_description'] != null) {
+      _descriptionCtl.text = offer['project_description'].toString();
+      debugPrint(
+        'DEBUG: Set project_description to: ${offer['project_description']}',
+      );
+    }
+    if (offer['intro_note'] != null) {
+      _introNoteCtl.text = offer['intro_note'].toString();
+      debugPrint('DEBUG: Set intro_note to: ${offer['intro_note']}');
+    }
+
+    // Load delivery time and payment terms
+    if (offer['delivery_time'] != null) {
+      _deliveryTimeCtl.text = offer['delivery_time'].toString();
+      debugPrint('DEBUG: Set delivery_time to: ${offer['delivery_time']}');
+    }
+    if (offer['payment_terms'] != null) {
+      // Note: payment_terms is the combined string, we'll load individual terms from payment_terms_raw
+      debugPrint('DEBUG: Found payment_terms: ${offer['payment_terms']}');
+    }
+    if (offer['nalco_price_text'] != null) {
+      _nalcoPriceCtl.text = offer['nalco_price_text'].toString();
+      debugPrint(
+        'DEBUG: Set nalco_price_text to: ${offer['nalco_price_text']}',
+      );
+    }
+
+    // Load payment terms raw data if available
+    if (offer['payment_terms_raw'] != null &&
+        offer['payment_terms_raw'] is List) {
+      final terms = offer['payment_terms_raw'] as List;
+      debugPrint('DEBUG: Found payment_terms_raw: $terms');
+      // Ensure we have enough controllers
+      while (_paymentTermControllers.length < terms.length) {
+        _paymentTermControllers.add(TextEditingController());
+      }
+      // Update payment term count
+      _paymentTermCount = terms.length;
+
+      // Load the terms into controllers
+      for (int i = 0; i < terms.length; i++) {
+        if (i < _paymentTermControllers.length) {
+          _paymentTermControllers[i].text = terms[i].toString();
+          debugPrint('DEBUG: Set payment term $i to: ${terms[i]}');
+        }
+      }
+    }
+
+    // Load offer status
+    if (offer['offer_status'] != null) {
+      _offerStatus = offer['offer_status'].toString();
+      debugPrint('DEBUG: Set offer_status to: ${offer['offer_status']}');
+    }
+
+    // Load ref number
+    if (offer['ref'] != null) {
+      _refNoCtl.text = offer['ref'].toString();
+      debugPrint('DEBUG: Set ref to: ${offer['ref']}');
+    }
+
+    // Load offer date from offer_date (preferred) or fallback to created_at
+    try {
+      final dynamic offerDateValue = offer['offer_date'] ?? offer['created_at'];
+      if (offerDateValue != null) {
+        _offerDate = DateTime.parse(offerDateValue.toString());
+        debugPrint('DEBUG: Set offer date to: $offerDateValue');
+      } else {
+        _offerDate = DateTime.now();
+        debugPrint('DEBUG: No offer date found, defaulting to now');
+      }
+    } catch (e) {
+      _offerDate = DateTime.now();
+      debugPrint('DEBUG: Error parsing offer date: $e, defaulting to now');
+    }
+
+    debugPrint(
+      'DEBUG: Loaded existing offer data: ${offer['project_name']}, ${offer['client_name']}',
+    );
   }
 
   /// Fetches lead information and admin_response data
@@ -3413,36 +3443,42 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
           setState(() {
             _adminResponseData = adminResponse;
 
-            // Update project name from admin_response
-            final projectName = adminResponse['project_name']?.toString();
-            if (projectName != null && projectName.isNotEmpty) {
-              _projectNameCtl.text = projectName;
-              debugPrint('DEBUG: Project name updated to: $projectName');
-            }
+            // Update project name from admin_response ONLY if not editing existing offer
+            if (widget.existingOffer == null) {
+              final projectName = adminResponse['project_name']?.toString();
+              if (projectName != null && projectName.isNotEmpty) {
+                _projectNameCtl.text = projectName;
+                debugPrint('DEBUG: Project name updated to: $projectName');
+              }
 
-            // Update client name from admin_response
-            final clientName = adminResponse['client_name']?.toString();
-            if (clientName != null && clientName.isNotEmpty) {
-              _clientNameCtl.text = clientName;
-              debugPrint('DEBUG: Client name updated to: $clientName');
-            }
+              // Update client name from admin_response ONLY if not editing existing offer
+              final clientName = adminResponse['client_name']?.toString();
+              if (clientName != null && clientName.isNotEmpty) {
+                _clientNameCtl.text = clientName;
+                debugPrint('DEBUG: Client name updated to: $clientName');
+              }
 
-            // Update address from location column
-            final location = adminResponse['location']?.toString();
-            debugPrint('DEBUG: Fetched location: $location');
-            debugPrint('DEBUG: Location type: ${location.runtimeType}');
-            debugPrint('DEBUG: Location is empty: ${location?.isEmpty}');
-            debugPrint('DEBUG: Location is null: ${location == null}');
+              // Update address from location column ONLY if not editing existing offer
+              final location = adminResponse['location']?.toString();
+              debugPrint('DEBUG: Fetched location: $location');
+              debugPrint('DEBUG: Location type: ${location.runtimeType}');
+              debugPrint('DEBUG: Location is empty: ${location?.isEmpty}');
+              debugPrint('DEBUG: Location is null: ${location == null}');
 
-            if (location != null && location.isNotEmpty) {
-              _addressCtl.text = location;
-              debugPrint('DEBUG: Address controller updated to: $location');
+              if (location != null && location.isNotEmpty) {
+                _addressCtl.text = location;
+                debugPrint('DEBUG: Address controller updated to: $location');
+              } else {
+                // Fallback to hardcoded address if location is empty
+                _addressCtl.text =
+                    '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
+                debugPrint(
+                  'DEBUG: Location is empty or null, using fallback address.',
+                );
+              }
             } else {
-              // Fallback to hardcoded address if location is empty
-              _addressCtl.text =
-                  '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
               debugPrint(
-                'DEBUG: Location is empty or null, using fallback address.',
+                'DEBUG: Skipping admin_response updates for existing offer - using existing offer data instead',
               );
             }
 
@@ -3499,33 +3535,51 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
           });
         } else {
           debugPrint('DEBUG: Admin response is null for leadId: $leadId');
-          // Set default values if no admin response found
+          // Set default values if no admin response found AND not editing existing offer
+          if (widget.existingOffer == null) {
+            setState(() {
+              _clientNameCtl.text = 'Client';
+              _projectNameCtl.text = 'Project';
+              _addressCtl.text =
+                  '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
+            });
+          } else {
+            debugPrint(
+              'DEBUG: Skipping default values for existing offer - using existing offer data instead',
+            );
+          }
+        }
+      } else {
+        debugPrint('DEBUG: Lead ID is null, cannot fetch admin response data');
+        // Set default values if no lead ID AND not editing existing offer
+        if (widget.existingOffer == null) {
           setState(() {
             _clientNameCtl.text = 'Client';
             _projectNameCtl.text = 'Project';
             _addressCtl.text =
                 '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
           });
+        } else {
+          debugPrint(
+            'DEBUG: Skipping default values for existing offer - using existing offer data instead',
+          );
         }
-      } else {
-        debugPrint('DEBUG: Lead ID is null, cannot fetch admin response data');
-        // Set default values if no lead ID
+      }
+    } catch (e) {
+      debugPrint('DEBUG: Error in _fetchLeadInfoAndAdminResponseData: $e');
+      // Set default values on error AND not editing existing offer
+      if (widget.existingOffer == null) {
         setState(() {
           _clientNameCtl.text = 'Client';
           _projectNameCtl.text = 'Project';
           _addressCtl.text =
               '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
         });
+      } else {
+        debugPrint(
+          'DEBUG: Skipping default values for existing offer - using existing offer data instead',
+        );
       }
-    } catch (e) {
-      debugPrint('DEBUG: Error in _fetchLeadInfoAndAdminResponseData: $e');
-      // Set default values on error
-      setState(() {
-        _clientNameCtl.text = 'Client';
-        _projectNameCtl.text = 'Project';
-        _addressCtl.text =
-            '8th Flr / 9th Flr, Peninsula Heights,\nCD Barfiwala Road, Zalawad Nagar,\nJuhu Lane, Ganga Vihar,\nAndheri West, Mumbai.';
-      });
     } finally {
       setState(() {
         _isLoadingAddress = false;
@@ -4307,14 +4361,13 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
           ? int.parse(nalcoRateMatch.group(1)!)
           : 0;
 
-      // Save delivery time as-is (e.g., "8 weeks from shell drawing confirmation")
+      // Get delivery time as is from input controller
       final String deliveryTime = _deliveryTimeCtl.text.trim();
 
-      // Save payment terms as-is (e.g., ["25% Advance with Purchase Order", "25% after shell plan approval", "50% before dispatch"])
-      final List<String> paymentTerms = _paymentTermControllers
+      // Get payment terms as is from input controllers
+      final String paymentTerms = _paymentTermControllers
           .map((c) => c.text.trim())
-          .where((text) => text.isNotEmpty)
-          .toList();
+          .join(' and ');
 
       // Prepare offer data - only store lead_id and offer-specific data
       // Lead information (project_id, project_name, client_name, location) will be fetched dynamically
@@ -4388,6 +4441,9 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
         'lead_id': widget.lead['lead_id'] ?? widget.lead['id'],
         'ref': _refNoCtl.text,
         'offer_status': _offerStatus,
+        // Persist both a user-facing offer_date (date only) and created_at (timestamp) as the selected date
+        'offer_date': DateFormat('yyyy-MM-dd').format(_offerDate),
+        'created_at': _offerDate.toIso8601String(),
         'offer_created': DateTime.now().toIso8601String(),
         'value': grandTotal,
         'qty_sqm': qtySqm,
@@ -4395,13 +4451,22 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
         'grand_total': grandTotal,
         'nalco_rate': nalcoRate,
         'delivery_time': deliveryTime,
-        'payment_terms': paymentTerms.join(
-          ',',
-        ), // Join as comma-separated string for backward compatibility
+        'payment_terms': paymentTerms,
         'user_id': validUserId, // Only set if valid user_id exists
-        // Only save columns that exist in the offers table
-        // Note: Project details are fetched dynamically from admin_response table
-        // so we don't need to store them in offers table
+        // Project Details - Save complete input values
+        'project_name': _projectNameCtl.text.trim(),
+        'client_name': _clientNameCtl.text.trim(),
+        'project_address': _addressCtl.text.trim(),
+        'project_status': _projectStatusCtl.text.trim(),
+        'project_description': _descriptionCtl.text.trim(),
+        'intro_note': _introNoteCtl.text.trim(),
+
+        // Additional Project Details
+        'nalco_price_text': _nalcoPriceCtl.text
+            .trim(), // Save the complete nalco price text
+        'payment_terms_raw': _paymentTermControllers
+            .map((c) => c.text.trim())
+            .toList(), // Save individual payment terms
       };
 
       debugPrint('DEBUG: Final offerData: $offerData');
@@ -7589,8 +7654,13 @@ class _NoteParagraph extends StatelessWidget {
 
 class OfferLeadSelectionDialog extends StatefulWidget {
   final String? currentUserId;
+  final Map<String, dynamic>? existingOffer; // For editing existing offers
 
-  const OfferLeadSelectionDialog({super.key, this.currentUserId});
+  const OfferLeadSelectionDialog({
+    super.key,
+    this.currentUserId,
+    this.existingOffer,
+  });
 
   @override
   State<OfferLeadSelectionDialog> createState() =>
