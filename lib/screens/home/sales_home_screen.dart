@@ -4913,15 +4913,17 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                   tooltip: 'Export PDF',
                                   onPressed: () => _exportToPDF(),
                                 ),
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.description,
-                                    color: Colors.white,
-                                    size: 16,
+                                if (widget.currentUserId == null ||
+                                    widget.currentUserId!.isEmpty)
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.description,
+                                      color: Colors.white,
+                                      size: 16,
+                                    ),
+                                    tooltip: 'Export Word',
+                                    onPressed: () => _exportToWord(),
                                   ),
-                                  tooltip: 'Export Word',
-                                  onPressed: () => _exportToWord(),
-                                ),
                               ],
                             ),
                           ],
@@ -5180,261 +5182,21 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                   tooltip: 'Export PDF',
                                   onPressed: () => _exportToPDF(),
                                 ),
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.description,
-                                    color: Colors.white,
+                                if (widget.currentUserId == null ||
+                                    widget.currentUserId!.isEmpty)
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.description,
+                                      color: Colors.white,
+                                    ),
+                                    tooltip: 'Export Word',
+                                    onPressed: () => _exportToWord(),
                                   ),
-                                  tooltip: 'Export Word',
-                                  onPressed: () => _exportToWord(),
-                                ),
                               ],
                             ),
                           ],
                         ),
                       ],
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: Icon(
-                              _isEditing ? Icons.visibility : Icons.edit,
-                              color: Colors.white,
-                            ),
-                            tooltip: _isEditing ? 'Preview Mode' : 'Edit Mode',
-                            onPressed: () {
-                              setState(() {
-                                _isEditing = !_isEditing;
-                              });
-                            },
-                          ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.format_size,
-                              color: Colors.white,
-                            ),
-                            tooltip: 'Text Formatting',
-                            onPressed: () => _showTextFormattingDialog(),
-                          ),
-                          // Zoom Controls
-                          Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 8),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                // Quick zoom out button
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.zoom_out,
-                                    color: Colors.white,
-                                    size: 18,
-                                  ),
-                                  tooltip: 'Zoom Out',
-                                  onPressed: () {
-                                    setState(() {
-                                      _zoomLevel = math.max(
-                                        0.5,
-                                        _zoomLevel - 0.1,
-                                      );
-                                      _zoomTextController.text =
-                                          '${(_zoomLevel * 100).round()}%';
-                                    });
-                                  },
-                                ),
-                                const SizedBox(width: 4),
-                                SizedBox(
-                                  width: 80,
-                                  child: SliderTheme(
-                                    data: SliderTheme.of(context).copyWith(
-                                      activeTrackColor: Colors.white,
-                                      inactiveTrackColor: Colors.white
-                                          .withValues(alpha: 0.3),
-                                      thumbColor: Colors.white,
-                                      overlayColor: Colors.white.withValues(
-                                        alpha: 0.2,
-                                      ),
-                                      trackHeight: 2,
-                                    ),
-                                    child: Slider(
-                                      value: _zoomLevel,
-                                      min: 0.5,
-                                      max: 2.0,
-                                      divisions: 15,
-                                      onChanged: (value) {
-                                        setState(() {
-                                          _zoomLevel = value;
-                                          _zoomTextController.text =
-                                              '${(value * 100).round()}%';
-                                        });
-                                      },
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                // Quick zoom in button
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.zoom_in,
-                                    color: Colors.white,
-                                    size: 18,
-                                  ),
-                                  tooltip: 'Zoom In',
-                                  onPressed: () {
-                                    setState(() {
-                                      _zoomLevel = math.min(
-                                        2.0,
-                                        _zoomLevel + 0.1,
-                                      );
-                                      _zoomTextController.text =
-                                          '${(_zoomLevel * 100).round()}%';
-                                    });
-                                  },
-                                ),
-                                const SizedBox(width: 8),
-                                // Zoom percentage input
-                                Container(
-                                  width: 50,
-                                  height: 28,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.2),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: TextField(
-                                    controller: _zoomTextController,
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    decoration: const InputDecoration(
-                                      border: InputBorder.none,
-                                      contentPadding: EdgeInsets.symmetric(
-                                        vertical: 4,
-                                      ),
-                                      isDense: true,
-                                    ),
-                                    keyboardType:
-                                        const TextInputType.numberWithOptions(
-                                          decimal: true,
-                                        ),
-                                    onSubmitted: (value) {
-                                      // Parse percentage input (e.g., "150" -> 1.5)
-                                      final percentage = double.tryParse(value);
-                                      if (percentage != null &&
-                                          percentage >= 50 &&
-                                          percentage <= 200) {
-                                        final zoom = percentage / 100;
-                                        setState(() {
-                                          _zoomLevel = zoom;
-                                          _zoomTextController.text =
-                                              '${(zoom * 100).round()}%';
-                                        });
-                                      } else {
-                                        // Reset to current zoom level if invalid
-                                        _zoomTextController.text =
-                                            '${(_zoomLevel * 100).round()}%';
-                                      }
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                // Reset zoom button
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.refresh,
-                                    color: Colors.white,
-                                    size: 16,
-                                  ),
-                                  tooltip: 'Reset Zoom',
-                                  onPressed: () {
-                                    setState(() {
-                                      _zoomLevel = 1.0;
-                                      _zoomTextController.text = '100%';
-                                    });
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.save, color: Colors.white),
-                            tooltip: 'Save Offer',
-                            onPressed: _saveOfferToSupabase,
-                          ),
-                          // Export quality selector
-                          Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 8),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  'Quality:',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                DropdownButton<double>(
-                                  value: _exportPixelRatio,
-                                  dropdownColor: Colors.grey[800],
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                  ),
-                                  underline: Container(),
-                                  items: const [
-                                    DropdownMenuItem(
-                                      value: 1.0,
-                                      child: Text(
-                                        'Fast',
-                                        style: TextStyle(color: Colors.white),
-                                      ),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 2.0,
-                                      child: Text(
-                                        'High',
-                                        style: TextStyle(color: Colors.white),
-                                      ),
-                                    ),
-                                  ],
-                                  onChanged: (value) {
-                                    if (value != null) {
-                                      setState(() {
-                                        _exportPixelRatio = value;
-                                      });
-                                    }
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.picture_as_pdf,
-                              color: Colors.white,
-                            ),
-                            tooltip: 'Export PDF',
-                            onPressed: () => _exportToPDF(),
-                          ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.description,
-                              color: Colors.white,
-                            ),
-                            tooltip: 'Export Word',
-                            onPressed: () => _exportToWord(),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.close, color: Colors.white),
-                            tooltip: 'Close',
-                            onPressed: () => Navigator.of(context).pop(),
-                          ),
-                        ],
-                      ),
                     ],
                   ),
                 ),
