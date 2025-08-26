@@ -6931,7 +6931,10 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
               )
             : Row(
                 children: [
-                  Expanded(child: Text(_addressCtl.text, style: base)),
+                  SizedBox(
+                    width: 320 * 0.9, // Same width constraint as Edit Mode
+                    child: Text(_addressCtl.text, style: base),
+                  ),
                   if (_isLoadingAddress)
                     const SizedBox(
                       width: 20,
