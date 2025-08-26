@@ -6898,7 +6898,8 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
         _isEditing
             ? Row(
                 children: [
-                  Expanded(
+                  SizedBox(
+                    width: 320 * 0.9, // Reduce width by 10% from current 320px
                     child: TextField(
                       controller: _addressCtl,
                       maxLines: 4,
