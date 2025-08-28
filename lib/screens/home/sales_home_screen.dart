@@ -4750,76 +4750,173 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                   ),
                   child: Column(
                     children: [
-                      // Main header row
+                      // Main header row - Optimized UI with better spacing and grouping
                       Row(
                         children: [
-                          Icon(
-                            Icons.local_offer,
-                            color: Colors.white,
-                            size: isMobile ? 20 : 24,
-                          ),
-                          SizedBox(width: isMobile ? 8 : 12),
-                          Expanded(
-                            child: Text(
-                              'Offer Editor',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: isMobile ? 16 : 20,
-                                fontWeight: FontWeight.bold,
+                          // Left side: Logo and Title
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.local_offer,
+                                  color: Colors.white,
+                                  size: isMobile ? 20 : 24,
+                                ),
                               ),
-                            ),
-                          ),
-                          // Mobile: Show sidebar toggle button
-                          if (isMobile)
-                            IconButton(
-                              icon: Icon(
-                                _showSidebar ? Icons.close : Icons.menu,
-                                color: Colors.white,
+                              SizedBox(width: isMobile ? 12 : 16),
+                              Text(
+                                'Offer Editor',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: isMobile ? 18 : 22,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                ),
                               ),
-                              tooltip: _showSidebar
-                                  ? 'Hide Sidebar'
-                                  : 'Show Sidebar',
-                              onPressed: () {
-                                setState(() {
-                                  _showSidebar = !_showSidebar;
-                                });
-                              },
-                            ),
+                            ],
+                          ),
+
+                          // Spacer to push controls to the right
+                          const Spacer(),
+
+                          // Right side: Action Controls
                           if (!isMobile) ...[
-                            IconButton(
-                              icon: Icon(
-                                _isEditing ? Icons.visibility : Icons.edit,
-                                color: Colors.white,
+                            // Mode Toggle Button with better visual feedback
+                            Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 4),
+                              decoration: BoxDecoration(
+                                color: _isEditing
+                                    ? Colors.white.withValues(alpha: 0.3)
+                                    : Colors.white.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.4),
+                                  width: 1,
+                                ),
                               ),
-                              tooltip: _isEditing
-                                  ? 'Preview Mode'
-                                  : 'Edit Mode',
-                              onPressed: () {
-                                setState(() {
-                                  _isEditing = !_isEditing;
-                                });
-                              },
-                            ),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.format_size,
-                                color: Colors.white,
+                              child: IconButton(
+                                icon: Icon(
+                                  _isEditing ? Icons.visibility : Icons.edit,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                                tooltip: _isEditing
+                                    ? 'Switch to Preview Mode'
+                                    : 'Switch to Edit Mode',
+                                onPressed: () {
+                                  setState(() {
+                                    _isEditing = !_isEditing;
+                                  });
+                                },
+                                style: IconButton.styleFrom(
+                                  padding: const EdgeInsets.all(8),
+                                ),
                               ),
-                              tooltip: 'Text Formatting',
-                              onPressed: () => _showTextFormattingDialog(),
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.save, color: Colors.white),
-                              tooltip: 'Save Offer',
-                              onPressed: _saveOfferToSupabase,
-                            ),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.close,
-                                color: Colors.white,
+
+                            // Text Formatting Button
+                            Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.3),
+                                  width: 1,
+                                ),
                               ),
-                              tooltip: 'Close',
-                              onPressed: () => Navigator.of(context).pop(),
+                              child: IconButton(
+                                icon: const Icon(
+                                  Icons.format_size,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                                tooltip: 'Text Formatting Options',
+                                onPressed: () => _showTextFormattingDialog(),
+                                style: IconButton.styleFrom(
+                                  padding: const EdgeInsets.all(8),
+                                ),
+                              ),
+                            ),
+
+                            // Save Button with prominent styling
+                            Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.green[600],
+                                borderRadius: BorderRadius.circular(8),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.2),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: IconButton(
+                                icon: const Icon(
+                                  Icons.save,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                                tooltip: 'Save Offer',
+                                onPressed: _saveOfferToSupabase,
+                                style: IconButton.styleFrom(
+                                  padding: const EdgeInsets.all(10),
+                                ),
+                              ),
+                            ),
+
+                            // Close Button
+                            Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.red[600],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: IconButton(
+                                icon: const Icon(
+                                  Icons.close,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                                tooltip: 'Close Editor',
+                                onPressed: () => Navigator.of(context).pop(),
+                                style: IconButton.styleFrom(
+                                  padding: const EdgeInsets.all(8),
+                                ),
+                              ),
+                            ),
+                          ] else ...[
+                            // Mobile: Sidebar toggle button
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: IconButton(
+                                icon: Icon(
+                                  _showSidebar ? Icons.close : Icons.menu,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                                tooltip: _showSidebar
+                                    ? 'Hide Sidebar'
+                                    : 'Show Sidebar',
+                                onPressed: () {
+                                  setState(() {
+                                    _showSidebar = !_showSidebar;
+                                  });
+                                },
+                                style: IconButton.styleFrom(
+                                  padding: const EdgeInsets.all(8),
+                                ),
+                              ),
                             ),
                           ],
                         ],
@@ -4929,272 +5026,471 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                           ],
                         ),
                       ],
-                      // Desktop: Show full controls in single row
+                      // Desktop: Show full controls in single row - Optimized UI
                       if (!isMobile) ...[
-                        SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            // Text formatting and editing info
-                            if (_isEditing) ...[
+                        SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              // Left side: Text formatting and editing info
+                              if (_isEditing) ...[
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.3,
+                                      ),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        width: 14,
+                                        height: 14,
+                                        decoration: BoxDecoration(
+                                          color: _textColor,
+                                          borderRadius: BorderRadius.circular(
+                                            2,
+                                          ),
+                                          border: Border.all(
+                                            color: Colors.white.withValues(
+                                              alpha: 0.5,
+                                            ),
+                                            width: 1,
+                                          ),
+                                        ),
+                                        margin: const EdgeInsets.only(right: 8),
+                                      ),
+                                      Text(
+                                        'H:${_textHeight.toStringAsFixed(1)}',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.3,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            4,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          _textAlignment == TextAlign.left
+                                              ? 'L'
+                                              : _textAlignment ==
+                                                    TextAlign.center
+                                              ? 'C'
+                                              : 'R',
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+
+                              // Center: Zoom controls with better visual grouping
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
+                                  horizontal: 16,
+                                  vertical: 8,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(4),
+                                  color: Colors.white.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.25),
+                                    width: 1,
+                                  ),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
+                                    // Zoom Out
                                     Container(
-                                      width: 12,
-                                      height: 12,
-                                      color: _textColor,
-                                      margin: const EdgeInsets.only(right: 4),
-                                    ),
-                                    Text(
-                                      'H:${_textHeight.toStringAsFixed(1)}',
-                                      style: const TextStyle(
-                                        fontSize: 10,
-                                        color: Colors.white,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.2,
+                                        ),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: IconButton(
+                                        icon: const Icon(
+                                          Icons.zoom_out,
+                                          color: Colors.white,
+                                          size: 18,
+                                        ),
+                                        tooltip: 'Zoom Out',
+                                        onPressed: () {
+                                          setState(() {
+                                            _zoomLevel = math.max(
+                                              0.5,
+                                              _zoomLevel - 0.1,
+                                            );
+                                            _zoomTextController.text =
+                                                '${(_zoomLevel * 100).round()}%';
+                                          });
+                                        },
+                                        style: IconButton.styleFrom(
+                                          padding: const EdgeInsets.all(6),
+                                        ),
                                       ),
                                     ),
+
                                     const SizedBox(width: 8),
-                                    Text(
-                                      _textAlignment == TextAlign.left
-                                          ? 'L'
-                                          : _textAlignment == TextAlign.center
-                                          ? 'C'
-                                          : 'R',
-                                      style: const TextStyle(
-                                        fontSize: 10,
-                                        color: Colors.white,
+
+                                    // Zoom Slider
+                                    SizedBox(
+                                      width: 100,
+                                      child: SliderTheme(
+                                        data: SliderTheme.of(context).copyWith(
+                                          activeTrackColor: Colors.white,
+                                          inactiveTrackColor: Colors.white
+                                              .withValues(alpha: 0.3),
+                                          thumbColor: Colors.white,
+                                          overlayColor: Colors.white.withValues(
+                                            alpha: 0.2,
+                                          ),
+                                          trackHeight: 3,
+                                        ),
+                                        child: Slider(
+                                          value: _zoomLevel,
+                                          min: 0.5,
+                                          max: 2.0,
+                                          divisions: 15,
+                                          onChanged: (value) {
+                                            setState(() {
+                                              _zoomLevel = value;
+                                              _zoomTextController.text =
+                                                  '${(value * 100).round()}%';
+                                            });
+                                          },
+                                        ),
+                                      ),
+                                    ),
+
+                                    const SizedBox(width: 8),
+
+                                    // Zoom In
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.2,
+                                        ),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: IconButton(
+                                        icon: const Icon(
+                                          Icons.zoom_in,
+                                          color: Colors.white,
+                                          size: 18,
+                                        ),
+                                        tooltip: 'Zoom In',
+                                        onPressed: () {
+                                          setState(() {
+                                            _zoomLevel = math.min(
+                                              2.0,
+                                              _zoomLevel + 0.1,
+                                            );
+                                            _zoomTextController.text =
+                                                '${(_zoomLevel * 100).round()}%';
+                                          });
+                                        },
+                                        style: IconButton.styleFrom(
+                                          padding: const EdgeInsets.all(6),
+                                        ),
+                                      ),
+                                    ),
+
+                                    const SizedBox(width: 12),
+
+                                    // Zoom percentage input with better styling
+                                    Container(
+                                      width: 60,
+                                      height: 32,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.25,
+                                        ),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.4,
+                                          ),
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: TextField(
+                                        controller: _zoomTextController,
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        decoration: const InputDecoration(
+                                          border: InputBorder.none,
+                                          contentPadding: EdgeInsets.symmetric(
+                                            vertical: 6,
+                                          ),
+                                          isDense: true,
+                                        ),
+                                        keyboardType:
+                                            const TextInputType.numberWithOptions(
+                                              decimal: true,
+                                            ),
+                                        onSubmitted: (value) {
+                                          final percentage = double.tryParse(
+                                            value,
+                                          );
+                                          if (percentage != null &&
+                                              percentage >= 50 &&
+                                              percentage <= 200) {
+                                            final zoom = percentage / 100;
+                                            setState(() {
+                                              _zoomLevel = zoom;
+                                              _zoomTextController.text =
+                                                  '${(zoom * 100).round()}%';
+                                            });
+                                          } else {
+                                            _zoomTextController.text =
+                                                '${(_zoomLevel * 100).round()}%';
+                                          }
+                                        },
+                                      ),
+                                    ),
+
+                                    const SizedBox(width: 8),
+
+                                    // Reset zoom button
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.2,
+                                        ),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: IconButton(
+                                        icon: const Icon(
+                                          Icons.refresh,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                        tooltip: 'Reset Zoom to 100%',
+                                        onPressed: () {
+                                          setState(() {
+                                            _zoomLevel = 1.0;
+                                            _zoomTextController.text = '100%';
+                                          });
+                                        },
+                                        style: IconButton.styleFrom(
+                                          padding: const EdgeInsets.all(6),
+                                        ),
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
-                            ],
-                            // Zoom controls
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.zoom_out,
-                                    color: Colors.white,
-                                    size: 18,
-                                  ),
-                                  tooltip: 'Zoom Out',
-                                  onPressed: () {
-                                    setState(() {
-                                      _zoomLevel = math.max(
-                                        0.5,
-                                        _zoomLevel - 0.1,
-                                      );
-                                      _zoomTextController.text =
-                                          '${(_zoomLevel * 100).round()}%';
-                                    });
-                                  },
+
+                              // Right side: Export controls with better grouping
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
                                 ),
-                                const SizedBox(width: 4),
-                                SizedBox(
-                                  width: 80,
-                                  child: SliderTheme(
-                                    data: SliderTheme.of(context).copyWith(
-                                      activeTrackColor: Colors.white,
-                                      inactiveTrackColor: Colors.white
-                                          .withValues(alpha: 0.3),
-                                      thumbColor: Colors.white,
-                                      overlayColor: Colors.white.withValues(
-                                        alpha: 0.2,
-                                      ),
-                                      trackHeight: 2,
-                                    ),
-                                    child: Slider(
-                                      value: _zoomLevel,
-                                      min: 0.5,
-                                      max: 2.0,
-                                      divisions: 15,
-                                      onChanged: (value) {
-                                        setState(() {
-                                          _zoomLevel = value;
-                                          _zoomTextController.text =
-                                              '${(value * 100).round()}%';
-                                        });
-                                      },
-                                    ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.25),
+                                    width: 1,
                                   ),
                                 ),
-                                const SizedBox(width: 4),
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.zoom_in,
-                                    color: Colors.white,
-                                    size: 18,
-                                  ),
-                                  tooltip: 'Zoom In',
-                                  onPressed: () {
-                                    setState(() {
-                                      _zoomLevel = math.min(
-                                        2.0,
-                                        _zoomLevel + 0.1,
-                                      );
-                                      _zoomTextController.text =
-                                          '${(_zoomLevel * 100).round()}%';
-                                    });
-                                  },
-                                ),
-                                const SizedBox(width: 8),
-                                // Zoom percentage input
-                                Container(
-                                  width: 50,
-                                  height: 28,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.2),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: TextField(
-                                    controller: _zoomTextController,
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    decoration: const InputDecoration(
-                                      border: InputBorder.none,
-                                      contentPadding: EdgeInsets.symmetric(
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // Export quality selector with better styling
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
                                         vertical: 4,
                                       ),
-                                      isDense: true,
-                                    ),
-                                    keyboardType:
-                                        const TextInputType.numberWithOptions(
-                                          decimal: true,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.2,
                                         ),
-                                    onSubmitted: (value) {
-                                      // Parse percentage input (e.g., "150" -> 1.5)
-                                      final percentage = double.tryParse(value);
-                                      if (percentage != null &&
-                                          percentage >= 50 &&
-                                          percentage <= 200) {
-                                        final zoom = percentage / 100;
-                                        setState(() {
-                                          _zoomLevel = zoom;
-                                          _zoomTextController.text =
-                                              '${(zoom * 100).round()}%';
-                                        });
-                                      } else {
-                                        // Reset to current zoom level if invalid
-                                        _zoomTextController.text =
-                                            '${(_zoomLevel * 100).round()}%';
-                                      }
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                // Reset zoom button
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.refresh,
-                                    color: Colors.white,
-                                    size: 16,
-                                  ),
-                                  tooltip: 'Reset Zoom',
-                                  onPressed: () {
-                                    setState(() {
-                                      _zoomLevel = 1.0;
-                                      _zoomTextController.text = '100%';
-                                    });
-                                  },
-                                ),
-                              ],
-                            ),
-                            // Export controls
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                // Export quality selector
-                                Container(
-                                  margin: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        'Quality:',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w500,
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.3,
+                                          ),
+                                          width: 1,
                                         ),
                                       ),
-                                      const SizedBox(width: 4),
-                                      DropdownButton<double>(
-                                        value: _exportPixelRatio,
-                                        dropdownColor: Colors.grey[800],
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 12,
-                                        ),
-                                        underline: Container(),
-                                        items: const [
-                                          DropdownMenuItem(
-                                            value: 1.0,
-                                            child: Text(
-                                              'Fast',
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                              ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            'Quality:',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
                                             ),
                                           ),
-                                          DropdownMenuItem(
-                                            value: 2.0,
-                                            child: Text(
-                                              'High',
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                              ),
+                                          const SizedBox(width: 6),
+                                          DropdownButton<double>(
+                                            value: _exportPixelRatio,
+                                            dropdownColor: Colors.grey[800],
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w500,
                                             ),
+                                            underline: Container(),
+                                            icon: Icon(
+                                              Icons.arrow_drop_down,
+                                              color: Colors.white.withValues(
+                                                alpha: 0.8,
+                                              ),
+                                              size: 20,
+                                            ),
+                                            items: const [
+                                              DropdownMenuItem(
+                                                value: 1.0,
+                                                child: Text(
+                                                  'Fast',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                              DropdownMenuItem(
+                                                value: 2.0,
+                                                child: Text(
+                                                  'High',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                            onChanged: (value) {
+                                              if (value != null) {
+                                                setState(() {
+                                                  _exportPixelRatio = value;
+                                                });
+                                              }
+                                            },
                                           ),
                                         ],
-                                        onChanged: (value) {
-                                          if (value != null) {
-                                            setState(() {
-                                              _exportPixelRatio = value;
-                                            });
-                                          }
-                                        },
+                                      ),
+                                    ),
+
+                                    const SizedBox(width: 12),
+
+                                    // PDF Export button with better styling
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.red[600],
+                                        borderRadius: BorderRadius.circular(8),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withValues(
+                                              alpha: 0.2,
+                                            ),
+                                            blurRadius: 4,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: IconButton(
+                                        icon: const Icon(
+                                          Icons.picture_as_pdf,
+                                          color: Colors.white,
+                                          size: 20,
+                                        ),
+                                        tooltip: 'Export to PDF',
+                                        onPressed: () => _exportToPDF(),
+                                        style: IconButton.styleFrom(
+                                          padding: const EdgeInsets.all(8),
+                                        ),
+                                      ),
+                                    ),
+
+                                    // Word Export button (admin only)
+                                    if (widget.currentUserId == null ||
+                                        widget.currentUserId!.isEmpty) ...[
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.blue[600],
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withValues(
+                                                alpha: 0.2,
+                                              ),
+                                              blurRadius: 4,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        child: IconButton(
+                                          icon: const Icon(
+                                            Icons.description,
+                                            color: Colors.white,
+                                            size: 20,
+                                          ),
+                                          tooltip: 'Export to Word',
+                                          onPressed: () => _exportToWord(),
+                                          style: IconButton.styleFrom(
+                                            padding: const EdgeInsets.all(8),
+                                          ),
+                                        ),
                                       ),
                                     ],
-                                  ),
+                                  ],
                                 ),
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.picture_as_pdf,
-                                    color: Colors.white,
-                                  ),
-                                  tooltip: 'Export PDF',
-                                  onPressed: () => _exportToPDF(),
-                                ),
-                                if (widget.currentUserId == null ||
-                                    widget.currentUserId!.isEmpty)
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.description,
-                                      color: Colors.white,
-                                    ),
-                                    tooltip: 'Export Word',
-                                    onPressed: () => _exportToWord(),
-                                  ),
-                              ],
-                            ),
-                          ],
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ],
