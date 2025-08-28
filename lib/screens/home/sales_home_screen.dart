@@ -955,7 +955,7 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
         if (grandTotal is String) {
           totalValue +=
               double.tryParse(grandTotal.replaceAll(RegExp(r'[^\d.]'), '')) ??
-              0;
+                  0;
         } else if (grandTotal is num) {
           totalValue += grandTotal.toDouble();
         }
@@ -5045,126 +5045,126 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                           ],
                         ],
                       ),
-                      // Mobile: Show essential controls in second row
-                      if (isMobile) ...[
-                        SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            // Zoom controls for mobile
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.zoom_out,
-                                    color: Colors.white,
-                                    size: 16,
-                                  ),
-                                  tooltip: 'Zoom Out',
-                                  onPressed: () {
-                                    setState(() {
-                                      _zoomLevel = math.max(
-                                        0.5,
-                                        _zoomLevel - 0.1,
-                                      );
-                                      _zoomTextController.text =
-                                          '${(_zoomLevel * 100).round()}%';
-                                    });
-                                  },
-                                ),
-                                SizedBox(
-                                  width: 60,
-                                  child: SliderTheme(
-                                    data: SliderTheme.of(context).copyWith(
-                                      activeTrackColor: Colors.white,
-                                      inactiveTrackColor: Colors.white
-                                          .withValues(alpha: 0.3),
-                                      thumbColor: Colors.white,
-                                      overlayColor: Colors.white.withValues(
-                                        alpha: 0.2,
-                                      ),
-                                      trackHeight: 2,
-                                    ),
-                                    child: Slider(
-                                      value: _zoomLevel,
-                                      min: 0.5,
-                                      max: 2.0,
-                                      divisions: 15,
-                                      onChanged: (value) {
-                                        setState(() {
-                                          _zoomLevel = value;
-                                          _zoomTextController.text =
-                                              '${(value * 100).round()}%';
-                                        });
-                                      },
-                                    ),
-                                  ),
-                                ),
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.zoom_in,
-                                    color: Colors.white,
-                                    size: 16,
-                                  ),
-                                  tooltip: 'Zoom In',
-                                  onPressed: () {
-                                    setState(() {
-                                      _zoomLevel = math.min(
-                                        2.0,
-                                        _zoomLevel + 0.1,
-                                      );
-                                      _zoomTextController.text =
-                                          '${(_zoomLevel * 100).round()}%';
-                                    });
-                                  },
-                                ),
-                              ],
-                            ),
-                            // Export buttons for mobile
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.picture_as_pdf,
-                                    color: Colors.white,
-                                    size: 16,
-                                  ),
-                                  tooltip: 'Export PDF',
-                                  onPressed: () => _exportToPDF(),
-                                ),
-                                if (widget.currentUserId == null ||
-                                    widget.currentUserId!.isEmpty)
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.description,
-                                      color: Colors.white,
-                                      size: 16,
-                                    ),
-                                    tooltip: 'Export Word',
-                                    onPressed: () => _exportToWord(),
-                                  ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
-                      // Desktop controls moved to the first row; removing the old second row for desktop
                     ],
                   ),
                 ),
+                // Mobile: Show essential controls in second row
+                if (isMobile) ...[
+                  SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      // Zoom controls for mobile
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(
+                              Icons.zoom_out,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                            tooltip: 'Zoom Out',
+                            onPressed: () {
+                              setState(() {
+                                _zoomLevel = math.max(
+                                  0.5,
+                                  _zoomLevel - 0.1,
+                                );
+                                _zoomTextController.text =
+                                    '${(_zoomLevel * 100).round()}%';
+                              });
+                            },
+                          ),
+                          SizedBox(
+                            width: 60,
+                            child: SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                activeTrackColor: Colors.white,
+                                inactiveTrackColor: Colors.white
+                                    .withValues(alpha: 0.3),
+                                thumbColor: Colors.white,
+                                overlayColor: Colors.white.withValues(
+                                  alpha: 0.2,
+                                ),
+                                trackHeight: 2,
+                              ),
+                              child: Slider(
+                                value: _zoomLevel,
+                                min: 0.5,
+                                max: 2.0,
+                                divisions: 15,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _zoomLevel = value;
+                                    _zoomTextController.text =
+                                        '${(value * 100).round()}%';
+                                  });
+                                },
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.zoom_in,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                            tooltip: 'Zoom In',
+                            onPressed: () {
+                              setState(() {
+                                _zoomLevel = math.min(
+                                  2.0,
+                                  _zoomLevel + 0.1,
+                                );
+                                _zoomTextController.text =
+                                    '${(_zoomLevel * 100).round()}%';
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                      // Export buttons for mobile
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(
+                              Icons.picture_as_pdf,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                            tooltip: 'Export PDF',
+                            onPressed: () => _exportToPDF(),
+                          ),
+                          if (widget.currentUserId == null ||
+                              widget.currentUserId!.isEmpty)
+                            IconButton(
+                              icon: const Icon(
+                                Icons.description,
+                                color: Colors.white,
+                              ),
+                              tooltip: 'Export Word',
+                              onPressed: () => _exportToWord(),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
                 // Content area
                 Expanded(
                   child: Container(
                     color: Colors.grey[100],
-                    child: Row(
+                    child: Stack(
+                      children: [
+                        Row(
                       children: [
                         // Left sidebar with input fields - responsive behavior
-                        if (!isMobile || _showSidebar)
+                        if (!isMobile)
                           AnimatedContainer(
                             duration: const Duration(milliseconds: 300),
-                            width: isMobile ? screenWidth * 0.9 : 300,
+                            width: 300,
                             decoration: BoxDecoration(
                               color: Colors.white,
                               border: Border(
@@ -5175,7 +5175,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                               ),
                             ),
                             child: SingleChildScrollView(
-                              padding: EdgeInsets.all(isMobile ? 12 : 16),
+                              padding: const EdgeInsets.all(16),
                               child: _buildLeftSidebar(),
                             ),
                           ),
@@ -5198,7 +5198,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                       constraints.maxWidth;
                                   final double targetWidth = math.min(
                                     maxAvailableWidth,
-                                    isMobile ? maxAvailableWidth * 0.95 : 900,
+                                    isMobile ? maxAvailableWidth : 900,
                                   );
                                   final double aspect =
                                       _a4HeightMm / _a4WidthMm; // ~1.414
@@ -5297,6 +5297,43 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                         ),
                       ],
                     ),
+                    // Mobile drawer overlay for sidebar
+                    if (isMobile && _showSidebar) ...[
+                      Positioned.fill(
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() { _showSidebar = false; });
+                          },
+                          child: Container(
+                            color: Colors.black.withValues(alpha: 0.4),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        top: 0,
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          width: screenWidth * 0.9,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.25),
+                                blurRadius: 20,
+                                offset: const Offset(-8, 0),
+                              ),
+                            ],
+                          ),
+                          child: SafeArea(
+                            child: SingleChildScrollView(
+                              padding: const EdgeInsets.all(12),
+                              child: _buildLeftSidebar(),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
