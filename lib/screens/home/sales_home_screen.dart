@@ -6008,10 +6008,10 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                         ),
                       ),
                     ],
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },
