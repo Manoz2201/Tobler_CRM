@@ -210,6 +210,12 @@ class LeadUtils {
 
   /// Gets the status of a lead based on its data
   static String getLeadStatus(Map<String, dynamic> lead) {
+    // Treat Supabase admin_response.status = 'Closed' as Lost
+    if (lead['status'] == 'Closed' ||
+        lead['admin_response_status'] == 'Closed') {
+      return 'Lost';
+    }
+
     // Check if lead is completed (found in admin_response table)
     if (lead['admin_response_status'] == 'Completed') {
       return 'Completed';
@@ -256,6 +262,8 @@ class LeadUtils {
         return 0xFF4CAF50; // Vibrant green (matching Approved card icon)
       case 'Completed':
         return 0xFF009688; // Teal (matching Completed card icon)
+      case 'Lost':
+        return 0xFFE57373; // Soft red for Lost
       default:
         return 0xFF9E9E9E; // Grey
     }
@@ -267,16 +275,18 @@ class LeadUtils {
   }
 
   /// Fetches admin_response data for a specific lead
-  static Future<Map<String, dynamic>?> fetchAdminResponseByLeadId(String leadId) async {
+  static Future<Map<String, dynamic>?> fetchAdminResponseByLeadId(
+    String leadId,
+  ) async {
     try {
       final client = Supabase.instance.client;
-      
+
       final result = await client
           .from('admin_response')
           .select('*')
           .eq('lead_id', leadId)
           .single();
-      
+
       return result;
     } catch (e) {
       debugPrint('Error fetching admin_response for lead $leadId: $e');

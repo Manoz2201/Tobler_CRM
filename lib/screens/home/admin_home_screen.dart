@@ -3440,6 +3440,11 @@ class _AdminLeadsPageState extends State<_AdminLeadsPage> {
   }
 
   String _getLeadStatus(Map<String, dynamic> lead) {
+    // Treat Supabase admin_response.status = 'Closed' as Lost
+    if (lead['admin_response_status'] == 'Closed' ||
+        lead['status'] == 'Closed') {
+      return 'Lost';
+    }
     // Check if lead is completed first
     if (lead['admin_response_status'] == 'Completed') {
       return 'Completed';
@@ -4255,13 +4260,20 @@ class _LeadTableState extends State<LeadTable> {
       final matchesSearch =
           lead['lead_id'].toString().toLowerCase().contains(_searchText) ||
           (lead['client_name'] ?? '').toLowerCase().contains(_searchText) ||
-          (lead['project_name'] ?? '').toLowerCase().contains(_searchText);
+          (lead['project_name'] ?? '').toLowerCase().contains(_searchText) ||
+          (lead['sales_person_name'] ?? '').toString().toLowerCase().contains(
+            _searchText,
+          ) ||
+          _getLeadStatus(lead).toLowerCase().contains(_searchText);
 
       if (!matchesSearch) return false;
 
       if (_selectedFilter == 'All') return true;
 
       final status = _getLeadStatus(lead);
+      if (_selectedFilter == 'Completed') {
+        return status == 'Completed' || status == 'Lost';
+      }
       return status == _selectedFilter;
     }).toList();
 
@@ -5143,7 +5155,7 @@ class _LeadTableState extends State<LeadTable> {
         ),
         const SizedBox(width: 16),
         _buildStatCard(
-          'Completed',
+          'Completed/Lost',
           stats['completed'].toString(),
           Icons.assignment_turned_in,
           Colors.teal,
@@ -5225,7 +5237,7 @@ class _LeadTableState extends State<LeadTable> {
               Container(width: 1, height: 30, color: Colors.grey[300]),
               Expanded(
                 child: _buildCompactStatItem(
-                  'Completed',
+                  'Completed/Lost',
                   stats['completed'].toString(),
                   Colors.teal,
                 ),
@@ -5353,9 +5365,12 @@ class _LeadTableState extends State<LeadTable> {
                   value: _selectedFilter,
                   underline: SizedBox(),
                   items: _filterOptions.map((String filter) {
+                    final String label = filter == 'Completed'
+                        ? 'Completed/Lost'
+                        : filter;
                     return DropdownMenuItem<String>(
                       value: filter,
-                      child: Text(filter),
+                      child: Text(label),
                     );
                   }).toList(),
                   onChanged: (String? newValue) {
@@ -6500,14 +6515,32 @@ class _LeadTableState extends State<LeadTable> {
   }
 
   Map<String, int> _calculateStats() {
-    int total = _leads.length;
+    final List<Map<String, dynamic>> sourceLeads = _searchText.isNotEmpty
+        ? _leads.where((lead) {
+            return lead['lead_id'].toString().toLowerCase().contains(
+                  _searchText,
+                ) ||
+                (lead['client_name'] ?? '').toLowerCase().contains(
+                  _searchText,
+                ) ||
+                (lead['project_name'] ?? '').toLowerCase().contains(
+                  _searchText,
+                ) ||
+                (lead['sales_person_name'] ?? '')
+                    .toString()
+                    .toLowerCase()
+                    .contains(_searchText) ||
+                _getLeadStatus(lead).toLowerCase().contains(_searchText);
+          }).toList()
+        : _leads;
+    int total = sourceLeads.length;
     int newCount = 0;
     int proposalProgressCount = 0;
     int waitingCount = 0;
     int approvedCount = 0;
     int completedCount = 0;
 
-    for (final lead in _leads) {
+    for (final lead in sourceLeads) {
       final status = _getLeadStatus(lead);
       switch (status) {
         case 'New':
@@ -6523,6 +6556,7 @@ class _LeadTableState extends State<LeadTable> {
           approvedCount++;
           break;
         case 'Completed':
+        case 'Lost':
           completedCount++;
           break;
       }
@@ -7683,6 +7717,11 @@ class _LeadTableState extends State<LeadTable> {
   }
 
   String _getLeadStatus(Map<String, dynamic> lead) {
+    // Treat Supabase admin_response.status = 'Closed' as Lost
+    if (lead['admin_response_status'] == 'Closed' ||
+        lead['status'] == 'Closed') {
+      return 'Lost';
+    }
     // Check if lead is completed first
     if (lead['admin_response_status'] == 'Completed') {
       return 'Completed';
@@ -7735,6 +7774,8 @@ class _LeadTableState extends State<LeadTable> {
         return Colors.green;
       case 'Completed':
         return Colors.teal;
+      case 'Lost':
+        return Colors.redAccent;
       default:
         return Colors.grey;
     }
@@ -7800,6 +7841,7 @@ class _LeadTableState extends State<LeadTable> {
       case 'approved':
         return 'Approved';
       case 'completed':
+      case 'completed/lost':
         return 'Completed';
       default:
         return 'All';
@@ -10199,7 +10241,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                       ),
                                       Expanded(
                                         child: _buildMergedLeadStatusCard(
-                                          'Completed',
+                                          'Completed/Lost',
                                           _leadStatusData['completed']['value'],
                                           _leadStatusData['completed']['percentage'],
                                           Icons.assignment_turned_in,
@@ -10393,7 +10435,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                               ),
                               Expanded(
                                 child: _buildMobileMergedLeadStatusCard(
-                                  'Completed',
+                                  'Completed/Lost',
                                   _leadStatusData['completed']['value'],
                                   _leadStatusData['completed']['percentage'],
                                   Icons.assignment_turned_in,

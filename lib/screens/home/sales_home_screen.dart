@@ -672,6 +672,7 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWide = constraints.maxWidth > 700;
+        final availableWidth = constraints.maxWidth;
 
         return Scaffold(
           backgroundColor: Colors.grey[50],
@@ -686,15 +687,20 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Header Section
-                _buildHeader(isWide),
+                SizedBox(width: availableWidth, child: _buildHeader(isWide)),
                 SizedBox(height: isWide ? 24 : 16),
 
                 // Tab Bar
-                _buildTabBar(isWide),
+                SizedBox(width: availableWidth, child: _buildTabBar(isWide)),
                 SizedBox(height: isWide ? 16 : 8),
 
                 // Tab Content
-                Expanded(child: _buildTabContent(isWide)),
+                Expanded(
+                  child: SizedBox(
+                    width: availableWidth,
+                    child: _buildTabContent(isWide),
+                  ),
+                ),
               ],
             ),
           ),
@@ -880,239 +886,320 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
   }
 
   Widget _buildTabContent(bool isWide) {
-    return TabBarView(
-      controller: _tabController,
-      children: [
-        _buildActiveOffersTab(isWide),
-        _buildDraftOffersTab(isWide),
-        _buildExpiredOffersTab(isWide),
-        _buildAnalyticsTab(isWide),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth;
+
+        return SizedBox(
+          width: availableWidth,
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              SizedBox(
+                width: availableWidth,
+                child: _buildActiveOffersTab(isWide),
+              ),
+              SizedBox(
+                width: availableWidth,
+                child: _buildDraftOffersTab(isWide),
+              ),
+              SizedBox(
+                width: availableWidth,
+                child: _buildExpiredOffersTab(isWide),
+              ),
+              SizedBox(
+                width: availableWidth,
+                child: _buildAnalyticsTab(isWide),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
   Widget _buildActiveOffersTab(bool isWide) {
-    return _buildOffersList(
-      isWide: isWide,
-      title: 'Active Offers',
-      subtitle: 'Currently active customer offers',
-      offers: _getMockActiveOffers(),
-      emptyMessage: 'No active offers found',
-      emptyIcon: Icons.work_outline,
-      showStatus: true,
-      statusColor: Colors.green,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth;
+
+        return SizedBox(
+          width: availableWidth,
+          child: _buildOffersList(
+            isWide: isWide,
+            title: 'Active Offers',
+            subtitle: 'Currently active customer offers',
+            offers: _getMockActiveOffers(),
+            emptyMessage: 'No active offers found',
+            emptyIcon: Icons.work_outline,
+            showStatus: true,
+            statusColor: Colors.green,
+          ),
+        );
+      },
     );
   }
 
   Widget _buildDraftOffersTab(bool isWide) {
-    return _buildOffersList(
-      isWide: isWide,
-      title: 'Draft Offers',
-      subtitle: 'Offers in preparation',
-      offers: _getMockDraftOffers(),
-      emptyMessage: 'No draft offers found',
-      emptyIcon: Icons.edit_note_outlined,
-      showStatus: false,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth;
+
+        return SizedBox(
+          width: availableWidth,
+          child: _buildOffersList(
+            isWide: isWide,
+            title: 'Draft Offers',
+            subtitle: 'Offers in preparation',
+            offers: _getMockDraftOffers(),
+            emptyMessage: 'No draft offers found',
+            emptyIcon: Icons.edit_note_outlined,
+            showStatus: false,
+            statusColor: null,
+          ),
+        );
+      },
     );
   }
 
   Widget _buildExpiredOffersTab(bool isWide) {
-    return _buildOffersList(
-      isWide: isWide,
-      title: 'Expired Offers',
-      subtitle: 'Offers that have expired',
-      offers: _getMockExpiredOffers(),
-      emptyMessage: 'No expired offers found',
-      emptyIcon: Icons.schedule_outlined,
-      showStatus: true,
-      statusColor: Colors.red,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth;
+
+        return SizedBox(
+          width: availableWidth,
+          child: _buildOffersList(
+            isWide: isWide,
+            title: 'Expired Offers',
+            subtitle: 'Offers that have expired',
+            offers: _getMockExpiredOffers(),
+            emptyMessage: 'No expired offers found',
+            emptyIcon: Icons.schedule_outlined,
+            showStatus: true,
+            statusColor: null,
+          ),
+        );
+      },
     );
   }
 
   Widget _buildAnalyticsTab(bool isWide) {
-    // Calculate real analytics from offers data
-    final totalOffers = _offers.length;
-    final activeOffers = _offers
-        .where((offer) => offer['offer_status'] == 'Active offer')
-        .length;
-    final draftOffers = _offers
-        .where((offer) => offer['offer_status'] == 'Draft Offer')
-        .length;
-    final expiredOffers = _offers
-        .where((offer) => offer['offer_status'] == 'Expired Offer')
-        .length;
-    final closedOffers = _offers
-        .where((offer) => offer['offer_status'] == 'Closed Offer')
-        .length;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth;
 
-    // Calculate total value and conversion rate
-    double totalValue = 0;
-    int convertedOffers = 0;
+        // Calculate real analytics from offers data
+        final totalOffers = _offers.length;
+        final activeOffers = _offers
+            .where((offer) => offer['offer_status'] == 'Active offer')
+            .length;
+        final draftOffers = _offers
+            .where((offer) => offer['offer_status'] == 'Draft Offer')
+            .length;
+        final expiredOffers = _offers
+            .where((offer) => offer['offer_status'] == 'Expired Offer')
+            .length;
+        final closedOffers = _offers
+            .where((offer) => offer['offer_status'] == 'Closed Offer')
+            .length;
 
-    for (final offer in _offers) {
-      final grandTotal = offer['grand_total'];
-      if (grandTotal != null) {
-        if (grandTotal is String) {
-          totalValue +=
-              double.tryParse(grandTotal.replaceAll(RegExp(r'[^\d.]'), '')) ??
-              0;
-        } else if (grandTotal is num) {
-          totalValue += grandTotal.toDouble();
+        // Calculate total value and conversion rate
+        double totalValue = 0;
+        int convertedOffers = 0;
+
+        for (final offer in _offers) {
+          final grandTotal = offer['grand_total'];
+          if (grandTotal != null) {
+            if (grandTotal is String) {
+              totalValue +=
+                  double.tryParse(
+                    grandTotal.replaceAll(RegExp(r'[^\d.]'), ''),
+                  ) ??
+                  0;
+            } else if (grandTotal is num) {
+              totalValue += grandTotal.toDouble();
+            }
+          }
+
+          // Consider closed offers as converted
+          if (offer['offer_status'] == 'Closed Offer') {
+            convertedOffers++;
+          }
         }
-      }
 
-      // Consider closed offers as converted
-      if (offer['offer_status'] == 'Closed Offer') {
-        convertedOffers++;
-      }
-    }
+        final conversionRate = totalOffers > 0
+            ? (convertedOffers / totalOffers * 100).toStringAsFixed(1)
+            : '0.0';
 
-    final conversionRate = totalOffers > 0
-        ? (convertedOffers / totalOffers * 100).toStringAsFixed(1)
-        : '0.0';
+        // Get recent offers for trend analysis
+        final recentOffers = _offers.take(5).toList();
 
-    // Get recent offers for trend analysis
-    final recentOffers = _offers.take(5).toList();
-
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Offers Analytics',
-            style: TextStyle(
-              fontSize: isWide ? 24 : 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[800],
-            ),
-          ),
-          SizedBox(height: isWide ? 16 : 12),
-          Text(
-            'Real-time performance insights based on your offers data',
-            style: TextStyle(
-              fontSize: isWide ? 16 : 14,
-              color: Colors.grey[600],
-            ),
-          ),
-          SizedBox(height: isWide ? 24 : 16),
-
-          // Stats Cards
-          if (isWide)
-            Row(
+        return SizedBox(
+          width: availableWidth,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: _buildStatCard(
-                    'Total Offers',
-                    totalOffers.toString(),
-                    Icons.local_offer,
-                    Colors.blue,
+                SizedBox(
+                  width: availableWidth,
+                  child: Text(
+                    'Offers Analytics',
+                    style: TextStyle(
+                      fontSize: isWide ? 24 : 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[800],
+                    ),
                   ),
                 ),
-                SizedBox(width: 16),
-                Expanded(
-                  child: _buildStatCard(
-                    'Active Offers',
-                    activeOffers.toString(),
-                    Icons.work,
-                    Colors.green,
+                SizedBox(height: isWide ? 16 : 12),
+                SizedBox(
+                  width: availableWidth,
+                  child: Text(
+                    'Real-time performance insights based on your offers data',
+                    style: TextStyle(
+                      fontSize: isWide ? 16 : 14,
+                      color: Colors.grey[600],
+                    ),
                   ),
                 ),
-                SizedBox(width: 16),
-                Expanded(
-                  child: _buildStatCard(
-                    'Conversion Rate',
-                    '$conversionRate%',
-                    Icons.trending_up,
-                    Colors.orange,
+                SizedBox(height: isWide ? 24 : 16),
+
+                // Stats Cards
+                if (isWide)
+                  SizedBox(
+                    width: availableWidth,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _buildStatCard(
+                            'Total Offers',
+                            totalOffers.toString(),
+                            Icons.local_offer,
+                            Colors.blue,
+                          ),
+                        ),
+                        SizedBox(width: 16),
+                        Expanded(
+                          child: _buildStatCard(
+                            'Active Offers',
+                            activeOffers.toString(),
+                            Icons.work,
+                            Colors.green,
+                          ),
+                        ),
+                        SizedBox(width: 16),
+                        Expanded(
+                          child: _buildStatCard(
+                            'Conversion Rate',
+                            '$conversionRate%',
+                            Icons.trending_up,
+                            Colors.orange,
+                          ),
+                        ),
+                        SizedBox(width: 16),
+                        Expanded(
+                          child: _buildStatCard(
+                            'Total Value',
+                            '₹${totalValue.toStringAsFixed(0)}',
+                            Icons.attach_money,
+                            Colors.purple,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  // Mobile: 2x2 grid layout for better mobile experience
+                  SizedBox(
+                    width: availableWidth,
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildStatCard(
+                                'Total Offers',
+                                totalOffers.toString(),
+                                Icons.local_offer,
+                                Colors.blue,
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: _buildStatCard(
+                                'Active Offers',
+                                activeOffers.toString(),
+                                Icons.work,
+                                Colors.green,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildStatCard(
+                                'Conversion Rate',
+                                '$conversionRate%',
+                                Icons.trending_up,
+                                Colors.orange,
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: _buildStatCard(
+                                'Total Value',
+                                '₹${totalValue.toStringAsFixed(0)}',
+                                Icons.attach_money,
+                                Colors.purple,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
+
+                SizedBox(height: isWide ? 32 : 24),
+
+                // Status Distribution Chart
+                SizedBox(
+                  width: availableWidth,
+                  child: _buildStatusDistributionChart(isWide, {
+                    'Active': activeOffers,
+                    'Draft': draftOffers,
+                    'Expired': expiredOffers,
+                    'Closed': closedOffers,
+                  }),
                 ),
-                SizedBox(width: 16),
-                Expanded(
-                  child: _buildStatCard(
-                    'Total Value',
-                    '₹${totalValue.toStringAsFixed(0)}',
-                    Icons.attach_money,
-                    Colors.purple,
+
+                SizedBox(height: isWide ? 32 : 24),
+
+                // Recent Offers
+                SizedBox(
+                  width: availableWidth,
+                  child: _buildRecentOffersSection(isWide, recentOffers),
+                ),
+
+                SizedBox(height: isWide ? 32 : 24),
+
+                // Performance Metrics
+                SizedBox(
+                  width: availableWidth,
+                  child: _buildPerformanceMetrics(
+                    isWide,
+                    totalOffers,
+                    convertedOffers,
+                    totalValue,
                   ),
                 ),
               ],
-            )
-          else
-            // Mobile: 2x2 grid layout for better mobile experience
-            Column(
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildStatCard(
-                        'Total Offers',
-                        totalOffers.toString(),
-                        Icons.local_offer,
-                        Colors.blue,
-                      ),
-                    ),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: _buildStatCard(
-                        'Active Offers',
-                        activeOffers.toString(),
-                        Icons.work,
-                        Colors.green,
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildStatCard(
-                        'Conversion Rate',
-                        '$conversionRate%',
-                        Icons.trending_up,
-                        Colors.orange,
-                      ),
-                    ),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: _buildStatCard(
-                        'Total Value',
-                        '₹${totalValue.toStringAsFixed(0)}',
-                        Icons.attach_money,
-                        Colors.purple,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
             ),
-
-          SizedBox(height: isWide ? 32 : 24),
-
-          // Status Distribution Chart
-          _buildStatusDistributionChart(isWide, {
-            'Active': activeOffers,
-            'Draft': draftOffers,
-            'Expired': expiredOffers,
-            'Closed': closedOffers,
-          }),
-
-          SizedBox(height: isWide ? 32 : 24),
-
-          // Recent Offers
-          _buildRecentOffersSection(isWide, recentOffers),
-
-          SizedBox(height: isWide ? 32 : 24),
-
-          // Performance Metrics
-          _buildPerformanceMetrics(
-            isWide,
-            totalOffers,
-            convertedOffers,
-            totalValue,
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -1741,62 +1828,92 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Realtime search input
-        TextField(
-          decoration: InputDecoration(
-            hintText: isWide
-                ? 'Search by Project, Client, or Ref'
-                : 'Search offers...',
-            prefixIcon: const Icon(Icons.search),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            isDense: true,
-            contentPadding: EdgeInsets.symmetric(
-              horizontal: isWide ? 16 : 12,
-              vertical: isWide ? 12 : 10,
-            ),
-            hintStyle: TextStyle(fontSize: isWide ? 14 : 12),
-          ),
-          style: TextStyle(fontSize: isWide ? 14 : 12),
-          onChanged: (value) => setState(() => _offersSearch = value),
-        ),
-        SizedBox(height: isWide ? 12 : 8),
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: isWide ? 24 : 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.grey[800],
-          ),
-        ),
-        SizedBox(height: isWide ? 8 : 4),
-        Text(
-          subtitle,
-          style: TextStyle(fontSize: isWide ? 16 : 14, color: Colors.grey[600]),
-        ),
-        SizedBox(height: isWide ? 24 : 16),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth;
 
-        if (_isLoadingOffers)
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircularProgressIndicator(color: Colors.orange[600]),
-                SizedBox(height: 16),
-                Text(
-                  'Loading offers...',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 16),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Realtime search input
+            SizedBox(
+              width: availableWidth,
+              child: TextField(
+                decoration: InputDecoration(
+                  hintText: isWide
+                      ? 'Search by Project, Client, or Ref'
+                      : 'Search offers...',
+                  prefixIcon: const Icon(Icons.search),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: isWide ? 16 : 12,
+                    vertical: isWide ? 12 : 10,
+                  ),
+                  hintStyle: TextStyle(fontSize: isWide ? 14 : 12),
                 ),
-              ],
+                style: TextStyle(fontSize: isWide ? 14 : 12),
+                onChanged: (value) => setState(() => _offersSearch = value),
+              ),
             ),
-          )
-        else if (isWide)
-          _buildWideOffersTable(offers, showStatus, statusColor)
-        else
-          _buildMobileOffersList(offers, showStatus, statusColor),
-      ],
+            SizedBox(height: isWide ? 12 : 8),
+            SizedBox(
+              width: availableWidth,
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: isWide ? 24 : 20,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[800],
+                ),
+              ),
+            ),
+            SizedBox(height: isWide ? 8 : 4),
+            SizedBox(
+              width: availableWidth,
+              child: Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: isWide ? 16 : 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ),
+            SizedBox(height: isWide ? 24 : 16),
+
+            if (_isLoadingOffers)
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(color: Colors.orange[600]),
+                    SizedBox(height: 16),
+                    Text(
+                      'Loading offers...',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Expanded(
+                child: SizedBox(
+                  width: availableWidth,
+                  child: isWide
+                      ? _buildWideOffersTable(
+                          offers,
+                          showStatus,
+                          statusColor,
+                          isWide,
+                        )
+                      : _buildMobileOffersList(offers, showStatus, statusColor),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 
@@ -1804,86 +1921,469 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
     List<Map<String, dynamic>> offers,
     bool showStatus,
     Color? statusColor,
+    bool isWide,
   ) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
-            spreadRadius: 1,
-            blurRadius: 3,
-            offset: const Offset(0, 1),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Calculate available width (total width - navigation bar width)
+        final availableWidth = constraints.maxWidth;
+
+        return Container(
+          width: availableWidth,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withValues(alpha: 0.1),
+                spreadRadius: 1,
+                blurRadius: 3,
+                offset: const Offset(0, 1),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columns: [
-            DataColumn(label: Text('Reference')),
-            DataColumn(label: Text('Client Name')),
-            DataColumn(label: Text('Project Name')),
-            DataColumn(label: Text('Value')),
-            DataColumn(label: Text('Created Date')),
-            if (showStatus) DataColumn(label: Text('Status')),
-            DataColumn(label: Text('Actions')),
-          ],
-          rows: offers.map((offer) {
-            return DataRow(
-              cells: [
-                DataCell(Text(offer['ref'] ?? '')),
-                DataCell(Text(offer['client_name'] ?? '')),
-                DataCell(Text(offer['project_name'] ?? '')),
-                DataCell(Text('₹${offer['grand_total']?.toString() ?? '0'}')),
-                DataCell(Text(_formatDate(offer['offer_created'] ?? ''))),
-                if (showStatus)
-                  DataCell(
-                    Container(
-                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: statusColor?.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: statusColor ?? Colors.grey),
-                      ),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minWidth: availableWidth),
+              child: DataTable(
+                columnSpacing: isWide ? 24 : 12,
+                horizontalMargin: isWide ? 16 : 8,
+                columns: [
+                  DataColumn(
+                    label: Expanded(
                       child: Text(
-                        offer['offer_status'] ?? '',
+                        'Reference',
                         style: TextStyle(
-                          color: statusColor ?? Colors.grey,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w600,
+                          fontSize: isWide ? 14 : 12,
                         ),
                       ),
                     ),
                   ),
-                DataCell(
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: Icon(Icons.edit, size: 18),
-                        onPressed: () => _editOffer(offer),
-                        tooltip: 'Edit Offer',
+                  DataColumn(
+                    label: Expanded(
+                      child: Text(
+                        'Client Name',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: isWide ? 14 : 12,
+                        ),
                       ),
-                      IconButton(
-                        icon: Icon(Icons.visibility, size: 18),
-                        onPressed: () => _viewOffer(offer),
-                        tooltip: 'View Offer',
+                    ),
+                  ),
+                  DataColumn(
+                    label: Expanded(
+                      child: Text(
+                        'Project Name/Location',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: isWide ? 14 : 12,
+                        ),
                       ),
-                      IconButton(
-                        icon: Icon(Icons.delete, size: 18),
-                        onPressed: () => _deleteOffer(offer),
-                        tooltip: 'Delete Offer',
+                    ),
+                  ),
+                  DataColumn(
+                    label: Expanded(
+                      child: Text(
+                        'Sales Person',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: isWide ? 14 : 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Expanded(
+                      child: Center(
+                        child: Text(
+                          'Value',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: isWide ? 14 : 12,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Expanded(
+                      child: Center(
+                        child: Text(
+                          'Created Date',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: isWide ? 14 : 12,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (showStatus)
+                    DataColumn(
+                      label: Expanded(
+                        child: Center(
+                          child: Text(
+                            'Status',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: isWide ? 14 : 12,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                    ),
+                  DataColumn(
+                    label: Expanded(
+                      child: Center(
+                        child: Text(
+                          'Actions',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: isWide ? 14 : 12,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+                rows: offers.map((offer) {
+                  // Create compact project info for tooltip
+                  final projectInfo = [
+                    if ((offer['project_name'] ?? '').toString().isNotEmpty)
+                      offer['project_name'],
+                    if ((offer['address'] ?? '').toString().isNotEmpty)
+                      offer['address'],
+                  ].join('\n');
+
+                  return DataRow(
+                    cells: [
+                      DataCell(
+                        GestureDetector(
+                          onTap: () => _editOffer(offer),
+                          child: MouseRegion(
+                            cursor: SystemMouseCursors.click,
+                            child: SizedBox(
+                              width: isWide
+                                  ? (availableWidth * 0.07) + 40
+                                  : availableWidth * 0.15,
+                              child: Text(
+                                offer['ref'] ?? '',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: isWide ? 14 : 12,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: isWide ? 1 : 2,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        GestureDetector(
+                          onTap: () => _editOffer(offer),
+                          child: MouseRegion(
+                            cursor: SystemMouseCursors.click,
+                            child: Tooltip(
+                              message:
+                                  (offer['client_name'] ?? '')
+                                      .toString()
+                                      .isNotEmpty
+                                  ? offer['client_name']
+                                  : 'No client name',
+                              preferBelow: true,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[800],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              textStyle: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                height: 1.2,
+                              ),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              child: SizedBox(
+                                width: isWide
+                                    ? availableWidth * 0.12
+                                    : availableWidth * 0.18,
+                                child: Text(
+                                  offer['client_name'] ?? '',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: isWide ? 14 : 12,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: isWide ? 1 : 2,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        GestureDetector(
+                          onTap: () => _editOffer(offer),
+                          child: MouseRegion(
+                            cursor: SystemMouseCursors.click,
+                            child: Tooltip(
+                              message: projectInfo.isNotEmpty
+                                  ? projectInfo
+                                  : 'No project info',
+                              preferBelow: true,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[800],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              textStyle: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                height: 1.2,
+                              ),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              child: SizedBox(
+                                width: isWide
+                                    ? availableWidth * 0.18
+                                    : availableWidth * 0.25,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      offer['project_name'] ?? '',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.grey[800],
+                                        fontSize: isWide ? 14 : 12,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: isWide ? 1 : 2,
+                                    ),
+                                    if ((offer['address'] ?? '')
+                                        .toString()
+                                        .isNotEmpty)
+                                      Text(
+                                        offer['address'] ?? '',
+                                        style: TextStyle(
+                                          fontSize: isWide ? 11 : 10,
+                                          color: Colors.grey[600],
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: isWide ? 1 : 2,
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        GestureDetector(
+                          onTap: () => _editOffer(offer),
+                          child: MouseRegion(
+                            cursor: SystemMouseCursors.click,
+                            child: SizedBox(
+                              width: isWide
+                                  ? availableWidth * 0.12
+                                  : availableWidth * 0.15,
+                              child: FutureBuilder<String?>(
+                                future: _fetchSalesPersonUsername(
+                                  offer['user_id'],
+                                ),
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.orange[600],
+                                      ),
+                                    );
+                                  }
+                                  return Text(
+                                    snapshot.data ?? 'Unknown',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.blue[700],
+                                      fontSize: isWide ? 14 : 12,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: isWide ? 1 : 2,
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        GestureDetector(
+                          onTap: () => _editOffer(offer),
+                          child: MouseRegion(
+                            cursor: SystemMouseCursors.click,
+                            child: SizedBox(
+                              width: isWide
+                                  ? availableWidth * 0.07
+                                  : availableWidth * 0.12,
+                              child: Center(
+                                child: Text(
+                                  '₹${offer['grand_total']?.toString() ?? '0'}',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.green[700],
+                                    fontSize: isWide ? 14 : 12,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                  maxLines: isWide ? 1 : 2,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        GestureDetector(
+                          onTap: () => _editOffer(offer),
+                          child: MouseRegion(
+                            cursor: SystemMouseCursors.click,
+                            child: SizedBox(
+                              width: isWide
+                                  ? availableWidth * 0.07
+                                  : availableWidth * 0.12,
+                              child: Center(
+                                child: Text(
+                                  _formatDate(offer['offer_created'] ?? ''),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: isWide ? 14 : 12,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                  maxLines: isWide ? 1 : 2,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (showStatus)
+                        DataCell(
+                          GestureDetector(
+                            onTap: () => _editOffer(offer),
+                            child: MouseRegion(
+                              cursor: SystemMouseCursors.click,
+                              child: SizedBox(
+                                width: isWide
+                                    ? availableWidth * 0.07
+                                    : availableWidth * 0.12,
+                                child: Center(
+                                  child: Container(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: statusColor?.withValues(
+                                        alpha: 0.1,
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: statusColor ?? Colors.grey,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      offer['offer_status'] ?? '',
+                                      style: TextStyle(
+                                        color: statusColor ?? Colors.grey,
+                                        fontSize: isWide ? 12 : 10,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: isWide ? 1 : 2,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      DataCell(
+                        SizedBox(
+                          width: isWide
+                              ? availableWidth * 0.07
+                              : availableWidth * 0.15,
+                          child: Center(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.edit,
+                                    size: isWide ? 18 : 16,
+                                  ),
+                                  onPressed: () => _editOffer(offer),
+                                  tooltip: 'Edit Offer',
+                                  padding: EdgeInsets.all(isWide ? 4 : 2),
+                                  constraints: BoxConstraints(
+                                    minWidth: isWide ? 32 : 28,
+                                    minHeight: isWide ? 32 : 28,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.download,
+                                    size: isWide ? 18 : 16,
+                                  ),
+                                  onPressed: () => _downloadOfferPdf(offer),
+                                  tooltip: 'Download PDF',
+                                  padding: EdgeInsets.all(isWide ? 4 : 2),
+                                  constraints: BoxConstraints(
+                                    minWidth: isWide ? 32 : 28,
+                                    minHeight: isWide ? 32 : 28,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.delete,
+                                    size: isWide ? 18 : 16,
+                                  ),
+                                  onPressed: () => _deleteOffer(offer),
+                                  tooltip: 'Delete Offer',
+                                  padding: EdgeInsets.all(isWide ? 4 : 2),
+                                  constraints: BoxConstraints(
+                                    minWidth: isWide ? 32 : 28,
+                                    minHeight: isWide ? 32 : 28,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
                     ],
-                  ),
-                ),
-              ],
-            );
-          }).toList(),
-        ),
-      ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1892,170 +2392,273 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
     bool showStatus,
     Color? statusColor,
   ) {
-    return ListView.builder(
-      shrinkWrap: true,
-      itemCount: offers.length,
-      itemBuilder: (context, index) {
-        final offer = offers[index];
-        return Card(
-          margin: EdgeInsets.only(bottom: 12),
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Padding(
-            padding: EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header row with project name and status
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        offer['project_name'] ?? 'Unknown Project',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey[800],
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth;
+
+        return ListView.builder(
+          shrinkWrap: true,
+          itemCount: offers.length,
+          itemBuilder: (context, index) {
+            final offer = offers[index];
+            return Container(
+              width: availableWidth,
+              margin: EdgeInsets.only(bottom: 12),
+              child: Card(
+                elevation: 2,
+                color: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Container(
+                  width: availableWidth,
+                  padding: EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header row with project name and status
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  offer['project_name'] ?? 'Unknown Project',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.grey[800],
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                if ((offer['address'] ?? '')
+                                    .toString()
+                                    .isNotEmpty) ...[
+                                  SizedBox(height: 4),
+                                  Text(
+                                    offer['address'] ?? '',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          if (showStatus)
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: statusColor?.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: statusColor ?? Colors.grey,
+                                ),
+                              ),
+                              child: Text(
+                                offer['offer_status'] ?? '',
+                                style: TextStyle(
+                                  color: statusColor ?? Colors.grey,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-                    ),
-                    if (showStatus)
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: statusColor?.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: statusColor ?? Colors.grey),
-                        ),
-                        child: Text(
-                          offer['offer_status'] ?? '',
-                          style: TextStyle(
-                            color: statusColor ?? Colors.grey,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
+
+                      // Reference number
+                      if ((offer['ref'] ?? '').toString().isNotEmpty) ...[
+                        SizedBox(height: 8),
+                        Container(
+                          width: availableWidth * 0.4,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: Colors.blue.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Text(
+                            'Ref: ${offer['ref']}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.blue[700],
+                              fontSize: 12,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                      ),
-                  ],
-                ),
+                      ],
 
-                // Reference number
-                if ((offer['ref'] ?? '').toString().isNotEmpty) ...[
-                  SizedBox(height: 8),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: Colors.blue.withValues(alpha: 0.3),
+                      SizedBox(height: 12),
+
+                      // Offer details in a more organized layout
+                      _buildMobileOfferDetail(
+                        'Client',
+                        offer['client_name'] ?? 'Unknown Client',
+                        availableWidth,
                       ),
-                    ),
-                    child: Text(
-                      'Ref: ${offer['ref']}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: Colors.blue[700],
-                        fontSize: 12,
+                      // Sales Person with FutureBuilder
+                      Padding(
+                        padding: EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(
+                              width: availableWidth * 0.25,
+                              child: Text(
+                                'Sales Person:',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: FutureBuilder<String?>(
+                                future: _fetchSalesPersonUsername(
+                                  offer['user_id'],
+                                ),
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.orange[600],
+                                      ),
+                                    );
+                                  }
+                                  return Text(
+                                    snapshot.data ?? 'Unknown',
+                                    style: TextStyle(
+                                      color: Colors.blue[700],
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
+                      _buildMobileOfferDetail(
+                        'Value',
+                        '₹${offer['grand_total']?.toString() ?? '0'}',
+                        availableWidth,
+                      ),
+                      _buildMobileOfferDetail(
+                        'Created',
+                        _formatDate(offer['offer_created'] ?? ''),
+                        availableWidth,
+                      ),
+
+                      SizedBox(height: 16),
+
+                      // Action buttons with improved mobile layout
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () => _editOffer(offer),
+                              icon: Icon(Icons.edit, size: 16),
+                              label: Text(
+                                'Edit',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue[600],
+                                foregroundColor: Colors.white,
+                                padding: EdgeInsets.symmetric(vertical: 10),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () => _viewOffer(offer),
+                              icon: Icon(Icons.visibility, size: 16),
+                              label: Text(
+                                'View',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green[600],
+                                foregroundColor: Colors.white,
+                                padding: EdgeInsets.symmetric(vertical: 10),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () => _deleteOffer(offer),
+                              icon: Icon(Icons.delete, size: 16),
+                              label: Text(
+                                'Delete',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red[600],
+                                foregroundColor: Colors.white,
+                                padding: EdgeInsets.symmetric(vertical: 10),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                ],
-
-                SizedBox(height: 12),
-
-                // Offer details in a more organized layout
-                _buildMobileOfferDetail(
-                  'Client',
-                  offer['client_name'] ?? 'Unknown Client',
                 ),
-                _buildMobileOfferDetail(
-                  'Value',
-                  '₹${offer['grand_total']?.toString() ?? '0'}',
-                ),
-                _buildMobileOfferDetail(
-                  'Created',
-                  _formatDate(offer['offer_created'] ?? ''),
-                ),
-
-                SizedBox(height: 16),
-
-                // Action buttons with improved mobile layout
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () => _editOffer(offer),
-                        icon: Icon(Icons.edit, size: 16),
-                        label: Text('Edit', style: TextStyle(fontSize: 12)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue[600],
-                          foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () => _viewOffer(offer),
-                        icon: Icon(Icons.visibility, size: 16),
-                        label: Text('View', style: TextStyle(fontSize: 12)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green[600],
-                          foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () => _deleteOffer(offer),
-                        icon: Icon(Icons.delete, size: 16),
-                        label: Text('Delete', style: TextStyle(fontSize: 12)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red[600],
-                          foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
   }
 
   // Helper method for mobile offer details
-  Widget _buildMobileOfferDetail(String label, String value) {
+  Widget _buildMobileOfferDetail(
+    String label,
+    String value,
+    double availableWidth,
+  ) {
     return Padding(
       padding: EdgeInsets.only(bottom: 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 60,
+            width: availableWidth * 0.25,
             child: Text(
               '$label:',
               style: TextStyle(
@@ -2080,6 +2683,38 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
         ],
       ),
     );
+  }
+
+  // Helper method to fetch sales person username by user_id
+  Future<String?> _fetchSalesPersonUsername(String? userId) async {
+    if (userId == null || userId.isEmpty) return null;
+
+    try {
+      final client = Supabase.instance.client;
+
+      // First try to get from users table
+      var user = await client
+          .from('users')
+          .select('username')
+          .eq('id', userId)
+          .maybeSingle();
+
+      if (user != null) {
+        return user['username'];
+      }
+
+      // If not found in users, try dev_user table
+      user = await client
+          .from('dev_user')
+          .select('username')
+          .eq('id', userId)
+          .maybeSingle();
+
+      return user?['username'];
+    } catch (e) {
+      debugPrint('Error fetching sales person username: $e');
+      return null;
+    }
   }
 
   // Real data methods for offers
@@ -2140,7 +2775,8 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
             'project_id': leadInfoResult['project_id'],
             'project_name': leadInfoResult['project_name'],
             'client_name': leadInfoResult['client_name'],
-            'location': leadInfoResult['location'],
+            'address':
+                leadInfoResult['location'], // Map location to address for consistency
           };
 
           offersWithLeadInfo.add(offerWithLeadInfo);
@@ -2152,7 +2788,7 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
             'project_id': null,
             'project_name': null,
             'client_name': null,
-            'location': null,
+            'address': null, // Map location to address for consistency
           };
           offersWithLeadInfo.add(offerWithLeadInfo);
         }
@@ -2349,6 +2985,446 @@ class _OffersManagementScreenState extends State<OffersManagementScreen>
           ],
         );
       },
+    );
+  }
+
+  // Download Offer PDF functionality
+  Future<void> _downloadOfferPdf(Map<String, dynamic> offer) async {
+    try {
+      // First, open the Offer Editor dialog to get the offer data
+      final result = await showDialog<Map<String, dynamic>>(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return OfferEditorDialog(
+            lead: offer,
+            currentUserId: null,
+            existingOffer: offer,
+          );
+        },
+      );
+
+      if (result != null && mounted) {
+        // After Offer Editor is closed, show the Select Pages dialog
+        final selectedPages = await _showSelectPagesDialog(context);
+
+        if (selectedPages != null && selectedPages.isNotEmpty) {
+          // Start the actual PDF download process
+          await _startPdfDownload(offer, selectedPages);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error preparing PDF download: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+      debugPrint('Error preparing PDF download: $e');
+    }
+  }
+
+  // Show Select Pages dialog
+  Future<List<int>?> _showSelectPagesDialog(BuildContext context) async {
+    return showDialog<List<int>>(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return SelectPagesDialog();
+      },
+    );
+  }
+
+  // Start PDF download with progress
+  Future<void> _startPdfDownload(
+    Map<String, dynamic> offer,
+    List<int> selectedPages,
+  ) async {
+    try {
+      // Get project name for file naming
+      final projectName = offer['project_name'] ?? 'Unknown_Project';
+      final sanitizedProjectName = projectName.replaceAll(
+        RegExp(r'[^\w\s-]'),
+        '_',
+      );
+
+      // Show download progress dialog
+      if (mounted) {
+        await _showDownloadProgressDialog(
+          context,
+          offer,
+          selectedPages,
+          sanitizedProjectName,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error starting PDF download: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+      debugPrint('Error starting PDF download: $e');
+    }
+  }
+
+  // Show download progress dialog
+  Future<void> _showDownloadProgressDialog(
+    BuildContext context,
+    Map<String, dynamic> offer,
+    List<int> selectedPages,
+    String projectName,
+  ) async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return DownloadProgressDialog(
+          offer: offer,
+          selectedPages: selectedPages,
+          projectName: projectName,
+        );
+      },
+    );
+  }
+}
+
+// Select Pages Dialog for PDF download
+class SelectPagesDialog extends StatefulWidget {
+  const SelectPagesDialog({super.key});
+
+  @override
+  State<SelectPagesDialog> createState() => _SelectPagesDialogState();
+}
+
+class _SelectPagesDialogState extends State<SelectPagesDialog> {
+  final List<bool> _pageSelections = List.generate(
+    10,
+    (index) => true,
+  ); // Default all pages selected
+  bool _selectAll = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _updateSelectAllState();
+  }
+
+  void _updateSelectAllState() {
+    _selectAll = _pageSelections.every((selected) => selected);
+  }
+
+  void _toggleSelectAll() {
+    setState(() {
+      _selectAll = !_selectAll;
+      for (int i = 0; i < _pageSelections.length; i++) {
+        _pageSelections[i] = _selectAll;
+      }
+    });
+  }
+
+  void _togglePage(int index) {
+    setState(() {
+      _pageSelections[index] = !_pageSelections[index];
+      _updateSelectAllState();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Container(
+        width: 150,
+        height: 300,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Icon(Icons.description, size: 16, color: Colors.blue[600]),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Select Pages',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Select All checkbox
+            Row(
+              children: [
+                Checkbox(
+                  value: _selectAll,
+                  onChanged: (value) => _toggleSelectAll(),
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                Text(
+                  'Select All',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey[700],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+
+            // Page checkboxes
+            Expanded(
+              child: ListView.builder(
+                itemCount: _pageSelections.length,
+                itemBuilder: (context, index) {
+                  return Row(
+                    children: [
+                      Checkbox(
+                        value: _pageSelections[index],
+                        onChanged: (value) => _togglePage(index),
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      Text(
+                        'Page ${index + 1}',
+                        style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Download button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  final selectedPages = <int>[];
+                  for (int i = 0; i < _pageSelections.length; i++) {
+                    if (_pageSelections[i]) {
+                      selectedPages.add(i + 1);
+                    }
+                  }
+                  Navigator.of(context).pop(selectedPages);
+                },
+                icon: const Icon(Icons.download, size: 16),
+                label: const Text('Download', style: TextStyle(fontSize: 12)),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  backgroundColor: Colors.blue[600],
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Download Progress Dialog
+class DownloadProgressDialog extends StatefulWidget {
+  final Map<String, dynamic> offer;
+  final List<int> selectedPages;
+  final String projectName;
+
+  const DownloadProgressDialog({
+    super.key,
+    required this.offer,
+    required this.selectedPages,
+    required this.projectName,
+  });
+
+  @override
+  State<DownloadProgressDialog> createState() => _DownloadProgressDialogState();
+}
+
+class _DownloadProgressDialogState extends State<DownloadProgressDialog> {
+  double _progress = 0.0;
+  String _status = 'Preparing PDF...';
+  bool _isDownloading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _startDownload();
+  }
+
+  Future<void> _startDownload() async {
+    try {
+      // Simulate PDF generation and download process
+      for (int i = 0; i <= 100; i++) {
+        if (!mounted) return;
+
+        await Future.delayed(const Duration(milliseconds: 50));
+
+        setState(() {
+          _progress = i / 100;
+
+          if (i < 20) {
+            _status = 'Preparing PDF...';
+          } else if (i < 50) {
+            _status = 'Generating content...';
+          } else if (i < 80) {
+            _status = 'Creating PDF...';
+          } else if (i < 100) {
+            _status = 'Finalizing...';
+          } else {
+            _status = 'Download complete!';
+            _isDownloading = false;
+          }
+        });
+      }
+
+      // Simulate file save
+      await Future.delayed(const Duration(seconds: 1));
+
+      if (mounted) {
+        // Show success message and close dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('PDF saved as: ${widget.projectName}.pdf'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _status = 'Error occurred';
+          _isDownloading = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error downloading PDF: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+
+        // Close dialog after error
+        await Future.delayed(const Duration(seconds: 2));
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Container(
+        width: 300,
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Row(
+              children: [
+                Icon(
+                  _isDownloading ? Icons.download : Icons.check_circle,
+                  size: 24,
+                  color: _isDownloading ? Colors.blue[600] : Colors.green[600],
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Downloading PDF',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // Project name
+            Text(
+              'Project: ${widget.projectName}',
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+
+            // Selected pages info
+            Text(
+              'Pages: ${widget.selectedPages.join(', ')}',
+              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+
+            // Progress bar
+            LinearProgressIndicator(
+              value: _progress,
+              backgroundColor: Colors.grey[300],
+              valueColor: AlwaysStoppedAnimation<Color>(
+                _isDownloading ? Colors.blue[600]! : Colors.green[600]!,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Progress percentage
+            Text(
+              '${(_progress * 100).toInt()}%',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue[600],
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Status text
+            Text(
+              _status,
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              textAlign: TextAlign.center,
+            ),
+
+            if (!_isDownloading) ...[
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green[600],
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Close'),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
@@ -2975,7 +4051,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                 icon: const Icon(Icons.save),
                 label: const Text('Save Details'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange[600],
+                  backgroundColor: const Color(0xFF174F8F),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
@@ -4121,7 +5197,9 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: () => Navigator.of(
+                    context,
+                  ).pop(widget.existingOffer ?? widget.lead),
                   child: const Text('Close'),
                 ),
               ],
@@ -4742,7 +5820,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.orange[600],
+                    color: const Color(0xFF174F8F),
                     borderRadius: BorderRadius.only(
                       topLeft: Radius.circular(isMobile ? 0 : 12),
                       topRight: Radius.circular(isMobile ? 0 : 12),
@@ -4786,43 +5864,185 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                               },
                             ),
                           if (!isMobile) ...[
-                            IconButton(
-                              icon: Icon(
-                                _isEditing ? Icons.visibility : Icons.edit,
-                                color: Colors.white,
-                              ),
-                              tooltip: _isEditing
-                                  ? 'Preview Mode'
-                                  : 'Edit Mode',
-                              onPressed: () {
-                                setState(() {
-                                  _isEditing = !_isEditing;
-                                });
-                              },
+                            // Center section: Zoom and Export Control Buttons
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Zoom In Button
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.zoom_in,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
+                                  tooltip: 'Zoom In',
+                                  onPressed: () {
+                                    setState(() {
+                                      _zoomLevel = math.min(
+                                        2.0,
+                                        _zoomLevel + 0.1,
+                                      );
+                                      _zoomTextController.text =
+                                          '${(_zoomLevel * 100).round()}%';
+                                    });
+                                  },
+                                ),
+                                const SizedBox(width: 4),
+                                // Zoom Out Button
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.zoom_out,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
+                                  tooltip: 'Zoom Out',
+                                  onPressed: () {
+                                    setState(() {
+                                      _zoomLevel = math.max(
+                                        0.5,
+                                        _zoomLevel - 0.1,
+                                      );
+                                      _zoomTextController.text =
+                                          '${(_zoomLevel * 100).round()}%';
+                                    });
+                                  },
+                                ),
+                                const SizedBox(width: 8),
+                                // Zoom Reset Button
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.refresh,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
+                                  tooltip: 'Reset Zoom',
+                                  onPressed: () {
+                                    setState(() {
+                                      _zoomLevel = 1.0;
+                                      _zoomTextController.text = '100%';
+                                    });
+                                  },
+                                ),
+                                const SizedBox(width: 8),
+                                // Edit/Preview Mode Toggle Button
+                                IconButton(
+                                  icon: Icon(
+                                    _isEditing ? Icons.visibility : Icons.edit,
+                                    color: Colors.white,
+                                  ),
+                                  tooltip: _isEditing
+                                      ? 'Preview Mode'
+                                      : 'Edit Mode',
+                                  onPressed: () {
+                                    setState(() {
+                                      _isEditing = !_isEditing;
+                                    });
+                                  },
+                                ),
+                                const SizedBox(width: 8),
+                                // Text Formatting Button
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.format_size,
+                                    color: Colors.white,
+                                  ),
+                                  tooltip: 'Text Formatting',
+                                  onPressed: () => _showTextFormattingDialog(),
+                                ),
+                                const SizedBox(width: 8),
+                                // Document Quality Dropdown
+                                Container(
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Text(
+                                        'Quality:',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      DropdownButton<double>(
+                                        value: _exportPixelRatio,
+                                        dropdownColor: Colors.grey[800],
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                        ),
+                                        underline: Container(),
+                                        items: const [
+                                          DropdownMenuItem(
+                                            value: 1.0,
+                                            child: Text(
+                                              'Fast',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 2.0,
+                                            child: Text(
+                                              'High',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                        onChanged: (value) {
+                                          if (value != null) {
+                                            setState(() {
+                                              _exportPixelRatio = value;
+                                            });
+                                          }
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                // PDF Export Button
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.picture_as_pdf,
+                                    color: Colors.white,
+                                  ),
+                                  tooltip: 'Export PDF',
+                                  onPressed: () => _exportToPDF(),
+                                ),
+                                const SizedBox(width: 8),
+                                // Save Offer Button
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.save,
+                                    color: Colors.white,
+                                  ),
+                                  tooltip: 'Save Offer',
+                                  onPressed: _saveOfferToSupabase,
+                                ),
+                              ],
                             ),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.format_size,
-                                color: Colors.white,
-                              ),
-                              tooltip: 'Text Formatting',
-                              onPressed: () => _showTextFormattingDialog(),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.save, color: Colors.white),
-                              tooltip: 'Save Offer',
-                              onPressed: _saveOfferToSupabase,
-                            ),
+                            const SizedBox(width: 8),
+                            // Top right corner: Close Button
                             IconButton(
                               icon: const Icon(
                                 Icons.close,
                                 color: Colors.white,
                               ),
                               tooltip: 'Close',
-                              onPressed: () => Navigator.of(context).pop(),
+                              onPressed: () => Navigator.of(
+                                context,
+                              ).pop(widget.existingOffer ?? widget.lead),
                             ),
-                            SizedBox(width: 8),
-                            if (_isEditing)
+                            // Text formatting info display (when editing)
+                            if (_isEditing) ...[
+                              const SizedBox(width: 8),
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 8,
@@ -4853,8 +6073,8 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                       _textAlignment == TextAlign.left
                                           ? 'L'
                                           : _textAlignment == TextAlign.center
-                                              ? 'C'
-                                              : 'R',
+                                          ? 'C'
+                                          : 'R',
                                       style: const TextStyle(
                                         fontSize: 10,
                                         color: Colors.white,
@@ -4863,185 +6083,7 @@ class _OfferEditorDialogState extends State<OfferEditorDialog> {
                                   ],
                                 ),
                               ),
-                            const SizedBox(width: 8),
-                            // Zoom controls (desktop)
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.zoom_out,
-                                    color: Colors.white,
-                                    size: 18,
-                                  ),
-                                  tooltip: 'Zoom Out',
-                                  onPressed: () {
-                                    setState(() {
-                                      _zoomLevel = math.max(0.5, _zoomLevel - 0.1);
-                                      _zoomTextController.text = '${(_zoomLevel * 100).round()}%';
-                                    });
-                                  },
-                                ),
-                                const SizedBox(width: 4),
-                                SizedBox(
-                                  width: 80,
-                                  child: SliderTheme(
-                                    data: SliderTheme.of(context).copyWith(
-                                      activeTrackColor: Colors.white,
-                                      inactiveTrackColor: Colors.white.withValues(alpha: 0.3),
-                                      thumbColor: Colors.white,
-                                      overlayColor: Colors.white.withValues(alpha: 0.2),
-                                      trackHeight: 2,
-                                    ),
-                                    child: Slider(
-                                      value: _zoomLevel,
-                                      min: 0.5,
-                                      max: 2.0,
-                                      divisions: 15,
-                                      onChanged: (value) {
-                                        setState(() {
-                                          _zoomLevel = value;
-                                          _zoomTextController.text = '${(value * 100).round()}%';
-                                        });
-                                      },
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.zoom_in,
-                                    color: Colors.white,
-                                    size: 18,
-                                  ),
-                                  tooltip: 'Zoom In',
-                                  onPressed: () {
-                                    setState(() {
-                                      _zoomLevel = math.min(2.0, _zoomLevel + 0.1);
-                                      _zoomTextController.text = '${(_zoomLevel * 100).round()}%';
-                                    });
-                                  },
-                                ),
-                                const SizedBox(width: 8),
-                                Container(
-                                  width: 50,
-                                  height: 28,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.2),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: TextField(
-                                    controller: _zoomTextController,
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    decoration: const InputDecoration(
-                                      border: InputBorder.none,
-                                      contentPadding: EdgeInsets.symmetric(vertical: 4),
-                                      isDense: true,
-                                    ),
-                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                    onSubmitted: (value) {
-                                      final percentage = double.tryParse(value);
-                                      if (percentage != null && percentage >= 50 && percentage <= 200) {
-                                        final zoom = percentage / 100;
-                                        setState(() {
-                                          _zoomLevel = zoom;
-                                          _zoomTextController.text = '${(zoom * 100).round()}%';
-                                        });
-                                      } else {
-                                        _zoomTextController.text = '${(_zoomLevel * 100).round()}%';
-                                      }
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.refresh,
-                                    color: Colors.white,
-                                    size: 16,
-                                  ),
-                                  tooltip: 'Reset Zoom',
-                                  onPressed: () {
-                                    setState(() {
-                                      _zoomLevel = 1.0;
-                                      _zoomTextController.text = '100%';
-                                    });
-                                  },
-                                ),
-                              ],
-                            ),
-                            const SizedBox(width: 8),
-                            // Export controls (desktop)
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  margin: const EdgeInsets.symmetric(horizontal: 8),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Text(
-                                        'Quality:',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      DropdownButton<double>(
-                                        value: _exportPixelRatio,
-                                        dropdownColor: Colors.grey[800],
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 12,
-                                        ),
-                                        underline: Container(),
-                                        items: const [
-                                          DropdownMenuItem(
-                                            value: 1.0,
-                                            child: Text('Fast', style: TextStyle(color: Colors.white)),
-                                          ),
-                                          DropdownMenuItem(
-                                            value: 2.0,
-                                            child: Text('High', style: TextStyle(color: Colors.white)),
-                                          ),
-                                        ],
-                                        onChanged: (value) {
-                                          if (value != null) {
-                                            setState(() {
-                                              _exportPixelRatio = value;
-                                            });
-                                          }
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.picture_as_pdf,
-                                    color: Colors.white,
-                                  ),
-                                  tooltip: 'Export PDF',
-                                  onPressed: () => _exportToPDF(),
-                                ),
-                                if (widget.currentUserId == null || widget.currentUserId!.isEmpty)
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.description,
-                                      color: Colors.white,
-                                    ),
-                                    tooltip: 'Export Word',
-                                    onPressed: () => _exportToWord(),
-                                  ),
-                              ],
-                            ),
+                            ],
                           ],
                         ],
                       ),
@@ -8010,9 +9052,12 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           (lead['project_name'] ?? '').toLowerCase().contains(_searchText);
 
       // Apply status filter
-      final matchesStatus =
-          _selectedStatusFilter == null ||
-          _getLeadStatus(lead) == _selectedStatusFilter;
+      final matchesStatus = _selectedStatusFilter == null
+          ? true
+          : (_selectedStatusFilter == 'Completed'
+                ? (_getLeadStatus(lead) == 'Completed' ||
+                      _getLeadStatus(lead) == 'Lost')
+                : _getLeadStatus(lead) == _selectedStatusFilter);
 
       return matchesSearch && matchesStatus;
     }).toList();
@@ -8273,7 +9318,11 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         .where((lead) => _getLeadStatus(lead) == 'Approved')
         .length;
     final completed = _leads
-        .where((lead) => _getLeadStatus(lead) == 'Completed')
+        .where(
+          (lead) =>
+              _getLeadStatus(lead) == 'Completed' ||
+              _getLeadStatus(lead) == 'Lost',
+        )
         .length;
 
     return Row(
@@ -8330,7 +9379,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         SizedBox(width: 16),
         Expanded(
           child: _buildStatCard(
-            'Completed',
+            'Completed/Lost',
             completed.toString(),
             Icons.assignment_turned_in,
             Colors.teal,
@@ -8430,7 +9479,11 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         .where((lead) => _getLeadStatus(lead) == 'Approved')
         .length;
     final completed = _leads
-        .where((lead) => _getLeadStatus(lead) == 'Completed')
+        .where(
+          (lead) =>
+              _getLeadStatus(lead) == 'Completed' ||
+              _getLeadStatus(lead) == 'Lost',
+        )
         .length;
 
     // Create a list of all stat cards
@@ -8471,7 +9524,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         'Approved',
       ),
       _buildMobileStatCard(
-        'Completed',
+        'Completed/Lost',
         completed.toString(),
         Icons.assignment_turned_in,
         Colors.teal,
