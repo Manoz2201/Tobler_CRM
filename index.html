@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="/Tobler_CRM/">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Tobler CRM - Professional Customer Relationship Management System for Sales, Admin, and Proposal Engineers">
+  
+  <!-- Prevent favicon caching -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Tobler CRM">
+  <link rel="apple-touch-icon" href="assets/toblerIcon.png">
+
+  <!-- Comprehensive Favicon Configuration -->
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/toblerIcon.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/toblerIcon.png">
+  <link rel="shortcut icon" href="assets/toblerIcon.png">
+  <link rel="icon" href="assets/toblerIcon.png">
+  
+  <!-- Force favicon refresh -->
+  <link rel="icon" type="image/png" href="assets/toblerIcon.png?v=2">
+
+  <title>Tobler CRM</title>
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+
+  
+  <!-- GitHub Pages routing support -->
+  <script>
+    // Handle client-side routing for GitHub Pages
+    (function() {
+      var pathSegmentsToKeep = 1; // Keep the repository name segment
+      var l = location.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/';
+      
+      // Create and set base href
+      var base = document.createElement('base');
+      base.href = l;
+      document.head.appendChild(base);
+      
+      // Also handle Flutter's base href
+      window.flutterConfiguration = {
+        baseUrl: l
+      };
+    })();
+    
+    // Force favicon refresh and clear cache
+    (function() {
+      // Clear favicon cache
+      var favicon = document.querySelector('link[rel="icon"]');
+      if (favicon) {
+        var newFavicon = favicon.cloneNode(true);
+        newFavicon.href = 'assets/toblerIcon.png?v=' + Date.now();
+        favicon.parentNode.replaceChild(newFavicon, favicon);
+      }
+      
+      // Force reload favicon
+      var link = document.createElement('link');
+      link.rel = 'icon';
+      link.type = 'image/png';
+      link.href = 'assets/toblerIcon.png?v=' + Date.now();
+      document.head.appendChild(link);
+    })();
+  </script>
+  
+  <!-- This script installs service_worker.js to provide PWA functionality to
+       application. For more information, see:
+       https://developers.google.com/web/fundamentals/primers/service-workers -->
+  <script>
+    var serviceWorkerVersion = '"451251011"';
+    var scriptLoaded = false;
+    function loadMainDartJs() {
+      if (scriptLoaded) {
+        return;
+      }
+      scriptLoaded = true;
+      
+      var scriptTag = document.createElement('script');
+      scriptTag.src = 'main.dart.js';
+      scriptTag.type = 'application/javascript';
+      document.body.appendChild(scriptTag);
+    }
+
+    if ('serviceWorker' in navigator) {
+      // Service workers are supported. Use them.
+      window.addEventListener('load', function () {
+        // Wait for registration to finish before dropping the <script> tag.
+        // Otherwise, the browser will load the script multiple times,
+        // potentially different versions.
+        var serviceWorkerUrl = 'flutter_service_worker.js?v=' + serviceWorkerVersion;
+        navigator.serviceWorker.register(serviceWorkerUrl)
+          .then((reg) => {
+            function waitForActivation(serviceWorker) {
+              serviceWorker.addEventListener('statechange', () => {
+                if (serviceWorker.state == 'installed' && navigator.serviceWorker.controller) {
+                  console.log('Installed new service worker.');
+                }
+                if (serviceWorker.state == 'activated') {
+                  console.log('Activated service worker.');
+                  // Only reload the page if this is the first service worker.
+                  if (!reg.active && (reg.installing || reg.waiting)) {
+                    window.location.reload();
+                  }
+                }
+              });
+            }
+            if (reg.installing) {
+              console.log('Service worker installing');
+              waitForActivation(reg.installing);
+            } else if (reg.waiting) {
+              console.log('Service worker waiting');
+              waitForActivation(reg.waiting);
+            } else if (reg.active) {
+              console.log('Service worker active');
+            }
+          });
+
+        // If service worker doesn't succeed in a reasonable amount of time,
+        // fallback to plain <script> tag.
+        setTimeout(() => {
+          if (!scriptLoaded) {
+            console.warn(
+              'Failed to load app from service worker. Falling back to plain <script> tag.',
+            );
+            loadMainDartJs();
+          }
+        }, 4000);
+      });
+
+      // Check for app updates
+      window.addEventListener('load', function () {
+        var serviceWorkerUrl = 'flutter_service_worker.js?v=' + serviceWorkerVersion;
+        navigator.serviceWorker.register(serviceWorkerUrl)
+          .then((reg) => {
+            reg.addEventListener('updatefound', () => {
+              var serviceWorker = reg.installing;
+              if (!serviceWorker) return;
+              serviceWorker.addEventListener('statechange', () => {
+                if (serviceWorker.state == 'installed') {
+                  console.log('New app update ready.');
+                  // At this point, the old content will have been purged and the fresh
+                  // content will have been added to the cache. It's the perfect time to
+                  // display a "New content is available; please refresh." message in your
+                  // web app.
+                }
+              });
+            });
+          });
+      });
+    } else {
+      // Service workers not supported. Just drop the <script> tag.
+      loadMainDartJs();
+    }
+  </script>
+</body>
+</html>
