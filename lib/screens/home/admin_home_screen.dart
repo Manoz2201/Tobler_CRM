@@ -2492,7 +2492,7 @@ class _AdminLeadsPageState extends State<_AdminLeadsPage> {
             .timeout(const Duration(seconds: 10)),
         client
             .from('admin_response')
-            .select('lead_id, rate_sqm, status, remark')
+            .select('lead_id, rate_sqm, status, remark, update_lead_status')
             .timeout(const Duration(seconds: 10)),
       ]);
 
@@ -2571,6 +2571,8 @@ class _AdminLeadsPageState extends State<_AdminLeadsPage> {
           'approved': adminResponseData?['status'] == 'Approved',
           'admin_response_status':
               adminResponseData?['status'], // Add admin response status for proper lead categorization in AdminLeadsPage
+          'update_lead_status':
+              adminResponseData?['update_lead_status'], // Add update_lead_status for Follow Up detection
         });
       }
 
@@ -3440,6 +3442,10 @@ class _AdminLeadsPageState extends State<_AdminLeadsPage> {
   }
 
   String _getLeadStatus(Map<String, dynamic> lead) {
+    // Check for Follow Up status from admin_response.update_lead_status column first
+    if (lead['update_lead_status'] == 'Follow Up') {
+      return 'Under Follow Up';
+    }
     // Treat Supabase admin_response.status = 'Closed' as Lost
     if (lead['admin_response_status'] == 'Closed' ||
         lead['status'] == 'Closed') {
@@ -3586,11 +3592,6 @@ class _AdminLeadsPageState extends State<_AdminLeadsPage> {
                                           icon: Icons.remove_red_eye,
                                           label: 'View',
                                           onTap: () => _viewLeadDetails(lead),
-                                        ),
-                                        _LeadActionButton(
-                                          icon: Icons.edit,
-                                          label: 'Edit',
-                                          onTap: () {},
                                         ),
                                         _LeadActionButton(
                                           icon: Icons.update,
@@ -4047,8 +4048,10 @@ class _LeadTableState extends State<LeadTable> {
     'New',
     'Proposal Progress',
     'Waiting for Approval',
+    'Follow Up',
     'Approved',
     'Completed',
+    'Lost',
   ];
 
   final List<String> _sortOptions = [
@@ -4107,7 +4110,7 @@ class _LeadTableState extends State<LeadTable> {
             .timeout(const Duration(seconds: 10)),
         client
             .from('admin_response')
-            .select('lead_id, rate_sqm, status, remark')
+            .select('lead_id, rate_sqm, status, remark, update_lead_status')
             .timeout(const Duration(seconds: 10)),
       ]);
 
@@ -4186,6 +4189,8 @@ class _LeadTableState extends State<LeadTable> {
           'approved': adminResponseData?['status'] == 'Approved',
           'admin_response_status':
               adminResponseData?['status'], // Add admin response status for proper lead categorization in LeadTable
+          'update_lead_status':
+              adminResponseData?['update_lead_status'], // Add update_lead_status for Follow Up detection
         });
       }
 
@@ -4257,24 +4262,56 @@ class _LeadTableState extends State<LeadTable> {
 
   void _applyFilters() {
     _filteredLeads = _leads.where((lead) {
-      final matchesSearch =
-          lead['lead_id'].toString().toLowerCase().contains(_searchText) ||
-          (lead['client_name'] ?? '').toLowerCase().contains(_searchText) ||
-          (lead['project_name'] ?? '').toLowerCase().contains(_searchText) ||
-          (lead['sales_person_name'] ?? '').toString().toLowerCase().contains(
-            _searchText,
-          ) ||
-          _getLeadStatus(lead).toLowerCase().contains(_searchText);
+      // Enhanced search functionality
+      final searchText = _searchText.toLowerCase();
+      final leadId = lead['lead_id'].toString().toLowerCase();
+      final clientName = (lead['client_name'] ?? '').toLowerCase();
+      final projectName = (lead['project_name'] ?? '').toLowerCase();
+      final salesPersonName = (lead['sales_person_name'] ?? '')
+          .toString()
+          .toLowerCase();
+      final location = (lead['project_location'] ?? '').toLowerCase();
+      final status = _getLeadStatus(lead).toLowerCase();
+
+      // Basic searches
+      final basicMatch =
+          leadId.contains(searchText) ||
+          clientName.contains(searchText) ||
+          projectName.contains(searchText) ||
+          salesPersonName.contains(searchText) ||
+          location.contains(searchText) ||
+          status.contains(searchText);
+
+      // Advanced search patterns
+      final advancedMatch = _performAdvancedSearch(searchText, {
+        'leadId': leadId,
+        'clientName': clientName,
+        'projectName': projectName,
+        'salesPersonName': salesPersonName,
+        'location': location,
+        'status': status,
+      });
+
+      final matchesSearch = basicMatch || advancedMatch;
 
       if (!matchesSearch) return false;
 
       if (_selectedFilter == 'All') return true;
 
-      final status = _getLeadStatus(lead);
+      final leadStatus = _getLeadStatus(lead);
       if (_selectedFilter == 'Completed') {
-        return status == 'Completed' || status == 'Lost';
+        return leadStatus == 'Completed';
       }
-      return status == _selectedFilter;
+      if (_selectedFilter == 'Lost') {
+        return leadStatus == 'Lost';
+      }
+      if (_selectedFilter == 'Follow Up') {
+        return leadStatus == 'Under Follow Up';
+      }
+      if (_selectedFilter == 'Waiting for Approval') {
+        return leadStatus == 'Waiting for Approval';
+      }
+      return leadStatus == _selectedFilter;
     }).toList();
 
     // Apply sorting
@@ -4293,6 +4330,77 @@ class _LeadTableState extends State<LeadTable> {
       }
       return 0;
     });
+  }
+
+  bool _performAdvancedSearch(String searchText, Map<String, String> data) {
+    // Split search text by spaces to handle multiple keywords
+    final keywords = searchText
+        .split(' ')
+        .where((word) => word.isNotEmpty)
+        .toList();
+
+    if (keywords.isEmpty) return false;
+
+    // Check for specific search patterns
+    for (int i = 0; i < keywords.length; i++) {
+      final keyword = keywords[i];
+
+      // Pattern: "username status" - e.g., "john approved", "sarah waiting"
+      if (i < keywords.length - 1) {
+        final nextKeyword = keywords[i + 1];
+        if (data['salesPersonName']!.contains(keyword) &&
+            data['status']!.contains(nextKeyword)) {
+          return true;
+        }
+      }
+
+      // Pattern: "username client" or "username client_name" - e.g., "john abc corp"
+      if (i < keywords.length - 1) {
+        final nextKeyword = keywords[i + 1];
+        if (data['salesPersonName']!.contains(keyword) &&
+            data['clientName']!.contains(nextKeyword)) {
+          return true;
+        }
+      }
+
+      // Pattern: "username project" or "username project_name" - e.g., "john building"
+      if (i < keywords.length - 1) {
+        final nextKeyword = keywords[i + 1];
+        if (data['salesPersonName']!.contains(keyword) &&
+            data['projectName']!.contains(nextKeyword)) {
+          return true;
+        }
+      }
+
+      // Pattern: "username location" - e.g., "john mumbai"
+      if (i < keywords.length - 1) {
+        final nextKeyword = keywords[i + 1];
+        if (data['salesPersonName']!.contains(keyword) &&
+            data['location']!.contains(nextKeyword)) {
+          return true;
+        }
+      }
+
+      // Pattern: "username lead_id" - e.g., "john 1234"
+      if (i < keywords.length - 1) {
+        final nextKeyword = keywords[i + 1];
+        if (data['salesPersonName']!.contains(keyword) &&
+            data['leadId']!.contains(nextKeyword)) {
+          return true;
+        }
+      }
+    }
+
+    // Check for multi-word searches within single fields
+    final combinedSearch = keywords.join(' ');
+    if (data['clientName']!.contains(combinedSearch) ||
+        data['projectName']!.contains(combinedSearch) ||
+        data['location']!.contains(combinedSearch) ||
+        data['status']!.contains(combinedSearch)) {
+      return true;
+    }
+
+    return false;
   }
 
   void _exportLeads() {
@@ -5068,44 +5176,94 @@ class _LeadTableState extends State<LeadTable> {
             _buildMobileStatsCards(),
             const SizedBox(height: 8),
           ],
-          // Centered search box for mobile
+          // Search box with Follow up button for mobile
           Center(
             child: SizedBox(
               width:
                   MediaQuery.of(context).size.width *
                   0.95, // 95% of screen width
-              child: TextField(
-                decoration: InputDecoration(
-                  hintText: 'Search leads...',
-                  prefixIcon: Icon(Icons.search, size: 18),
-                  suffixIcon: IconButton(
-                    onPressed: _fetchLeads,
-                    icon: Icon(Icons.refresh, size: 18),
-                    tooltip: 'Refresh',
-                    padding: EdgeInsets.all(4),
-                    constraints: BoxConstraints(minWidth: 24, minHeight: 24),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      decoration: InputDecoration(
+                        hintText: 'Search leads...',
+                        prefixIcon: Icon(Icons.search, size: 18),
+                        suffixIcon: IconButton(
+                          onPressed: _fetchLeads,
+                          icon: Icon(Icons.refresh, size: 18),
+                          tooltip: 'Refresh',
+                          padding: EdgeInsets.all(4),
+                          constraints: BoxConstraints(
+                            minWidth: 24,
+                            minHeight: 24,
+                          ),
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(6),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(6),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(6),
+                          borderSide: BorderSide(color: Colors.blue[600]!),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 6,
+                        ),
+                      ),
+                      onChanged: _onSearch,
+                      style: TextStyle(fontSize: 13),
+                    ),
                   ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(6),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  const SizedBox(width: 8),
+                  // Follow up filter button for mobile
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: _selectedFilter == 'Follow Up'
+                          ? Colors.orange.withValues(alpha: 0.1)
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _selectedFilter == 'Follow Up'
+                            ? Colors.orange
+                            : Colors.grey[300]!,
+                        width: _selectedFilter == 'Follow Up' ? 2 : 1,
+                      ),
+                    ),
+                    child: IconButton(
+                      onPressed: () {
+                        setState(() {
+                          if (_selectedFilter == 'Follow Up') {
+                            _selectedFilter =
+                                'All'; // Deselect if already selected
+                          } else {
+                            _selectedFilter =
+                                'Follow Up'; // Select Follow Up filter
+                          }
+                          _applyFilters();
+                        });
+                      },
+                      icon: Icon(
+                        Icons.track_changes,
+                        size: 20,
+                        color: Colors.orange,
+                      ),
+                      tooltip:
+                          'Under Follow Up (${_leads.where((lead) => _getLeadStatus(lead) == 'Under Follow Up').length})',
+                      padding: EdgeInsets.zero,
+                      constraints: BoxConstraints(minWidth: 50, minHeight: 50),
+                    ),
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(6),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(6),
-                    borderSide: BorderSide(color: Colors.blue[600]!),
-                  ),
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 6,
-                  ),
-                ),
-                onChanged: _onSearch,
-                style: TextStyle(fontSize: 13),
+                ],
               ),
             ),
           ),
@@ -5137,11 +5295,11 @@ class _LeadTableState extends State<LeadTable> {
           'Proposal Progress',
           stats['proposalProgress'].toString(),
           Icons.new_releases,
-          Colors.orange,
+          Color(0xFFFCDF3E), // Pale yellow
         ),
         const SizedBox(width: 16),
         _buildStatCard(
-          'Waiting Approval',
+          'Waiting For Approval',
           stats['waiting'].toString(),
           Icons.pending,
           Colors.purple,
@@ -5155,10 +5313,17 @@ class _LeadTableState extends State<LeadTable> {
         ),
         const SizedBox(width: 16),
         _buildStatCard(
-          'Completed/Lost',
+          'Completed',
           stats['completed'].toString(),
           Icons.assignment_turned_in,
           Colors.teal,
+        ),
+        const SizedBox(width: 16),
+        _buildStatCard(
+          'Lost',
+          stats['lost'].toString(),
+          Icons.cancel,
+          Colors.redAccent,
         ),
       ],
     );
@@ -5205,7 +5370,7 @@ class _LeadTableState extends State<LeadTable> {
                 child: _buildCompactStatItem(
                   'Proposal',
                   stats['proposalProgress'].toString(),
-                  Colors.orange,
+                  Color(0xFFFCDF3E), // Pale yellow
                 ),
               ),
             ],
@@ -5216,12 +5381,12 @@ class _LeadTableState extends State<LeadTable> {
             color: Colors.grey[300],
             margin: EdgeInsets.symmetric(vertical: 8),
           ),
-          // Second row: Waiting, Approved, Completed
+          // Second row: Waiting, Approved, Completed, Lost
           Row(
             children: [
               Expanded(
                 child: _buildCompactStatItem(
-                  'Waiting',
+                  'Waiting For Approval',
                   stats['waiting'].toString(),
                   Colors.purple,
                 ),
@@ -5237,9 +5402,17 @@ class _LeadTableState extends State<LeadTable> {
               Container(width: 1, height: 30, color: Colors.grey[300]),
               Expanded(
                 child: _buildCompactStatItem(
-                  'Completed/Lost',
+                  'Completed',
                   stats['completed'].toString(),
                   Colors.teal,
+                ),
+              ),
+              Container(width: 1, height: 30, color: Colors.grey[300]),
+              Expanded(
+                child: _buildCompactStatItem(
+                  'Lost',
+                  stats['lost'].toString(),
+                  Colors.redAccent,
                 ),
               ),
             ],
@@ -5331,6 +5504,7 @@ class _LeadTableState extends State<LeadTable> {
           Row(
             children: [
               Expanded(
+                flex: 3,
                 child: TextField(
                   decoration: InputDecoration(
                     hintText: 'Search leads by ID, client, or project...',
@@ -5353,6 +5527,46 @@ class _LeadTableState extends State<LeadTable> {
                   onChanged: _onSearch,
                 ),
               ),
+              const SizedBox(width: 12),
+              // Follow up filter button
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: _selectedFilter == 'Follow Up'
+                      ? Colors.orange.withValues(alpha: 0.1)
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _selectedFilter == 'Follow Up'
+                        ? Colors.orange
+                        : Colors.grey[300]!,
+                    width: _selectedFilter == 'Follow Up' ? 2 : 1,
+                  ),
+                ),
+                child: IconButton(
+                  onPressed: () {
+                    setState(() {
+                      if (_selectedFilter == 'Follow Up') {
+                        _selectedFilter = 'All'; // Deselect if already selected
+                      } else {
+                        _selectedFilter =
+                            'Follow Up'; // Select Follow Up filter
+                      }
+                      _applyFilters();
+                    });
+                  },
+                  icon: Icon(
+                    Icons.track_changes,
+                    size: 24,
+                    color: Colors.orange,
+                  ),
+                  tooltip:
+                      'Under Follow Up (${_leads.where((lead) => _getLeadStatus(lead) == 'Under Follow Up').length})',
+                  padding: EdgeInsets.zero,
+                  constraints: BoxConstraints(minWidth: 50, minHeight: 50),
+                ),
+              ),
               const SizedBox(width: 16),
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 16),
@@ -5365,12 +5579,9 @@ class _LeadTableState extends State<LeadTable> {
                   value: _selectedFilter,
                   underline: SizedBox(),
                   items: _filterOptions.map((String filter) {
-                    final String label = filter == 'Completed'
-                        ? 'Completed/Lost'
-                        : filter;
                     return DropdownMenuItem<String>(
                       value: filter,
-                      child: Text(label),
+                      child: Text(filter),
                     );
                   }).toList(),
                   onChanged: (String? newValue) {
@@ -6082,17 +6293,6 @@ class _LeadTableState extends State<LeadTable> {
                               minHeight: 32,
                             ),
                           ),
-                          IconButton(
-                            onPressed: () => _editLead(lead),
-                            icon: Icon(Icons.edit, size: 18),
-                            tooltip: 'Edit',
-                            color: Colors.grey[600],
-                            padding: EdgeInsets.all(4),
-                            constraints: BoxConstraints(
-                              minWidth: 32,
-                              minHeight: 32,
-                            ),
-                          ),
                         ],
                       ),
                     ),
@@ -6444,11 +6644,6 @@ class _LeadTableState extends State<LeadTable> {
                       icon: Icon(Icons.question_mark),
                       tooltip: 'Query',
                     ),
-                    IconButton(
-                      onPressed: () => _editLead(lead),
-                      icon: Icon(Icons.edit),
-                      tooltip: 'Edit',
-                    ),
                   ],
                 ),
               ],
@@ -6537,8 +6732,10 @@ class _LeadTableState extends State<LeadTable> {
     int newCount = 0;
     int proposalProgressCount = 0;
     int waitingCount = 0;
+    int followUpCount = 0;
     int approvedCount = 0;
     int completedCount = 0;
+    int lostCount = 0;
 
     for (final lead in sourceLeads) {
       final status = _getLeadStatus(lead);
@@ -6552,12 +6749,17 @@ class _LeadTableState extends State<LeadTable> {
         case 'Waiting for Approval':
           waitingCount++;
           break;
+        case 'Under Follow Up':
+          followUpCount++;
+          break;
         case 'Approved':
           approvedCount++;
           break;
         case 'Completed':
-        case 'Lost':
           completedCount++;
+          break;
+        case 'Lost':
+          lostCount++;
           break;
       }
     }
@@ -6567,8 +6769,10 @@ class _LeadTableState extends State<LeadTable> {
       'new': newCount,
       'proposalProgress': proposalProgressCount,
       'waiting': waitingCount,
+      'followUp': followUpCount,
       'approved': approvedCount,
       'completed': completedCount,
+      'lost': lostCount,
     };
   }
 
@@ -6622,16 +6826,6 @@ class _LeadTableState extends State<LeadTable> {
     } catch (e) {
       debugPrint('Error saving rate: $e');
     }
-  }
-
-  void _editLead(Map<String, dynamic> lead) {
-    // Implement edit functionality
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Edit functionality for Lead ${lead['lead_id']}'),
-        backgroundColor: Colors.blue,
-      ),
-    );
   }
 
   void _showApproveDialog(
@@ -7717,6 +7911,10 @@ class _LeadTableState extends State<LeadTable> {
   }
 
   String _getLeadStatus(Map<String, dynamic> lead) {
+    // Check for Follow Up status from admin_response.update_lead_status column first
+    if (lead['update_lead_status'] == 'Follow Up') {
+      return 'Under Follow Up';
+    }
     // Treat Supabase admin_response.status = 'Closed' as Lost
     if (lead['admin_response_status'] == 'Closed' ||
         lead['status'] == 'Closed') {
@@ -7767,9 +7965,11 @@ class _LeadTableState extends State<LeadTable> {
       case 'New':
         return Colors.blue;
       case 'Proposal Progress':
-        return Colors.orange;
+        return Color(0xFFFCDF3E); // Pale yellow
       case 'Waiting for Approval':
         return Colors.purple;
+      case 'Under Follow Up':
+        return Colors.orange;
       case 'Approved':
         return Colors.green;
       case 'Completed':
@@ -7837,12 +8037,14 @@ class _LeadTableState extends State<LeadTable> {
         return 'Proposal Progress';
       case 'waiting':
       case 'waiting approval':
+      case 'waiting for approval':
         return 'Waiting for Approval';
       case 'approved':
         return 'Approved';
       case 'completed':
-      case 'completed/lost':
         return 'Completed';
+      case 'lost':
+        return 'Lost';
       default:
         return 'All';
     }
@@ -7875,7 +8077,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 
   bool _isMenuExpanded = false;
-  String _selectedTimePeriod = 'Quarter'; // Default selected time period
+  String _selectedTimePeriod = 'Annual'; // Default selected time period
   String _selectedCurrency = 'INR'; // Default currency
 
   // Lead Performance state
@@ -7901,7 +8103,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   final Map<String, int> _leadCountData = {'total': 0, 'won': 0};
 
   // Lead status distribution data state
+  // Lead status distribution by counts
   Map<String, int> _leadStatusDistribution = {
+    'Won': 0,
+    'Lost': 0,
+    'Follow Up': 0,
+  };
+  // Lead status distribution by amount (sum of total_amount_gst in INR)
+  Map<String, double> _leadStatusAmountDistribution = {
     'Won': 0,
     'Lost': 0,
     'Follow Up': 0,
@@ -9526,7 +9735,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       // Fetch data from admin_response table for all lead statuses
       final response = await client
           .from('admin_response')
-          .select('update_lead_status')
+          .select('update_lead_status,total_amount_gst')
           .gte('updated_at', dateRange['start']!.toIso8601String())
           .lte('updated_at', dateRange['end']!.toIso8601String())
           .timeout(const Duration(seconds: 10));
@@ -9546,16 +9755,22 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   // Process lead status distribution data
   Future<void> _processLeadStatusDistributionData(List<dynamic> data) async {
     Map<String, int> statusCounts = {'Won': 0, 'Lost': 0, 'Follow Up': 0};
+    Map<String, double> statusAmounts = {'Won': 0, 'Lost': 0, 'Follow Up': 0};
 
     for (var record in data) {
       final status = record['update_lead_status'];
       if (status != null && statusCounts.containsKey(status)) {
         statusCounts[status] = (statusCounts[status] ?? 0) + 1;
+        final amt = record['total_amount_gst'];
+        if (amt is num) {
+          statusAmounts[status] = (statusAmounts[status] ?? 0) + amt.toDouble();
+        }
       }
     }
 
     setState(() {
       _leadStatusDistribution = statusCounts;
+      _leadStatusAmountDistribution = statusAmounts;
       _isLoadingLeadStatusData = false;
     });
   }
@@ -9574,7 +9789,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       final response = await client
           .from('admin_response')
           .select(
-            'lead_id, project_name, total_amount_gst, aluminium_area, ms_weight, update_lead_status',
+            'lead_id, project_name, client_name, total_amount_gst, aluminium_area, ms_weight, update_lead_status',
           )
           .not('update_lead_status', 'in', ['Won', 'Lost'])
           .gte('updated_at', dateRange['start']!.toIso8601String())
@@ -9602,6 +9817,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     // Group by lead_id and sum total_amount_gst, aluminium_area, and ms_weight for each project
     final Map<String, double> projectAmounts = {};
     final Map<String, String> projectNames = {};
+    final Map<String, String> clientNames = {};
     final Map<String, double> projectAluminiumAreas = {};
     final Map<String, double> projectMsWeights = {};
 
@@ -9609,6 +9825,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       final leadId = record['lead_id']?.toString() ?? '';
       final projectName =
           record['project_name']?.toString() ?? 'Unknown Project';
+      final clientName = record['client_name']?.toString() ?? 'Unknown Client';
       final amount = (record['total_amount_gst'] as num?)?.toDouble() ?? 0.0;
       final aluminiumArea =
           (record['aluminium_area'] as num?)?.toDouble() ?? 0.0;
@@ -9618,6 +9835,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         // Include all leads regardless of amount (even if total_amount_gst = 0)
         projectAmounts[leadId] = (projectAmounts[leadId] ?? 0.0) + amount;
         projectNames[leadId] = projectName;
+        clientNames[leadId] = clientName;
         projectAluminiumAreas[leadId] =
             (projectAluminiumAreas[leadId] ?? 0.0) + aluminiumArea;
         projectMsWeights[leadId] = (projectMsWeights[leadId] ?? 0.0) + msWeight;
@@ -9639,6 +9857,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     for (int i = 0; i < sortedProjects.length; i++) {
       final project = sortedProjects[i];
       final projectName = projectNames[project.key] ?? 'Unknown Project';
+      final clientName = clientNames[project.key] ?? 'Unknown Client';
       final amount = project.value;
       final totalArea =
           (projectAluminiumAreas[project.key] ?? 0.0) +
@@ -9647,6 +9866,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       processedData.add({
         'lead_id': project.key,
         'project_name': projectName,
+        'client_name': clientName,
         'total_amount_gst': amount,
         'total_area': totalArea,
       });
@@ -9680,7 +9900,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       final response = await client
           .from('admin_response')
           .select(
-            'lead_id, project_name, total_amount_gst, aluminium_area, ms_weight, starred',
+            'lead_id, project_name, client_name, total_amount_gst, aluminium_area, ms_weight, starred',
           )
           .eq('starred', true)
           .gte('updated_at', dateRange['start']!.toIso8601String())
@@ -9710,6 +9930,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     // Group by lead_id and sum total_amount_gst for each project
     final Map<String, double> projectAmounts = {};
     final Map<String, String> projectNames = {};
+    final Map<String, String> clientNames = {};
     final Map<String, double> projectAluminiumAreas = {};
     final Map<String, double> projectMsWeights = {};
 
@@ -9717,6 +9938,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       final leadId = record['lead_id']?.toString() ?? '';
       final projectName =
           record['project_name']?.toString() ?? 'Unknown Project';
+      final clientName = record['client_name']?.toString() ?? 'Unknown Client';
       final amount = (record['total_amount_gst'] as num?)?.toDouble() ?? 0.0;
       final aluminiumArea =
           (record['aluminium_area'] as num?)?.toDouble() ?? 0.0;
@@ -9726,6 +9948,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         // Include all starred leads (amount may be zero) to match Leads Update count
         projectAmounts[leadId] = (projectAmounts[leadId] ?? 0.0) + amount;
         projectNames[leadId] = projectName;
+        clientNames[leadId] = clientName;
         projectAluminiumAreas[leadId] =
             (projectAluminiumAreas[leadId] ?? 0.0) + aluminiumArea;
         projectMsWeights[leadId] = (projectMsWeights[leadId] ?? 0.0) + msWeight;
@@ -9747,6 +9970,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     for (int i = 0; i < sortedProjects.length; i++) {
       final project = sortedProjects[i];
       final projectName = projectNames[project.key] ?? 'Unknown Project';
+      final clientName = clientNames[project.key] ?? 'Unknown Client';
       final amount = project.value;
       final totalArea =
           (projectAluminiumAreas[project.key] ?? 0.0) +
@@ -9755,6 +9979,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       processedData.add({
         'lead_id': project.key,
         'project_name': projectName,
+        'client_name': clientName,
         'total_amount_gst': amount,
         'total_area': totalArea,
       });
@@ -9776,13 +10001,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   // Build Syncfusion pie chart data
   List<ChartData> _buildSyncfusionPieChartData() {
-    final totalLeads = _leadStatusDistribution.values.fold(
-      0,
-      (sum, count) => sum + count,
+    final totalAmount = _leadStatusAmountDistribution.values.fold(
+      0.0,
+      (sum, v) => sum + v,
     );
     final chartData = <ChartData>[];
 
-    if (totalLeads == 0) {
+    if (totalAmount == 0) {
       return chartData;
     }
 
@@ -9792,13 +10017,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       'Follow Up': Colors.orange,
     };
 
-    for (var entry in _leadStatusDistribution.entries) {
-      if (entry.value > 0) {
-        chartData.add(
-          ChartData(entry.key, entry.value.toDouble(), colors[entry.key]!),
-        );
+    _leadStatusAmountDistribution.forEach((status, amount) {
+      if (amount > 0) {
+        chartData.add(ChartData(status, amount, colors[status]!));
       }
-    }
+    });
 
     return chartData;
   }
@@ -10241,11 +10464,21 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                       ),
                                       Expanded(
                                         child: _buildMergedLeadStatusCard(
-                                          'Completed/Lost',
+                                          'Completed',
                                           _leadStatusData['completed']['value'],
                                           _leadStatusData['completed']['percentage'],
                                           Icons.assignment_turned_in,
                                           Colors.teal,
+                                          showRightDivider: true,
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: _buildMergedLeadStatusCard(
+                                          'Lost',
+                                          _leadStatusData['lost']['value'],
+                                          _leadStatusData['lost']['percentage'],
+                                          Icons.cancel,
+                                          Colors.redAccent,
                                           showRightDivider: false,
                                         ),
                                       ),
@@ -10538,7 +10771,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                       ],
                     ),
                   )
-                : _leadStatusDistribution.values.every((count) => count == 0)
+                : _leadStatusAmountDistribution.values.fold(
+                        0.0,
+                        (sum, v) => sum + v,
+                      ) ==
+                      0.0
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -10579,6 +10816,22 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         child: SizedBox(
                           height: 200.0,
                           child: SfCircularChart(
+                            tooltipBehavior: TooltipBehavior(enable: true),
+                            onTooltipRender: (TooltipArgs args) {
+                              final int index = (args.pointIndex ?? 0).toInt();
+                              final point = args.dataPoints?[index];
+                              final status = point?.x?.toString() ?? '';
+                              final amount = (point?.y is num)
+                                  ? (point?.y as num).toDouble()
+                                  : 0.0;
+                              final total = _leadStatusAmountDistribution.values
+                                  .fold(0.0, (sum, v) => sum + v);
+                              final pct = total > 0
+                                  ? (amount / total * 100)
+                                  : 0.0;
+                              args.text =
+                                  '$status : ${pct.toStringAsFixed(1)}%';
+                            },
                             legend: Legend(isVisible: false),
                             series: <CircularSeries>[
                               PieSeries<ChartData, String>(
@@ -10604,9 +10857,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 
   Widget _buildLegendWithPercentage() {
-    final totalLeads = _leadStatusDistribution.values.fold(
-      0,
-      (sum, count) => sum + count,
+    final totalAmount = _leadStatusAmountDistribution.values.fold(
+      0.0,
+      (sum, v) => sum + v,
     );
     final colors = {
       'Won': Colors.green,
@@ -10618,11 +10871,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ..._leadStatusDistribution.entries.map((entry) {
+          ..._leadStatusAmountDistribution.entries.map((entry) {
             if (entry.value == 0) return SizedBox.shrink();
 
-            final percentage = totalLeads > 0
-                ? (entry.value / totalLeads * 100).toStringAsFixed(1)
+            final percentage = totalAmount > 0
+                ? (entry.value / totalAmount * 100).toStringAsFixed(1)
                 : '0.0';
             final color = colors[entry.key] ?? Colors.grey;
 
@@ -10656,7 +10909,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         ),
                         SizedBox(height: 1),
                         Text(
-                          '${entry.value} leads ($percentage%)',
+                          '${_formatRevenueInCrore(entry.value)} ($percentage%)',
                           style: TextStyle(
                             fontSize: 10,
                             color: Colors.grey[600],
@@ -11599,7 +11852,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                           // Value centered
                           Center(
                             child: Text(
-                              '${_leadStatusData['inquiryPipeline']?['value'] ?? '0'} / ${_selectedCurrency == 'INR' ? _formatRevenueInCrore((_leadStatusData['inquiryPipeline']?['amount'] ?? 0.0) as double) : _formatCurrencyInMillions((_leadStatusData['inquiryPipeline']?['amount'] ?? 0.0) as double, 'CHF')}',
+                              '${_leadStatusData['inquiryPipeline']?['value'] ?? '0'} / ${_selectedCurrency == 'INR' ? _formatRevenueInCrore((_leadStatusData['inquiryPipeline']?['amount'] ?? 0.0) as double) : _formatCurrencyInMillions((_leadStatusData['inquiryPipeline']?['amount'] ?? 0.0) as double, _selectedCurrency)}',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -11706,7 +11959,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         children: [
                           Center(
                             child: Text(
-                              '${_leadStatusData['starredLeads']?['value'] ?? '0'} / ${_selectedCurrency == 'INR' ? _formatRevenueInCrore((_leadStatusData['starredLeads']?['amount'] ?? 0.0) as double) : _formatCurrencyInMillions((_leadStatusData['starredLeads']?['amount'] ?? 0.0) as double, 'CHF')}',
+                              '${_leadStatusData['starredLeads']?['value'] ?? '0'} / ${_selectedCurrency == 'INR' ? _formatRevenueInCrore((_leadStatusData['starredLeads']?['amount'] ?? 0.0) as double) : _formatCurrencyInMillions((_leadStatusData['starredLeads']?['amount'] ?? 0.0) as double, _selectedCurrency)}',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -11808,7 +12061,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        '${_leadStatusData['followUp']?['value'] ?? '0'} / ${_selectedCurrency == 'INR' ? _formatRevenueInCrore((_leadStatusData['followUp']?['amount'] ?? 0.0) as double) : _formatCurrencyInMillions((_leadStatusData['followUp']?['amount'] ?? 0.0) as double, 'CHF')}',
+                        '${_leadStatusData['followUp']?['value'] ?? '0'} / ${_selectedCurrency == 'INR' ? _formatRevenueInCrore((_leadStatusData['followUp']?['amount'] ?? 0.0) as double) : _formatCurrencyInMillions((_leadStatusData['followUp']?['amount'] ?? 0.0) as double, _selectedCurrency)}',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -11874,7 +12127,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        '${_leadStatusData['lost']?['value'] ?? '0'} / ${_selectedCurrency == 'INR' ? _formatRevenueInCrore((_leadStatusData['lost']?['amount'] ?? 0.0) as double) : _formatCurrencyInMillions((_leadStatusData['lost']?['amount'] ?? 0.0) as double, 'CHF')}',
+                        '${_leadStatusData['lost']?['value'] ?? '0'} / ${_selectedCurrency == 'INR' ? _formatRevenueInCrore((_leadStatusData['lost']?['amount'] ?? 0.0) as double) : _formatCurrencyInMillions((_leadStatusData['lost']?['amount'] ?? 0.0) as double, _selectedCurrency)}',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -12266,9 +12519,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                       _inquiryPipelineGraphData.length) {
                                     final project =
                                         _inquiryPipelineGraphData[projectIndex];
-                                    final projectName =
-                                        project['project_name'] ??
-                                        'Unknown Project';
+                                    final clientName =
+                                        project['client_name'] ??
+                                        'Unknown Client';
                                     final amount =
                                         project['total_amount_gst']
                                             as double? ??
@@ -12297,7 +12550,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                         project['total_area'] as double? ?? 0.0;
 
                                     return BarTooltipItem(
-                                      '$projectName\n',
+                                      '$clientName\n',
                                       const TextStyle(
                                         color: Colors.white,
                                         fontWeight: FontWeight.bold,
@@ -12354,14 +12607,29 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                           : projectName;
                                       return Padding(
                                         padding: EdgeInsets.only(top: 8),
-                                        child: Text(
-                                          displayName,
-                                          style: TextStyle(
-                                            color: Colors.grey[700],
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w500,
+                                        child: Tooltip(
+                                          message: projectName,
+                                          preferBelow: false,
+                                          margin: EdgeInsets.only(bottom: 10),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black87,
+                                            borderRadius: BorderRadius.circular(
+                                              4,
+                                            ),
                                           ),
-                                          textAlign: TextAlign.center,
+                                          textStyle: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                          ),
+                                          child: Text(
+                                            displayName,
+                                            style: TextStyle(
+                                              color: Colors.grey[700],
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                          ),
                                         ),
                                       );
                                     }
@@ -12699,9 +12967,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                       _expectedToCloseGraphData.length) {
                                     final project =
                                         _expectedToCloseGraphData[projectIndex];
-                                    final projectName =
-                                        project['project_name'] ??
-                                        'Unknown Project';
+                                    final clientName =
+                                        project['client_name'] ??
+                                        'Unknown Client';
                                     final amount =
                                         project['total_amount_gst']
                                             as double? ??
@@ -12727,7 +12995,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                     }
 
                                     return BarTooltipItem(
-                                      '$projectName\n',
+                                      '$clientName\n',
                                       const TextStyle(
                                         color: Colors.white,
                                         fontWeight: FontWeight.bold,
@@ -12784,14 +13052,29 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                           : projectName;
                                       return Padding(
                                         padding: EdgeInsets.only(top: 8),
-                                        child: Text(
-                                          displayName,
-                                          style: TextStyle(
-                                            color: Colors.grey[700],
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w500,
+                                        child: Tooltip(
+                                          message: projectName,
+                                          preferBelow: false,
+                                          margin: EdgeInsets.only(bottom: 10),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black87,
+                                            borderRadius: BorderRadius.circular(
+                                              4,
+                                            ),
                                           ),
-                                          textAlign: TextAlign.center,
+                                          textStyle: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                          ),
+                                          child: Text(
+                                            displayName,
+                                            style: TextStyle(
+                                              color: Colors.grey[700],
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                          ),
                                         ),
                                       );
                                     }
@@ -14050,9 +14333,35 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     }
     maxYValue = maxYValue * 1.2; // Add 20% buffer
 
-    return BarChart(
+    // Get container width (accounting for padding)
+    final screenWidth = MediaQuery.of(context).size.width;
+    final containerPadding = 32.0; // 16px padding on each side
+    final availableWidth = screenWidth - containerPadding;
+
+    final int groupsCount = _achievementTrendData.length;
+    const double groupGap = 60.0; // Fixed 60px gap between user groups
+    const double barWidth = 20.0; // Width of individual bars
+    const double barSpacing = 8.0; // Space between bars in a group
+
+    // Calculate total width needed for all groups
+    double totalContentWidth = 0.0;
+    for (int i = 0; i < groupsCount; i++) {
+      // Width for 3 bars + spacing between them + gap to next group
+      totalContentWidth += (barWidth * 3) + (barSpacing * 2);
+      if (i < groupsCount - 1) {
+        totalContentWidth += groupGap;
+      }
+    }
+
+    // Ensure minimum width equals container width
+    if (totalContentWidth < availableWidth) {
+      totalContentWidth = availableWidth;
+    }
+
+    final chart = BarChart(
       BarChartData(
-        alignment: BarChartAlignment.spaceAround,
+        alignment: BarChartAlignment.start,
+        groupsSpace: groupGap,
         maxY: maxYValue,
         barTouchData: BarTouchData(
           enabled: true,
@@ -14146,21 +14455,21 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               BarChartRodData(
                 toY: data['target'] as double,
                 color: const Color(0xFF1E4B8A), // Blue
-                width: 20,
+                width: barWidth,
                 borderRadius: BorderRadius.circular(4),
               ),
               // Achievement bar (Green)
               BarChartRodData(
                 toY: data['achievement'] as double,
                 color: Colors.green,
-                width: 20,
+                width: barWidth,
                 borderRadius: BorderRadius.circular(4),
               ),
               // Gap bar (Bright Yellow)
               BarChartRodData(
                 toY: data['gap'] as double,
                 color: const Color(0xFFF2D400), // Bright Yellow
-                width: 20,
+                width: barWidth,
                 borderRadius: BorderRadius.circular(4),
               ),
             ],
@@ -14183,6 +14492,21 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             );
           },
         ),
+      ),
+    );
+
+    // Always show horizontal scrollbar when there are more than 4 users
+    final ScrollController hScrollController = ScrollController();
+    return Scrollbar(
+      controller: hScrollController,
+      thumbVisibility: groupsCount > 4,
+      notificationPredicate: (notification) =>
+          notification.metrics.axis == Axis.horizontal,
+      child: SingleChildScrollView(
+        controller: hScrollController,
+        primary: false,
+        scrollDirection: Axis.horizontal,
+        child: SizedBox(width: totalContentWidth, height: 300, child: chart),
       ),
     );
   }

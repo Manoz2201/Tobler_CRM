@@ -121,11 +121,16 @@ class _TimePeriodCardState extends State<TimePeriodCard>
 
                               // Calendar section
                               _buildCalendarSection(),
-
-                              // Apply button
-                              _buildApplyButton(),
                             ],
                           ),
+                        ),
+                      ),
+                      const Divider(height: 1),
+                      SafeArea(
+                        top: false,
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 12, bottom: 12),
+                          child: _buildApplyButton(),
                         ),
                       ),
                     ],
@@ -195,7 +200,7 @@ class _TimePeriodCardState extends State<TimePeriodCard>
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Time Period Settings',
+              'Set Time Period',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
@@ -416,9 +421,10 @@ class _TimePeriodCardState extends State<TimePeriodCard>
       // Ensure card doesn't go off-screen on left side
       final adjustedLeft = left < 20 ? 20.0 : left;
 
-      // Ensure card doesn't go off-screen on right side
+      // Ensure card doesn't go off-screen on right side, then shift 150px right
       final maxLeft = screenWidth - cardWidth - 20;
-      final finalLeft = adjustedLeft > maxLeft ? maxLeft : adjustedLeft;
+      final shiftedLeft = adjustedLeft + 150.0;
+      final finalLeft = shiftedLeft > maxLeft ? maxLeft : shiftedLeft;
 
       // Ensure card doesn't go off-screen on top/bottom
       final adjustedTop = top < 50

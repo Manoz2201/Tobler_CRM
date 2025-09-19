@@ -25,10 +25,12 @@ class LeadUtils {
           .from('proposal_input')
           .select('lead_id, input, value');
 
-      // Fetch admin_response data for Rate sq/m and approval status
+      // Fetch admin_response data for Rate sq/m, approval status and follow up state
       final adminResponseResult = await client
           .from('admin_response')
-          .select('lead_id, rate_sqm, status, remark');
+          .select(
+            'lead_id, rate_sqm, status, remark, update_lead_status, sales_user',
+          );
 
       // Process proposal_input data to calculate Aluminium Area and MS Weight
       final Map<String, double> aluminiumAreaMap = {};
@@ -92,6 +94,8 @@ class LeadUtils {
           'total_amount': totalAmount,
           'approved': adminResponseData?['status'] == 'Approved',
           'status': adminResponseData?['status'] ?? 'New',
+          'update_lead_status': adminResponseData?['update_lead_status'],
+          'sales_user': adminResponseData?['sales_user'],
         });
       }
 
@@ -123,10 +127,12 @@ class LeadUtils {
           .from('proposal_input')
           .select('lead_id, input, value');
 
-      // Fetch admin_response data for Rate sq/m and approval status
+      // Fetch admin_response data for Rate sq/m, approval status and follow up state
       final adminResponseResult = await client
           .from('admin_response')
-          .select('lead_id, rate_sqm, status, remark');
+          .select(
+            'lead_id, rate_sqm, status, remark, update_lead_status, sales_user',
+          );
 
       // Create maps for quick lookup
       final Map<String, String> userMap = {};
@@ -198,6 +204,8 @@ class LeadUtils {
           'total_amount': totalAmount,
           'approved': adminResponseData?['status'] == 'Approved',
           'status': adminResponseData?['status'] ?? 'New',
+          'update_lead_status': adminResponseData?['update_lead_status'],
+          'sales_user': adminResponseData?['sales_user'],
         });
       }
 
@@ -210,6 +218,10 @@ class LeadUtils {
 
   /// Gets the status of a lead based on its data
   static String getLeadStatus(Map<String, dynamic> lead) {
+    // Prioritize Under Follow Up from admin_response.update_lead_status
+    if ((lead['update_lead_status']?.toString() ?? '') == 'Follow Up') {
+      return 'Under Follow Up';
+    }
     // Treat Supabase admin_response.status = 'Closed' as Lost
     if (lead['status'] == 'Closed' ||
         lead['admin_response_status'] == 'Closed') {
@@ -254,8 +266,10 @@ class LeadUtils {
     switch (status) {
       case 'New':
         return 0xFF4CAF50; // Vibrant green (matching New card icon)
+      case 'Under Follow Up':
+        return 0xFFFF9800; // Orange to match Under Follow Up button
       case 'Proposal Progress':
-        return 0xFFFF9800; // Vibrant orange (matching Proposal Progress card icon)
+        return 0xFFFFDA1A; // Ikea Yellow for Proposal Progress
       case 'Waiting for Approval':
         return 0xFF9C27B0; // Vibrant purple (matching Waiting Approval card icon)
       case 'Approved':

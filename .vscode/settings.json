@@ -20,5 +20,6 @@
   ],
   "[typescript]": {
     "editor.defaultFormatter": "denoland.vscode-deno"
-  }
+  },
+  "cmake.sourceDirectory": "D:/aryesha aPP/Crm_Aryesha/Tobler_CRM/linux"
 }

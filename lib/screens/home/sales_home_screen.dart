@@ -8595,6 +8595,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
   final Map<String, bool> _hoveredButtons = {}; // Track hover state for buttons
   String? _selectedStatusFilter; // Track selected status filter for sorting
   bool _showStatusCards = true; // Toggle for status cards visibility
+  // Star filter mode: null (all), 'unstarred' (yellow outline), 'starred' (yellow filled), 'frozen' (light blue filled)
+  String? _starFilterMode;
 
   // Add query count tracking
   final Map<String, int> _queryCounts = {};
@@ -8799,7 +8801,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       try {
         adminResponseResult = await client
             .from('admin_response')
-            .select('lead_id, rate_sqm, status, remark, project_id, starred')
+            .select(
+              'lead_id, rate_sqm, status, remark, project_id, starred, update_lead_status, sales_user',
+            )
             .timeout(const Duration(seconds: 10));
       } catch (e) {
         debugPrint('⚠️ Error fetching admin_response: $e');
@@ -8859,6 +8863,12 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         // Determine dynamic status based on time and Supabase table checks
         String dynamicStatus = 'Proposal Progress'; // Default status
 
+        // Highest priority: Under Follow Up from admin_response.update_lead_status
+        if ((adminResponseData?['update_lead_status']?.toString() ?? '') ==
+            'Follow Up') {
+          dynamicStatus = 'Under Follow Up';
+        }
+
         // Check if lead is completed (found in admin_response table)
         if (adminResponseData?['status'] == 'Completed') {
           dynamicStatus = 'Completed';
@@ -8905,6 +8915,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
               'N/A', // Add project_id from admin_response
           'approved': adminResponseData?['status'] == 'Approved',
           'status': dynamicStatus,
+          'update_lead_status': adminResponseData?['update_lead_status'],
+          'sales_user': adminResponseData?['sales_user'],
           'admin_response_status':
               adminResponseData?['status'], // Add admin response status for proper lead categorization
           'starred':
@@ -9045,22 +9057,129 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
 
   void _applyFilters() {
     _filteredLeads = _leads.where((lead) {
-      // Apply search filter
-      final matchesSearch =
-          lead['lead_id'].toString().toLowerCase().contains(_searchText) ||
-          (lead['client_name'] ?? '').toLowerCase().contains(_searchText) ||
-          (lead['project_name'] ?? '').toLowerCase().contains(_searchText);
+      // Enhanced search: Location, Status, and combinations (project+location, project+client, location+client)
+      final searchText = _searchText.toLowerCase();
+      final leadId = lead['lead_id'].toString().toLowerCase();
+      final clientName = (lead['client_name'] ?? '').toString().toLowerCase();
+      final projectName = (lead['project_name'] ?? '').toString().toLowerCase();
+      final location = (lead['project_location'] ?? '')
+          .toString()
+          .toLowerCase();
+      final status = _getLeadStatus(lead).toLowerCase();
 
-      // Apply status filter
+      final basicMatch =
+          leadId.contains(searchText) ||
+          clientName.contains(searchText) ||
+          projectName.contains(searchText) ||
+          location.contains(searchText) ||
+          status.contains(searchText);
+
+      final advancedMatch = _performSalesAdvancedSearch(searchText, {
+        'leadId': leadId,
+        'clientName': clientName,
+        'projectName': projectName,
+        'location': location,
+        'status': status,
+      });
+
+      final matchesSearch = basicMatch || advancedMatch;
+
+      // Apply status filter (treat Under Follow Up separately)
       final matchesStatus = _selectedStatusFilter == null
           ? true
           : (_selectedStatusFilter == 'Completed'
                 ? (_getLeadStatus(lead) == 'Completed' ||
                       _getLeadStatus(lead) == 'Lost')
+                : _selectedStatusFilter == 'Under Follow Up'
+                ? _getLeadStatus(lead) == 'Under Follow Up'
                 : _getLeadStatus(lead) == _selectedStatusFilter);
 
-      return matchesSearch && matchesStatus;
+      if (!matchesStatus) return false;
+
+      // Apply star filter (global). Interpret star visuals:
+      // - unstarred: allowed to star (Under Follow Up) and not currently starred
+      // - starred: allowed to star (Under Follow Up) and currently starred
+      // - frozen: status is NOT Under Follow Up (light blue filled star)
+      if (_starFilterMode != null) {
+        final bool isUnderFollowUp = _getLeadStatus(lead) == 'Under Follow Up';
+        final bool isStarred = (lead['starred'] ?? false) == true;
+        final bool isUnstarred = isUnderFollowUp && !isStarred;
+        final bool isFrozen = !isUnderFollowUp;
+
+        if (_starFilterMode == 'unstarred' && !isUnstarred) {
+          return false;
+        }
+        if (_starFilterMode == 'starred' && !(isUnderFollowUp && isStarred)) {
+          return false;
+        }
+        if (_starFilterMode == 'frozen' && !isFrozen) {
+          return false;
+        }
+      }
+
+      return matchesSearch;
     }).toList();
+  }
+
+  bool _performSalesAdvancedSearch(
+    String searchText,
+    Map<String, String> data,
+  ) {
+    if (searchText.isEmpty) return false;
+    final tokens = searchText
+        .split(' ')
+        .map((t) => t.trim())
+        .where((t) => t.isNotEmpty)
+        .toList();
+
+    for (int i = 0; i < tokens.length - 1; i++) {
+      final a = tokens[i];
+      final b = tokens[i + 1];
+
+      // Project + Location (any order)
+      if ((data['projectName']!.contains(a) && data['location']!.contains(b)) ||
+          (data['projectName']!.contains(b) && data['location']!.contains(a))) {
+        return true;
+      }
+
+      // Project + Client (any order)
+      if ((data['projectName']!.contains(a) &&
+              data['clientName']!.contains(b)) ||
+          (data['projectName']!.contains(b) &&
+              data['clientName']!.contains(a))) {
+        return true;
+      }
+
+      // Location + Client (any order)
+      if ((data['location']!.contains(a) && data['clientName']!.contains(b)) ||
+          (data['location']!.contains(b) && data['clientName']!.contains(a))) {
+        return true;
+      }
+
+      // Status + Location/Project/Client combos
+      if (data['status']!.contains(a) &&
+          (data['location']!.contains(b) ||
+              data['projectName']!.contains(b) ||
+              data['clientName']!.contains(b))) {
+        return true;
+      }
+      if (data['status']!.contains(b) &&
+          (data['location']!.contains(a) ||
+              data['projectName']!.contains(a) ||
+              data['clientName']!.contains(a))) {
+        return true;
+      }
+    }
+
+    final phrase = tokens.join(' ');
+    if (data['projectName']!.contains(phrase) ||
+        data['clientName']!.contains(phrase) ||
+        data['location']!.contains(phrase) ||
+        data['status']!.contains(phrase)) {
+      return true;
+    }
+
+    return false;
   }
 
   String _getLeadStatus(Map<String, dynamic> lead) {
@@ -9317,13 +9436,14 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     final approved = _leads
         .where((lead) => _getLeadStatus(lead) == 'Approved')
         .length;
-    final completed = _leads
-        .where(
-          (lead) =>
-              _getLeadStatus(lead) == 'Completed' ||
-              _getLeadStatus(lead) == 'Lost',
-        )
+    // Completed/Lost breakdown
+    final completedOnly = _leads
+        .where((lead) => _getLeadStatus(lead) == 'Completed')
         .length;
+    final lostOnly = _leads
+        .where((lead) => _getLeadStatus(lead) == 'Lost')
+        .length;
+    // final completed = completedOnly + lostOnly;
 
     return Row(
       children: [
@@ -9352,14 +9472,14 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             'Proposal Progress',
             proposalProgress.toString(),
             Icons.pending,
-            Colors.orange,
+            const Color(0xFFFFDA1A),
             'Proposal Progress',
           ),
         ),
         SizedBox(width: 16),
         Expanded(
           child: _buildStatCard(
-            'Waiting Approval',
+            'Waiting For Approval',
             waitingApproval.toString(),
             Icons.schedule,
             Colors.purple,
@@ -9380,7 +9500,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         Expanded(
           child: _buildStatCard(
             'Completed/Lost',
-            completed.toString(),
+            '$completedOnly/$lostOnly',
             Icons.assignment_turned_in,
             Colors.teal,
             'Completed',
@@ -9478,13 +9598,14 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     final approved = _leads
         .where((lead) => _getLeadStatus(lead) == 'Approved')
         .length;
-    final completed = _leads
-        .where(
-          (lead) =>
-              _getLeadStatus(lead) == 'Completed' ||
-              _getLeadStatus(lead) == 'Lost',
-        )
+    // Completed/Lost breakdown
+    final completedOnly = _leads
+        .where((lead) => _getLeadStatus(lead) == 'Completed')
         .length;
+    final lostOnly = _leads
+        .where((lead) => _getLeadStatus(lead) == 'Lost')
+        .length;
+    // final completed = completedOnly + lostOnly;
 
     // Create a list of all stat cards
     final List<Widget> statCards = [
@@ -9506,7 +9627,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         'Progress',
         proposalProgress.toString(),
         Icons.pending,
-        Colors.orange,
+        const Color(0xFFFFDA1A),
         'Proposal Progress',
       ),
       _buildMobileStatCard(
@@ -9525,7 +9646,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       ),
       _buildMobileStatCard(
         'Completed/Lost',
-        completed.toString(),
+        '$completedOnly/$lostOnly',
         Icons.assignment_turned_in,
         Colors.teal,
         'Completed',
@@ -9667,18 +9788,118 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                 onChanged: _onSearch,
               ),
             ),
+            const SizedBox(width: 12),
+            // Filter Star toggle (desktop) 50x50 between search and Under Follow Up
+            Tooltip(
+              message: _starFilterMode == null
+                  ? 'Filter Star : All Leads'
+                  : _starFilterMode == 'unstarred'
+                  ? 'Filter Star: Unmarked star(Unfreezed)'
+                  : _starFilterMode == 'starred'
+                  ? 'Filter Star: marked star (Unfreezed)'
+                  : 'Filter Star: freezed stars',
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    // cycle modes: null -> unstarred -> starred -> frozen -> null
+                    if (_starFilterMode == null) {
+                      _starFilterMode = 'unstarred';
+                    } else if (_starFilterMode == 'unstarred') {
+                      _starFilterMode = 'starred';
+                    } else if (_starFilterMode == 'starred') {
+                      _starFilterMode = 'frozen';
+                    } else {
+                      _starFilterMode = null;
+                    }
+                    _applyFilters();
+                  });
+                },
+                child: Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: _starFilterMode == 'frozen'
+                        ? const Color(0xFFADD8E6).withValues(alpha: 0.15)
+                        : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _starFilterMode == null
+                          ? const Color(0xFF174F8F)
+                          : _starFilterMode == 'frozen'
+                          ? const Color(0xFFADD8E6)
+                          : Colors.amber,
+                      width: 2,
+                    ),
+                  ),
+                  child: Icon(
+                    _starFilterMode == 'unstarred'
+                        ? Icons.star_border
+                        : Icons.star,
+                    color: _starFilterMode == null
+                        ? const Color(0xFF174F8F)
+                        : _starFilterMode == 'frozen'
+                        ? const Color(0xFFADD8E6)
+                        : Colors.amber,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Under Follow Up filter button (desktop)
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: (_selectedStatusFilter == 'Under Follow Up')
+                    ? Colors.orange.withValues(alpha: 0.1)
+                    : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: (_selectedStatusFilter == 'Under Follow Up')
+                      ? Colors.orange
+                      : Colors.grey[300]!,
+                  width: (_selectedStatusFilter == 'Under Follow Up') ? 2 : 1,
+                ),
+              ),
+              child: IconButton(
+                onPressed: () {
+                  setState(() {
+                    _selectedStatusFilter =
+                        _selectedStatusFilter == 'Under Follow Up'
+                        ? null
+                        : 'Under Follow Up';
+                    _applyFilters();
+                  });
+                },
+                icon: const Icon(Icons.track_changes, color: Colors.orange),
+                tooltip:
+                    'Under Follow Up (${_leads.where((l) => _getLeadStatus(l) == 'Under Follow Up').length})',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 50, minHeight: 50),
+              ),
+            ),
             SizedBox(width: 16),
-            // Add New Lead Button
-            ElevatedButton.icon(
-              onPressed: () {
-                _showAddLeadDialog();
-              },
-              icon: Icon(Icons.add),
-              label: Text('Add New Lead'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green[600],
-                foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            // Add New Lead Button (desktop/tablet): 50x50 icon-only with tooltip
+            Tooltip(
+              message: 'Add New Lead',
+              child: Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: Colors.green[600],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: IconButton(
+                  onPressed: () {
+                    _showAddLeadDialog();
+                  },
+                  icon: const Icon(Icons.add, color: Colors.white),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 50,
+                    minHeight: 50,
+                  ),
+                ),
               ),
             ),
           ],
@@ -9701,31 +9922,132 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
         ),
         child: Column(
           children: [
-            // Search Row
-            TextField(
-              decoration: InputDecoration(
-                hintText: 'Search leads...',
-                prefixIcon: Icon(Icons.search, size: 18),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(6),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
+            // Search Row + Under Follow Up toggle
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Search leads...',
+                      prefixIcon: Icon(Icons.search, size: 18),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: BorderSide(color: Colors.blue[600]!),
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                    ),
+                    onChanged: _onSearch,
+                  ),
                 ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(6),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
+                const SizedBox(width: 8),
+                // Filter Star toggle (mobile) 50x50 between search and Under Follow Up
+                Tooltip(
+                  message: _starFilterMode == null
+                      ? 'Filter Star : All Leads'
+                      : _starFilterMode == 'unstarred'
+                      ? 'Filter Star: Unmarked star(Unfreezed)'
+                      : _starFilterMode == 'starred'
+                      ? 'Filter Star: marked star (Unfreezed)'
+                      : 'Filter Star: freezed stars',
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        if (_starFilterMode == null) {
+                          _starFilterMode = 'unstarred';
+                        } else if (_starFilterMode == 'unstarred') {
+                          _starFilterMode = 'starred';
+                        } else if (_starFilterMode == 'starred') {
+                          _starFilterMode = 'frozen';
+                        } else {
+                          _starFilterMode = null;
+                        }
+                        _applyFilters();
+                      });
+                    },
+                    child: Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: _starFilterMode == 'frozen'
+                            ? const Color(0xFFADD8E6).withValues(alpha: 0.2)
+                            : Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _starFilterMode == null
+                              ? const Color(0xFF174F8F)
+                              : _starFilterMode == 'frozen'
+                              ? const Color(0xFFADD8E6)
+                              : Colors.amber,
+                          width: 2,
+                        ),
+                      ),
+                      child: Icon(
+                        _starFilterMode == 'unstarred'
+                            ? Icons.star_border
+                            : Icons.star,
+                        size: 22,
+                        color: _starFilterMode == null
+                            ? const Color(0xFF174F8F)
+                            : _starFilterMode == 'frozen'
+                            ? const Color(0xFFADD8E6)
+                            : Colors.amber,
+                      ),
+                    ),
+                  ),
                 ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(6),
-                  borderSide: BorderSide(color: Colors.blue[600]!),
+                const SizedBox(width: 8),
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: (_selectedStatusFilter == 'Under Follow Up')
+                        ? Colors.orange.withValues(alpha: 0.1)
+                        : Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: (_selectedStatusFilter == 'Under Follow Up')
+                          ? Colors.orange
+                          : Colors.grey[300]!,
+                    ),
+                  ),
+                  child: IconButton(
+                    onPressed: () {
+                      setState(() {
+                        _selectedStatusFilter =
+                            _selectedStatusFilter == 'Under Follow Up'
+                            ? null
+                            : 'Under Follow Up';
+                        _applyFilters();
+                      });
+                    },
+                    icon: const Icon(
+                      Icons.track_changes,
+                      size: 18,
+                      color: Colors.orange,
+                    ),
+                    tooltip:
+                        'Under Follow Up (${_leads.where((l) => _getLeadStatus(l) == 'Under Follow Up').length})',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 40,
+                      minHeight: 40,
+                    ),
+                  ),
                 ),
-                filled: true,
-                fillColor: Colors.grey[50],
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-              ),
-              onChanged: _onSearch,
+              ],
             ),
             SizedBox(height: 8),
             // Add New Lead Button
@@ -9824,7 +10146,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                 Expanded(
                   flex: 2,
                   child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    padding: EdgeInsets.fromLTRB(24, 2, 4, 2),
                     child: Text(
                       'Client/Date',
                       style: TextStyle(fontWeight: FontWeight.bold),
@@ -9838,7 +10160,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                 Expanded(
                   flex: 1,
                   child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    padding: EdgeInsets.fromLTRB(4, 2, 24, 2),
                     child: Text(
                       'Project',
                       style: TextStyle(fontWeight: FontWeight.bold),
@@ -10012,10 +10334,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                   Expanded(
                     flex: 2,
                     child: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 12,
-                      ),
+                      padding: EdgeInsets.fromLTRB(24, 12, 4, 12),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -10053,10 +10372,7 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                   Expanded(
                     flex: 1,
                     child: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 12,
-                      ),
+                      padding: EdgeInsets.fromLTRB(4, 12, 24, 12),
                       child: Text(
                         lead['project_name'] ?? 'N/A',
                         style: TextStyle(
@@ -10261,6 +10577,10 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                               tooltip: 'Star Lead',
                               leadId: leadId,
                               isStarred: lead['starred'] ?? false,
+                              isFrozen:
+                                  _getLeadStatus(lead) != 'Under Follow Up',
+                              disabledTooltip:
+                                  "You Can't able to Marked star now",
                             ),
                           ),
                           SizedBox(width: 2),
@@ -10502,6 +10822,9 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
                             tooltip: 'Star Lead',
                             leadId: leadId,
                             isStarred: lead['starred'] ?? false,
+                            isFrozen: _getLeadStatus(lead) != 'Under Follow Up',
+                            disabledTooltip:
+                                "You Can't able to Marked star now",
                           ),
                           SizedBox(width: 8),
                           _buildMobileInteractiveButton(
@@ -11252,6 +11575,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     bool isAlert = false,
     bool isQuery = false,
     bool isStarred = false,
+    bool isFrozen = false,
+    String? disabledTooltip,
   }) {
     // Determine color based on action type
     Color getActionColor() {
@@ -11280,7 +11605,17 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       }
     }
 
-    final actionColor = getActionColor();
+    final actionColor = isFrozen && tooltip.toLowerCase() == 'star lead'
+        ? const Color(0xFFADD8E6) // Light Blue when frozen
+        : getActionColor();
+    final bool isStarAction = tooltip.toLowerCase() == 'star lead';
+    final String effectiveTooltip = isStarAction
+        ? (isFrozen
+              ? "star freezed , You can't able to marked now"
+              : (isStarred
+                    ? 'Filter Star: marked star (Unfreezed)'
+                    : 'Unmarked star(Unfreezed)'))
+        : tooltip;
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -11300,15 +11635,17 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
             IconButton(
               icon: Icon(
                 tooltip.toLowerCase() == 'star lead'
-                    ? (isStarred ? Icons.star : Icons.star_border)
+                    ? ((isFrozen || isStarred) ? Icons.star : Icons.star_border)
                     : icon,
-                color: _hoveredButtons['$leadId-$tooltip'] == true
-                    ? actionColor
-                    : actionColor.withValues(alpha: 0.7),
+                color: isFrozen && tooltip.toLowerCase() == 'star lead'
+                    ? const Color(0xFFADD8E6)
+                    : (_hoveredButtons['$leadId-$tooltip'] == true
+                          ? actionColor
+                          : actionColor.withValues(alpha: 0.7)),
                 size: 20,
               ),
-              onPressed: onPressed,
-              tooltip: tooltip,
+              onPressed: isFrozen ? null : onPressed,
+              tooltip: effectiveTooltip,
               padding: EdgeInsets.all(8),
               constraints: BoxConstraints(minWidth: 36, minHeight: 36),
               onHover: (isHovered) {
@@ -11864,6 +12201,8 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
     bool isAlert = false,
     bool isQuery = false,
     bool isStarred = false,
+    bool isFrozen = false,
+    String? disabledTooltip,
   }) {
     // Determine color based on action type
     Color getActionColor() {
@@ -11890,7 +12229,15 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
       }
     }
 
-    final actionColor = getActionColor();
+    final actionColor = isFrozen && tooltip.toLowerCase() == 'star lead'
+        ? const Color(0xFFADD8E6)
+        : getActionColor();
+    final bool isStarAction = tooltip.toLowerCase() == 'star lead';
+    final String effectiveTooltip = isStarAction
+        ? (isFrozen
+              ? (disabledTooltip ?? "You Can't able to Marked star now")
+              : (isStarred ? 'unmarked Star Lead' : 'Star Lead'))
+        : tooltip;
 
     return AnimatedContainer(
       duration: Duration(milliseconds: 150),
@@ -11908,15 +12255,17 @@ class _LeadManagementScreenState extends State<LeadManagementScreen> {
           IconButton(
             icon: Icon(
               tooltip.toLowerCase() == 'star lead'
-                  ? (isStarred ? Icons.star : Icons.star_border)
+                  ? ((isFrozen || isStarred) ? Icons.star : Icons.star_border)
                   : icon,
-              color: _hoveredButtons['$leadId-$tooltip'] == true
-                  ? actionColor
-                  : actionColor.withValues(alpha: 0.7),
+              color: isFrozen && tooltip.toLowerCase() == 'star lead'
+                  ? const Color(0xFFADD8E6)
+                  : (_hoveredButtons['$leadId-$tooltip'] == true
+                        ? actionColor
+                        : actionColor.withValues(alpha: 0.7)),
               size: 18,
             ),
-            onPressed: onPressed,
-            tooltip: tooltip,
+            onPressed: isFrozen ? null : onPressed,
+            tooltip: effectiveTooltip,
             padding: EdgeInsets.all(6),
             constraints: BoxConstraints(minWidth: 32, minHeight: 32),
             onHover: (isHovered) {
@@ -14706,7 +15055,7 @@ class SalesDashboardPage extends StatefulWidget {
 class _SalesDashboardPageState extends State<SalesDashboardPage> {
   bool _isSearchExpanded = false;
   final TextEditingController _searchController = TextEditingController();
-  String _selectedTimePeriod = 'Quarter';
+  String _selectedTimePeriod = 'Annual';
   String _selectedCurrency = 'INR';
   String _currentUsername = '';
   bool _isLoading = false;
@@ -14726,8 +15075,14 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
   List<BarChartGroupData> _barChartData = [];
   bool _isLoadingChartData = false;
 
-  // Lead status distribution data state
+  // Lead status distribution data state (counts)
   Map<String, int> _leadStatusDistribution = {
+    'Won': 0,
+    'Lost': 0,
+    'Follow Up': 0,
+  };
+  // Lead status distribution by amount (INR total_amount_gst sum)
+  Map<String, double> _leadStatusAmountDistribution = {
     'Won': 0,
     'Lost': 0,
     'Follow Up': 0,
@@ -15109,7 +15464,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
 
       final response = await client
           .from('admin_response')
-          .select('update_lead_status')
+          .select('update_lead_status,total_amount_gst')
           .eq('sales_user', _currentUsername)
           .gte('updated_at', dateRange['start']!.toIso8601String())
           .lte('updated_at', dateRange['end']!.toIso8601String())
@@ -15128,16 +15483,22 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
   // Process lead status distribution data
   Future<void> _processLeadStatusDistributionData(List<dynamic> data) async {
     Map<String, int> statusCounts = {'Won': 0, 'Lost': 0, 'Follow Up': 0};
+    Map<String, double> statusAmounts = {'Won': 0, 'Lost': 0, 'Follow Up': 0};
 
     for (var record in data) {
       final status = record['update_lead_status'];
       if (status != null && statusCounts.containsKey(status)) {
         statusCounts[status] = (statusCounts[status] ?? 0) + 1;
+        final amt = record['total_amount_gst'];
+        if (amt is num) {
+          statusAmounts[status] = (statusAmounts[status] ?? 0) + amt.toDouble();
+        }
       }
     }
 
     setState(() {
       _leadStatusDistribution = statusCounts;
+      _leadStatusAmountDistribution = statusAmounts;
       _isLoadingLeadStatusData = false;
     });
   }
@@ -15300,13 +15661,13 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
 
   // Build Syncfusion pie chart data
   List<ChartData> _buildSyncfusionPieChartData() {
-    final totalLeads = _leadStatusDistribution.values.fold(
-      0,
-      (sum, count) => sum + count,
+    final totalAmount = _leadStatusAmountDistribution.values.fold(
+      0.0,
+      (sum, amt) => sum + amt,
     );
     final chartData = <ChartData>[];
 
-    if (totalLeads == 0) {
+    if (totalAmount == 0) {
       return chartData;
     }
 
@@ -15316,13 +15677,11 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
       'Follow Up': Colors.orange,
     };
 
-    for (var entry in _leadStatusDistribution.entries) {
-      if (entry.value > 0) {
-        chartData.add(
-          ChartData(entry.key, entry.value.toDouble(), colors[entry.key]!),
-        );
+    _leadStatusAmountDistribution.forEach((status, amount) {
+      if (amount > 0) {
+        chartData.add(ChartData(status, amount, colors[status]!));
       }
-    }
+    });
 
     return chartData;
   }
@@ -16471,7 +16830,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
       case 'Lost':
         return Colors.red;
       case 'Follow Up':
-        return Colors.orange;
+        return const Color(0xFFFFDA1A); // Ikea Yellow for Follow Up
       default:
         return Colors.grey;
     }
@@ -17659,7 +18018,11 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                       ],
                     ),
                   )
-                : _leadStatusDistribution.values.every((count) => count == 0)
+                : _leadStatusAmountDistribution.values.fold(
+                        0.0,
+                        (sum, v) => sum + v,
+                      ) ==
+                      0.0
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -17700,6 +18063,22 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                         child: SizedBox(
                           height: 200.0,
                           child: SfCircularChart(
+                            tooltipBehavior: TooltipBehavior(enable: true),
+                            onTooltipRender: (TooltipArgs args) {
+                              final int index = (args.pointIndex ?? 0).toInt();
+                              final point = args.dataPoints?[index];
+                              final status = point?.x?.toString() ?? '';
+                              final amount = (point?.y is num)
+                                  ? (point?.y as num).toDouble()
+                                  : 0.0;
+                              final total = _leadStatusAmountDistribution.values
+                                  .fold(0.0, (sum, v) => sum + v);
+                              final pct = total > 0
+                                  ? (amount / total * 100)
+                                  : 0.0;
+                              args.text =
+                                  '$status : ${pct.toStringAsFixed(1)}%';
+                            },
                             legend: Legend(isVisible: false),
                             series: <CircularSeries>[
                               PieSeries<ChartData, String>(
@@ -17725,9 +18104,9 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
   }
 
   Widget _buildLegendWithPercentage() {
-    final totalLeads = _leadStatusDistribution.values.fold(
-      0,
-      (sum, count) => sum + count,
+    final totalAmount = _leadStatusAmountDistribution.values.fold(
+      0.0,
+      (sum, amt) => sum + amt,
     );
     final colors = {
       'Won': Colors.green,
@@ -17741,10 +18120,11 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           ..._leadStatusDistribution.entries.map((entry) {
-            if (entry.value == 0) return SizedBox.shrink();
+            final amount = _leadStatusAmountDistribution[entry.key] ?? 0.0;
+            if (amount == 0) return SizedBox.shrink();
 
-            final percentage = totalLeads > 0
-                ? (entry.value / totalLeads * 100).toStringAsFixed(1)
+            final percentage = totalAmount > 0
+                ? (amount / totalAmount * 100).toStringAsFixed(1)
                 : '0.0';
             final color = colors[entry.key] ?? Colors.grey;
 
@@ -17778,7 +18158,7 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
                         ),
                         SizedBox(height: 2),
                         Text(
-                          '$entry.value leads ($percentage%)',
+                          '${_formatRevenueInCrore(amount)} ($percentage%)',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey[600],

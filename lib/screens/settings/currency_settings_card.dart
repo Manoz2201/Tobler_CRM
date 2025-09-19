@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class CurrencySettingsCard extends StatefulWidget {
   final String currentCurrency;
@@ -38,7 +40,7 @@ class _CurrencySettingsCardState extends State<CurrencySettingsCard>
     'SGD': 'S\$',
   };
 
-  final Map<String, double> _exchangeRatesFromINR = const {
+  final Map<String, double> _exchangeRatesFromINR = {
     'USD': 0.012,
     'EUR': 0.011,
     'CHF': 0.00923,
@@ -49,6 +51,10 @@ class _CurrencySettingsCardState extends State<CurrencySettingsCard>
     'CNY': 0.086,
     'SGD': 0.016,
   };
+
+  final Map<String, TextEditingController> _rateControllers = {};
+  final Map<String, bool> _isEditingRate = {};
+  final GlobalKey _exchangeSectionKey = GlobalKey();
 
   // Display settings state
   bool _numberFormatting = true;
@@ -83,12 +89,63 @@ class _CurrencySettingsCardState extends State<CurrencySettingsCard>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _testPositioning();
     });
+
+    // Initialize controllers and load any saved custom rates
+    _initializeRateControllers();
+    _loadCustomRates();
   }
 
   @override
   void dispose() {
+    for (final c in _rateControllers.values) {
+      c.dispose();
+    }
     _animationController.dispose();
     super.dispose();
+  }
+
+  void _initializeRateControllers() {
+    _rateControllers.clear();
+    _exchangeRatesFromINR.forEach((code, rate) {
+      _rateControllers[code] = TextEditingController(text: rate.toString());
+      _isEditingRate[code] = false;
+    });
+  }
+
+  Future<void> _loadCustomRates() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonString = prefs.getString('custom_exchange_rates_v1');
+      if (jsonString == null || jsonString.isEmpty) return;
+      final Map<String, dynamic> decoded = jsonDecode(jsonString);
+      decoded.forEach((code, value) {
+        final parsed = (value is num)
+            ? value.toDouble()
+            : double.tryParse(value.toString());
+        if (parsed != null && _exchangeRatesFromINR.containsKey(code)) {
+          _exchangeRatesFromINR[code] = parsed;
+        }
+      });
+      // Update controllers with loaded values
+      _exchangeRatesFromINR.forEach((code, rate) {
+        _rateControllers[code]?.text = rate.toString();
+      });
+      if (mounted) setState(() {});
+    } catch (e) {
+      debugPrint('Failed to load custom exchange rates: $e');
+    }
+  }
+
+  Future<void> _saveCustomRates() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        'custom_exchange_rates_v1',
+        jsonEncode(_exchangeRatesFromINR),
+      );
+    } catch (e) {
+      debugPrint('Failed to save custom exchange rates: $e');
+    }
   }
 
   @override
@@ -105,54 +162,64 @@ class _CurrencySettingsCardState extends State<CurrencySettingsCard>
           child: Stack(
             children: [
               // Main card
-              Material(
-                elevation: 8,
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  width: 380,
-                  height: 500, // Fixed height to enable scrolling
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey[200]!),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      // Header section
-                      _buildHeader(),
+              GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTapDown: (details) =>
+                    _handleTapOutsideExchangeSection(details.globalPosition),
+                child: Material(
+                  elevation: 8,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    width: 380,
+                    height: 500, // Fixed height to enable scrolling
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey[200]!),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        // Header section
+                        _buildHeader(),
 
-                      // Scrollable content
-                      Expanded(
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: Column(
-                            children: [
-                              // Current currency section
-                              _buildCurrentCurrencySection(),
+                        // Scrollable content
+                        Expanded(
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Column(
+                              children: [
+                                // Current currency section
+                                _buildCurrentCurrencySection(),
 
-                              // Quick pick currencies
-                              _buildQuickPickSection(),
+                                // Quick pick currencies
+                                _buildQuickPickSection(),
 
-                              // Exchange rates section
-                              _buildExchangeRatesSection(),
+                                // Exchange rates section
+                                _buildExchangeRatesSection(),
 
-                              // Display settings section
-                              _buildDisplaySettingsSection(),
-
-                              // Apply button
-                              _buildApplyButton(),
-                            ],
+                                // Display settings section
+                                _buildDisplaySettingsSection(),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                        const Divider(height: 1),
+                        SafeArea(
+                          top: false,
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 12, bottom: 12),
+                            child: _buildApplyButton(),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -219,7 +286,7 @@ class _CurrencySettingsCardState extends State<CurrencySettingsCard>
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Currency Settings',
+              'Set Currency',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
@@ -377,6 +444,7 @@ class _CurrencySettingsCardState extends State<CurrencySettingsCard>
 
   Widget _buildExchangeRatesSection() {
     return Container(
+      key: _exchangeSectionKey,
       margin: const EdgeInsets.fromLTRB(20, 16, 20, 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -397,34 +465,99 @@ class _CurrencySettingsCardState extends State<CurrencySettingsCard>
           ),
           const SizedBox(height: 12),
           ..._exchangeRatesFromINR.entries.map((e) {
+            final code = e.key;
+            final controller = _rateControllers[code]!;
+            final isEditing = _isEditingRate[code] ?? false;
             return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
+              padding: const EdgeInsets.symmetric(vertical: 6),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Text(
-                        _currencySymbols[e.key] ?? e.key,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
+                  SizedBox(
+                    width: 70,
+                    child: Row(
+                      children: [
+                        Text(
+                          _currencySymbols[code] ?? code,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        e.key,
-                        style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                      ),
-                    ],
-                  ),
-                  Text(
-                    e.value.toStringAsFixed(4),
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: Colors.grey[800],
-                      fontSize: 13,
+                        const SizedBox(width: 8),
+                        Text(
+                          code,
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
                     ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Spacer(),
+                  SizedBox(
+                    width: 100,
+                    child: isEditing
+                        ? TextField(
+                            controller: controller,
+                            textAlign: TextAlign.right,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            decoration: InputDecoration(
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: 8,
+                                horizontal: 10,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              hintText: '0.0000',
+                            ),
+                            onChanged: (value) {
+                              final parsed = double.tryParse(value);
+                              if (parsed != null) {
+                                _exchangeRatesFromINR[code] = parsed;
+                              }
+                            },
+                            onEditingComplete: () {
+                              _saveCustomRates();
+                              setState(() {
+                                _isEditingRate[code] = false;
+                              });
+                            },
+                            onSubmitted: (_) {
+                              _saveCustomRates();
+                              setState(() {
+                                _isEditingRate[code] = false;
+                              });
+                            },
+                          )
+                        : GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _isEditingRate[code] = true;
+                              });
+                              // Select all for quick overwrite
+                              controller.selection = TextSelection(
+                                baseOffset: 0,
+                                extentOffset: controller.text.length,
+                              );
+                            },
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: Text(
+                                (_exchangeRatesFromINR[code] ?? 0)
+                                    .toStringAsFixed(4),
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey[800],
+                                ),
+                              ),
+                            ),
+                          ),
                   ),
                 ],
               ),
@@ -433,6 +566,27 @@ class _CurrencySettingsCardState extends State<CurrencySettingsCard>
         ],
       ),
     );
+  }
+
+  void _handleTapOutsideExchangeSection(Offset globalPosition) {
+    try {
+      final ctx = _exchangeSectionKey.currentContext;
+      if (ctx == null) return;
+      final renderBox = ctx.findRenderObject() as RenderBox?;
+      if (renderBox == null) return;
+      final offset = renderBox.localToGlobal(Offset.zero);
+      final size = renderBox.size;
+      final rect = Rect.fromLTWH(offset.dx, offset.dy, size.width, size.height);
+      if (!rect.contains(globalPosition)) {
+        // Clicked outside exchange section: end editing
+        FocusScope.of(ctx).unfocus();
+        setState(() {
+          for (final key in _isEditingRate.keys.toList()) {
+            _isEditingRate[key] = false;
+          }
+        });
+      }
+    } catch (_) {}
   }
 
   Widget _buildDisplaySettingsSection() {
@@ -624,9 +778,10 @@ class _CurrencySettingsCardState extends State<CurrencySettingsCard>
       // Ensure card doesn't go off-screen on left side
       final adjustedLeft = left < 20 ? 20.0 : left;
 
-      // Ensure card doesn't go off-screen on right side
+      // Ensure card doesn't go off-screen on right side, then shift 150px right
       final maxLeft = screenWidth - cardWidth - 20;
-      final finalLeft = adjustedLeft > maxLeft ? maxLeft : adjustedLeft;
+      final shiftedLeft = adjustedLeft + 150.0;
+      final finalLeft = shiftedLeft > maxLeft ? maxLeft : shiftedLeft;
 
       // Ensure card doesn't go off-screen on top/bottom
       final adjustedTop = top < 50
